@@ -1,0 +1,63 @@
+workflows:
+  cake-city-ios:
+    name: Cake City iOS signed IPA
+    instance_type: mac_mini_m2
+    max_build_duration: 120
+    environment:
+      groups:
+        - cakecity_ios
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: ke.co.cakecity.mobile
+      vars:
+        BUNDLE_ID: ke.co.cakecity.mobile
+        NODE_ENV: production
+      node: 22.14.0
+      xcode: 26.4
+      cocoapods: default
+    cache:
+      cache_paths:
+        - $HOME/.npm
+        - $HOME/Library/Caches/CocoaPods
+    scripts:
+      - name: Validate build environment
+        script: |
+          set -e
+          : "${EXPO_PUBLIC_API_URL:?Set EXPO_PUBLIC_API_URL in the cakecity_ios variable group}"
+          : "${EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID:?Set EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID in the cakecity_ios variable group}"
+          : "${EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID:?Set EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID in the cakecity_ios variable group}"
+      - name: Install npm dependencies
+        script: npm ci
+      - name: Validate Expo project
+        script: |
+          npm run typecheck
+          npx expo install --check
+      - name: Generate iOS project
+        script: npx expo prebuild --platform ios --clean --no-install
+      - name: Install CocoaPods dependencies
+        script: |
+          cd ios
+          pod install
+      - name: Discover Xcode workspace and scheme
+        script: |
+          set -e
+          workspace="$(find "$CM_BUILD_DIR/ios" -maxdepth 1 -name '*.xcworkspace' -print -quit)"
+          test -n "$workspace"
+          export WORKSPACE_NAME="$(basename "$workspace" .xcworkspace)"
+          scheme="$(xcodebuild -workspace "$workspace" -list -json | python3 -c 'import json, os, sys; names=json.load(sys.stdin)["workspace"]["schemes"]; expected=os.environ["WORKSPACE_NAME"]; candidates=[name for name in names if not name.startswith("Pods-")]; print(expected if expected in names else candidates[0])')"
+          echo "XCODE_WORKSPACE=$workspace" >> "$CM_ENV"
+          echo "XCODE_SCHEME=$scheme" >> "$CM_ENV"
+      - name: Apply iOS provisioning profiles
+        script: xcode-project use-profiles
+      - name: Build signed IPA
+        script: |
+          xcode-project build-ipa \
+            --workspace "$XCODE_WORKSPACE" \
+            --scheme "$XCODE_SCHEME" \
+            --archive-xcargs "COMPILER_INDEX_STORE_ENABLE=NO CURRENT_PROJECT_VERSION=$BUILD_NUMBER"
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - build/ios/xcarchive/*.xcarchive
+      - /tmp/xcodebuild_logs/*.log
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.app
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.dSYM

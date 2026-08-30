@@ -40,3 +40,12 @@ npm run build:ios:archive
 ```
 
 iOS archive and IPA generation require macOS, Xcode, Apple Developer signing credentials, and the Live Activities Widget Extension target configured in Xcode.
+
+Codemagic signed IPA:
+
+```text
+Workflow: Cake City iOS signed IPA
+Configuration: codemagic.yaml
+```
+
+See `docs/codemagic-ios.md` for GitHub connection, environment variables, and Apple signing setup. The Codemagic workflow builds the main iOS app; the separate Live Activities Widget Extension still requires native Xcode integration.

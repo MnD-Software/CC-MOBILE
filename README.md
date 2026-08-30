@@ -96,3 +96,9 @@ npx expo run:android
   no fake success path.
 
 See `docs/ARCHITECTURE_ASSESSMENT.md` for the system boundary and implementation plan.
+
+## Codemagic iOS
+
+The repository includes a signed iOS IPA workflow in `codemagic.yaml`. Connect this
+GitHub repository to Codemagic and follow `docs/codemagic-ios.md` to configure the
+build variables, Apple distribution certificate and provisioning profile.
