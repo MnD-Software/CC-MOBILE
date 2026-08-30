@@ -1,0 +1,11 @@
+diff --git a/node_modules/expo-modules-core/android/cmake/main.cmake b/node_modules/expo-modules-core/android/cmake/main.cmake
+--- a/node_modules/expo-modules-core/android/cmake/main.cmake
++++ b/node_modules/expo-modules-core/android/cmake/main.cmake
+@@ -60,6 +60,7 @@
+ target_link_libraries(
+   expo-modules-core
+   PRIVATE
++  c++_shared
+   ${LOG_LIB}
+   android
+   ${JSEXECUTOR_LIB}

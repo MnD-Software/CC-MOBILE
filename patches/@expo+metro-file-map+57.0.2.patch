@@ -1,0 +1,24 @@
+diff --git a/node_modules/@expo/metro-file-map/build/Watcher.js b/node_modules/@expo/metro-file-map/build/Watcher.js
+index fc512de..2268a6f 100644
+--- a/node_modules/@expo/metro-file-map/build/Watcher.js
++++ b/node_modules/@expo/metro-file-map/build/Watcher.js
+@@ -21,7 +21,7 @@ const NativeWatcher_1 = __importDefault(require("./watchers/NativeWatcher"));
+ const WatchmanWatcher_1 = __importDefault(require("./watchers/WatchmanWatcher"));
+ const common_1 = require("./watchers/common");
+ const debug = require('debug')('Metro:Watcher');
+-const MAX_WAIT_TIME = 240000;
++const MAX_WAIT_TIME = Number(process.env.METRO_FILE_MAP_MAX_WAIT_TIME) || 240000;
+ let nextInstanceId = 0;
+ class Watcher extends events_1.default {
+     #activeWatcher;
+diff --git a/node_modules/@expo/metro-file-map/build/lib/TreeFS.js b/node_modules/@expo/metro-file-map/build/lib/TreeFS.js
+--- a/node_modules/@expo/metro-file-map/build/lib/TreeFS.js
++++ b/node_modules/@expo/metro-file-map/build/lib/TreeFS.js
+@@ -373,6 +373,6 @@ class TreeFS {
+         const parentDirNode = this.#walkAndMakeDirectories(this.#rootNode, 0, 0, dirname, true, onSegment);
+         if (!parentDirNode.exists) {
+-            throw new Error(`TreeFS: Failed to make parent directory entry for ${mixedPath}`);
++            return;
+         }
+         if (!isDirectory(parentDirNode.node)) {
+             throw new Error(`TreeFS: Could not add directory ${dirname}, adding ${mixedPath}. ` +

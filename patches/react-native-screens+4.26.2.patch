@@ -1,0 +1,43 @@
+diff --git a/node_modules/react-native-screens/android/build.gradle b/node_modules/react-native-screens/android/build.gradle
+--- a/node_modules/react-native-screens/android/build.gradle
++++ b/node_modules/react-native-screens/android/build.gradle
+@@ -191,6 +191,17 @@ repositories {
+     google()
+ }
+ 
++tasks.configureEach { task ->
++    if (task.name.startsWith("lintVital")) {
++        task.enabled = false
++    }
++    if (task.name.startsWith("buildCMake") ||
++            task.name.startsWith("configureCMake") ||
++            task.name.endsWith("NativeLibs")) {
++        task.doNotTrackState("Windows NDK native library outputs can be hardlink/reparse-point files that Gradle cannot snapshot.")
++    }
++}
++
+ dependencies {
+     implementation 'com.facebook.react:react-native:+'
+     implementation 'androidx.appcompat:appcompat:1.7.1'
+diff --git a/node_modules/react-native-screens/android/CMakeLists.txt b/node_modules/react-native-screens/android/CMakeLists.txt
+--- a/node_modules/react-native-screens/android/CMakeLists.txt
++++ b/node_modules/react-native-screens/android/CMakeLists.txt
+@@ -34,6 +34,7 @@
+ target_link_libraries(rnscreens
++    c++_shared
+     ReactAndroid::reactnative
+     ReactAndroid::jsi
+     fbjni::fbjni
+     android
+ )
+diff --git a/node_modules/react-native-screens/android/src/main/jni/CMakeLists.txt b/node_modules/react-native-screens/android/src/main/jni/CMakeLists.txt
+--- a/node_modules/react-native-screens/android/src/main/jni/CMakeLists.txt
++++ b/node_modules/react-native-screens/android/src/main/jni/CMakeLists.txt
+@@ -42,6 +42,7 @@
+ target_link_libraries(
+   ${LIB_TARGET_NAME}
++  c++_shared
+   ReactAndroid::reactnative
+   ReactAndroid::jsi
+   fbjni::fbjni
+ )

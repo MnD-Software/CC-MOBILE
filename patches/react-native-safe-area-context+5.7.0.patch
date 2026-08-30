@@ -1,0 +1,22 @@
+diff --git a/node_modules/react-native-safe-area-context/android/src/main/jni/CMakeLists.txt b/node_modules/react-native-safe-area-context/android/src/main/jni/CMakeLists.txt
+--- a/node_modules/react-native-safe-area-context/android/src/main/jni/CMakeLists.txt
++++ b/node_modules/react-native-safe-area-context/android/src/main/jni/CMakeLists.txt
+@@ -31,8 +31,9 @@
+ # https://github.com/react-native-community/discussions-and-proposals/discussions/816
+ # This if-then-else can be removed once this library does not support version below 0.76
+ if (REACTNATIVE_MERGED_SO)
+   target_link_libraries(
+           ${LIB_TARGET_NAME}
++          c++_shared
+           fbjni
+           jsi
+           reactnative
+@@ -41,7 +42,8 @@
+ else()
+   target_link_libraries(
+           ${LIB_TARGET_NAME}
++          c++_shared
+           fbjni
+           folly_runtime
+           glog
+           jsi

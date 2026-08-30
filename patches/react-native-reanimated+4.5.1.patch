@@ -1,0 +1,28 @@
+diff --git a/node_modules/react-native-reanimated/android/CMakeLists.txt b/node_modules/react-native-reanimated/android/CMakeLists.txt
+--- a/node_modules/react-native-reanimated/android/CMakeLists.txt
++++ b/node_modules/react-native-reanimated/android/CMakeLists.txt
+@@ -109,8 +109,9 @@
+ target_link_libraries(
+   reanimated
++  c++_shared
+   log
+   ReactAndroid::reactnative
+   ReactAndroid::jsi
+   fbjni::fbjni
+   android
+   react-native-worklets::worklets)
+diff --git a/node_modules/react-native-reanimated/android/build.gradle.kts b/node_modules/react-native-reanimated/android/build.gradle.kts
+--- a/node_modules/react-native-reanimated/android/build.gradle.kts
++++ b/node_modules/react-native-reanimated/android/build.gradle.kts
+@@ -344,5 +344,10 @@ tasks.named("preBuild") { dependsOn("prepareReanimatedHeadersForPrefabs") }
+ // Workaround for AGP 9 + Kotlin 2.x lint K2 UAST crash on .gradle.kts build scripts.
+ // See: https://issuetracker.google.com/issues/432144179
+-tasks.configureEach { if (name.startsWith("lintVital")) enabled = false }
++tasks.configureEach {
++    if (name.startsWith("lintVital")) enabled = false
++    if (name.startsWith("buildCMake") || name.startsWith("configureCMake") || name.endsWith("NativeLibs")) {
++        doNotTrackState("Windows NDK native library outputs can be hardlink/reparse-point files that Gradle cannot snapshot.")
++    }
++}
+ 
+ if (project != rootProject) {

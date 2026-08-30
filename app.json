@@ -1,25 +1,52 @@
 {
   "expo": {
-    "name": "CakeCity-Mobile-App",
-    "slug": "CakeCity-Mobile-App",
-    "version": "1.0.0",
+    "name": "Cake City",
+    "slug": "cake-city-mobile",
+    "scheme": "cakecity",
+    "version": "0.1.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/cake-city-app-icon.png",
     "userInterfaceStyle": "light",
+    "backgroundColor": "#FFF7FB",
+    "primaryColor": "#EC008C",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "ke.co.cakecity.mobile",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSSupportsLiveActivities": true,
+        "NSSupportsLiveActivitiesFrequentUpdates": true
+      }
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "backgroundColor": "#FFF7FB",
+        "foregroundImage": "./assets/cake-city-icon-foreground.png"
       },
-      "predictiveBackGestureEnabled": false
+      "versionCode": 1,
+      "predictiveBackGestureEnabled": false,
+      "package": "ke.co.cakecity.mobile"
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "@react-native-google-signin/google-signin",
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#FFF7FB",
+          "image": "./assets/cake-city-splash.png",
+          "imageWidth": 260,
+          "resizeMode": "contain"
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
     }
   }
 }
