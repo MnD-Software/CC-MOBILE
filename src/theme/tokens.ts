@@ -1,44 +1,44 @@
 /**
  * Shared visual primitives for the native Cake City experience.
  *
- * Design language: "Aurora Candy Glass" — a vivid magenta/violet/cyan spectrum
- * poured over frosted-glass surfaces. Screens and reusable components should
- * consume these semantic values instead of introducing one-off colours,
- * spacing, or elevation rules.
+ * Design language: the warm white, blush and Cake City magenta system from
+ * the approved five-screen storefront reference. Screens and reusable
+ * components should consume these semantic values instead of introducing
+ * one-off colours, spacing, or elevation rules.
  */
 export const tokens = {
   color: {
-    // Canvas & surfaces — cool violet-tinted whites that float over the aurora backdrop
-    background: '#FFF8FB',
+    // Canvas & surfaces
+    background: '#FFFCFA',
     surface: '#FFFFFF',
     surfaceRaised: '#FFFFFF',
-    surfaceTint: '#FFF0F5',
+    surfaceTint: '#FFF2F6',
     white: '#FFFFFF',
 
-    // Text — deep violet ink family
-    ink: '#25171D',
-    cocoa: '#542B38',
-    muted: '#79666D',
-    mutedSoft: '#A18F96',
+    // Text
+    ink: '#281920',
+    cocoa: '#51382D',
+    muted: '#78646B',
+    mutedSoft: '#A08C93',
 
     // Lines
-    border: '#F1DFE7',
-    borderStrong: '#E8C6D4',
+    border: '#EEE5E0',
+    borderStrong: '#E8C2D1',
 
-    // Brand — electric magenta
-    brand: '#F70B72',
-    brandStrong: '#D90C61',
-    brandPressed: '#B50850',
-    brandDark: '#89063D',
-    brandLight: '#FFE3EE',
+    // Brand
+    brand: '#EC008C',
+    brandStrong: '#B9006F',
+    brandPressed: '#98005B',
+    brandDark: '#750047',
+    brandLight: '#FFE5EF',
 
-    // Supporting spectrum
+    // Supporting accents are used sparingly so the catalogue remains pink-led.
     violet: '#8B4562',
     violetStrong: '#6F304A',
     violetLight: '#F5E8ED',
-    accent: '#3D8B7D',
-    accentStrong: '#236B60',
-    accentLight: '#E3F3EF',
+    accent: '#00AEEF',
+    accentStrong: '#006C94',
+    accentLight: '#EAF8FE',
     sunshine: '#E8A323',
     sunshineStrong: '#A96B00',
     sunshineLight: '#FFF3D7',
@@ -61,7 +61,7 @@ export const tokens = {
     /** Primary actions: hot magenta → electric purple */
     primary: ['#F70B72', '#C90859'],
     /** Cool counterpoint: cyan → periwinkle */
-    cool: ['#3D8B7D', '#70B8A8'],
+    cool: ['#00AEEF', '#70B8A8'],
     /** Rewards & gold moments */
     gold: ['#FFC53D', '#FF8A00'],
     /** Full-screen aurora canvas behind glass surfaces */

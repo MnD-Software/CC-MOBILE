@@ -25,6 +25,7 @@ export type PremiumSheetProduct = StorefrontCarouselProduct & {
   reviewCount?: number;
   onSale?: boolean;
   options?: Array<{ name: string; values: string[] }>;
+  categories?: string[];
 };
 
 export type PremiumProductSelection = {
@@ -42,6 +43,7 @@ export type PremiumProductSheetProps<
   loading?: boolean;
   onClose: () => void;
   onAddToBag: (product: TProduct, selection: PremiumProductSelection) => void;
+  onRelatedProductAdd?: (product: TProduct) => void;
   onRelatedProductPress: (product: TProduct) => void;
   addLabel?: string;
   bottomInset?: number;
@@ -65,6 +67,21 @@ const defaultOptionGroups = [
   { name: 'Size', values: ['1 Kg', '1.5 Kg', '2 Kg'] },
   { name: 'Flavor', values: ['Chocolate', 'Vanilla', 'Red Velvet'] },
 ];
+
+function isPartyAccessory(product: PremiumSheetProduct) {
+  const searchable = `${product.name} ${(product.categories ?? []).join(' ')}`;
+  return /party|accessor|candle|topper|balloon|gift/i.test(searchable);
+}
+
+function productCustomizationGroups(product?: PremiumSheetProduct | null) {
+  if (!product) return [];
+  const productGroups = (product.options ?? [])
+    .filter(option => option.name && option.values.length)
+    .slice(0, 2)
+    .map(option => ({ ...option, values: option.values.slice(0, 4) }));
+
+  return isPartyAccessory(product) ? productGroups : defaultOptionGroups;
+}
 
 function productName(product: PremiumSheetProduct) {
   return product.name.trim() || 'Product name unavailable';
@@ -98,6 +115,42 @@ function SheetImageFallback({ label, compact = false }: { label: string; compact
         <View style={styles.fallbackLineLong} />
       </View>
       {!compact ? <Text style={styles.imageFallbackText}>Image unavailable</Text> : null}
+    </View>
+  );
+}
+
+function RelatedProductArtwork({
+  imageUri,
+  name,
+  productId,
+  reduceMotionEnabled,
+}: {
+  imageUri: string | null;
+  name: string;
+  productId: string;
+  reduceMotionEnabled: boolean;
+}) {
+  const [imageFailed, setImageFailed] = useState(false);
+
+  useEffect(() => setImageFailed(false), [imageUri]);
+
+  return (
+    <View style={styles.relatedImageFrame}>
+      {imageUri && !imageFailed ? (
+        <Image
+          accessible={false}
+          cachePolicy="memory-disk"
+          contentFit="cover"
+          contentPosition="center"
+          onError={() => setImageFailed(true)}
+          recyclingKey={`${productId}:${imageUri}`}
+          source={{ uri: imageUri }}
+          style={styles.relatedImage}
+          transition={reduceMotionEnabled ? 0 : 140}
+        />
+      ) : (
+        <SheetImageFallback compact label={`${name} image unavailable`} />
+      )}
     </View>
   );
 }
@@ -138,6 +191,7 @@ export function PremiumProductSheet<
   loading = false,
   onClose,
   onAddToBag,
+  onRelatedProductAdd,
   onRelatedProductPress,
   addLabel = 'Add to Cart',
   bottomInset = 0,
@@ -199,8 +253,8 @@ export function PremiumProductSheet<
 
   useEffect(() => {
     setMainImageFailed(false);
-    const groups = (product?.options ?? []).filter(option => option.name && option.values.length);
-    setSelectedOptions(Object.fromEntries((groups.length ? groups : defaultOptionGroups).map(option => [option.name, option.values[0] ?? ''])));
+    const groups = productCustomizationGroups(product);
+    setSelectedOptions(Object.fromEntries(groups.map(option => [option.name, option.values[0] ?? ''])));
     setCakeMessage('');
     setQuantity(1);
     setFavourite(false);
@@ -244,8 +298,7 @@ export function PremiumProductSheet<
       : 0;
     const isBestseller = (averageRating !== null && averageRating >= 4.5 && reviewCount >= 20)
       || /chocolate|fudge|black forest|red velvet/i.test(name);
-    const optionGroups = (product.options ?? []).filter(option => option.name && option.values.length);
-    const customizationGroups = optionGroups.length ? optionGroups : defaultOptionGroups;
+    const customizationGroups = productCustomizationGroups(product);
 
     return (
       <>
@@ -260,7 +313,7 @@ export function PremiumProductSheet<
               <Image
                 accessibilityLabel={`${name} product image`}
                 cachePolicy="memory-disk"
-                contentFit="contain"
+                contentFit="cover"
                 contentPosition="center"
                 onError={() => setMainImageFailed(true)}
                 recyclingKey={`${String(product.id)}:${imageUri}`}
@@ -348,11 +401,6 @@ export function PremiumProductSheet<
               <Ionicons name="chevron-forward" size={15} color={tokens.color.mutedSoft} />
             </View>
 
-            <View style={styles.descriptionBlock}>
-              <Text style={styles.descriptionTitle}>{descriptionTitle}</Text>
-              <Text numberOfLines={4} style={[styles.description, !description && styles.descriptionUnavailable]}>{description || descriptionUnavailableLabel}</Text>
-            </View>
-
             {filteredRelatedProducts.length ? (
               <View style={styles.relatedSection}>
                 <Text style={styles.sectionTitle}>{relatedTitle}</Text>
@@ -368,48 +416,54 @@ export function PremiumProductSheet<
                     const hasRelatedPrice = validPrice(relatedPrice);
                     const relatedPriceLabel = hasRelatedPrice ? formatPrice(relatedPrice) : priceUnavailableLabel;
                     const relatedImageUri = related.image?.trim() || null;
-                    const imageKey = `${String(related.id)}:${relatedImageUri ?? ''}`;
 
                     return (
-                      <Pressable
-                        key={String(related.id)}
-                        accessibilityRole="button"
-                        accessibilityLabel={`${relatedName}, ${relatedPriceLabel}`}
-                        accessibilityHint="Opens these product details"
-                        onPress={() => onRelatedProductPress(related)}
-                        style={({ pressed }) => [styles.relatedCard, pressed && styles.relatedCardPressed]}
-                      >
-                        <View style={styles.relatedImageFrame}>
-                          {relatedImageUri ? (
-                            <Image
-                              accessible={false}
-                              cachePolicy="memory-disk"
-                              contentFit="contain"
-                              contentPosition="center"
-                              recyclingKey={imageKey}
-                              source={{ uri: relatedImageUri }}
-                              style={styles.relatedImage}
-                              transition={reduceMotionEnabled ? 0 : 140}
-                            />
-                          ) : (
-                            <SheetImageFallback compact label={`${relatedName} image unavailable`} />
-                          )}
-                        </View>
-                        <View style={styles.relatedBody}>
-                          <Text numberOfLines={2} style={styles.relatedName}>{relatedName}</Text>
-                          <Text
-                            numberOfLines={1}
-                            style={[styles.relatedPrice, !hasRelatedPrice && styles.relatedPriceUnavailable]}
+                      <View key={String(related.id)} style={styles.relatedCard}>
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={`${relatedName}, ${relatedPriceLabel}`}
+                          accessibilityHint="Opens these product details"
+                          onPress={() => onRelatedProductPress(related)}
+                          style={({ pressed }) => [styles.relatedCardAction, pressed && styles.relatedCardPressed]}
+                        >
+                          <RelatedProductArtwork
+                            imageUri={relatedImageUri}
+                            name={relatedName}
+                            productId={String(related.id)}
+                            reduceMotionEnabled={reduceMotionEnabled}
+                          />
+                          <View style={[styles.relatedBody, onRelatedProductAdd && styles.relatedBodyWithAdd]}>
+                            <Text numberOfLines={2} style={styles.relatedName}>{relatedName}</Text>
+                            <Text
+                              numberOfLines={1}
+                              style={[styles.relatedPrice, !hasRelatedPrice && styles.relatedPriceUnavailable]}
+                            >
+                              {relatedPriceLabel}
+                            </Text>
+                          </View>
+                        </Pressable>
+                        {onRelatedProductAdd && hasRelatedPrice && related.available !== false ? (
+                          <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel={`Add ${relatedName} to bag`}
+                            hitSlop={4}
+                            onPress={() => onRelatedProductAdd(related)}
+                            style={({ pressed }) => [styles.relatedAddButton, pressed && styles.relatedAddButtonPressed]}
                           >
-                            {relatedPriceLabel}
-                          </Text>
-                        </View>
-                      </Pressable>
+                            <Ionicons name="add" size={16} color={tokens.color.white} />
+                          </Pressable>
+                        ) : null}
+                      </View>
                     );
                   })}
                 </ScrollView>
               </View>
             ) : null}
+
+            <View style={styles.descriptionBlock}>
+              <Text style={styles.descriptionTitle}>{descriptionTitle}</Text>
+              <Text numberOfLines={4} style={[styles.description, !description && styles.descriptionUnavailable]}>{description || descriptionUnavailableLabel}</Text>
+            </View>
           </View>
         </ScrollView>
 
@@ -562,7 +616,6 @@ const styles = StyleSheet.create({
     position: 'relative',
     height: 292,
     overflow: 'hidden',
-    padding: 10,
     backgroundColor: '#FADCE7',
   },
   mainImage: { width: '100%', height: '100%' },
@@ -625,6 +678,7 @@ const styles = StyleSheet.create({
   relatedSection: { marginTop: 18 },
   relatedRail: { gap: 10, paddingTop: 10, paddingRight: tokens.space.lg, paddingBottom: 4 },
   relatedCard: {
+    position: 'relative',
     width: 132,
     overflow: 'hidden',
     borderWidth: 1,
@@ -632,13 +686,17 @@ const styles = StyleSheet.create({
     borderRadius: tokens.radius.lg,
     backgroundColor: tokens.color.surface,
   },
+  relatedCardAction: { flex: 1 },
   relatedCardPressed: { opacity: 0.8, transform: [{ scale: 0.98 }] },
   relatedImageFrame: { height: 92, backgroundColor: tokens.color.surfaceTint },
   relatedImage: { width: '100%', height: '100%' },
   relatedBody: { minHeight: 76, padding: 9 },
+  relatedBodyWithAdd: { paddingRight: 39 },
   relatedName: { minHeight: 34, fontSize: 11.5, lineHeight: 16, fontWeight: '800', color: tokens.color.ink },
   relatedPrice: { marginTop: 5, fontSize: 11.5, lineHeight: 16, fontWeight: '900', color: tokens.color.brandStrong },
   relatedPriceUnavailable: { fontSize: 10, color: tokens.color.muted },
+  relatedAddButton: { position: 'absolute', right: 8, bottom: 8, width: 28, height: 28, alignItems: 'center', justifyContent: 'center', borderRadius: 9, backgroundColor: tokens.color.brandStrong },
+  relatedAddButtonPressed: { opacity: 0.8, transform: [{ scale: 0.94 }] },
   purchaseFooter: {
     flexDirection: 'row',
     alignItems: 'center',

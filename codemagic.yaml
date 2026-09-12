@@ -12,6 +12,7 @@ workflows:
       vars:
         BUNDLE_ID: ke.co.cakecity.mobile
         NODE_ENV: production
+        CAKECITY_BUILD_PROFILE: production
       node: 22.14.0
       xcode: 26.4
       cocoapods: default
@@ -24,13 +25,15 @@ workflows:
         script: |
           set -e
           : "${EXPO_PUBLIC_API_URL:?Set EXPO_PUBLIC_API_URL in the cakecity_ios variable group}"
-          : "${EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID:?Set EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID in the cakecity_ios variable group}"
-          : "${EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID:?Set EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID in the cakecity_ios variable group}"
+          : "${EXPO_PUBLIC_EAS_PROJECT_ID:?Set EXPO_PUBLIC_EAS_PROJECT_ID in the cakecity_ios variable group}"
       - name: Install npm dependencies
-        script: npm ci
+        script: npm ci --include=dev
       - name: Validate Expo project
         script: |
+          set -e
+          npm run release:check
           npm run typecheck
+          npm test
           npx expo install --check
       - name: Generate iOS project
         script: npx expo prebuild --platform ios --clean --no-install

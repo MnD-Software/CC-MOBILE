@@ -228,7 +228,7 @@ export function PremiumProductCarousel<
             <Image
               accessibilityLabel={`${name} product image`}
               cachePolicy="memory-disk"
-              contentFit="contain"
+              contentFit="cover"
               contentPosition="center"
               onError={() => markImageFailed(imageKey)}
               recyclingKey={imageKey}

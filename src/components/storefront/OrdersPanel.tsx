@@ -40,13 +40,6 @@ export type OrdersPanelProps = {
 
 type OrderView = 'upcoming' | 'past';
 
-const trackerSteps = [
-  { label: 'Order Placed', icon: 'receipt-outline' as const },
-  { label: 'Being Prepared', icon: 'restaurant-outline' as const },
-  { label: 'Out for Delivery', icon: 'bicycle-outline' as const },
-  { label: 'Delivered', icon: 'checkmark' as const },
-];
-
 function readableLabel(value: string): string {
   const normalized = value.trim().replace(/[-_]+/g, ' ').replace(/\s+/g, ' ');
   return normalized ? normalized.replace(/\b\w/g, letter => letter.toUpperCase()) : 'Processing';
@@ -70,16 +63,7 @@ function isPastOrder(order: CustomerOrderSummary) {
   return /delivered|completed|cancelled|canceled|refunded/i.test(order.status);
 }
 
-function orderProgress(status: string) {
-  const value = status.toLowerCase();
-  if (/delivered|completed/.test(value)) return 4;
-  if (/out.for.delivery|dispatch|shipped/.test(value)) return 3;
-  if (/baking|prepar|process/.test(value)) return 2;
-  return 1;
-}
-
 function UpcomingOrder({ order, onPress }: { order: CustomerOrderSummary; onPress?: (order: CustomerOrderSummary) => void }) {
-  const progress = orderProgress(order.status);
   const cakeName = order.cakeName ?? order.itemSummary ?? 'Cake City celebration order';
   return (
     <View style={styles.activeOrder}>
@@ -94,7 +78,7 @@ function UpcomingOrder({ order, onPress }: { order: CustomerOrderSummary; onPres
       <View style={styles.orderItem}>
         <View style={styles.itemThumb}>
           {order.imageUrl ? (
-            <Image source={{ uri: order.imageUrl }} cachePolicy="memory-disk" contentFit="contain" style={styles.itemImage} />
+            <Image source={{ uri: order.imageUrl }} cachePolicy="memory-disk" contentFit="cover" style={styles.itemImage} />
           ) : (
             <Ionicons name="storefront-outline" size={22} color={tokens.color.brandStrong} />
           )}
@@ -113,23 +97,7 @@ function UpcomingOrder({ order, onPress }: { order: CustomerOrderSummary; onPres
           <Text style={styles.deliveryValue}>{formatDate(order.deliverySlot, true)}</Text>
           {order.branchName ? <Text style={styles.deliveryBranch}>{order.branchName}</Text> : null}
         </View>
-        <Pressable accessibilityRole="button" style={styles.viewDetails} onPress={() => onPress?.(order)}>
-          <Text style={styles.viewDetailsText}>View Details</Text>
-        </Pressable>
-      </View>
-
-      <View style={styles.tracker}>
-        {trackerSteps.map((step, index) => {
-          const complete = index < progress;
-          return (
-            <View key={step.label} style={styles.trackerStep}>
-              {index < trackerSteps.length - 1 ? <View style={[styles.trackerLine, complete && index < progress - 1 && styles.trackerLineActive]} /> : null}
-              <View style={[styles.trackerDot, complete && styles.trackerDotActive]}>
-                <Ionicons name={step.icon} size={13} color={complete ? tokens.color.white : tokens.color.mutedSoft} />
-              </View>
-            </View>
-          );
-        })}
+        <Ionicons name="chevron-forward" size={15} color={tokens.color.brandStrong} />
       </View>
 
       <View style={styles.orderFooter}>
@@ -150,7 +118,7 @@ function PastOrder({ order, onPress }: { order: CustomerOrderSummary; onPress?: 
     <Pressable accessibilityRole={onPress ? 'button' : undefined} disabled={!onPress} style={styles.pastOrder} onPress={() => onPress?.(order)}>
       <View style={styles.itemThumb}>
         {order.imageUrl ? (
-          <Image source={{ uri: order.imageUrl }} cachePolicy="memory-disk" contentFit="contain" style={styles.itemImage} />
+          <Image source={{ uri: order.imageUrl }} cachePolicy="memory-disk" contentFit="cover" style={styles.itemImage} />
         ) : (
           <Ionicons name="checkmark-circle-outline" size={23} color={tokens.color.success} />
         )}
@@ -202,43 +170,35 @@ export function OrdersPanel({ authenticated, content, onSignIn, onShop, onRetry,
 
 const styles = StyleSheet.create({
   container: { width: '100%' },
-  segmented: { height: 40, flexDirection: 'row', padding: 3, marginBottom: 14, borderRadius: 10, backgroundColor: '#F7E9EF' },
-  segment: { flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 8 },
+  segmented: { height: 38, flexDirection: 'row', padding: 3, marginBottom: 12, borderRadius: 9, backgroundColor: '#F7E9EF' },
+  segment: { flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 7 },
   segmentActive: { backgroundColor: tokens.color.surface, ...tokens.shadow.card },
   segmentText: { color: tokens.color.muted, fontSize: 10.5, lineHeight: 14, fontWeight: '800' },
   segmentTextActive: { color: tokens.color.brandStrong, fontWeight: '900' },
-  orderList: { gap: 12 },
-  activeOrder: { padding: 13, borderRadius: 12, borderWidth: 1, borderColor: tokens.color.border, backgroundColor: tokens.color.surface, ...tokens.shadow.card },
+  orderList: { gap: 10 },
+  activeOrder: { padding: 12, borderRadius: 8, borderWidth: 1, borderColor: tokens.color.border, backgroundColor: tokens.color.surface, ...tokens.shadow.card },
   activeOrderTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 },
   orderNumber: { color: tokens.color.ink, fontSize: 11, lineHeight: 15, fontWeight: '900' },
   orderDate: { marginTop: 2, color: tokens.color.muted, fontSize: 8.5, lineHeight: 12 },
-  statusPill: { minHeight: 24, justifyContent: 'center', paddingHorizontal: 9, borderRadius: 8, backgroundColor: tokens.color.brandLight },
+  statusPill: { minHeight: 23, justifyContent: 'center', paddingHorizontal: 8, borderRadius: 7, backgroundColor: tokens.color.brandLight },
   statusPillText: { color: tokens.color.brandStrong, fontSize: 8.5, lineHeight: 11, fontWeight: '900' },
-  deliveryBanner: { minHeight: 58, flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 11, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10, backgroundColor: '#FFF1F6' },
-  deliveryIcon: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: tokens.color.surface },
+  deliveryBanner: { minHeight: 54, flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 9, paddingHorizontal: 9, paddingVertical: 7, borderRadius: 8, backgroundColor: '#FFF1F6' },
+  deliveryIcon: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center', borderRadius: 8, backgroundColor: tokens.color.surface },
   deliveryCopy: { flex: 1 },
   deliveryLabel: { color: tokens.color.muted, fontSize: 8.5, lineHeight: 11 },
   deliveryValue: { marginTop: 2, color: tokens.color.ink, fontSize: 10.5, lineHeight: 14, fontWeight: '900' },
   deliveryBranch: { marginTop: 2, color: tokens.color.brandStrong, fontSize: 8.5, lineHeight: 11, fontWeight: '800' },
-  tracker: { flexDirection: 'row', marginTop: 14, marginBottom: 4 },
-  trackerStep: { flex: 1, alignItems: 'center' },
-  trackerLine: { position: 'absolute', left: '50%', right: '-50%', top: 13, height: 2, backgroundColor: tokens.color.border },
-  trackerLineActive: { backgroundColor: tokens.color.brandStrong },
-  trackerDot: { zIndex: 1, width: 27, height: 27, alignItems: 'center', justifyContent: 'center', borderRadius: 14, backgroundColor: '#E7DCE1' },
-  trackerDotActive: { backgroundColor: tokens.color.brandStrong },
-  trackerLabel: { maxWidth: 70, marginTop: 5, color: tokens.color.mutedSoft, fontSize: 7.5, lineHeight: 10, textAlign: 'center' },
-  trackerLabelActive: { color: tokens.color.ink, fontWeight: '800' },
-  orderItem: { minHeight: 80, flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12, paddingVertical: 10, borderTopWidth: 1, borderBottomWidth: 1, borderColor: tokens.color.border },
-  itemThumb: { width: 58, height: 58, flexShrink: 0, alignItems: 'center', justifyContent: 'center', borderRadius: 10, overflow: 'hidden', backgroundColor: '#FFF0F5' },
+  orderItem: { minHeight: 75, flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 10, paddingVertical: 9, borderTopWidth: 1, borderBottomWidth: 1, borderColor: tokens.color.border },
+  itemThumb: { width: 55, height: 55, flexShrink: 0, alignItems: 'center', justifyContent: 'center', borderRadius: 8, overflow: 'hidden', backgroundColor: '#FFF0F5' },
   itemImage: { width: '100%', height: '100%' },
   itemCopy: { flex: 1, minWidth: 0 },
   itemName: { color: tokens.color.ink, fontSize: 11.5, lineHeight: 15, fontWeight: '900' },
   itemMeta: { marginTop: 3, color: tokens.color.muted, fontSize: 8.5, lineHeight: 11 },
   itemPrice: { maxWidth: 85, color: tokens.color.ink, fontSize: 9.5, lineHeight: 13, fontWeight: '900', textAlign: 'right' },
-  orderFooter: { minHeight: 42, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingTop: 10 },
+  orderFooter: { minHeight: 38, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingTop: 8 },
   totalText: { color: tokens.color.muted, fontSize: 9.5, lineHeight: 13 },
   totalValue: { color: tokens.color.ink, fontWeight: '900' },
-  viewDetails: { minHeight: 34, flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 10, borderRadius: 8, borderWidth: 1, borderColor: tokens.color.border },
+  viewDetails: { minHeight: 32, flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 9, borderRadius: 7, borderWidth: 1, borderColor: tokens.color.border },
   viewDetailsText: { color: tokens.color.brandStrong, fontSize: 8.5, lineHeight: 11, fontWeight: '900' },
-  pastOrder: { minHeight: 70, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 11, borderRadius: 11, borderWidth: 1, borderColor: tokens.color.border, backgroundColor: tokens.color.surface },
+  pastOrder: { minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, borderRadius: 8, borderWidth: 1, borderColor: tokens.color.border, backgroundColor: tokens.color.surface },
 });

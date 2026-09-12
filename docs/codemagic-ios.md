@@ -14,11 +14,12 @@ Create a Codemagic application variable group named `cakecity_ios` with these va
 
 ```text
 EXPO_PUBLIC_API_URL=https://your-production-api.example
+EXPO_PUBLIC_EAS_PROJECT_ID=<real-eas-project-uuid>
 EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=<google-web-client-id>
 EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=<google-ios-client-id>
 ```
 
-The API URL must be reachable from a real iPhone. The workflow derives Google's required iOS callback URL scheme from the iOS client ID, so no Google secret or generated plist is committed to GitHub.
+Use the real HTTPS API root instead of the example above; production validation rejects example hosts. The API must be reachable from a real iPhone. Google client IDs are optional until Google login is enabled. The workflow derives Google's required iOS callback URL scheme from the iOS client ID, so no Google secret or generated plist is committed to GitHub.
 
 ## Configure Apple signing
 

@@ -22,10 +22,7 @@ type FuturisticTabBarProps<T extends string> = {
   bottomInset?: number;
 };
 
-/**
- * Floating frosted-glass dock with a neon gradient capsule on the active tab.
- * Detached from the screen edge so content scrolls visibly beneath it.
- */
+/** Reference-aligned five-item storefront navigation with native safe-area padding. */
 export function FuturisticTabBar<T extends string>({
   tabs,
   activeId,
@@ -36,7 +33,7 @@ export function FuturisticTabBar<T extends string>({
   return (
     <View
       pointerEvents="box-none"
-      style={[styles.dockLayer, { paddingBottom: Math.max(bottomInset, 8) }]}
+      style={[styles.dockLayer, { paddingBottom: Math.max(bottomInset, 5) }]}
     >
       <GlassSurface
         blurTarget={blurTarget}
@@ -80,46 +77,50 @@ export function FuturisticTabBar<T extends string>({
 const styles = StyleSheet.create({
   dockLayer: {
     position: 'absolute',
-    left: 14,
-    right: 14,
-    bottom: 10,
+    left: 0,
+    right: 0,
+    bottom: 0,
     zIndex: 20,
+    backgroundColor: '#FFFFFFF7',
   },
   dock: {
-    borderRadius: 24,
-    borderColor: '#FFFFFFF2',
-    backgroundColor: '#FFFFFFE8',
-    shadowColor: '#542B38',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.16,
-    shadowRadius: 22,
-    elevation: 10,
+    borderRadius: 0,
+    borderWidth: 0,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: tokens.color.borderStrong,
+    backgroundColor: '#FFFFFFF7',
+    shadowColor: '#5D263C',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 8,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 7,
-    paddingVertical: 7,
+    paddingHorizontal: 5,
+    paddingTop: 5,
+    paddingBottom: 3,
   },
   tab: {
     flex: 1,
     minWidth: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 57,
-    paddingVertical: 3,
+    minHeight: 52,
+    paddingVertical: 2,
   },
   iconSlot: {
-    width: 39,
-    height: 31,
+    width: 36,
+    height: 27,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  iconSlotActive: { borderRadius: 14, backgroundColor: tokens.color.brandLight },
+  iconSlotActive: { borderRadius: 9, backgroundColor: tokens.color.brandLight },
   label: {
-    marginTop: 3,
-    fontSize: 10,
-    lineHeight: 13,
+    marginTop: 2,
+    fontSize: 9,
+    lineHeight: 12,
     fontWeight: '800',
     color: tokens.color.mutedSoft,
     letterSpacing: 0,

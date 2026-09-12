@@ -39,3 +39,10 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+.rebuild-backup/
+.build-work/
+artifacts/
+*.log
+google-services.json
+GoogleService-Info.plist

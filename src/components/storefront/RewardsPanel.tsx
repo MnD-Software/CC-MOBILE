@@ -79,7 +79,7 @@ function RewardCard({ reward, onPress }: { reward: CustomerRewardOffer; onPress?
   return (
     <Pressable accessibilityRole={onPress ? 'button' : undefined} disabled={!onPress} style={styles.rewardCard} onPress={() => onPress?.(reward)}>
       <View style={styles.rewardMedia}>
-        {reward.imageUrl ? <Image source={{ uri: reward.imageUrl }} contentFit="contain" style={styles.rewardImage} /> : <Ionicons name="gift" size={29} color={tokens.color.brandStrong} />}
+        {reward.imageUrl ? <Image source={{ uri: reward.imageUrl }} contentFit="cover" style={styles.rewardImage} /> : <Ionicons name="gift" size={29} color={tokens.color.brandStrong} />}
       </View>
       <Text numberOfLines={2} style={styles.rewardName}>{reward.name}</Text>
       <Text style={styles.rewardCost}>{formatNumber(reward.pointsCost)} pts</Text>
@@ -171,7 +171,7 @@ const styles = StyleSheet.create({
   sectionLink: { color: tokens.color.brandStrong, fontSize: 9, lineHeight: 12, fontWeight: '900' },
   rewardRail: { gap: 8, paddingRight: 14 },
   rewardCard: { width: 105, overflow: 'hidden', borderRadius: 11, borderWidth: 1, borderColor: tokens.color.border, backgroundColor: tokens.color.surface },
-  rewardMedia: { height: 82, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFF0F5' },
+  rewardMedia: { height: 82, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', backgroundColor: '#FFF0F5' },
   rewardImage: { width: '100%', height: '100%' },
   rewardName: { minHeight: 31, paddingHorizontal: 7, paddingTop: 7, color: tokens.color.ink, fontSize: 9, lineHeight: 12, fontWeight: '800' },
   rewardCost: { paddingHorizontal: 7, paddingBottom: 8, color: tokens.color.brandStrong, fontSize: 8.5, lineHeight: 11, fontWeight: '900' },

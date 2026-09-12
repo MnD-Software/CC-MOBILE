@@ -1,5 +1,6 @@
 import { ActivityIndicator, Pressable, PressableProps, StyleProp, StyleSheet, Text, ViewStyle } from 'react-native';
 import { tokens } from '@/theme/tokens';
+import { selectionFeedback } from '@/native/haptics';
 
 type Variant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
 type Size = 'sm' | 'md' | 'lg';
@@ -39,6 +40,7 @@ export function Button({
   accessibilityLabel,
   accessibilityState,
   hitSlop,
+  onPress,
   ...rest
 }: Props) {
   const v = variantStyles[variant];
@@ -48,6 +50,7 @@ export function Button({
   return (
     <Pressable
       {...rest}
+      onPress={event => { void selectionFeedback(); onPress?.(event); }}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
       accessibilityState={{ ...accessibilityState, disabled: isDisabled, busy: loading || accessibilityState?.busy }}

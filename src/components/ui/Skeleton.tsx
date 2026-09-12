@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Animated, StyleSheet, View, ViewStyle } from 'react-native';
+import { AccessibilityInfo, Animated, StyleSheet, View, ViewStyle } from 'react-native';
 import { tokens } from '@/theme/tokens';
 
 type Props = {
@@ -19,8 +19,10 @@ export function Skeleton({ width = '100%', height = 14, radius = 8, style }: Pro
         Animated.timing(opacity, { toValue: 0.4, duration: 700, useNativeDriver: true }),
       ]),
     );
-    loop.start();
-    return () => loop.stop();
+    let active = true;
+    void AccessibilityInfo.isReduceMotionEnabled().then(reduced => { if (active && !reduced) loop.start(); });
+    const listener = AccessibilityInfo.addEventListener('reduceMotionChanged', reduced => { if (reduced) { loop.stop(); opacity.setValue(.65); } else loop.start(); });
+    return () => { active = false; listener.remove(); loop.stop(); };
   }, [opacity]);
 
   return (

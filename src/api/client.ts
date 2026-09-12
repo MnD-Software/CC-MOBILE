@@ -1,4 +1,4 @@
-import { env } from '@/config/env';
+import { env } from "@/config/env";
 
 export const DEFAULT_REQUEST_TIMEOUT_MS = 15_000;
 
@@ -27,9 +27,12 @@ export class ApiError extends Error {
   readonly requestId: string | null;
   readonly details: unknown;
 
-  constructor(message: string, { code, status, requestId, details }: ApiErrorInit) {
+  constructor(
+    message: string,
+    { code, status, requestId, details }: ApiErrorInit,
+  ) {
     super(message);
-    this.name = 'ApiError';
+    this.name = "ApiError";
     this.code = code;
     this.status = status ?? null;
     this.requestId = requestId ?? null;
@@ -43,6 +46,11 @@ export function isApiError(error: unknown): error is ApiError {
 }
 
 let accessToken: string | null = null;
+let refreshSession: (() => Promise<void>) | null = null;
+let refreshFlight: Promise<void> | null = null;
+export function setSessionRefresher(refresh: (() => Promise<void>) | null) {
+  refreshSession = refresh;
+}
 
 /**
  * Keeps access credentials in memory only. AuthProvider should call this after
@@ -51,7 +59,9 @@ let accessToken: string | null = null;
 export function setAccessToken(token: string): void {
   const normalized = token.trim();
   if (!normalized) {
-    throw new ApiError('A valid access token is required.', { code: 'INVALID_ACCESS_TOKEN' });
+    throw new ApiError("A valid access token is required.", {
+      code: "INVALID_ACCESS_TOKEN",
+    });
   }
   accessToken = normalized;
 }
@@ -62,89 +72,114 @@ export function clearAccessToken(): void {
 }
 
 function assertApiPath(path: string): void {
-  if (!path.startsWith('/')) {
-    throw new ApiError('API paths must begin with a forward slash.', { code: 'INVALID_API_PATH' });
+  if (!path.startsWith("/")) {
+    throw new ApiError("API paths must begin with a forward slash.", {
+      code: "INVALID_API_PATH",
+    });
   }
 }
 
 function timeoutFor(options: ApiRequestOptions): number {
   const timeoutMs = options.timeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
   if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
-    throw new ApiError('Request timeouts must be a positive number of milliseconds.', { code: 'INVALID_TIMEOUT' });
+    throw new ApiError(
+      "Request timeouts must be a positive number of milliseconds.",
+      { code: "INVALID_TIMEOUT" },
+    );
   }
   return timeoutMs;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function getRequestId(response: Response): string | null {
-  return response.headers.get('x-request-id') ?? response.headers.get('x-correlation-id');
+  return (
+    response.headers.get("x-request-id") ??
+    response.headers.get("x-correlation-id")
+  );
 }
 
 function fallbackMessage(status: number): string {
-  if (status === 401) return 'Your session is no longer valid. Please sign in again.';
-  if (status === 403) return 'You do not have permission to perform that action.';
-  if (status === 404) return 'The requested Cake City resource was not found.';
-  if (status === 409) return 'This request conflicts with the latest Cake City data. Please try again.';
-  if (status === 422) return 'Please check the information and try again.';
-  if (status === 429) return 'Too many requests. Please try again shortly.';
-  if (status >= 500) return 'Cake City is temporarily unavailable. Please try again.';
-  return 'Cake City could not complete the request.';
+  if (status === 401)
+    return "Your session is no longer valid. Please sign in again.";
+  if (status === 403)
+    return "You do not have permission to perform that action.";
+  if (status === 404) return "The requested Cake City resource was not found.";
+  if (status === 409)
+    return "This request conflicts with the latest Cake City data. Please try again.";
+  if (status === 422) return "Please check the information and try again.";
+  if (status === 429) return "Too many requests. Please try again shortly.";
+  if (status >= 500)
+    return "Cake City is temporarily unavailable. Please try again.";
+  return "Cake City could not complete the request.";
 }
 
 function responseMessage(payload: unknown, status: number): string {
   if (isRecord(payload)) {
-    for (const key of ['detail', 'message', 'error']) {
+    for (const key of ["detail", "message", "error"]) {
       const value = payload[key];
-      if (typeof value === 'string' && value.trim()) return value;
+      if (typeof value === "string" && value.trim()) return value;
     }
   }
   return fallbackMessage(status);
 }
 
 function responseCode(payload: unknown, status: number): string {
-  return isRecord(payload) && typeof payload.code === 'string' && payload.code.trim()
+  return isRecord(payload) &&
+    typeof payload.code === "string" &&
+    payload.code.trim()
     ? payload.code
     : `HTTP_${status}`;
 }
 
 type ParsedResponse =
-  | { kind: 'empty' }
-  | { kind: 'json'; value: unknown }
-  | { kind: 'invalid' };
+  | { kind: "empty" }
+  | { kind: "json"; value: unknown }
+  | { kind: "invalid" };
 
 async function parseResponse(response: Response): Promise<ParsedResponse> {
-  if (response.status === 204 || response.status === 205) return { kind: 'empty' };
+  if (response.status === 204 || response.status === 205)
+    return { kind: "empty" };
 
   const body = await response.text();
-  if (!body.trim()) return { kind: 'empty' };
+  if (!body.trim()) return { kind: "empty" };
 
   try {
-    return { kind: 'json', value: JSON.parse(body) as unknown };
+    return { kind: "json", value: JSON.parse(body) as unknown };
   } catch {
-    return { kind: 'invalid' };
+    return { kind: "invalid" };
   }
 }
 
 async function request<T>(
-  method: 'GET' | 'POST' | 'PATCH' | 'DELETE',
+  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
   path: string,
   body: unknown,
   options: ApiRequestOptions = {},
+  retried = false,
 ): Promise<T> {
   assertApiPath(path);
+  if (!env.apiUrl)
+    throw new ApiError(
+      "Account services are temporarily unavailable. Please try again later.",
+      { code: "API_UNAVAILABLE" },
+    );
 
-  const headers: Record<string, string> = { Accept: 'application/json' };
-  if (body !== undefined) headers['Content-Type'] = 'application/json';
+  const headers: Record<string, string> = { Accept: "application/json" };
+  if (body !== undefined) headers["Content-Type"] = "application/json";
   for (const [name, value] of Object.entries(options.headers ?? {})) {
-    if (value !== undefined && name.toLowerCase() !== 'authorization') headers[name] = value;
+    if (value !== undefined && name.toLowerCase() !== "authorization")
+      headers[name] = value;
   }
 
   if (options.auth) {
     if (!accessToken) {
-      throw new ApiError('Please sign in to continue.', { code: 'AUTH_REQUIRED', status: 401 });
+      throw new ApiError("Please sign in to continue.", {
+        code: "AUTH_REQUIRED",
+        status: 401,
+      });
     }
     headers.Authorization = `Bearer ${accessToken}`;
   }
@@ -161,7 +196,7 @@ async function request<T>(
   if (options.signal?.aborted) {
     abortForCaller();
   } else {
-    options.signal?.addEventListener('abort', abortForCaller, { once: true });
+    options.signal?.addEventListener("abort", abortForCaller, { once: true });
   }
 
   const timeoutId = setTimeout(() => {
@@ -179,8 +214,18 @@ async function request<T>(
     const parsed = await parseResponse(response);
     const requestId = getRequestId(response);
 
+    if (response.status === 401 && options.auth && !retried && refreshSession) {
+      if (headers.Authorization === `Bearer ${accessToken}`) {
+        refreshFlight ??= refreshSession().finally(() => {
+          refreshFlight = null;
+        });
+        await refreshFlight;
+      }
+      return request<T>(method, path, body, options, true);
+    }
+
     if (!response.ok) {
-      const payload = parsed.kind === 'json' ? parsed.value : undefined;
+      const payload = parsed.kind === "json" ? parsed.value : undefined;
       throw new ApiError(responseMessage(payload, response.status), {
         code: responseCode(payload, response.status),
         status: response.status,
@@ -189,44 +234,63 @@ async function request<T>(
       });
     }
 
-    if (parsed.kind === 'invalid') {
-      throw new ApiError('Cake City returned an unexpected response.', {
-        code: 'INVALID_RESPONSE',
+    if (parsed.kind === "invalid") {
+      throw new ApiError("Cake City returned an unexpected response.", {
+        code: "INVALID_RESPONSE",
         status: response.status,
         requestId,
       });
     }
 
-    return (parsed.kind === 'empty' ? undefined : parsed.value) as T;
+    return (parsed.kind === "empty" ? undefined : parsed.value) as T;
   } catch (error) {
     if (isApiError(error)) throw error;
     if (timedOut) {
-      throw new ApiError('Cake City took too long to respond. Please try again.', { code: 'REQUEST_TIMEOUT' });
+      throw new ApiError(
+        "Cake City took too long to respond. Please try again.",
+        { code: "REQUEST_TIMEOUT" },
+      );
     }
     if (abortedByCaller) {
-      throw new ApiError('The request was cancelled.', { code: 'REQUEST_ABORTED' });
+      throw new ApiError("The request was cancelled.", {
+        code: "REQUEST_ABORTED",
+      });
     }
-    throw new ApiError('Unable to reach Cake City. Check your connection and try again.', {
-      code: 'NETWORK_ERROR',
-    });
+    throw new ApiError(
+      "Unable to reach Cake City. Check your connection and try again.",
+      {
+        code: "NETWORK_ERROR",
+      },
+    );
   } finally {
     clearTimeout(timeoutId);
-    options.signal?.removeEventListener('abort', abortForCaller);
+    options.signal?.removeEventListener("abort", abortForCaller);
   }
 }
 
 export const api = {
+  put<T>(path: string, body: unknown, options?: ApiRequestOptions): Promise<T> {
+    return request<T>("PUT", path, body, options);
+  },
   get<T>(path: string, options?: ApiRequestOptions): Promise<T> {
-    return request<T>('GET', path, undefined, options);
+    return request<T>("GET", path, undefined, options);
   },
-  post<T>(path: string, body: unknown, options?: ApiRequestOptions): Promise<T> {
-    return request<T>('POST', path, body, options);
+  post<T>(
+    path: string,
+    body: unknown,
+    options?: ApiRequestOptions,
+  ): Promise<T> {
+    return request<T>("POST", path, body, options);
   },
-  patch<T>(path: string, body: unknown, options?: ApiRequestOptions): Promise<T> {
-    return request<T>('PATCH', path, body, options);
+  patch<T>(
+    path: string,
+    body: unknown,
+    options?: ApiRequestOptions,
+  ): Promise<T> {
+    return request<T>("PATCH", path, body, options);
   },
   delete<T>(path: string, options?: ApiRequestOptions): Promise<T> {
-    return request<T>('DELETE', path, undefined, options);
+    return request<T>("DELETE", path, undefined, options);
   },
   setAccessToken,
   clearAccessToken,

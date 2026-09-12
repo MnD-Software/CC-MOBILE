@@ -3,19 +3,18 @@
     "name": "Cake City",
     "slug": "cake-city-mobile",
     "scheme": "cakecity",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "orientation": "portrait",
     "icon": "./assets/cake-city-app-icon.png",
     "userInterfaceStyle": "light",
-    "backgroundColor": "#FFF7FB",
+    "backgroundColor": "#FFFCFA",
     "primaryColor": "#EC008C",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "ke.co.cakecity.mobile",
-      "buildNumber": "1",
+      "buildNumber": "2",
       "infoPlist": {
-        "NSSupportsLiveActivities": true,
-        "NSSupportsLiveActivitiesFrequentUpdates": true
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -23,8 +22,8 @@
         "backgroundColor": "#FFF7FB",
         "foregroundImage": "./assets/cake-city-icon-foreground.png"
       },
-      "versionCode": 1,
-      "predictiveBackGestureEnabled": false,
+      "versionCode": 2,
+      "predictiveBackGestureEnabled": true,
       "package": "ke.co.cakecity.mobile"
     },
     "web": {
@@ -33,8 +32,8 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
-      "@react-native-google-signin/google-signin",
       "expo-font",
+      "expo-image",
       [
         "expo-splash-screen",
         {
@@ -42,6 +41,19 @@
           "image": "./assets/cake-city-splash.png",
           "imageWidth": 260,
           "resizeMode": "contain"
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Cake City uses your location to find nearby branches and quote delivery to your address."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#EC008C",
+          "defaultChannel": "orders"
         }
       ]
     ],
