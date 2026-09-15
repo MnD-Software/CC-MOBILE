@@ -1,0 +1,104 @@
+{
+  "reference_content": "owner-supplied design content; not verified live availability",
+  "checks": [
+    {
+      "screen": "01-home-390",
+      "viewport": 390,
+      "document": 390,
+      "scroll": 390
+    },
+    {
+      "interaction": "save and open favourite",
+      "passed": true
+    },
+    {
+      "screen": "02-cakes-390",
+      "viewport": 390,
+      "document": 390,
+      "scroll": 390
+    },
+    {
+      "screen": "04-filters-390",
+      "viewport": 390,
+      "document": 390,
+      "scroll": 390
+    },
+    {
+      "interaction": "search and filters",
+      "passed": true
+    },
+    {
+      "screen": "03-product-390",
+      "viewport": 390,
+      "document": 390,
+      "scroll": 390
+    },
+    {
+      "interaction": "quantity, size, and unconfirmed cart guard",
+      "passed": true
+    },
+    {
+      "screen": "home-360",
+      "viewport": 360,
+      "document": 360,
+      "scroll": 360
+    },
+    {
+      "screen": "product-360",
+      "viewport": 360,
+      "document": 360,
+      "scroll": 360
+    },
+    {
+      "screen": "home-430",
+      "viewport": 430,
+      "document": 430,
+      "scroll": 430
+    },
+    {
+      "screen": "product-430",
+      "viewport": 430,
+      "document": 430,
+      "scroll": 430
+    }
+  ],
+  "publicResponses": [
+    {
+      "url": "https://cakecity.co.ke/wp-json/wc/store/v1/products/categories?per_page=100&hide_empty=true",
+      "status": 200
+    },
+    {
+      "url": "https://cakecity.co.ke/wp-json/wc/store/v1/products/categories?per_page=100&hide_empty=true",
+      "status": 200
+    },
+    {
+      "url": "https://cakecity.co.ke/wp-json/wc/store/v1/products/categories?per_page=100&hide_empty=true",
+      "status": 200
+    },
+    {
+      "url": "https://cakecity.co.ke/wp-json/wc/store/v1/products?per_page=24&page=1&slug=chocolate-fudge-delight",
+      "status": 200
+    },
+    {
+      "url": "https://cakecity.co.ke/wp-json/wc/store/v1/products?per_page=24&page=1&slug=chocolate-fudge-delight",
+      "status": 200
+    },
+    {
+      "url": "https://cakecity.co.ke/wp-json/wc/store/v1/products/categories?per_page=100&hide_empty=true",
+      "status": 200
+    },
+    {
+      "url": "https://cakecity.co.ke/wp-json/wc/store/v1/products?per_page=24&page=1&slug=chocolate-fudge-delight",
+      "status": 200
+    },
+    {
+      "url": "https://cakecity.co.ke/wp-json/wc/store/v1/products?per_page=24&page=1&slug=chocolate-fudge-delight",
+      "status": 200
+    },
+    {
+      "url": "https://cakecity.co.ke/wp-json/wc/store/v1/products/categories?per_page=100&hide_empty=true",
+      "status": 200
+    }
+  ],
+  "unhandled_errors": []
+}

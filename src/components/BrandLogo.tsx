@@ -1,6 +1,6 @@
-import { Image } from 'expo-image';
-import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
-import { tokens } from '@/theme/tokens';
+import { StyleProp, StyleSheet, View, ViewStyle } from "react-native";
+import { tokens } from "@/theme/tokens";
+import { ReferenceArtwork } from "./ui/ReferenceArtwork";
 
 export const cakeCityBrand = {
   pink: tokens.color.brand,
@@ -26,25 +26,20 @@ type BrandLogoProps = {
 
 export function BrandLogo({ width = 126, style }: BrandLogoProps) {
   return (
-    <View style={[styles.frame, { width, height: width * 0.72 }, style]}>
-      <Image
-        accessibilityLabel="Cake City, since 2012"
-        accessible
-        contentFit="contain"
-        source={require('../../assets/cake-city-logo.png')}
-        style={styles.image}
-      />
+    <View
+      accessible
+      accessibilityRole="image"
+      accessibilityLabel="Cake City, Celebrate with Love"
+      style={[styles.frame, { width, height: (width * 46) / 137 }, style]}
+    >
+      <ReferenceArtwork name="logo" width={width} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   frame: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  image: {
-    width: '100%',
-    height: '100%',
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Cake City UI review</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 32px;
+        background: #fff8fa;
+        color: #25171c;
+        font:
+          15px/1.5 system-ui,
+          sans-serif;
+      }
+      main {
+        max-width: 1260px;
+        margin: auto;
+      }
+      h1 {
+        font-size: 28px;
+        margin: 0 0 6px;
+      }
+      p {
+        color: #745360;
+        max-width: 900px;
+      }
+      .screens {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 22px;
+        margin: 28px 0;
+      }
+      figure {
+        margin: 0;
+      }
+      figcaption {
+        font-weight: 600;
+        margin-bottom: 10px;
+      }
+      img {
+        display: block;
+        width: 100%;
+        border: 1px solid #e9d5dd;
+        border-radius: 20px;
+      }
+      .source {
+        max-width: 100%;
+        margin-top: 12px;
+      }
+      a {
+        color: #d60060;
+      }
+      @media (max-width: 650px) {
+        body {
+          padding: 18px;
+        }
+        .screens {
+          grid-template-columns: 1fr;
+        }
+        figure {
+          max-width: 390px;
+          margin: auto;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Cake City app UI</h1>
+      <p>
+        Actual Expo screens at 390 pixels, using the owner's supplied cake
+        content and artwork. The saved heart on the Cakes screen reflects the
+        favourites interaction test.
+      </p>
+      <div class="screens">
+        <figure>
+          <figcaption>Home</figcaption>
+          <img
+            src="reference-ui/home-390.png"
+            alt="Actual Cake City Home screen"
+          />
+        </figure>
+        <figure>
+          <figcaption>Cakes</figcaption>
+          <img
+            src="reference-ui/cakes-390.png"
+            alt="Actual Cakes catalogue screen"
+          />
+        </figure>
+        <figure>
+          <figcaption>Product Details</figcaption>
+          <img
+            src="reference-ui/product-390.png"
+            alt="Actual Chocolate Fudge Delight product screen"
+          />
+        </figure>
+      </div>
+      <p>
+        These are mobile browser captures. Native installation and checkout are
+        not verified. The reference products need matching live catalogue
+        listings before ordering. Cart counts, reviews and delivery availability
+        use real state.
+      </p>
+      <h2>Supplied reference</h2>
+      <img
+        class="source"
+        src="../assets/cake-city-ui-reference.png"
+        alt="The original three-screen Cake City design supplied by the owner"
+      />
+      <p><a href="reference-ui.md">Implementation and validation notes</a></p>
+    </main>
+  </body>
+</html>

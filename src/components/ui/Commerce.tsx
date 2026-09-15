@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Image } from "expo-image";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
 import {
   Component,
@@ -20,8 +20,10 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  StyleProp,
   Text,
   View,
+  ViewStyle,
 } from "react-native";
 import {
   SafeAreaView,
@@ -35,7 +37,9 @@ import {
   money,
   type StoreProduct,
 } from "@/features/commerce/contracts";
-import { useBag } from "@/features/commerce/store";
+import { useBag, usePreferences } from "@/features/commerce/store";
+import { customerApi } from "@/features/commerce/api";
+import { CakeArtwork } from "./ReferenceArtwork";
 import { useAuth } from "@/auth/AuthProvider";
 export const ui = StyleSheet.create({
   page: { flex: 1, backgroundColor: tokens.color.background },
@@ -62,9 +66,9 @@ export const ui = StyleSheet.create({
     color: tokens.color.ink,
   },
   heading: {
-    fontSize: 19,
+    fontSize: 17,
     lineHeight: 24,
-    fontWeight: "800",
+    fontWeight: "700",
     letterSpacing: -0.35,
     color: tokens.color.ink,
   },
@@ -105,9 +109,9 @@ export const ui = StyleSheet.create({
     backgroundColor: tokens.color.brandLight,
   },
   icon: {
-    width: 42,
-    height: 42,
-    borderRadius: 13,
+    width: 38,
+    height: 38,
+    borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: tokens.color.surface,
@@ -120,29 +124,36 @@ export function IconButton({
   label,
   onPress,
   badge,
+  plain = false,
 }: {
   name: keyof typeof Ionicons.glyphMap;
   label: string;
   onPress: () => void;
   badge?: number;
+  plain?: boolean;
 }) {
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
       onPress={onPress}
-      style={({ pressed }) => [ui.icon, { opacity: pressed ? 0.65 : 1 }]}
+      hitSlop={4}
+      style={({ pressed }) => [
+        ui.icon,
+        plain && { backgroundColor: "transparent", borderWidth: 0 },
+        { opacity: pressed ? 0.65 : 1 },
+      ]}
     >
-      <Ionicons name={name} size={23} color={tokens.color.cocoa} />
+      <Ionicons name={name} size={22} color={tokens.color.ink} />
       {badge ? (
         <View
           style={{
             position: "absolute",
             right: -3,
             top: -4,
-            minWidth: 20,
-            height: 20,
-            borderRadius: 10,
+            minWidth: 16,
+            height: 16,
+            borderRadius: 8,
             backgroundColor: tokens.color.brandStrong,
             alignItems: "center",
             justifyContent: "center",
@@ -175,6 +186,7 @@ export function Screen({
   right,
   header,
   scroll = true,
+  contentStyle,
 }: {
   title?: string;
   subtitle?: string;
@@ -183,6 +195,7 @@ export function Screen({
   right?: ReactNode;
   header?: ReactNode;
   scroll?: boolean;
+  contentStyle?: StyleProp<ViewStyle>;
 }) {
   const insets = useSafeAreaInsets();
   return (
@@ -229,11 +242,13 @@ export function Screen({
         )}
         {scroll ? (
           <ScrollView
+            showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"
             contentContainerStyle={[
               ui.content,
               { paddingBottom: Math.max(36, insets.bottom + 24) },
+              contentStyle,
             ]}
           >
             {children}
@@ -249,10 +264,12 @@ export function Section({
   title,
   action,
   onPress,
+  compact = false,
 }: {
   title: string;
   action?: string;
   onPress?: () => void;
+  compact?: boolean;
 }) {
   return (
     <View style={ui.spread}>
@@ -263,7 +280,8 @@ export function Section({
         <Pressable
           accessibilityRole="button"
           onPress={onPress}
-          style={{ minHeight: 44, justifyContent: "center" }}
+          hitSlop={compact ? 5 : 0}
+          style={{ minHeight: compact ? 34 : 44, justifyContent: "center" }}
         >
           <Text
             style={[
@@ -271,7 +289,7 @@ export function Section({
               { fontSize: 13, color: tokens.color.brandStrong },
             ]}
           >
-            {action} →
+            {action}
           </Text>
         </Pressable>
       ) : null}
@@ -282,24 +300,46 @@ export function Chip({
   label,
   selected,
   onPress,
+  filled = false,
+  compact = false,
 }: {
   label: string;
   selected?: boolean;
   onPress: () => void;
+  filled?: boolean;
+  compact?: boolean;
 }) {
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityState={{ selected }}
+      aria-selected={selected}
       onPress={onPress}
-      style={[ui.chip, selected && ui.chipActive]}
+      hitSlop={compact ? 6 : 2}
+      style={[
+        ui.chip,
+        compact && {
+          minHeight: 32,
+          paddingVertical: 5,
+          paddingHorizontal: 19,
+          borderRadius: 10,
+        },
+        selected && ui.chipActive,
+        selected && filled && { backgroundColor: tokens.color.brandStrong },
+      ]}
     >
       <Text
         style={[
           ui.label,
           {
             fontSize: 13,
-            color: selected ? tokens.color.brandStrong : tokens.color.cocoa,
+            fontWeight: selected ? "600" : "400",
+            color:
+              selected && filled
+                ? "#FFFFFF"
+                : selected
+                  ? tokens.color.brandStrong
+                  : tokens.color.ink,
           },
         ]}
       >
@@ -422,128 +462,198 @@ export function AccountRequired({ children }: PropsWithChildren) {
     );
   return children;
 }
-export function ProductTile({
+export function FavouriteButton({
   product,
-  width,
-  onPress,
+  small = false,
+  diameter,
 }: {
   product: StoreProduct;
-  width?: number;
-  onPress?: () => void;
+  small?: boolean;
+  diameter?: number;
 }) {
-  const price = productPrice(product);
+  const { customer } = useAuth();
+  const cache = useQueryClient();
+  const toast = useToast();
+  const saved = usePreferences((state) => state.savedReferenceCakes);
+  const toggle = usePreferences((state) => state.toggleReferenceCake);
+  const isReference = product.type === "reference";
+  const favourites = useQuery({
+    queryKey: ["favourites", customer?.id],
+    queryFn: customerApi.favourites,
+    enabled: !!customer && !isReference,
+  });
+  const selected = isReference
+    ? (saved ?? []).includes(product.id)
+    : Boolean(favourites.data?.some((item) => item.slug === product.slug));
+  const mutation = useMutation({
+    mutationFn: () => customerApi.favourite(product.slug, selected),
+    onSuccess: () => {
+      void cache.invalidateQueries({ queryKey: ["favourites"] });
+    },
+    onError: (error) => toast(error.message),
+  });
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={
-        plainText(product.name) + (price !== null ? ", " + money(price) : "")
+        (selected ? "Remove " : "Save ") +
+        plainText(product.name) +
+        (selected ? " from favourites" : " to favourites")
       }
-      onPress={
-        onPress ??
-        (() =>
-          router.push({
-            pathname: "/product/[id]",
-            params: { id: String(product.id) },
-          }))
-      }
-      style={({ pressed }) => ({
-        width,
-        flex: width ? undefined : 1,
-        opacity: pressed ? 0.8 : 1,
-        minWidth: 0,
-        overflow: "hidden",
-        borderRadius: 16,
-        borderWidth: 1,
-        borderColor: tokens.color.border,
-        backgroundColor: tokens.color.surface,
-      })}
+      accessibilityState={{ selected, busy: mutation.isPending }}
+      disabled={mutation.isPending}
+      hitSlop={6}
+      onPress={(event) => {
+        event.stopPropagation();
+        if (isReference) toggle(product.id);
+        else if (!customer) router.push("/sign-in");
+        else mutation.mutate();
+      }}
+      style={{
+        width: diameter ?? (small ? 29 : 35),
+        height: diameter ?? (small ? 29 : 35),
+        borderRadius: 30,
+        backgroundColor: "#FFFCFC",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
     >
-      <View
-        style={{
-          aspectRatio: 1.08,
-          backgroundColor: "#F8E6EB",
-          overflow: "hidden",
-        }}
+      <Ionicons
+        name={selected ? "heart" : "heart-outline"}
+        size={small ? 17 : 20}
+        color={selected ? tokens.color.brandStrong : tokens.color.cocoa}
+      />
+    </Pressable>
+  );
+}
+
+export function ProductTile({
+  product,
+  width,
+  onPress,
+  compact = false,
+}: {
+  product: StoreProduct;
+  width?: number;
+  onPress?: () => void;
+  compact?: boolean;
+}) {
+  const price = productPrice(product);
+  const portraitArtwork =
+    !compact &&
+    product.type === "reference" &&
+    product.slug === "black-forest-delight";
+  const artworkWidth = width ?? 164;
+  return (
+    <View style={{ width, flex: width ? undefined : 1, minWidth: 0 }}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={
+          plainText(product.name) + (price !== null ? ", " + money(price) : "")
+        }
+        onPress={
+          onPress ??
+          (() =>
+            router.push({
+              pathname: "/product/[id]",
+              params: { id: String(product.id) },
+            }))
+        }
+        style={({ pressed }) => ({ opacity: pressed ? 0.8 : 1, minWidth: 0 })}
       >
-        {product.images[0] ? (
-          <Image
-            source={product.images[0].src}
-            contentFit="contain"
-            cachePolicy="memory-disk"
-            recyclingKey={String(product.id)}
-            style={{ width: "100%", height: "100%" }}
-          />
-        ) : (
-          <View
-            style={{ flex: 1, alignItems: "center", justifyContent: "center" }}
-          >
-            <Ionicons
-              name="image-outline"
-              size={32}
-              color={tokens.color.muted}
-            />
-          </View>
-        )}
-        {product.on_sale ? (
-          <View
-            style={{
-              position: "absolute",
-              left: 10,
-              top: 10,
-              backgroundColor: "white",
-              paddingHorizontal: 9,
-              paddingVertical: 5,
-              borderRadius: 8,
-            }}
-          >
-            <Text style={[ui.eyebrow, { letterSpacing: 0.6 }]}>
-              SPECIAL PRICE
-            </Text>
-          </View>
-        ) : null}
         <View
           style={{
-            position: "absolute",
-            top: 9,
-            right: 9,
-            width: 34,
-            height: 34,
-            borderRadius: 17,
-            backgroundColor: "rgba(255,255,255,.94)",
-            justifyContent: "center",
-            alignItems: "center",
-            borderWidth: 1,
-            borderColor: "rgba(255,255,255,.9)",
+            aspectRatio: compact ? 0.77 : 1.1,
+            backgroundColor: "#F3D9DC",
+            overflow: "hidden",
+            borderTopLeftRadius: 14,
+            borderTopRightRadius: 14,
+            borderBottomLeftRadius: compact ? 12 : 0,
+            borderBottomRightRadius: compact ? 12 : 0,
           }}
         >
-          <Ionicons
-            name="heart-outline"
-            size={19}
-            color={tokens.color.brandStrong}
-          />
+          {product.images[0] ? (
+            <CakeArtwork source={product.images[0].src} compact={compact} />
+          ) : (
+            <View
+              style={{
+                flex: 1,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Ionicons
+                name="image-outline"
+                size={32}
+                color={tokens.color.muted}
+              />
+            </View>
+          )}
         </View>
-      </View>
+        <View
+          style={{
+            paddingHorizontal: 5,
+            paddingTop: 10,
+            paddingBottom: 7,
+            gap: 7,
+          }}
+        >
+          <Text
+            numberOfLines={2}
+            style={{
+              color: tokens.color.ink,
+              fontWeight: "600",
+              minHeight: 35,
+              fontSize: compact ? 12 : 13,
+              lineHeight: 18,
+            }}
+          >
+            {product.type === "reference"
+              ? plainText(product.name).replace(
+                  / (Delight|Dream|Cheesecake|Bliss)$/,
+                  "\n$1",
+                )
+              : plainText(product.name)}
+          </Text>
+          <Text
+            style={{
+              color: compact ? tokens.color.cocoa : tokens.color.brandStrong,
+              fontWeight: compact ? "400" : "600",
+              fontSize: 13,
+              lineHeight: 18,
+            }}
+          >
+            {price === null ? (
+              "Ask Cake City"
+            ) : (
+              <>
+                {!compact && (
+                  <Text
+                    style={{ color: tokens.color.cocoa, fontWeight: "400" }}
+                  >
+                    From{" "}
+                  </Text>
+                )}
+                {money(price)}
+              </>
+            )}
+          </Text>
+        </View>
+      </Pressable>
       <View
-        style={{ paddingHorizontal: 10, paddingTop: 10, paddingBottom: 12 }}
+        style={{
+          position: "absolute",
+          top: portraitArtwork ? artworkWidth * 0.03 : 7,
+          right: portraitArtwork ? artworkWidth * 0.06 : 7,
+        }}
       >
-        <Text
-          numberOfLines={2}
-          style={[ui.label, { minHeight: 38, fontSize: 13, lineHeight: 18 }]}
-        >
-          {plainText(product.name)}
-        </Text>
-        <Text
-          style={[
-            ui.label,
-            { color: tokens.color.brandStrong, marginTop: 4, fontSize: 12.5 },
-          ]}
-        >
-          {price !== null
-            ? (product.type === "variable" ? "From " : "") + money(price)
-            : "Ask Cake City"}
-        </Text>
+        <FavouriteButton
+          product={product}
+          small={compact}
+          diameter={portraitArtwork ? artworkWidth * 0.25 : undefined}
+        />
       </View>
-    </Pressable>
+    </View>
   );
 }
 const ToastContext = createContext<(message: string) => void>(() => undefined);

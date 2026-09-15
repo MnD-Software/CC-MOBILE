@@ -87,6 +87,8 @@ export const useBag = create<BagState>()(
   ),
 );
 type Preferences = {
+  savedReferenceCakes: number[];
+  toggleReferenceCake: (id: number) => void;
   branch: Branch | null;
   recentSearches: string[];
   recentSlugs: string[];
@@ -100,6 +102,13 @@ type Preferences = {
 export const usePreferences = create<Preferences>()(
   persist(
     (set) => ({
+      savedReferenceCakes: [],
+      toggleReferenceCake: (id) =>
+        set((state) => ({
+          savedReferenceCakes: (state.savedReferenceCakes ?? []).includes(id)
+            ? state.savedReferenceCakes.filter((saved) => saved !== id)
+            : [...(state.savedReferenceCakes ?? []), id],
+        })),
       branch: null,
       recentSearches: [],
       recentSlugs: [],

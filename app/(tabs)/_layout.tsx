@@ -2,14 +2,16 @@ import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Platform } from "react-native";
 import { tokens } from "@/theme/tokens";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 const icons = {
   index: ["home-outline", "home"],
   shop: ["grid-outline", "grid"],
-  orders: ["receipt-outline", "receipt"],
+  orders: ["clipboard-outline", "clipboard"],
   loyalty: ["star-outline", "star"],
   account: ["person-outline", "person"],
 } as const;
 export default function TabLayout() {
+  const insets = useSafeAreaInsets();
   return (
     <Tabs
       backBehavior="history"
@@ -18,13 +20,16 @@ export default function TabLayout() {
         tabBarActiveTintColor: tokens.color.brandStrong,
         tabBarInactiveTintColor: tokens.color.muted,
         tabBarHideOnKeyboard: true,
-        tabBarLabelStyle: { fontSize: 10, fontWeight: "700" },
+        tabBarLabelStyle: { fontSize: 10, fontWeight: "400", marginTop: 3 },
+        tabBarItemStyle: { paddingTop: 5, borderRadius: 16 },
+        tabBarActiveBackgroundColor: "#FFF2F6",
         tabBarStyle: {
-          backgroundColor: "white",
+          backgroundColor: tokens.color.background,
           borderTopColor: tokens.color.border,
-          paddingTop: 6,
-          paddingBottom: Platform.OS === "android" ? 6 : 2,
-          height: Platform.OS === "android" ? 68 : 78,
+          paddingTop: 2,
+          paddingHorizontal: 6,
+          paddingBottom: Math.max(insets.bottom, 10),
+          height: 60 + Math.max(insets.bottom, 10),
         },
         tabBarIcon: ({ color, size, focused }) => (
           <Ionicons

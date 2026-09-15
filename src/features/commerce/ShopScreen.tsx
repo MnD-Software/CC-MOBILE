@@ -23,7 +23,8 @@ import {
 } from "@/components/ui/Commerce";
 import { Button } from "@/components/ui/Button";
 import { tokens } from "@/theme/tokens";
-import { plainText } from "./contracts";
+import { plainText, productPrice } from "./contracts";
+import { referenceCakes, referenceCategories } from "./reference-catalogue";
 import { shopApi } from "./api";
 import { usePreferences } from "./store";
 
@@ -32,6 +33,8 @@ export function ShopScreen() {
     category?: string;
     search?: string;
     offers?: string;
+    department?: string;
+    focus?: string;
   }>();
   const [search, setSearch] = useState(params.search ?? "");
   const [debounced, setDebounced] = useState(search);
@@ -46,6 +49,9 @@ export function ShopScreen() {
   const remember = usePreferences((state) => state.search);
   const { width } = useWindowDimensions();
   const columns = width > 700 ? 3 : 2;
+  const referenceMode =
+    (!params.department || params.department === "Cakes") &&
+    (!category || category < 0);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebounced(search.trim()), 350);
@@ -53,7 +59,8 @@ export function ShopScreen() {
   }, [search]);
 
   useEffect(() => {
-    if (params.category) setCategory(Number(params.category));
+    if (params.category !== undefined)
+      setCategory(params.category ? Number(params.category) : undefined);
     if (params.search !== undefined) setSearch(params.search);
     if (params.offers !== undefined) setSale(params.offers === "1");
   }, [params.category, params.search, params.offers]);
@@ -64,6 +71,7 @@ export function ShopScreen() {
     staleTime: 15 * 60000,
   });
   const products = useInfiniteQuery({
+    enabled: !referenceMode,
     queryKey: ["catalogue", "shop", debounced, category, sort, sale, budget],
     initialPageParam: 1,
     queryFn: ({ pageParam, signal }) =>
@@ -83,31 +91,54 @@ export function ShopScreen() {
       all.length < last.pages ? all.length + 1 : undefined,
   });
 
-  const rows =
-    products.data?.pages
-      .flatMap((page) => page.data)
-      .filter(
-        (product, index, all) =>
-          all.findIndex((candidate) => candidate.id === product.id) === index,
-      ) ?? [];
+  const referenceRows = referenceCakes.filter(
+    (product) =>
+      (!debounced ||
+        product.name.toLowerCase().includes(debounced.toLowerCase())) &&
+      (!category || product.categories.some((item) => item.id === category)) &&
+      (!sale || product.on_sale) &&
+      (!budget || (productPrice(product) ?? Infinity) < 5000),
+  );
+  if (sort === "price" || sort === "price-desc")
+    referenceRows.sort(
+      (a, b) =>
+        ((productPrice(a) ?? 0) - (productPrice(b) ?? 0)) *
+        (sort === "price" ? 1 : -1),
+    );
+  const rows = referenceMode
+    ? referenceRows
+    : (products.data?.pages
+        .flatMap((page) => page.data)
+        .filter(
+          (product, index, all) =>
+            all.findIndex((candidate) => candidate.id === product.id) === index,
+        ) ?? []);
   const parent = categories.data?.find((item) => item.id === category);
-  const options =
-    categories.data?.filter(
-      (item) =>
-        item.count > 0 &&
-        (item.parent === 0 ||
-          item.parent === category ||
-          item.parent === parent?.parent),
-    ) ?? [];
+  const options = referenceMode
+    ? referenceCategories
+    : (categories.data?.filter(
+        (item) =>
+          item.count > 0 &&
+          (item.parent === 0 ||
+            item.parent === category ||
+            item.parent === parent?.parent),
+      ) ?? []);
 
   return (
     <Screen
       scroll={false}
       header={
         <View style={styles.header}>
-          <View style={styles.headerSpacer} />
+          <View style={styles.headerSpacer}>
+            <IconButton
+              name="arrow-back"
+              label="Go back"
+              plain
+              onPress={() => router.replace("/(tabs)")}
+            />
+          </View>
           <Text accessibilityRole="header" style={styles.headerTitle}>
-            Cakes
+            {params.department || "Cakes"}
           </Text>
           <View style={styles.headerActions}>
             <IconButton
@@ -127,7 +158,12 @@ export function ShopScreen() {
         keyExtractor={(item) => String(item.id)}
         columnWrapperStyle={styles.columns}
         contentContainerStyle={styles.content}
-        renderItem={({ item }) => <ProductTile product={item} />}
+        renderItem={({ item }) => (
+          <ProductTile
+            product={item}
+            width={(Math.min(width, 700) - 28 - 13 * (columns - 1)) / columns}
+          />
+        )}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         onEndReached={() => {
@@ -138,8 +174,13 @@ export function ShopScreen() {
         onEndReachedThreshold={0.5}
         initialNumToRender={8}
         windowSize={7}
-        refreshing={products.isRefetching && !products.isFetchingNextPage}
-        onRefresh={() => void products.refetch()}
+        refreshing={
+          !referenceMode &&
+          products.isRefetching &&
+          !products.isFetchingNextPage
+        }
+        onRefresh={referenceMode ? undefined : () => void products.refetch()}
+        showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           <View style={styles.listHeader}>
             <View style={styles.search}>
@@ -149,6 +190,7 @@ export function ShopScreen() {
                 color={tokens.color.muted}
               />
               <TextInput
+                autoFocus={params.focus === "1"}
                 accessibilityLabel="Search Cake City"
                 placeholder="Search cakes..."
                 placeholderTextColor={tokens.color.muted}
@@ -178,7 +220,7 @@ export function ShopScreen() {
               </Pressable>
             </View>
 
-            {!search && recent.length ? (
+            {filtersOpen && !search && recent.length ? (
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -201,12 +243,14 @@ export function ShopScreen() {
             >
               <Chip
                 label="All"
+                filled
                 selected={!category}
                 onPress={() => setCategory(undefined)}
               />
               {options.slice(0, 16).map((item) => (
                 <Chip
                   key={item.id}
+                  filled
                   label={plainText(item.name)}
                   selected={category === item.id}
                   onPress={() => setCategory(item.id)}
@@ -251,27 +295,32 @@ export function ShopScreen() {
               </View>
             ) : null}
 
-            <View style={styles.results}>
-              <Text style={styles.resultsTitle}>
-                {category
-                  ? plainText(
-                      categories.data?.find((item) => item.id === category)
-                        ?.name ?? "Cakes",
-                    )
-                  : "All cakes"}
-              </Text>
-              <Text style={styles.resultsCount}>
-                {products.data?.pages[0]?.total ?? rows.length} results
-              </Text>
-            </View>
+            {filtersOpen && (
+              <View style={styles.results}>
+                <Text style={styles.resultsTitle}>
+                  {category
+                    ? plainText(
+                        categories.data?.find((item) => item.id === category)
+                          ?.name ?? "Cakes",
+                      )
+                    : "All cakes"}
+                </Text>
+                <Text style={styles.resultsCount}>
+                  {referenceMode
+                    ? rows.length
+                    : (products.data?.pages[0]?.total ?? rows.length)}{" "}
+                  results
+                </Text>
+              </View>
+            )}
           </View>
         }
         ListEmptyComponent={
           <Feedback
-            loading={products.isPending}
-            error={products.error}
+            loading={!referenceMode && products.isPending}
+            error={referenceMode ? undefined : products.error}
             empty={
-              !products.isPending && !products.error
+              referenceMode || (!products.isPending && !products.error)
                 ? "No cakes found for that search."
                 : undefined
             }
@@ -279,9 +328,9 @@ export function ShopScreen() {
           />
         }
         ListFooterComponent={
-          products.isFetchingNextPage ? (
+          !referenceMode && products.isFetchingNextPage ? (
             <Feedback loading />
-          ) : products.isError && rows.length ? (
+          ) : !referenceMode && products.isError && rows.length ? (
             <Button
               label="Load more cakes"
               variant="outline"
@@ -297,8 +346,8 @@ export function ShopScreen() {
 const styles = StyleSheet.create({
   header: {
     width: "100%",
-    maxWidth: 900,
-    minHeight: 64,
+    maxWidth: 700,
+    minHeight: 82,
     alignSelf: "center",
     flexDirection: "row",
     alignItems: "center",
@@ -306,32 +355,33 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
   },
-  headerSpacer: { width: 92 },
+  headerSpacer: { width: 84 },
   headerTitle: {
     color: tokens.color.ink,
     fontSize: 18,
     lineHeight: 24,
-    fontWeight: "900",
+    fontWeight: "700",
     textAlign: "center",
   },
   headerActions: {
-    width: 92,
+    width: 84,
     flexDirection: "row",
     justifyContent: "flex-end",
     gap: 8,
   },
   content: {
     width: "100%",
-    maxWidth: 900,
+    maxWidth: 700,
     alignSelf: "center",
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
+    paddingTop: 3,
     paddingBottom: 32,
-    gap: 12,
+    gap: 14,
   },
-  columns: { gap: 12 },
-  listHeader: { gap: 14, paddingBottom: 4 },
+  columns: { gap: 13 },
+  listHeader: { gap: 16 },
   search: {
-    minHeight: 52,
+    minHeight: 50,
     flexDirection: "row",
     alignItems: "center",
     gap: 9,
@@ -340,14 +390,14 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
     borderColor: tokens.color.border,
-    backgroundColor: "#F7F0F1",
+    backgroundColor: "#F6ECEE",
   },
   searchInput: {
     flex: 1,
     minWidth: 0,
-    minHeight: 50,
+    minHeight: 48,
     color: tokens.color.ink,
-    fontSize: 16,
+    fontSize: 12,
   },
   filterButton: {
     width: 40,

@@ -42,7 +42,7 @@ export function VariationPicker({
     ),
   );
   return (
-    <View style={{ gap: 20 }}>
+    <View style={{ gap: 17 }}>
       {names.map((name) => {
         const values = [
           ...new Set(
@@ -55,11 +55,14 @@ export function VariationPicker({
         ];
         const terms = product.attributes.find((a) => a.name === name)?.terms;
         return (
-          <View key={name} style={{ gap: 10 }}>
-            <Text style={ui.label}>{plainText(name)}</Text>
+          <View key={name} style={{ gap: 6 }}>
+            <Text style={[ui.label, { fontSize: 12, fontWeight: "500" }]}>
+              {plainText(name)}
+            </Text>
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
               {values.map((value) => (
                 <Chip
+                  compact
                   key={value}
                   label={plainText(
                     terms?.find((t) => t.slug === value)?.name ?? value,

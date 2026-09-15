@@ -2,54 +2,54 @@
  * Shared visual primitives for the native Cake City experience.
  *
  * Design language: the warm white, blush and Cake City magenta system from
- * the approved five-screen storefront reference. Screens and reusable
+ * the supplied September 14 three-screen storefront reference. Screens and reusable
  * components should consume these semantic values instead of introducing
  * one-off colours, spacing, or elevation rules.
  */
 export const tokens = {
   color: {
     // Canvas & surfaces
-    background: '#FFFCFA',
-    surface: '#FFFFFF',
-    surfaceRaised: '#FFFFFF',
-    surfaceTint: '#FFF2F6',
-    white: '#FFFFFF',
+    background: "#FFFAFA",
+    surface: "#FFFFFF",
+    surfaceRaised: "#FFFFFF",
+    surfaceTint: "#FFF2F6",
+    white: "#FFFFFF",
 
     // Text
-    ink: '#281920',
-    cocoa: '#51382D',
-    muted: '#78646B',
-    mutedSoft: '#A08C93',
+    ink: "#171315",
+    cocoa: "#633642",
+    muted: "#82777A",
+    mutedSoft: "#A08C93",
 
     // Lines
-    border: '#EEE5E0',
-    borderStrong: '#E8C2D1',
+    border: "#EDDFE2",
+    borderStrong: "#E8C2D1",
 
     // Brand
-    brand: '#EC008C',
-    brandStrong: '#B9006F',
-    brandPressed: '#98005B',
-    brandDark: '#750047',
-    brandLight: '#FFE5EF',
+    brand: "#DF0064",
+    brandStrong: "#D60060",
+    brandPressed: "#B90050",
+    brandDark: "#810033",
+    brandLight: "#FBE7EE",
 
     // Supporting accents are used sparingly so the catalogue remains pink-led.
-    violet: '#8B4562',
-    violetStrong: '#6F304A',
-    violetLight: '#F5E8ED',
-    accent: '#00AEEF',
-    accentStrong: '#006C94',
-    accentLight: '#EAF8FE',
-    sunshine: '#E8A323',
-    sunshineStrong: '#A96B00',
-    sunshineLight: '#FFF3D7',
+    violet: "#8B4562",
+    violetStrong: "#6F304A",
+    violetLight: "#F5E8ED",
+    accent: "#00AEEF",
+    accentStrong: "#006C94",
+    accentLight: "#EAF8FE",
+    sunshine: "#E8A323",
+    sunshineStrong: "#A96B00",
+    sunshineLight: "#FFF3D7",
 
     // Feedback
-    success: '#0FA36B',
-    successLight: '#DCF7EA',
-    warning: '#B26A00',
-    warningLight: '#FFF1D6',
-    error: '#E5484D',
-    errorLight: '#FFE5E5',
+    success: "#0FA36B",
+    successLight: "#DCF7EA",
+    warning: "#B26A00",
+    warningLight: "#FFF1D6",
+    error: "#E5484D",
+    errorLight: "#FFE5E5",
   },
   /**
    * Signature colour sequences for native paint surfaces.
@@ -57,15 +57,15 @@ export const tokens = {
    */
   gradient: {
     /** Hero / feature banners: magenta → violet → indigo */
-    hero: ['#7D1238', '#C90859', '#F02A79'],
+    hero: ["#7D1238", "#C90859", "#F02A79"],
     /** Primary actions: hot magenta → electric purple */
-    primary: ['#F70B72', '#C90859'],
+    primary: ["#F70B72", "#C90859"],
     /** Cool counterpoint: cyan → periwinkle */
-    cool: ['#00AEEF', '#70B8A8'],
+    cool: ["#00AEEF", "#70B8A8"],
     /** Rewards & gold moments */
-    gold: ['#FFC53D', '#FF8A00'],
+    gold: ["#FFC53D", "#FF8A00"],
     /** Full-screen aurora canvas behind glass surfaces */
-    aurora: ['#FFFDFE', '#FFF6FA', '#FFF9F3'],
+    aurora: ["#FFFDFE", "#FFF6FA", "#FFF9F3"],
   } as const,
   space: {
     none: 0,
@@ -86,14 +86,14 @@ export const tokens = {
   },
   shadow: {
     card: {
-      shadowColor: '#5D263C',
+      shadowColor: "#5D263C",
       shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.1,
       shadowRadius: 12,
       elevation: 3,
     },
     floating: {
-      shadowColor: '#5D263C',
+      shadowColor: "#5D263C",
       shadowOffset: { width: 0, height: 10 },
       shadowOpacity: 0.18,
       shadowRadius: 22,
@@ -101,7 +101,7 @@ export const tokens = {
     },
     /** Neon glow used by the futuristic tab bar and hero actions */
     glow: {
-      shadowColor: '#D90C61',
+      shadowColor: "#D90C61",
       shadowOffset: { width: 0, height: 6 },
       shadowOpacity: 0.42,
       shadowRadius: 16,

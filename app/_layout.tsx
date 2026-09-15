@@ -6,6 +6,7 @@ import { AuthProvider } from "@/auth/AuthProvider";
 import { QueryProvider } from "@/providers/QueryProvider";
 import { AppErrorBoundary, ToastProvider } from "@/components/ui/Commerce";
 import { NotificationObserver } from "@/native/NotificationObserver";
+import { tokens } from "@/theme/tokens";
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
@@ -18,7 +19,7 @@ export default function RootLayout() {
               <Stack
                 screenOptions={{
                   headerShown: false,
-                  contentStyle: { backgroundColor: "#FFFCFA" },
+                  contentStyle: { backgroundColor: tokens.color.background },
                 }}
               >
                 <Stack.Screen name="(tabs)" />
