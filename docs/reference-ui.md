@@ -20,7 +20,13 @@ Cart counts, reviews and delivery availability use actual state. The reference's
 - No unhandled browser exceptions or horizontal overflow at the checked 360, 390 and 430 pixel widths. Captures and results are in `docs/reference-ui`.
 - Production web export checked from `C:\CakeCityUiReview-20260914`, with source/asset hashes matched to this workspace. OneDrive file scanning required this clean staging directory.
 
-These captures are browser renders of the actual Expo app. Native installation and payment completion are unverified; no new APK is claimed.
+The captures in `docs/reference-ui` are browser renders of the actual Expo app.
+
+On September 16, 2026, the standalone Android build was installed over the existing app and cold-started on a Samsung Galaxy S21 (SM-G991N). All 10 screen checkpoints passed: Home, Cakes, Product Details, Cake Studio, Orders, Account, Register, Cart, Checkout and the return to Home. Tapping the Home banner opened Product Details, and Android Back returned to Home. No fatal Android or React Native JavaScript errors were detected for the running app process. The app was left on Home.
+
+Device screenshots, UI hierarchy captures and the verification result are saved locally in `artifacts/android-qa`. The APK is `dist/CakeCity-0.2.0-preview.apk` (50,082,442 bytes; SHA-256 `55da637741a6ba0a0450956ba5692e42fd5bdaf1fefdee5b207e8f3cb3761c63`). Signature, package identity (`ke.co.cakecity.mobile`), version 0.2.0 / code 2, arm64 ABI and the embedded JavaScript bundle were checked. The reference image embedded in the APK has pixel-identical artwork to the supplied source image.
+
+This APK uses an internal testing certificate and has no configured account/checkout backend. Authentication, live checkout and payment completion remain unverified. Native navigation checks do not establish those services' readiness.
 
 ```sh
 npm run typecheck
@@ -29,6 +35,7 @@ npm test
 npm start -- --port 8081
 npm run verify:ui
 npm run export:web
+node scripts/verify-android.cjs dist/CakeCity-0.2.0-preview.apk <authorized-device-serial>
 ```
 
 `verify:ui` uses an isolated Chrome profile. Override `CAKECITY_QA_BROWSER` or `CAKECITY_QA_URL` if necessary. It relays unchanged public catalogue responses to avoid localhost CORS restrictions; private commerce APIs are never mocked. A reachable backend is required for authentication and ordering.

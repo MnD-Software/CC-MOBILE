@@ -46,19 +46,30 @@ async function main() {
     if (!pid) throw new Error('App process exited during native verification.');
     routes.push({ route: route || 'cold-start', expected: label, pid });
     console.log(`PASS ${route || 'cold-start'}: ${label}`);
+    return xml;
   }
-  await capture('', 'Hello, cake lover.', '01-home');
-  await capture('shop', 'Blueberry Delight', '02-shop');
-  await capture('product/31055', 'Blueberry Delight', '03-product');
+  await capture('', 'Bestsellers', '01-home');
+  await capture('shop', 'Chocolate Fudge', '02-shop');
+  await capture('product/-101', 'Chocolate Fudge Delight', '03-product');
   await capture('custom', 'The Cake Studio.', '04-custom');
   await capture('orders', 'Happy memories.', '05-orders');
   await capture('account', 'Your Cake City.', '06-account');
   await capture('register', 'Make it personal.', '07-register');
   await capture('cart', 'A bag full of happy.', '08-cart');
   await capture('checkout', 'The final sweet details.', '09-checkout');
+  const home = await capture('/', 'Bestsellers', '10-home-final');
+  // Separate deep links do not establish in-app history. Exercise a real product tap.
+  const hero = home.match(/<node\b[^>]*>/g)?.find(node => node.includes('content-desc="New: Chocolate Fudge Delight.'));
+  const bounds = hero?.match(/bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/);
+  if (!bounds) throw new Error('Home product banner tap target was not found.');
+  const [, left, top, right, bottom] = bounds.map(Number);
+  command(['shell', 'input', 'tap', String(Math.round((left + right) / 2)), String(Math.round((top + bottom) / 2))]);
+  await readScreen('Product Details');
   command(['shell', 'input', 'keyevent', 'KEYCODE_BACK']);
-  await readScreen('A bag full of happy.');
-  await capture('home', 'Hello, cake lover.', '10-home-final');
+  const returnedHome = await readScreen('Bestsellers');
+  fs.writeFileSync(path.join(output, '10-home-final.xml'), returnedHome);
+  fs.writeFileSync(path.join(output, '10-home-final.png'), command(['exec-out', 'screencap', '-p'], true));
+  console.log('PASS in-app Home -> Product Details -> Android Back -> Home');
   const pid = command(['shell', 'pidof', packageId]).trim();
   const logs = command(['logcat', '-d', `--pid=${pid}`, '-s', 'AndroidRuntime:E', 'ReactNativeJS:E']);
   fs.writeFileSync(path.join(output, 'runtime-errors.txt'), logs);
