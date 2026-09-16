@@ -34,6 +34,8 @@ yarn-error.*
 .env*.local
 .venv/
 *.db
+__pycache__/
+.pytest_cache/
 
 # typescript
 *.tsbuildinfo
