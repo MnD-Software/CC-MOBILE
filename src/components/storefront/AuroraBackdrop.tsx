@@ -58,6 +58,6 @@ const styles = StyleSheet.create({
     top: "28%",
     height: "26%",
     backgroundColor: "#F7B9D3",
-    cakecity (dry-haze-05826195)    opacity: 0.18,
+    opacity: 0.18,
   },
 });
