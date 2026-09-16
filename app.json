@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Cake City",
-    "slug": "cake-city-mobile",
+    "slug": "cakecity",
     "scheme": "cakecity",
     "version": "0.2.0",
     "orientation": "portrait",
@@ -59,6 +59,13 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "3bcef2b6-1064-461f-a7e8-620bfc94e13d"
+      }
+    },
+    "owner": "marcosnoel23"
   }
 }

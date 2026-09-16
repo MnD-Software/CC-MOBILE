@@ -46,3 +46,4 @@ artifacts/
 *.log
 google-services.json
 GoogleService-Info.plist
+.neon

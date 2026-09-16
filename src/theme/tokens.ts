@@ -9,20 +9,22 @@
 export const tokens = {
   color: {
     // Canvas & surfaces
-    background: "#FFFAFA",
+    background: "#FFF8FB",
     surface: "#FFFFFF",
     surfaceRaised: "#FFFFFF",
-    surfaceTint: "#FFF2F6",
+    surfaceTint: "#FFF0F6",
+    glass: "rgba(255, 255, 255, 0.76)",
+    glassStrong: "rgba(255, 255, 255, 0.9)",
     white: "#FFFFFF",
 
     // Text
-    ink: "#171315",
+    ink: "#24151C",
     cocoa: "#633642",
     muted: "#82777A",
     mutedSoft: "#A08C93",
 
     // Lines
-    border: "#EDDFE2",
+    border: "#EADCE2",
     borderStrong: "#E8C2D1",
 
     // Brand
@@ -57,7 +59,7 @@ export const tokens = {
    */
   gradient: {
     /** Hero / feature banners: magenta → violet → indigo */
-    hero: ["#7D1238", "#C90859", "#F02A79"],
+    hero: ["#5B0E35", "#C90859", "#FF4D92"],
     /** Primary actions: hot magenta → electric purple */
     primary: ["#F70B72", "#C90859"],
     /** Cool counterpoint: cyan → periwinkle */
@@ -65,7 +67,7 @@ export const tokens = {
     /** Rewards & gold moments */
     gold: ["#FFC53D", "#FF8A00"],
     /** Full-screen aurora canvas behind glass surfaces */
-    aurora: ["#FFFDFE", "#FFF6FA", "#FFF9F3"],
+    aurora: ["#FFFDFE", "#FFF1F7", "#FFF6E8"],
   } as const,
   space: {
     none: 0,

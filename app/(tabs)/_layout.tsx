@@ -1,6 +1,7 @@
 import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { Platform } from "react-native";
+import { BlurView } from "expo-blur";
+import { Platform, StyleSheet } from "react-native";
 import { tokens } from "@/theme/tokens";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 const icons = {
@@ -20,17 +21,45 @@ export default function TabLayout() {
         tabBarActiveTintColor: tokens.color.brandStrong,
         tabBarInactiveTintColor: tokens.color.muted,
         tabBarHideOnKeyboard: true,
-        tabBarLabelStyle: { fontSize: 10, fontWeight: "400", marginTop: 3 },
-        tabBarItemStyle: { paddingTop: 5, borderRadius: 16 },
-        tabBarActiveBackgroundColor: "#FFF2F6",
-        tabBarStyle: {
-          backgroundColor: tokens.color.background,
-          borderTopColor: tokens.color.border,
-          paddingTop: 2,
-          paddingHorizontal: 6,
-          paddingBottom: Math.max(insets.bottom, 10),
-          height: 60 + Math.max(insets.bottom, 10),
+        tabBarLabelStyle: { fontSize: 10, fontWeight: "600", marginTop: 3 },
+        tabBarItemStyle: {
+          paddingTop: 5,
+          borderRadius: 18,
+          marginHorizontal: 2,
         },
+        tabBarActiveBackgroundColor: "rgba(255, 235, 244, 0.72)",
+        tabBarStyle: {
+          position: "absolute",
+          left: 12,
+          right: 12,
+          bottom: Math.max(insets.bottom, 8),
+          height: 68,
+          paddingTop: 7,
+          paddingBottom: 7,
+          paddingHorizontal: 6,
+          borderTopWidth: 0,
+          borderRadius: 25,
+          backgroundColor: "transparent",
+          shadowColor: "#6D2147",
+          shadowOffset: { width: 0, height: 8 },
+          shadowOpacity: 0.14,
+          shadowRadius: 20,
+          elevation: 8,
+        },
+        tabBarBackground: () => (
+          <BlurView
+            intensity={Platform.OS === "ios" ? 68 : 42}
+            tint="light"
+            style={{
+              ...StyleSheet.absoluteFill,
+              overflow: "hidden",
+              borderRadius: 25,
+              borderWidth: 1,
+              borderColor: "rgba(255, 255, 255, 0.82)",
+              backgroundColor: "rgba(255, 255, 255, 0.42)",
+            }}
+          />
+        ),
         tabBarIcon: ({ color, size, focused }) => (
           <Ionicons
             name={

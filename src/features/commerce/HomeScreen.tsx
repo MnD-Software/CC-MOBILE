@@ -1,4 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
+import { Image } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import {
@@ -23,6 +25,7 @@ import {
 } from "@/components/ui/ReferenceArtwork";
 import { tokens } from "@/theme/tokens";
 import { shopApi } from "./api";
+import { activeCampaigns, plainText } from "./contracts";
 import { referenceBestsellers, referenceCakes } from "./reference-catalogue";
 
 const departments: {
@@ -54,7 +57,31 @@ export function HomeScreen() {
     queryFn: ({ signal }) => shopApi.categories(signal),
     staleTime: 15 * 60000,
   });
-  const hero = referenceCakes[0];
+  const products = useQuery({
+    queryKey: ["catalogue", "home", "popular"],
+    queryFn: ({ signal }) =>
+      shopApi.products(
+        { page: 1, orderby: "popularity", order: "desc" },
+        signal,
+      ),
+    staleTime: 10 * 60000,
+  });
+  const config = useQuery({
+    queryKey: ["mobile-config"],
+    queryFn: ({ signal }) => shopApi.config(signal),
+    staleTime: 10 * 60000,
+  });
+  const liveProducts = products.data?.data ?? [];
+  const catalogue = liveProducts.length ? liveProducts : referenceCakes;
+  const hero = catalogue[0];
+  const bestsellers = liveProducts.length
+    ? liveProducts.slice(0, 8)
+    : referenceBestsellers;
+  const promotions = config.data
+    ? activeCampaigns(config.data.campaigns).slice(0, 3)
+    : [];
+  const pairings = catalogue.slice(1, 5);
+  const heroImage = hero.images[0]?.src;
 
   return (
     <Screen
@@ -109,7 +136,44 @@ export function HomeScreen() {
           pressed && styles.pressed,
         ]}
       >
-        <ReferenceArtwork name="chocolateBanner" width={contentWidth} />
+        <LinearGradient
+          colors={[tokens.color.brandDark, tokens.color.brandStrong, "#F14286"]}
+          start={{ x: 0, y: 0.2 }}
+          end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+        <View style={styles.heroCopy}>
+          <Text style={styles.heroKicker}>CAKE CITY FAVOURITE</Text>
+          <Text numberOfLines={2} style={styles.heroTitle}>
+            {plainText(hero.name)}
+          </Text>
+          <Text style={styles.heroBody}>
+            Rich. Moist. Made for your moment.
+          </Text>
+          <View style={styles.heroCta}>
+            <Text style={styles.heroCtaText}>Shop now</Text>
+            <Ionicons
+              name="arrow-forward"
+              size={15}
+              color={tokens.color.brandDark}
+            />
+          </View>
+        </View>
+        {heroImage?.startsWith("https://") ? (
+          <Image
+            source={heroImage}
+            contentFit="contain"
+            transition={180}
+            style={styles.heroImage}
+          />
+        ) : (
+          <View style={styles.fallbackHeroArt}>
+            <ReferenceArtwork
+              name="chocolateBanner"
+              width={contentWidth * 0.58}
+            />
+          </View>
+        )}
       </Pressable>
 
       <View style={styles.categoryRow}>
@@ -181,7 +245,7 @@ export function HomeScreen() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.productRail}
         >
-          {referenceBestsellers.map((product) => (
+          {bestsellers.map((product) => (
             <ProductTile
               key={product.id}
               product={product}
@@ -190,6 +254,131 @@ export function HomeScreen() {
             />
           ))}
         </ScrollView>
+      </View>
+
+      <View style={styles.pairingSection}>
+        <Section
+          compact
+          title="Perfect pairings"
+          action="Browse all"
+          onPress={() => router.push("/(tabs)/shop")}
+        />
+        <Text style={styles.sectionIntro}>
+          The KFC-inspired rhythm: choose a hero, add a crowd-pleaser, and make
+          it a spread.
+        </Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.productRail}
+        >
+          {pairings.map((product) => (
+            <ProductTile
+              key={product.id}
+              product={product}
+              width={cardWidth}
+              compact
+            />
+          ))}
+        </ScrollView>
+      </View>
+
+      <View style={styles.promotionSection}>
+        <Section
+          compact
+          title="Promotions"
+          action="See offers"
+          onPress={() => router.push("/offers")}
+        />
+        {promotions.length ? (
+          promotions.map((promotion) => (
+            <Pressable
+              key={promotion.id}
+              onPress={() => router.push("/offers")}
+              style={styles.promotionCard}
+            >
+              {promotion.image_url ? (
+                <Image
+                  source={promotion.image_url}
+                  contentFit="cover"
+                  style={styles.promotionImage}
+                />
+              ) : null}
+              <View style={styles.promotionCopy}>
+                <Text style={styles.promotionKicker}>LIMITED TIME</Text>
+                <Text style={styles.promotionTitle}>
+                  {plainText(promotion.title)}
+                </Text>
+                <Text numberOfLines={2} style={styles.promotionDescription}>
+                  {plainText(promotion.description)}
+                </Text>
+              </View>
+              <Ionicons
+                name="chevron-forward"
+                size={20}
+                color={tokens.color.brandStrong}
+              />
+            </Pressable>
+          ))
+        ) : (
+          <Pressable
+            onPress={() => router.push("/offers")}
+            style={styles.promotionCard}
+          >
+            <LinearGradient
+              colors={["#FFF0F6", "#FFF8E9"]}
+              style={StyleSheet.absoluteFill}
+            />
+            <View style={styles.promotionBadge}>
+              <Ionicons name="sparkles" size={17} color="#FFFFFF" />
+            </View>
+            <View style={styles.promotionCopy}>
+              <Text style={styles.promotionKicker}>CAKE CITY EDIT</Text>
+              <Text style={styles.promotionTitle}>
+                Make the table unforgettable
+              </Text>
+              <Text style={styles.promotionDescription}>
+                Fresh pairings, celebration cakes, and sweet extras in one
+                place.
+              </Text>
+            </View>
+            <Ionicons
+              name="chevron-forward"
+              size={20}
+              color={tokens.color.brandStrong}
+            />
+          </Pressable>
+        )}
+      </View>
+
+      <View style={styles.exploreSection}>
+        <Section compact title="Explore Cake City" />
+        <View style={styles.moduleGrid}>
+          {[
+            ["Shop all", "grid-outline", "/(tabs)/shop"],
+            ["Offers", "pricetag-outline", "/offers"],
+            ["Custom cakes", "color-palette-outline", "/(tabs)/custom"],
+            ["Rewards", "star-outline", "/rewards"],
+            ["Orders", "receipt-outline", "/(tabs)/orders"],
+            ["Profile", "person-outline", "/(tabs)/account"],
+          ].map(([label, icon, route]) => (
+            <Pressable
+              key={label}
+              onPress={() => router.push(route as never)}
+              style={({ pressed }) => [
+                styles.moduleButton,
+                pressed && styles.pressed,
+              ]}
+            >
+              <Ionicons
+                name={icon as keyof typeof Ionicons.glyphMap}
+                size={19}
+                color={tokens.color.brandStrong}
+              />
+              <Text style={styles.moduleLabel}>{label}</Text>
+            </Pressable>
+          ))}
+        </View>
       </View>
     </Screen>
   );
@@ -229,6 +418,58 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     backgroundColor: "#A90048",
   },
+  heroCopy: {
+    position: "absolute",
+    zIndex: 2,
+    left: 18,
+    top: 19,
+    width: "48%",
+    gap: 6,
+  },
+  heroKicker: {
+    color: "#FFD6E7",
+    fontSize: 9,
+    fontWeight: "800",
+    letterSpacing: 1.4,
+  },
+  heroTitle: {
+    color: "#FFFFFF",
+    fontSize: 23,
+    lineHeight: 27,
+    fontWeight: "800",
+  },
+  heroBody: { color: "#FFEAF2", fontSize: 11, lineHeight: 16 },
+  heroCta: {
+    marginTop: 7,
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 11,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: "#FFFFFF",
+  },
+  heroCtaText: {
+    color: tokens.color.brandDark,
+    fontSize: 11,
+    fontWeight: "800",
+  },
+  heroImage: {
+    position: "absolute",
+    right: -10,
+    bottom: -5,
+    width: "58%",
+    height: "100%",
+  },
+  fallbackHeroArt: {
+    position: "absolute",
+    right: 0,
+    bottom: 0,
+    width: "58%",
+    height: "100%",
+    opacity: 0.9,
+  },
   pressed: { opacity: 0.8 },
   categoryRow: {
     marginTop: 24,
@@ -249,4 +490,65 @@ const styles = StyleSheet.create({
   categoryActive: { color: tokens.color.brandStrong, fontWeight: "500" },
   bestsellers: { marginTop: 20, gap: 7, paddingHorizontal: 3 },
   productRail: { gap: 10, paddingBottom: 6 },
+  pairingSection: { marginTop: 23, gap: 7, paddingHorizontal: 3 },
+  sectionIntro: {
+    color: tokens.color.muted,
+    fontSize: 11,
+    lineHeight: 16,
+    maxWidth: 430,
+  },
+  promotionSection: { marginTop: 24, gap: 8, paddingHorizontal: 3 },
+  promotionCard: {
+    minHeight: 104,
+    overflow: "hidden",
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: tokens.color.border,
+    backgroundColor: tokens.color.surface,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 13,
+  },
+  promotionImage: { width: 76, height: 76, borderRadius: 14 },
+  promotionBadge: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    backgroundColor: tokens.color.brandStrong,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  promotionCopy: { flex: 1, gap: 3 },
+  promotionKicker: {
+    color: tokens.color.brandStrong,
+    fontSize: 9,
+    fontWeight: "800",
+    letterSpacing: 1.3,
+  },
+  promotionTitle: {
+    color: tokens.color.ink,
+    fontSize: 15,
+    lineHeight: 19,
+    fontWeight: "800",
+  },
+  promotionDescription: {
+    color: tokens.color.muted,
+    fontSize: 11,
+    lineHeight: 16,
+  },
+  exploreSection: { marginTop: 25, gap: 10, paddingHorizontal: 3 },
+  moduleGrid: { flexDirection: "row", flexWrap: "wrap", gap: 9 },
+  moduleButton: {
+    width: "31.7%",
+    minHeight: 70,
+    padding: 11,
+    gap: 8,
+    justifyContent: "center",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: tokens.color.border,
+    backgroundColor: tokens.color.glassStrong,
+  },
+  moduleLabel: { color: tokens.color.ink, fontSize: 11, fontWeight: "700" },
 });

@@ -71,7 +71,6 @@ export function ShopScreen() {
     staleTime: 15 * 60000,
   });
   const products = useInfiniteQuery({
-    enabled: !referenceMode,
     queryKey: ["catalogue", "shop", debounced, category, sort, sale, budget],
     initialPageParam: 1,
     queryFn: ({ pageParam, signal }) =>
@@ -105,24 +104,24 @@ export function ShopScreen() {
         ((productPrice(a) ?? 0) - (productPrice(b) ?? 0)) *
         (sort === "price" ? 1 : -1),
     );
-  const rows = referenceMode
-    ? referenceRows
-    : (products.data?.pages
-        .flatMap((page) => page.data)
-        .filter(
-          (product, index, all) =>
-            all.findIndex((candidate) => candidate.id === product.id) === index,
-        ) ?? []);
+  const liveRows =
+    products.data?.pages
+      .flatMap((page) => page.data)
+      .filter(
+        (product, index, all) =>
+          all.findIndex((candidate) => candidate.id === product.id) === index,
+      ) ?? [];
+  const rows = liveRows.length ? liveRows : referenceRows;
   const parent = categories.data?.find((item) => item.id === category);
-  const options = referenceMode
-    ? referenceCategories
-    : (categories.data?.filter(
+  const options = categories.data?.length
+    ? categories.data.filter(
         (item) =>
           item.count > 0 &&
           (item.parent === 0 ||
             item.parent === category ||
             item.parent === parent?.parent),
-      ) ?? []);
+      )
+    : referenceCategories;
 
   return (
     <Screen
@@ -306,10 +305,7 @@ export function ShopScreen() {
                     : "All cakes"}
                 </Text>
                 <Text style={styles.resultsCount}>
-                  {referenceMode
-                    ? rows.length
-                    : (products.data?.pages[0]?.total ?? rows.length)}{" "}
-                  results
+                  {products.data?.pages[0]?.total ?? rows.length} results
                 </Text>
               </View>
             )}
@@ -317,10 +313,10 @@ export function ShopScreen() {
         }
         ListEmptyComponent={
           <Feedback
-            loading={!referenceMode && products.isPending}
-            error={referenceMode ? undefined : products.error}
+            loading={products.isPending && !rows.length}
+            error={products.error}
             empty={
-              referenceMode || (!products.isPending && !products.error)
+              !products.isPending && !products.error
                 ? "No cakes found for that search."
                 : undefined
             }
@@ -328,9 +324,9 @@ export function ShopScreen() {
           />
         }
         ListFooterComponent={
-          !referenceMode && products.isFetchingNextPage ? (
+          products.isFetchingNextPage ? (
             <Feedback loading />
-          ) : !referenceMode && products.isError && rows.length ? (
+          ) : products.isError && rows.length ? (
             <Button
               label="Load more cakes"
               variant="outline"
