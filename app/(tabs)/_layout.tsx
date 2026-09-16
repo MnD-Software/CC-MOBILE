@@ -19,15 +19,15 @@ export default function TabLayout() {
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarActiveTintColor: tokens.color.brandStrong,
-        tabBarInactiveTintColor: tokens.color.muted,
+        tabBarInactiveTintColor: "#6A5962",
         tabBarHideOnKeyboard: true,
-        tabBarLabelStyle: { fontSize: 10, fontWeight: "600", marginTop: 3 },
+        tabBarLabelStyle: { fontSize: 10.5, fontWeight: "700", marginTop: 3 },
         tabBarItemStyle: {
           paddingTop: 5,
           borderRadius: 18,
           marginHorizontal: 2,
         },
-        tabBarActiveBackgroundColor: "rgba(255, 235, 244, 0.72)",
+        tabBarActiveBackgroundColor: "rgba(255, 224, 238, 0.96)",
         tabBarStyle: {
           position: "absolute",
           left: 12,
@@ -39,7 +39,7 @@ export default function TabLayout() {
           paddingHorizontal: 6,
           borderTopWidth: 0,
           borderRadius: 25,
-          backgroundColor: "transparent",
+          backgroundColor: "rgba(255, 255, 255, 0.94)",
           shadowColor: "#6D2147",
           shadowOffset: { width: 0, height: 8 },
           shadowOpacity: 0.14,
@@ -56,7 +56,7 @@ export default function TabLayout() {
               borderRadius: 25,
               borderWidth: 1,
               borderColor: "rgba(255, 255, 255, 0.82)",
-              backgroundColor: "rgba(255, 255, 255, 0.42)",
+              backgroundColor: "rgba(255, 255, 255, 0.94)",
             }}
           />
         ),
@@ -66,7 +66,7 @@ export default function TabLayout() {
               icons[route.name as keyof typeof icons]?.[focused ? 1 : 0] ??
               "ellipse-outline"
             }
-            size={Math.min(size, 22)}
+            size={Math.min(size + 1, 24)}
             color={color}
           />
         ),

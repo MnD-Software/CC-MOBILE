@@ -142,22 +142,13 @@ export function HomeScreen() {
           end={{ x: 1, y: 1 }}
           style={StyleSheet.absoluteFill}
         />
-        <View style={styles.heroCopy}>
-          <Text style={styles.heroKicker}>CAKE CITY FAVOURITE</Text>
-          <Text numberOfLines={2} style={styles.heroTitle}>
-            {plainText(hero.name)}
-          </Text>
-          <Text style={styles.heroBody}>
-            Rich. Moist. Made for your moment.
-          </Text>
-          <View style={styles.heroCta}>
-            <Text style={styles.heroCtaText}>Shop now</Text>
-            <Ionicons
-              name="arrow-forward"
-              size={15}
-              color={tokens.color.brandDark}
-            />
-          </View>
+        <View style={styles.heroCta}>
+          <Text style={styles.heroCtaText}>Shop this cake</Text>
+          <Ionicons
+            name="arrow-forward"
+            size={15}
+            color={tokens.color.brandDark}
+          />
         </View>
         {heroImage?.startsWith("https://") ? (
           <Image
@@ -264,8 +255,7 @@ export function HomeScreen() {
           onPress={() => router.push("/(tabs)/shop")}
         />
         <Text style={styles.sectionIntro}>
-          The KFC-inspired rhythm: choose a hero, add a crowd-pleaser, and make
-          it a spread.
+          Curated combinations for birthdays, sharing, and every sweet moment.
         </Text>
         <ScrollView
           horizontal
@@ -418,28 +408,11 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     backgroundColor: "#A90048",
   },
-  heroCopy: {
-    position: "absolute",
-    zIndex: 2,
-    left: 18,
-    top: 19,
-    width: "48%",
-    gap: 6,
-  },
-  heroKicker: {
-    color: "#FFD6E7",
-    fontSize: 9,
-    fontWeight: "800",
-    letterSpacing: 1.4,
-  },
-  heroTitle: {
-    color: "#FFFFFF",
-    fontSize: 23,
-    lineHeight: 27,
-    fontWeight: "800",
-  },
-  heroBody: { color: "#FFEAF2", fontSize: 11, lineHeight: 16 },
   heroCta: {
+    position: "absolute",
+    zIndex: 3,
+    left: 18,
+    bottom: 18,
     marginTop: 7,
     alignSelf: "flex-start",
     flexDirection: "row",

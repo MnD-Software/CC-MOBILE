@@ -1,6 +1,6 @@
+import { Image } from "expo-image";
 import { StyleProp, StyleSheet, View, ViewStyle } from "react-native";
 import { tokens } from "@/theme/tokens";
-import { ReferenceArtwork } from "./ui/ReferenceArtwork";
 
 export const cakeCityBrand = {
   pink: tokens.color.brand,
@@ -32,7 +32,12 @@ export function BrandLogo({ width = 126, style }: BrandLogoProps) {
       accessibilityLabel="Cake City, Celebrate with Love"
       style={[styles.frame, { width, height: (width * 46) / 137 }, style]}
     >
-      <ReferenceArtwork name="logo" width={width} />
+      <Image
+        source={require("../../assets/cake-city-logo.png")}
+        contentFit="contain"
+        cachePolicy="memory-disk"
+        style={StyleSheet.absoluteFill}
+      />
     </View>
   );
 }

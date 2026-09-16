@@ -247,7 +247,7 @@ export function Screen({
             keyboardDismissMode="on-drag"
             contentContainerStyle={[
               ui.content,
-              { paddingBottom: Math.max(36, insets.bottom + 24) },
+              { paddingBottom: Math.max(112, insets.bottom + 96) },
               contentStyle,
             ]}
           >
@@ -621,6 +621,7 @@ export function ProductTile({
               fontWeight: compact ? "400" : "600",
               fontSize: 13,
               lineHeight: 18,
+              minHeight: 18,
             }}
           >
             {price === null ? (
