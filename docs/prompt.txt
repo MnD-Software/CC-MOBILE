@@ -1,0 +1,2403 @@
+# Cake City Premium Mobile App
+
+## Master Production Prompt for Cline / OpenAI Codex
+
+---
+
+## 1. ROLE
+
+You are the lead product engineer, senior Flutter engineer, UI/UX designer, solution architect, backend integration engineer, QA engineer, and DevOps engineer responsible for completing the Cake City mobile application.
+
+You are not building a demo, prototype, mockup, proof of concept, or simplified sample.
+
+You are building a **production-ready commercial mobile application for Cake City Kenya**, designed for real customers, real orders, real payments, real product data, real loyalty activity, real notifications, and real operational workloads.
+
+The application must be architected for:
+
+* Android
+* iOS
+* Production cloud deployment
+* Thousands of concurrent users
+* High daily order volumes
+* WooCommerce integration
+* Customer accounts
+* Loyalty
+* Product recommendations
+* Cross-selling
+* Order tracking
+* Notifications
+* Branch-aware ordering
+* Future AI capabilities
+* Future CRM/ERP integrations
+
+The application must be maintainable, scalable, secure, testable, observable, and ready for production deployment.
+
+Do not build fake functionality merely to make the UI appear complete.
+
+If a backend integration is unavailable, implement a clean service/repository abstraction and configuration layer so the real integration can be connected without rewriting the application.
+
+---
+
+# 2. PRODUCT VISION
+
+Cake City should not be treated as merely a bakery ecommerce application.
+
+The product vision is:
+
+> **Cake City is a digital celebration marketplace.**
+
+The customer should be able to purchase everything required for a celebration from one ecosystem.
+
+The application must therefore support:
+
+### Core products
+
+* Cakes
+* Cupcakes
+* Desserts
+* Celebration cakes
+* Custom cakes
+* Photo cakes
+* Wedding cakes
+* Corporate cakes
+
+### Celebration products
+
+* Balloons
+* Candles
+* Cake toppers
+* Party hats
+* Party plates
+* Cups
+* Napkins
+* Cutlery
+* Table decorations
+* Party decorations
+* Gift items
+* Flowers
+* Chocolates
+* Greeting cards
+* Gift wrapping
+* Other celebration accessories
+
+The system must support future product categories without requiring major architectural changes.
+
+---
+
+# 3. MOST IMPORTANT COMMERCIAL FEATURE
+
+## Celebration Pairing / Smart Cross-Selling
+
+The application must intelligently pair cakes with complementary products.
+
+This is a core feature, not an optional enhancement.
+
+When a customer views or adds a cake, the application should be able to recommend related celebration products.
+
+Example:
+
+Customer selects:
+
+> 1.5 KG Chocolate Fudge Cake
+
+The application should display:
+
+### Complete the Celebration
+
+* 🎈 Pink & Gold Balloon Set
+* 🕯️ Birthday Candle Set
+* 🎂 Happy Birthday Cake Topper
+* 🎉 Party Hat Set
+* 🎁 Gift Box
+* 🌸 Flowers
+* 🍫 Chocolate Gift Box
+
+Example:
+
+```text
+Your Cake
+Chocolate Fudge Cake
+1.5 KG
+KSh 2,500
+
+Complete the Celebration
+
+🎈 Balloon Set
+KSh 650
+[ + ADD ]
+
+🎂 Birthday Topper
+KSh 250
+[ + ADD ]
+
+🕯️ Candle Set
+KSh 150
+[ + ADD ]
+
+🎁 Gift Box
+KSh 800
+[ + ADD ]
+
+----------------------------
+
+Celebration Bundle
+
+Cake       KSh 2,500
+Accessories KSh 1,850
+
+Bundle Total
+KSh 4,350
+
+[ ADD ALL TO CART ]
+```
+
+The system should support:
+
+* Manual merchandising rules
+* Category relationships
+* Product tags
+* Occasion relationships
+* Product attributes
+* Customer purchase history
+* Popular combinations
+* Frequently bought together
+* Recently viewed products
+* Personalized recommendations
+
+Eventually, recommendation logic should be AI-ready.
+
+---
+
+# 4. OCCASION-FIRST SHOPPING
+
+The application should allow customers to shop according to what they are celebrating.
+
+Create an "Shop by Occasion" experience.
+
+Examples:
+
+* Birthday
+* Anniversary
+* Wedding
+* Graduation
+* Baby Shower
+* Corporate Event
+* Valentine's Day
+* Mother's Day
+* Father's Day
+* Christmas
+* Easter
+* Graduation
+* Bridal Shower
+* Kids Party
+* Housewarming
+* General Celebration
+* Gift
+
+Example:
+
+```text
+What are you celebrating?
+
+🎂 Birthday
+❤️ Anniversary
+💍 Wedding
+🎓 Graduation
+👶 Baby Shower
+🏢 Corporate
+🎉 Party
+🎁 Gift
+```
+
+When an occasion is selected, the system should combine relevant products.
+
+For example:
+
+### Birthday
+
+Show:
+
+* Birthday cakes
+* Birthday cupcakes
+* Balloons
+* Candles
+* Cake toppers
+* Party hats
+* Plates
+* Napkins
+* Gift items
+* Flowers
+* Recommended bundles
+
+This should create a complete shopping journey instead of forcing the customer to browse unrelated categories.
+
+---
+
+# 5. BRAND VISUAL SOURCE OF TRUTH
+
+The project includes visual references supplied by the client.
+
+Use the supplied Cake City logo and login-screen reference as the primary visual source of truth.
+
+The reference assets include:
+
+1. Cake City logo
+2. Existing Cake City login screen
+
+If the assets are available in the development workspace, inspect them directly.
+
+If necessary, create:
+
+```text
+/design
+    /references
+        cakecity-logo.png
+        cakecity-login-reference.png
+```
+
+Do not replace the Cake City identity with generic bakery branding.
+
+Do not invent a new logo.
+
+Do not change the logo proportions.
+
+Do not recolor the logo unless creating an officially required monochrome variant.
+
+The supplied login screen already contains a visual language that should be retained and significantly enhanced.
+
+---
+
+# 6. OFFICIAL VISUAL LANGUAGE
+
+Use the Cake City logo colors as the foundation.
+
+### Primary Pink
+
+```text
+#EC008C
+```
+
+Use for:
+
+* Primary CTA
+* Active navigation
+* Important highlights
+* Rewards
+* Promotions
+* Brand accents
+
+### Primary Blue
+
+```text
+#00AEEF
+```
+
+Use for:
+
+* Secondary accents
+* Decorative shapes
+* Informational states
+* Delivery indicators
+* Supporting UI elements
+
+### Cake City Brown
+
+```text
+#51382E
+```
+
+Use for:
+
+* Main text
+* Product headings
+* Premium contrast
+* Selected typography
+* Important dark UI elements
+
+### White
+
+```text
+#FFFFFF
+```
+
+White must remain the dominant surface color.
+
+The application should feel predominantly:
+
+> White + Pink + Blue + Brown
+
+rather than:
+
+> Pink + pink + more pink.
+
+---
+
+# 7. PREMIUM VISUAL DIRECTION
+
+The application must feel:
+
+* Premium
+* Glossy
+* Modern
+* Exciting
+* Warm
+* Appetizing
+* Trustworthy
+* Playful
+* Elegant
+* Commercially powerful
+
+Use a sophisticated version of:
+
+### Glossy minimalism
+
+The UI should use:
+
+* White surfaces
+* Soft gradients
+* Subtle glass effects
+* Layered cards
+* Soft shadows
+* Gentle highlights
+* Rounded corners
+* Premium typography
+* High-quality product photography
+* Subtle depth
+* Smooth transitions
+* Micro-interactions
+
+Do not overuse glassmorphism.
+
+Glass effects should be used as accents rather than turning the entire application into translucent soup.
+
+---
+
+# 8. BACKGROUND DESIGN
+
+White should remain the primary background.
+
+However, introduce subtle Cake City visual patterns.
+
+Use organic abstract shapes inspired by the existing login screen.
+
+Examples:
+
+* Pink blobs
+* Blue curved shapes
+* Soft circular gradients
+* Cake-inspired curves
+* Confetti-inspired micro-patterns
+* Soft bubbles
+* Decorative celebration particles
+
+These patterns should remain subtle.
+
+They should never interfere with:
+
+* Text readability
+* Product images
+* Buttons
+* Navigation
+* Accessibility
+
+The visual language should feel like an evolution of the current login screen rather than a completely unrelated redesign.
+
+---
+
+# 9. LOGIN SCREEN
+
+The existing login screen is already directionally strong.
+
+Preserve its core concept:
+
+```text
+Cake City logo
+
+YOUR CELEBRATIONS, CLOSER
+
+Welcome back.
+
+Sign in to order cakes, follow deliveries
+and keep every special moment together.
+
+Email
+Password
+
+[ Sign in securely ]
+
+or continue with
+
+[ Google ]
+
+Explore as a guest
+
+New to Cake City?
+Create an account
+```
+
+Improve it substantially.
+
+Requirements:
+
+* Premium logo placement
+* Responsive typography
+* Soft organic background shapes
+* White glossy authentication card
+* Subtle border
+* Premium shadows
+* Smooth input animations
+* Password visibility toggle
+* Loading state
+* Validation state
+* Error state
+* Success state
+* Google authentication
+* Guest browsing
+* Account creation
+* Forgot password
+* Secure authentication
+
+The login card should feel elevated above the background.
+
+Use subtle gradients and reflections.
+
+Do not make the page visually noisy.
+
+---
+
+# 10. ONBOARDING
+
+Create a short premium onboarding experience.
+
+Do not create a long tutorial.
+
+Use approximately 3 screens.
+
+### Screen 1
+
+```text
+Your celebrations,
+made sweeter.
+
+Discover cakes and treats
+for every special moment.
+```
+
+### Screen 2
+
+```text
+Complete the celebration.
+
+Pair your cake with balloons,
+gifts, candles and party essentials.
+```
+
+### Screen 3
+
+```text
+Order.
+Track.
+Celebrate.
+
+Follow your order from kitchen
+to doorstep.
+```
+
+Include:
+
+* Skip
+* Continue
+* Get Started
+
+Use Cake City visual elements and high-quality imagery.
+
+---
+
+# 11. HOME SCREEN
+
+The home screen is the primary commercial screen.
+
+It must not look like a generic ecommerce template.
+
+Structure:
+
+```text
+Greeting
+
+Search
+
+Hero promotion
+
+Shop by Occasion
+
+Categories
+
+Best Sellers
+
+Complete the Celebration
+
+Personalized Recommendations
+
+Offers
+
+Recently Viewed
+
+Reorder
+
+Rewards
+
+Branch / Delivery information
+```
+
+Example:
+
+```text
+Good afternoon 👋
+
+What are we celebrating?
+
+[ 🔍 Search cakes, gifts & party items ]
+
+----------------------------------
+
+[ HERO PROMOTION ]
+
+Make their day sweeter.
+
+[ SHOP NOW ]
+
+----------------------------------
+
+Shop by Occasion
+
+🎂 Birthday
+❤️ Anniversary
+🎓 Graduation
+🎉 Party
+
+----------------------------------
+
+Best Sellers
+
+Product cards
+
+----------------------------------
+
+Complete the Celebration
+
+Cake + Balloons + Candles
+
+----------------------------------
+
+Because you loved...
+
+Personalized products
+
+----------------------------------
+
+Your Rewards
+
+2,450 points
+
+[ VIEW REWARDS ]
+```
+
+---
+
+# 12. PRODUCT CARDS
+
+Product cards must be premium and commercially optimized.
+
+Include:
+
+* Product image
+* Product name
+* Price
+* Discount where applicable
+* Rating
+* Favorite button
+* Quick add
+* Product badges
+* Loyalty points
+* Availability
+
+Examples:
+
+```text
+BEST SELLER
+NEW
+POPULAR
+LIMITED
+SALE
+```
+
+For cakes:
+
+```text
+Chocolate Fudge Cake
+⭐ 4.8
+
+From
+KSh 1,500
+
++ Add
+```
+
+For accessories:
+
+```text
+Pink Balloon Set
+
+KSh 650
+
++ Add
+```
+
+---
+
+# 13. PRODUCT DETAIL SCREEN
+
+Include:
+
+* Large product gallery
+* Product title
+* Rating
+* Reviews
+* Price
+* Product options
+* Size
+* Flavor
+* Customization
+* Quantity
+* Availability
+* Delivery information
+* Loyalty points
+* Add to cart
+
+For cakes, allow:
+
+* Weight
+* Flavor
+* Message
+* Cake design
+* Image upload
+* Custom artwork
+* Special instructions
+
+---
+
+# 14. SMART PRODUCT PAIRING
+
+Every major cake product should have a section:
+
+## Complete the Celebration
+
+Use product relationships.
+
+Example:
+
+```text
+Chocolate Fudge Cake
+
+Complete the Celebration
+
+🎈 Pink Balloon Set       + KSh 650
+🎂 Birthday Topper        + KSh 250
+🕯️ Candle Set             + KSh 150
+🎁 Gift Box               + KSh 800
+🌸 Flower Bouquet         + KSh 1,500
+```
+
+Allow:
+
+```text
+[ ADD ALL ]
+```
+
+Calculate the combined total dynamically.
+
+Show savings if a bundle discount exists.
+
+---
+
+# 15. SMART BUNDLES
+
+Create a dedicated concept:
+
+## Celebration Bundles
+
+Examples:
+
+### Birthday Starter
+
+Cake
++
+Candles
++
+Birthday Topper
+
+### Birthday Party
+
+Cake
++
+Balloons
++
+Candles
++
+Party Hats
++
+Plates
++
+Napkins
+
+### Romantic Celebration
+
+Cake
++
+Flowers
++
+Chocolates
++
+Greeting Card
+
+### Corporate Celebration
+
+Cake
++
+Corporate Message
++
+Branded Topper
++
+Gift Packaging
+
+Bundles should be configurable through backend/product rules.
+
+Do not hardcode bundle products inside UI code.
+
+---
+
+# 16. CUSTOM CAKE BUILDER
+
+Create a premium guided cake builder.
+
+Flow:
+
+```text
+Choose size
+      ↓
+Choose flavor
+      ↓
+Choose design
+      ↓
+Add message
+      ↓
+Upload artwork
+      ↓
+Choose accessories
+      ↓
+Choose delivery
+      ↓
+Review
+      ↓
+Add to cart
+```
+
+Provide a live summary.
+
+Example:
+
+```text
+YOUR CAKE
+
+1.5 KG
+Chocolate
+Custom Design
+"Happy Birthday Sarah"
+
++ Balloon Set
++ Cake Topper
+
+Estimated Total
+KSh 3,400
+
+[ ADD TO CART ]
+```
+
+Architecture must allow future AI-generated cake design suggestions.
+
+---
+
+# 17. SEARCH
+
+Search must support:
+
+* Cakes
+* Accessories
+* Gifts
+* Party items
+* Occasions
+* Brands
+* Product categories
+
+Support:
+
+* Search suggestions
+* Recent searches
+* Popular searches
+* Typo tolerance
+* Filters
+* Sorting
+* Price range
+* Category
+* Occasion
+* Availability
+* Rating
+
+Examples:
+
+```text
+Search:
+"birthday"
+
+Results:
+
+Birthday Cakes
+Birthday Balloons
+Birthday Candles
+Birthday Toppers
+Birthday Gifts
+Birthday Bundles
+```
+
+---
+
+# 18. CART
+
+The cart should automatically identify opportunities for cross-selling.
+
+Example:
+
+```text
+YOUR CART
+
+Chocolate Fudge Cake
+1.5 KG
+KSh 2,500
+
+--------------------------------
+
+You're almost ready 🎉
+
+Complete your celebration:
+
+Birthday Candles
+KSh 150
+[ + ADD ]
+
+Balloons
+KSh 650
+[ + ADD ]
+
+Cake Topper
+KSh 250
+[ + ADD ]
+
+--------------------------------
+
+Subtotal
+KSh 3,550
+
+Delivery
+KSh 300
+
+TOTAL
+KSh 3,850
+
+[ CHECKOUT ]
+```
+
+Do not aggressively spam recommendations.
+
+Prioritize relevance.
+
+---
+
+# 19. CHECKOUT
+
+Checkout must be short and reliable.
+
+Support:
+
+* Guest checkout where appropriate
+* Logged-in checkout
+* Saved addresses
+* New addresses
+* Delivery
+* Pickup
+* Delivery date
+* Delivery slot
+* Branch
+* Order notes
+* Promo codes
+* Loyalty points
+* Payment
+* Order confirmation
+
+Payment architecture must support future/current integrations such as:
+
+* M-Pesa
+* Card
+* Other supported payment gateways
+
+Do not store sensitive payment information unnecessarily.
+
+---
+
+# 20. ORDER TRACKING
+
+Create a visual order timeline.
+
+```text
+ORDER #CC10293
+
+✓ Order Confirmed
+
+✓ Payment Confirmed
+
+✓ Preparing
+
+● Baking
+
+○ Ready
+
+○ Out for Delivery
+
+○ Delivered
+```
+
+Use animated progress transitions.
+
+Notifications should be generated when order status changes.
+
+---
+
+# 21. LOYALTY SYSTEM
+
+Create a first-class loyalty experience.
+
+Show:
+
+* Current points
+* Lifetime points
+* Tier
+* Progress to next tier
+* Available rewards
+* Points history
+* Reward history
+* Expiring points
+* Birthday rewards
+* Referral rewards
+* Promotional bonuses
+
+Example:
+
+```text
+CAKE CITY REWARDS
+
+2,450 POINTS
+
+Gold Member ⭐
+
+550 points until Platinum
+
+[ REDEEM REWARDS ]
+
+Available Rewards
+
+KSh 500 OFF
+1,000 points
+
+FREE DELIVERY
+2,000 points
+
+FREE CUPCAKES
+1,500 points
+```
+
+The loyalty architecture must be server-authoritative.
+
+Never trust the mobile client to determine reward balances.
+
+---
+
+# 22. PERSONALIZATION
+
+The application should become progressively personalized.
+
+Potential personalization inputs:
+
+* Purchase history
+* Favorite products
+* Favorite categories
+* Occasion
+* Location
+* Branch
+* Search history
+* Recently viewed products
+* Loyalty tier
+* Order frequency
+* Average order value
+
+Examples:
+
+```text
+Because you loved Chocolate Fudge Cake...
+
+You may also like...
+```
+
+```text
+Complete your usual order...
+```
+
+```text
+Your birthday celebration is coming up 🎂
+```
+
+Personalization must respect privacy and user controls.
+
+---
+
+# 23. FAVORITES
+
+Allow users to save:
+
+* Cakes
+* Accessories
+* Bundles
+* Gifts
+
+Include:
+
+```text
+❤️ Favorites
+```
+
+Provide quick add to cart.
+
+---
+
+# 24. REORDER
+
+Show previous purchases.
+
+Example:
+
+```text
+ORDER AGAIN
+
+Chocolate Fudge Cake
+1.5 KG
+
+Previously ordered:
+12 July
+
+[ ORDER AGAIN ]
+```
+
+Where appropriate, show associated accessories:
+
+```text
+Last time you also purchased:
+
+🎈 Balloons
+🎂 Cake Topper
+🕯️ Candles
+
+[ REPEAT ENTIRE ORDER ]
+```
+
+---
+
+# 25. BRANCH SYSTEM
+
+Support Cake City branches.
+
+Branch data should include:
+
+* Name
+* Location
+* Coordinates
+* Phone
+* WhatsApp
+* Opening hours
+* Delivery zones
+* Products
+* Pickup availability
+
+The application should determine the appropriate branch based on:
+
+* Customer location
+* Delivery location
+* Product availability
+* Branch configuration
+
+Do not assume every branch has identical inventory.
+
+---
+
+# 26. DELIVERY
+
+Create a proper delivery experience.
+
+Customer selects:
+
+```text
+Delivery
+OR
+Pickup
+```
+
+For delivery:
+
+```text
+Address
+Date
+Time Slot
+Branch
+Delivery Fee
+```
+
+The application should be designed to support:
+
+* Delivery zones
+* Distance-based pricing
+* Branch-based delivery
+* Minimum order requirements
+* Same-day availability
+* Preparation time
+* Cake lead times
+
+The frontend should receive availability from the backend rather than hardcoding business rules.
+
+---
+
+# 27. NOTIFICATIONS
+
+Support push notifications.
+
+Notification categories:
+
+* Order updates
+* Promotions
+* Loyalty
+* Birthday
+* Abandoned cart
+* New products
+* Personalized recommendations
+* Delivery updates
+* Account/security
+* Service notifications
+
+Examples:
+
+```text
+🎂 Your cake is ready!
+
+🚗 Your order is on the way.
+
+🎁 You just earned 250 points.
+
+🔥 Your favorite chocolate cake is on offer.
+
+🎉 Your birthday reward is waiting.
+```
+
+Use deep links so tapping a notification opens the correct screen.
+
+---
+
+# 28. AI-READY ARCHITECTURE
+
+Do not build AI as a gimmick.
+
+Design the data layer so AI can be added later.
+
+Potential AI capabilities:
+
+### Cake recommendation
+
+"Which cake should I buy for a 10-year-old?"
+
+### Celebration planner
+
+"I have KSh 5,000 for a birthday party."
+
+The system could recommend:
+
+* Cake
+* Balloons
+* Candles
+* Plates
+* Decorations
+* Gift
+
+### Personalized bundles
+
+### Customer support assistant
+
+### Product discovery
+
+### Demand forecasting
+
+### Recommendation engine
+
+### Marketing personalization
+
+The architecture must therefore expose clean structured data.
+
+---
+
+# 29. DATA MODEL
+
+Design models/entities for at least:
+
+```text
+User
+CustomerProfile
+Address
+Branch
+Product
+ProductCategory
+ProductVariant
+ProductAttribute
+ProductImage
+ProductRelation
+Occasion
+Bundle
+BundleItem
+Cart
+CartItem
+Order
+OrderItem
+Payment
+Delivery
+DeliverySlot
+LoyaltyAccount
+LoyaltyTransaction
+Reward
+Promotion
+Coupon
+Favorite
+Review
+Notification
+SupportConversation
+Recommendation
+```
+
+Use IDs, timestamps, statuses and audit fields consistently.
+
+---
+
+# 30. ARCHITECTURE
+
+Use clean architecture principles.
+
+Recommended Flutter structure:
+
+```text
+lib/
+├── core/
+│   ├── config/
+│   ├── constants/
+│   ├── errors/
+│   ├── networking/
+│   ├── storage/
+│   ├── theme/
+│   ├── routing/
+│   ├── utils/
+│   └── widgets/
+│
+├── features/
+│   ├── auth/
+│   ├── home/
+│   ├── products/
+│   ├── categories/
+│   ├── occasions/
+│   ├── bundles/
+│   ├── cart/
+│   ├── checkout/
+│   ├── orders/
+│   ├── tracking/
+│   ├── loyalty/
+│   ├── favorites/
+│   ├── notifications/
+│   ├── branches/
+│   ├── profile/
+│   ├── support/
+│   └── search/
+│
+├── services/
+│   ├── analytics/
+│   ├── notifications/
+│   ├── payments/
+│   └── recommendations/
+│
+└── main.dart
+```
+
+Use a consistent architecture such as:
+
+```text
+Presentation
+    ↓
+Application / State
+    ↓
+Domain
+    ↓
+Repository
+    ↓
+Data Sources / APIs
+```
+
+Keep business logic out of widgets.
+
+---
+
+# 31. STATE MANAGEMENT
+
+Use a scalable state-management solution already compatible with the project.
+
+If the existing project already has a sound state-management architecture, preserve it.
+
+Do not introduce unnecessary competing state-management systems.
+
+State must properly handle:
+
+* Loading
+* Success
+* Empty
+* Error
+* Retry
+* Offline
+* Authentication expiration
+* Network failure
+
+---
+
+# 32. API / BACKEND INTEGRATION
+
+The application must use service abstractions.
+
+Never place WooCommerce/API credentials directly inside the Flutter client.
+
+Never expose:
+
+* API secrets
+* Admin credentials
+* Payment secrets
+* Private keys
+
+The architecture should look like:
+
+```text
+Flutter App
+     ↓
+Secure API Layer
+     ↓
+Backend / Integration Layer
+     ↓
+WooCommerce / CRM / Payments / Loyalty
+```
+
+If WooCommerce is the existing product/order source, build a proper integration layer.
+
+The mobile app should not become tightly coupled to WooCommerce implementation details.
+
+---
+
+# 33. WOOCOMMERCE
+
+The application should be able to consume:
+
+* Products
+* Categories
+* Variations
+* Images
+* Prices
+* Stock
+* Product metadata
+* Orders
+* Customers
+* Coupons where applicable
+
+The integration must be designed so the application can eventually support other Cake City backend systems without rewriting the UI.
+
+---
+
+# 34. OFFLINE / NETWORK RESILIENCE
+
+The application must gracefully handle poor connectivity.
+
+Support:
+
+* Cached product data
+* Cached categories
+* Cached images
+* Retry
+* Request timeout
+* Connection state
+* Graceful empty states
+* Optimistic UI where safe
+
+Never leave users staring at a blank white screen because a network request took 3.7 seconds longer than humanity's patience threshold.
+
+---
+
+# 35. IMAGE OPTIMIZATION
+
+Cake City is a visual commerce business.
+
+Product imagery is extremely important.
+
+Use:
+
+* CDN delivery
+* Responsive image sizing
+* Lazy loading
+* Cached images
+* Placeholder states
+* Proper aspect ratios
+* WebP/AVIF where supported
+* Compression
+
+Do not download enormous original images unnecessarily.
+
+---
+
+# 36. ANIMATIONS
+
+Use animations carefully.
+
+Recommended:
+
+* Page transitions
+* Hero transitions
+* Product card interactions
+* Add-to-cart animation
+* Cart badge animation
+* Loyalty progress animation
+* Order tracking progress
+* Favorite heart animation
+* Button feedback
+* Skeleton loading
+
+Animations should generally be:
+
+* 150–400ms
+* Smooth
+* Purposeful
+
+Avoid animation for the sake of animation.
+
+---
+
+# 37. GLOSSY COMPONENT SYSTEM
+
+Create reusable components.
+
+Examples:
+
+```text
+CakeCityButton
+CakeCityCard
+CakeCityProductCard
+CakeCityGlassCard
+CakeCitySearchBar
+CakeCityBadge
+CakeCityChip
+CakeCityBottomNav
+CakeCitySectionHeader
+CakeCityPrice
+CakeCityRating
+CakeCitySkeleton
+CakeCityEmptyState
+CakeCityErrorState
+CakeCityPromotionCard
+CakeCityBundleCard
+CakeCityRewardCard
+CakeCityOrderTimeline
+```
+
+Create a consistent design system.
+
+Do not individually style every screen.
+
+---
+
+# 38. TYPOGRAPHY
+
+Use a premium, highly readable typography system.
+
+Typography hierarchy should be obvious:
+
+```text
+Display
+Headline
+Title
+Subtitle
+Body
+Caption
+Label
+```
+
+Use the Cake City brand aesthetic while maintaining excellent accessibility.
+
+Do not sacrifice readability for visual styling.
+
+---
+
+# 39. ACCESSIBILITY
+
+Support:
+
+* Dynamic text scaling
+* Sufficient contrast
+* Screen readers
+* Semantic labels
+* Large touch targets
+* Keyboard navigation where applicable
+* Reduced motion where supported
+
+The application must remain usable for people with accessibility needs.
+
+---
+
+# 40. RESPONSIVE DESIGN
+
+The application must work correctly across:
+
+* Small Android phones
+* Large Android phones
+* iPhones
+* Different aspect ratios
+* Different screen densities
+* Tablets where applicable
+
+Do not design for one hardcoded device size.
+
+---
+
+# 41. ERROR HANDLING
+
+Every network-dependent screen must have:
+
+### Loading
+
+Skeleton UI.
+
+### Empty
+
+Useful explanation and action.
+
+### Error
+
+Human-readable error.
+
+### Retry
+
+Clear retry action.
+
+Example:
+
+```text
+We couldn't load the cakes.
+
+Please check your connection
+and try again.
+
+[ TRY AGAIN ]
+```
+
+Never show raw exceptions to customers.
+
+---
+
+# 42. SECURITY
+
+Implement:
+
+* Secure token storage
+* Authentication expiration
+* Refresh tokens where supported
+* HTTPS only
+* Input validation
+* API error handling
+* Secure logging
+* No secrets in source code
+* No sensitive information in logs
+* Proper logout
+* Account deletion support where required
+
+Do not log passwords, payment information, authentication tokens, or sensitive customer information.
+
+---
+
+# 43. ANALYTICS
+
+Build an event-driven analytics architecture.
+
+Track commercially useful events such as:
+
+```text
+app_opened
+product_viewed
+search_performed
+category_viewed
+occasion_viewed
+product_added_to_cart
+bundle_viewed
+bundle_added
+accessory_added
+checkout_started
+payment_started
+purchase_completed
+order_tracked
+reward_viewed
+reward_redeemed
+promotion_viewed
+promotion_clicked
+favorite_added
+reorder_started
+```
+
+Events should contain structured metadata where appropriate.
+
+Example:
+
+```json
+{
+  "event": "product_added_to_cart",
+  "product_id": "12345",
+  "category": "cakes",
+  "occasion": "birthday",
+  "price": 2500,
+  "quantity": 1
+}
+```
+
+The system should be ready for:
+
+* GA4
+* Meta
+* Firebase Analytics
+* Custom analytics
+* Future data warehouse integration
+
+---
+
+# 44. ABANDONED CART
+
+Build the architecture to support abandoned-cart recovery.
+
+Potential channels:
+
+* Push
+* Email
+* WhatsApp
+* SMS
+
+Example:
+
+```text
+You left something sweet behind 🎂
+
+Your Chocolate Fudge Cake
+is still waiting.
+
+[ COMPLETE ORDER ]
+```
+
+Do not implement aggressive messaging.
+
+Use configurable business rules.
+
+---
+
+# 45. RECOMMENDATION ENGINE
+
+Create a recommendation abstraction.
+
+Example:
+
+```text
+RecommendationService
+```
+
+It should support:
+
+```text
+getRelatedProducts()
+getFrequentlyBoughtTogether()
+getPersonalizedRecommendations()
+getOccasionRecommendations()
+getBundleRecommendations()
+getRecentlyViewed()
+getReorderRecommendations()
+```
+
+Initially these can use deterministic backend rules.
+
+The architecture must allow future ML/AI recommendation services.
+
+---
+
+# 46. ADMIN / CONFIGURABILITY
+
+Where possible, commercial logic should be configurable remotely.
+
+Avoid hardcoding:
+
+* Prices
+* Product relationships
+* Promotions
+* Bundle contents
+* Loyalty rules
+* Delivery fees
+* Branch information
+* Delivery slots
+* Occasion categories
+
+The mobile application should display configuration supplied by the backend.
+
+---
+
+# 47. PERFORMANCE
+
+Optimize for:
+
+* Fast startup
+* Low memory usage
+* Efficient API calls
+* Image caching
+* Pagination
+* Lazy loading
+* Minimal unnecessary rebuilds
+* Efficient state management
+* Network caching
+* Background processing where appropriate
+
+Do not load the entire Cake City product catalog into memory.
+
+---
+
+# 48. TESTING
+
+Implement real tests.
+
+At minimum:
+
+### Unit tests
+
+For:
+
+* Pricing
+* Cart calculations
+* Bundle calculations
+* Loyalty calculations
+* Delivery calculations
+* Product relationships
+* Recommendation logic
+* Authentication state
+
+### Widget tests
+
+For:
+
+* Login
+* Product cards
+* Cart
+* Checkout
+* Loyalty
+* Order tracking
+
+### Integration tests
+
+For:
+
+* Login
+* Product browsing
+* Add to cart
+* Checkout
+* Order tracking
+* Loyalty
+
+Critical commercial flows must be tested.
+
+---
+
+# 49. DESIGN QA
+
+Before considering the application complete, inspect every major screen visually.
+
+Check:
+
+* Alignment
+* Spacing
+* Typography
+* Logo
+* Brand colors
+* Button hierarchy
+* Shadows
+* Borders
+* Images
+* Loading states
+* Empty states
+* Error states
+* Dark mode behavior if implemented
+* Small screens
+* Large screens
+
+Do not accept "technically functional" as complete.
+
+---
+
+# 50. PRODUCTION ENVIRONMENT
+
+Use environment-based configuration.
+
+Example:
+
+```text
+.env.development
+.env.staging
+.env.production
+```
+
+Never commit production secrets.
+
+Configuration should include:
+
+```text
+API_BASE_URL
+WOOCOMMERCE_API_URL
+ANALYTICS_KEY
+PAYMENT_CONFIGURATION
+PUSH_NOTIFICATION_CONFIGURATION
+ENVIRONMENT
+```
+
+Use secure CI/CD configuration for secrets.
+
+---
+
+# 51. DEVELOPMENT WORKFLOW
+
+Before changing code:
+
+1. Inspect the entire existing repository.
+2. Identify the current architecture.
+3. Identify the current Flutter version.
+4. Identify state management.
+5. Identify routing.
+6. Identify existing API integrations.
+7. Identify existing authentication.
+8. Identify existing screens.
+9. Identify reusable components.
+10. Identify technical debt.
+11. Identify build configuration.
+12. Identify Android configuration.
+13. Identify iOS configuration.
+14. Identify backend dependencies.
+
+Do not blindly overwrite existing working functionality.
+
+---
+
+# 52. IMPLEMENTATION ORDER
+
+Implement in this order:
+
+## Phase 1
+
+Project audit and architecture stabilization.
+
+## Phase 2
+
+Design system and Cake City theme.
+
+## Phase 3
+
+Authentication.
+
+## Phase 4
+
+Navigation and application shell.
+
+## Phase 5
+
+Home screen.
+
+## Phase 6
+
+Product catalog.
+
+## Phase 7
+
+Search and categories.
+
+## Phase 8
+
+Occasion shopping.
+
+## Phase 9
+
+Product details.
+
+## Phase 10
+
+Smart product pairing.
+
+## Phase 11
+
+Bundles.
+
+## Phase 12
+
+Cart.
+
+## Phase 13
+
+Checkout.
+
+## Phase 14
+
+Payments.
+
+## Phase 15
+
+Orders.
+
+## Phase 16
+
+Order tracking.
+
+## Phase 17
+
+Loyalty.
+
+## Phase 18
+
+Notifications.
+
+## Phase 19
+
+Favorites and reorder.
+
+## Phase 20
+
+Branches and delivery.
+
+## Phase 21
+
+Analytics.
+
+## Phase 22
+
+Testing.
+
+## Phase 23
+
+Performance optimization.
+
+## Phase 24
+
+Production hardening.
+
+## Phase 25
+
+Android release build.
+
+## Phase 26
+
+iOS release build.
+
+---
+
+# 53. IMPORTANT CODING RULES
+
+Do not:
+
+* Create fake products
+* Create fake orders
+* Hardcode fake loyalty balances
+* Hardcode fake customer data
+* Hardcode fake API responses in production code
+* Hide errors
+* Disable security checks
+* Put secrets in source code
+* Build unnecessary duplicate systems
+* Rewrite existing functionality without understanding it
+* Introduce libraries without justification
+* Create giant monolithic widgets
+* Duplicate business logic
+* Ignore tests
+* Ignore accessibility
+* Ignore loading states
+* Ignore network failures
+
+Do:
+
+* Reuse existing architecture where good
+* Refactor where necessary
+* Create reusable components
+* Keep business logic separate
+* Document important decisions
+* Use typed models
+* Validate data
+* Handle errors
+* Write tests
+* Optimize performance
+* Keep integrations replaceable
+* Build production-ready flows
+
+---
+
+# 54. AGENT EXECUTION RULES
+
+You are an autonomous engineering agent.
+
+Do not stop after creating a visual shell.
+
+Continue through:
+
+```text
+Architecture
+→ UI
+→ State
+→ Data
+→ API
+→ Integration
+→ Validation
+→ Testing
+→ Optimization
+→ Production hardening
+```
+
+If you discover an existing implementation that is better than the planned approach, preserve it and improve around it.
+
+Do not rewrite working systems merely for stylistic reasons.
+
+When a requirement is ambiguous, choose the most production-safe and scalable solution.
+
+Only stop and request clarification when continuing would risk:
+
+* Data loss
+* Security problems
+* Financial/payment errors
+* Destructive migration
+* Breaking production infrastructure
+* Irreversible architectural decisions
+
+Otherwise proceed.
+
+---
+
+# 55. VISUAL IMPLEMENTATION REQUIREMENT
+
+The uploaded Cake City logo and login screen must be treated as design references.
+
+The visual target is:
+
+```text
+Premium Cake City
+        +
+Glossy white surfaces
+        +
+Cake City pink
+        +
+Cake City blue
+        +
+Cake City brown
+        +
+Organic decorative shapes
+        +
+Premium product photography
+        +
+Subtle glass effects
+        +
+Modern mobile commerce UX
+```
+
+The final result should feel like a premium consumer brand application.
+
+Do not make it look like:
+
+* A generic Flutter starter app
+* A generic food delivery app
+* A generic WooCommerce wrapper
+* A Bootstrap website placed inside a mobile shell
+* A template marketplace
+* A dashboard
+
+It should look like a **purpose-built Cake City application**.
+
+---
+
+# 56. PRIMARY NAVIGATION
+
+Use a five-item bottom navigation:
+
+```text
+Home
+Search
+Orders
+Rewards
+Account
+```
+
+Cart should be accessible prominently from the top-level UI with a live item count.
+
+Use icons plus labels.
+
+Keep navigation predictable.
+
+---
+
+# 57. HOME PERSONALIZATION
+
+The home screen should adapt based on the customer.
+
+### New customer
+
+```text
+Welcome to Cake City 🎂
+
+Find something sweet for every celebration.
+```
+
+### Returning customer
+
+```text
+Welcome back 👋
+
+Ready for another celebration?
+```
+
+### Frequent customer
+
+```text
+Your favorites are waiting.
+
+Chocolate Fudge Cake
+```
+
+### Customer with upcoming occasion
+
+```text
+Sarah's birthday is coming up 🎉
+
+Make it extra special.
+```
+
+### Inactive customer
+
+```text
+It's been a while ❤️
+
+Here's something sweet for your next celebration.
+```
+
+All messaging must be configurable and data-driven.
+
+---
+
+# 58. COMMERCIAL SUCCESS METRICS
+
+The architecture should make it possible to measure:
+
+* Conversion rate
+* Average order value
+* Cake attachment rate
+* Accessory attachment rate
+* Bundle adoption
+* Repeat purchase rate
+* Customer lifetime value
+* Loyalty redemption
+* Cart abandonment
+* Reorder rate
+* Product popularity
+* Occasion performance
+* Branch performance
+* Promotion performance
+
+The app should specifically optimize for:
+
+### Increasing Average Order Value
+
+For example:
+
+```text
+Cake only
+KSh 2,500
+
+Cake + candles
+KSh 2,650
+
+Cake + candles + balloons
+KSh 3,300
+
+Cake + full celebration bundle
+KSh 4,500
+```
+
+The system should make the larger basket feel natural rather than forcing customers into it.
+
+---
+
+# 59. FUTURE AI ROADMAP
+
+Design the architecture so future versions can add:
+
+### AI Celebration Planner
+
+User:
+
+> "I need a birthday setup for 15 people under KSh 8,000."
+
+AI:
+
+```text
+Recommended Celebration
+
+1.5 KG Chocolate Cake
+KSh 2,500
+
+Balloon Set
+KSh 1,000
+
+Candles
+KSh 150
+
+Party Plates
+KSh 600
+
+Party Hats
+KSh 500
+
+Cupcakes
+KSh 1,500
+
+Estimated Total
+KSh 6,250
+
+[ ADD CELEBRATION TO CART ]
+```
+
+### AI Cake Recommendation
+
+### AI Product Search
+
+### AI Customer Support
+
+### AI Upselling
+
+### AI Demand Forecasting
+
+### AI Marketing Segmentation
+
+Do not implement these prematurely if the core commerce system is not stable.
+
+Build the foundation correctly first.
+
+---
+
+# 60. FINAL QUALITY STANDARD
+
+Before declaring the application complete, verify:
+
+```text
+[ ] Android builds successfully
+[ ] iOS builds successfully
+[ ] Authentication works
+[ ] Guest browsing works
+[ ] Products load from real data
+[ ] Product images load correctly
+[ ] Search works
+[ ] Categories work
+[ ] Occasion shopping works
+[ ] Product details work
+[ ] Cake customization works
+[ ] Product pairing works
+[ ] Bundles work
+[ ] Cart calculations are correct
+[ ] Checkout works
+[ ] Payment integration is safe
+[ ] Orders are created correctly
+[ ] Order tracking works
+[ ] Loyalty works
+[ ] Rewards work
+[ ] Notifications work
+[ ] Favorites work
+[ ] Reorder works
+[ ] Branches work
+[ ] Delivery logic works
+[ ] Analytics events work
+[ ] Errors are handled
+[ ] Loading states exist
+[ ] Empty states exist
+[ ] Accessibility has been checked
+[ ] Performance has been checked
+[ ] Security has been checked
+[ ] Tests pass
+[ ] Production configuration is separated
+[ ] No secrets are committed
+[ ] No fake production data remains
+[ ] No TODO placeholders remain for critical functionality
+```
+
+---
+
+# 61. DEFINITION OF DONE
+
+The project is not complete because:
+
+> "The screens have been created."
+
+The project is complete when:
+
+> **A real customer can install the application, create an account, browse real Cake City products, discover cakes and complementary celebration products, create a bundle, add customized cakes and accessories to their cart, select delivery, pay securely, receive notifications, track the order, earn loyalty points, redeem rewards, reorder previous purchases, and receive personalized recommendations through a polished Cake City experience.**
+
+The application must be maintainable by another engineering team without requiring the original developer to explain every decision.
+
+Build it as a real product.
+
+Do not build a demo.
+
+Do not stop at the UI.
+
+Do not fake completion.
+
+---
+
+# 62. FIRST ACTION
+
+Before writing significant new code:
+
+1. Inspect the complete repository.
+2. Identify the current application architecture.
+3. Identify existing screens and functionality.
+4. Identify all backend/API integrations.
+5. Identify WooCommerce integration status.
+6. Identify authentication implementation.
+7. Identify current state management.
+8. Identify current theme/design system.
+9. Inspect the supplied Cake City visual references.
+10. Produce a concise implementation assessment.
+11. Then begin implementation.
+
+Preserve good existing work.
+
+Refactor poor implementations where necessary.
+
+Then implement the application systematically until it meets the production definition of done above.

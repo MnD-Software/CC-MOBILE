@@ -1,20 +1,22 @@
 import { useState } from "react";
 import { Link, router, useLocalSearchParams } from "expo-router";
-import { Text, View, Platform } from "react-native";
+import { Text, View } from "react-native";
 import { z } from "zod";
+import { ApiError } from "@/api/client";
 import { BrandLogo } from "@/components/BrandLogo";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { Screen, Notice, ui } from "@/components/ui/Commerce";
+import { Screen, Notice, ui as baseUi } from "@/components/ui/Commerce";
 import { useAuth } from "@/auth/AuthProvider";
 import { authApi } from "@/auth/api";
-import { env } from "@/config/env";
-import { tokens } from "@/theme/tokens";
+import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 export function AuthScreen({
   mode,
 }: {
   mode: "login" | "register" | "forgot" | "reset";
 }) {
+  const ui = useThemedStyles(baseUi);
+  const { colors } = useTheme();
   const auth = useAuth();
   const params = useLocalSearchParams<{ token?: string }>();
   const [email, setEmail] = useState("");
@@ -41,9 +43,9 @@ export function AuthScreen({
         throw new Error("Enter a valid email address.");
       if (
         ["register", "reset"].includes(mode) &&
-        (password.length < 10 || password.length > 128)
+        (password.length < 8 || password.length > 128)
       )
-        throw new Error("Use a password between 10 and 128 characters.");
+        throw new Error("Use a password between 8 and 128 characters.");
       if (mode === "login") {
         if (!password) throw new Error("Enter your password.");
         await auth.login(email, password);
@@ -52,6 +54,7 @@ export function AuthScreen({
       }
       if (mode === "register") {
         if (!name.trim()) throw new Error("Enter your first name.");
+        if (!last.trim()) throw new Error("Enter your last name.");
         if (
           phone.trim() &&
           !/^(?:\+?254|0)[17]\d{8}$/.test(phone.replace(/\s/g, ""))
@@ -79,34 +82,11 @@ export function AuthScreen({
         setSuccess("Your password has been updated. You can sign in now.");
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Please try again.");
-    } finally {
-      setBusy(false);
-    }
-  }
-  async function google() {
-    setBusy(true);
-    setError("");
-    try {
-      const { GoogleSignin, isSuccessResponse } = await import(
-        "@react-native-google-signin/google-signin"
-      );
-      GoogleSignin.configure({
-        webClientId: env.googleWebClientId,
-        iosClientId: env.googleIosClientId || undefined,
-      });
-      if (Platform.OS === "android") await GoogleSignin.hasPlayServices();
-      const result = await GoogleSignin.signIn();
-      if (isSuccessResponse(result) && result.data.idToken) {
-        await auth.completeGoogle(result.data.idToken);
-        router.replace("/home");
+      if (e instanceof ApiError && e.status === 409 && mode === "register") {
+        setError("An account already exists for this email. Sign in instead.");
+      } else {
+        setError(e instanceof Error ? e.message : "Please try again.");
       }
-    } catch (e) {
-      setError(
-        e instanceof Error
-          ? e.message
-          : "Google sign-in could not be completed.",
-      );
     } finally {
       setBusy(false);
     }
@@ -118,7 +98,7 @@ export function AuthScreen({
       right={
         <Link
           href="/home"
-          style={{ color: tokens.color.brandStrong, padding: 12 }}
+          style={{ color: colors.brandStrong, padding: 12 }}
         >
           Explore cakes
         </Link>
@@ -150,7 +130,7 @@ export function AuthScreen({
                     value={name}
                     onChangeText={setName}
                     autoComplete="given-name"
-                    maxLength={120}
+                    maxLength={80}
                   />
                 </View>
                 <View style={{ flex: 1 }}>
@@ -159,7 +139,7 @@ export function AuthScreen({
                     value={last}
                     onChangeText={setLast}
                     autoComplete="family-name"
-                    maxLength={120}
+                    maxLength={80}
                   />
                 </View>
               </View>
@@ -169,7 +149,7 @@ export function AuthScreen({
                 onChangeText={setPhone}
                 keyboardType="phone-pad"
                 autoComplete="tel"
-                maxLength={32}
+                maxLength={40}
               />
             </>
           ) : null}
@@ -199,7 +179,7 @@ export function AuthScreen({
                 maxLength={128}
                 onSubmitEditing={() => void submit()}
                 hint={
-                  mode === "register" ? "At least 10 characters." : undefined
+                  mode === "register" ? "At least 8 characters." : undefined
                 }
               />
               <Button
@@ -226,7 +206,7 @@ export function AuthScreen({
               }
               onPress={() => void submit()}
             />
-          )}{" "}
+          )}
           {success ? (
             <Button
               label="Back to sign in"
@@ -237,19 +217,10 @@ export function AuthScreen({
             <>
               <Button
                 variant="ghost"
+                size="sm"
                 label="Forgot password?"
                 onPress={() => router.push("/forgot-password")}
               />
-              {env.googleWebClientId &&
-              Platform.OS !== "web" &&
-              (Platform.OS !== "ios" || env.googleIosClientId) ? (
-                <Button
-                  variant="secondary"
-                  label="Continue with Google"
-                  loading={busy}
-                  onPress={() => void google()}
-                />
-              ) : null}
               <Button
                 variant="outline"
                 label="Create a Cake City account"
@@ -260,7 +231,7 @@ export function AuthScreen({
           {mode === "register" ? (
             <Text style={[ui.body, { fontSize: 12 }]}>
               By creating an account, you agree to Cake City’s{" "}
-              <Link href="/legal" style={{ color: tokens.color.brandStrong }}>
+              <Link href="/legal" style={{ color: colors.brandStrong }}>
                 terms and privacy policy
               </Link>
               .

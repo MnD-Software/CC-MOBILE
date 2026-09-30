@@ -22,6 +22,12 @@ import {
   setStorageItem,
 } from "./secure-storage";
 import { authApi, Customer, MobileSession } from "./api";
+import {
+  clearWebsiteCheckoutSession,
+  clearWebsitePaymentAttempt,
+} from "@/features/commerce/website-checkout-session";
+import { clearLegacyWebsiteOrderHistory } from "@/features/commerce/website-order-history";
+import { clearPrivateQueryCache } from "./query-privacy";
 const REFRESH_KEY = "cakecity.refresh-token";
 type AuthContextValue = {
   customer: Customer | null;
@@ -77,7 +83,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
           await deleteStorageItem(REFRESH_KEY);
           clearAccessToken();
           setSession(null);
-          cache.clear();
+          clearPrivateQueryCache(cache);
         }
         throw error;
       }
@@ -110,7 +116,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       const expected = ++generation.current;
       if (flight.current) await flight.current.catch(() => undefined);
       const next = await operation();
-      cache.clear();
+      clearPrivateQueryCache(cache);
       await accept(next, expected);
     },
     [accept, cache],
@@ -131,8 +137,13 @@ export function AuthProvider({ children }: PropsWithChildren) {
         clearAccessToken();
         setSession(null);
         expiry.current = 0;
-        cache.clear();
-        await deleteStorageItem(REFRESH_KEY);
+        clearPrivateQueryCache(cache);
+        await Promise.all([
+          deleteStorageItem(REFRESH_KEY),
+          clearWebsiteCheckoutSession(),
+          clearWebsitePaymentAttempt(),
+          clearLegacyWebsiteOrderHistory(),
+        ]);
         if (token) await authApi.logout(token).catch(() => undefined);
       },
     }),

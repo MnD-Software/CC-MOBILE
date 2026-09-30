@@ -1,83 +1,60 @@
 import { useQuery } from "@tanstack/react-query";
-import { Image } from "expo-image";
-import { router } from "expo-router";
-import { Pressable, Text, View } from "react-native";
+import { View } from "react-native";
 import { useAuth } from "@/auth/AuthProvider";
+import { Feedback, ProductTile, Screen } from "@/components/ui/Commerce";
 import {
-  Screen,
-  AccountRequired,
-  Feedback,
-  ui,
-  ProductTile,
-} from "@/components/ui/Commerce";
-import { customerApi } from "@/features/commerce/api";
-import { money } from "@/features/commerce/contracts";
+  CATALOGUE_GC_TIME_MS,
+  CATALOGUE_STALE_TIME_MS,
+  shopApi,
+} from "@/features/commerce/api";
 import { usePreferences } from "@/features/commerce/store";
-import { referenceCakes } from "@/features/commerce/reference-catalogue";
+
+/**
+ * Saved cakes are explicitly device-local until the account API publishes a
+ * server-backed favourites endpoint. Each slug is resolved again before it is
+ * rendered, so deleted products can never reappear from AsyncStorage.
+ */
 export default function Favourites() {
   const { customer } = useAuth();
-  const saved = usePreferences((state) => state.savedReferenceCakes) ?? [];
-  const referenceFavourites = referenceCakes.filter((cake) =>
-    saved.includes(cake.id),
-  );
-  const q = useQuery({
-    queryKey: ["favourites", customer?.id],
-    queryFn: customerApi.favourites,
-    enabled: !!customer,
+  const saved = usePreferences((state) => state.savedProductSlugs);
+  const query = useQuery({
+    queryKey: ["saved-products", ...saved],
+    enabled: saved.length > 0,
+    staleTime: CATALOGUE_STALE_TIME_MS,
+    gcTime: CATALOGUE_GC_TIME_MS,
+    refetchOnMount: false,
+    queryFn: ({ signal }) => shopApi.productsByIdentifier(saved, signal),
   });
+
   return (
-    <Screen title="Favourites" back>
-      {referenceFavourites.length ? (
+    <Screen
+      title="Saved cakes"
+      subtitle={
+        customer
+          ? `${customer.first_name}'s shortlist for the next celebration.`
+          : "Your shortlist for the next celebration."
+      }
+      back
+    >
+      <Feedback
+        loading={query.isPending && saved.length > 0}
+        error={query.error}
+        empty={
+          !saved.length
+            ? "Save a cake to find it here."
+            : query.isSuccess && !query.data.length
+              ? "Those saved cakes are no longer in today’s collection."
+              : undefined
+        }
+        onRetry={() => void query.refetch()}
+      />
+      {query.data?.length ? (
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 14 }}>
-          {referenceFavourites.map((cake) => (
+          {query.data.map((cake) => (
             <ProductTile key={cake.id} product={cake} width={156} />
           ))}
         </View>
-      ) : !customer ? (
-        <Feedback empty="Save your favourite cakes here." />
       ) : null}
-      {customer && (
-        <AccountRequired>
-          <Feedback
-            loading={q.isPending}
-            error={q.error}
-            empty={
-              q.data?.length === 0
-                ? "Your favourites deserve a home."
-                : undefined
-            }
-            onRetry={() => void q.refetch()}
-          />
-          {q.data?.map((p) => (
-            <Pressable
-              accessibilityRole="button"
-              key={p.slug}
-              onPress={() =>
-                router.push({
-                  pathname: "/product/[id]",
-                  params: { id: "saved", slug: p.slug },
-                })
-              }
-              style={[ui.panel, ui.row]}
-            >
-              {p.image_url ? (
-                <Image
-                  source={p.image_url}
-                  cachePolicy="memory-disk"
-                  style={{ width: 85, height: 85, borderRadius: 14 }}
-                />
-              ) : null}
-              <View style={{ flex: 1, gap: 6 }}>
-                <Text style={ui.label}>{p.name}</Text>
-                <Text style={ui.body}>{money(p.price_kes)}</Text>
-                <Text style={ui.eyebrow}>
-                  {p.in_stock ? "MAKE IT YOURS →" : "CURRENTLY UNAVAILABLE"}
-                </Text>
-              </View>
-            </Pressable>
-          ))}
-        </AccountRequired>
-      )}
     </Screen>
   );
 }

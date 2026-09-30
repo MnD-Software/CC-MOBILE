@@ -68,7 +68,9 @@ export const useBag = create<BagState>()(
       clear: () => set({ lines: [] }),
     }),
     {
-      name: "cakecity.bag.v2",
+      // v3 deliberately starts with a clean bag so legacy reference products
+      // cannot survive into the server-authoritative catalogue experience.
+      name: "cakecity.bag.v3",
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (s) => ({ lines: s.lines, settled: s.settled }),
       merge: (saved, current) => {
@@ -87,31 +89,46 @@ export const useBag = create<BagState>()(
   ),
 );
 type Preferences = {
-  savedReferenceCakes: number[];
-  toggleReferenceCake: (id: number) => void;
+  /** Device-local saves; product records are revalidated before display. */
+  savedProductSlugs: string[];
+  toggleSavedProduct: (slug: string) => void;
+  profileAvatars: Record<string, { kind: "photo" | "preset"; value: string }>;
+  setProfileAvatar: (
+    owner: string,
+    avatar: { kind: "photo" | "preset"; value: string },
+  ) => void;
   branch: Branch | null;
   recentSearches: string[];
-  recentSlugs: string[];
+  /** Recently viewed products are account-scoped; guests are not profiled. */
+  recentSlugsByOwner: Record<string, string[]>;
   designs: Record<string, Design[]>;
   setBranch: (branch: Branch) => void;
   search: (term: string) => void;
-  view: (slug: string) => void;
+  view: (owner: string | null | undefined, slug: string) => void;
   saveDesign: (owner: string, design: Design) => void;
   deleteDesign: (owner: string, id: string) => void;
 };
 export const usePreferences = create<Preferences>()(
   persist(
     (set) => ({
-      savedReferenceCakes: [],
-      toggleReferenceCake: (id) =>
+      savedProductSlugs: [],
+      toggleSavedProduct: (slug) =>
         set((state) => ({
-          savedReferenceCakes: (state.savedReferenceCakes ?? []).includes(id)
-            ? state.savedReferenceCakes.filter((saved) => saved !== id)
-            : [...(state.savedReferenceCakes ?? []), id],
+          savedProductSlugs: (state.savedProductSlugs ?? []).includes(slug)
+            ? state.savedProductSlugs.filter((saved) => saved !== slug)
+            : [...(state.savedProductSlugs ?? []), slug].slice(0, 30),
+        })),
+      profileAvatars: {},
+      setProfileAvatar: (owner, avatar) =>
+        set((state) => ({
+          profileAvatars: {
+            ...(state.profileAvatars ?? {}),
+            [owner]: avatar,
+          },
         })),
       branch: null,
       recentSearches: [],
-      recentSlugs: [],
+      recentSlugsByOwner: {},
       designs: {},
       setBranch: (branch) => set({ branch }),
       search: (term) =>
@@ -121,13 +138,21 @@ export const usePreferences = create<Preferences>()(
             ...s.recentSearches.filter((v) => v !== term),
           ].slice(0, 8),
         })),
-      view: (slug) =>
+      view: (owner, slug) => {
+        const key = owner?.trim();
+        if (!key) return;
         set((s) => ({
-          recentSlugs: [slug, ...s.recentSlugs.filter((v) => v !== slug)].slice(
-            0,
-            12,
-          ),
-        })),
+          recentSlugsByOwner: {
+            ...(s.recentSlugsByOwner ?? {}),
+            [key]: [
+              slug,
+              ...(s.recentSlugsByOwner?.[key] ?? []).filter(
+                (value) => value !== slug,
+              ),
+            ].slice(0, 12),
+          },
+        }));
+      },
       saveDesign: (owner, design) =>
         set((s) => ({
           designs: {
@@ -147,7 +172,9 @@ export const usePreferences = create<Preferences>()(
         })),
     }),
     {
-      name: "cakecity.preferences.v2",
+      // v3 drops the old negative-ID reference favourites rather than letting
+      // presentation-only catalogue data appear as customer content.
+      name: "cakecity.preferences.v3",
       storage: createJSONStorage(() => AsyncStorage),
     },
   ),

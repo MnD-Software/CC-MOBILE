@@ -1,6 +1,13 @@
-import { forwardRef, useState } from 'react';
-import { StyleSheet, Text, TextInput, TextInputProps, View } from 'react-native';
-import { tokens } from '@/theme/tokens';
+import { forwardRef, useState } from "react";
+import {
+  StyleSheet,
+  Text,
+  TextInput,
+  TextInputProps,
+  View,
+} from "react-native";
+import { tokens } from "@/theme/tokens";
+import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 
 type Props = TextInputProps & {
   label?: string;
@@ -8,20 +15,25 @@ type Props = TextInputProps & {
   hint?: string;
 };
 
-export const Input = forwardRef<TextInput, Props>(function Input({
-  label,
-  error,
-  hint,
-  style,
-  multiline,
-  onFocus,
-  onBlur,
-  accessibilityLabel,
-  accessibilityHint,
-  placeholderTextColor = tokens.color.muted,
-  selectionColor = tokens.color.brand,
-  ...rest
-}, ref) {
+export const Input = forwardRef<TextInput, Props>(function Input(
+  {
+    label,
+    error,
+    hint,
+    style,
+    multiline,
+    onFocus,
+    onBlur,
+    accessibilityLabel,
+    accessibilityHint,
+    placeholderTextColor,
+    selectionColor = tokens.color.brand,
+    ...rest
+  },
+  ref,
+) {
+  const styles = useThemedStyles(baseStyles);
+  const { colors, isDark } = useTheme();
   const [focused, setFocused] = useState(false);
 
   return (
@@ -31,9 +43,12 @@ export const Input = forwardRef<TextInput, Props>(function Input({
         {...rest}
         ref={ref}
         multiline={multiline}
-        accessibilityLabel={accessibilityLabel ?? label ?? rest.placeholder ?? 'Text input'}
+        accessibilityLabel={
+          accessibilityLabel ?? label ?? rest.placeholder ?? "Text input"
+        }
         accessibilityHint={accessibilityHint ?? error ?? hint}
-        placeholderTextColor={placeholderTextColor}
+        placeholderTextColor={placeholderTextColor ?? colors.muted}
+        keyboardAppearance={isDark ? "dark" : "light"}
         selectionColor={selectionColor}
         underlineColorAndroid="transparent"
         onFocus={(event) => {
@@ -54,16 +69,25 @@ export const Input = forwardRef<TextInput, Props>(function Input({
         ]}
       />
       {hint && !error ? <Text style={styles.hint}>{hint}</Text> : null}
-      {error ? <Text accessibilityLiveRegion="polite" style={styles.error}>{error}</Text> : null}
+      {error ? (
+        <Text accessibilityLiveRegion="polite" style={styles.error}>
+          {error}
+        </Text>
+      ) : null}
     </View>
   );
 });
 
-const styles = StyleSheet.create({
-  wrapper: { width: '100%', minWidth: 0, gap: 6 },
-  label: { fontSize: 13, lineHeight: 17, fontWeight: '700', color: tokens.color.ink },
+const baseStyles = StyleSheet.create({
+  wrapper: { width: "100%", minWidth: 0, gap: 6 },
+  label: {
+    fontSize: 13,
+    lineHeight: 17,
+    fontWeight: "700",
+    color: tokens.color.ink,
+  },
   input: {
-    width: '100%',
+    width: "100%",
     minWidth: 0,
     height: 50,
     borderWidth: 1,
@@ -76,10 +100,32 @@ const styles = StyleSheet.create({
     color: tokens.color.ink,
     backgroundColor: tokens.color.surface,
   },
-  inputMultiline: { height: 116, minHeight: 116, paddingTop: 12, paddingBottom: 12, textAlignVertical: 'top' },
-  inputFocused: { borderColor: tokens.color.brand, borderWidth: 2, paddingHorizontal: 13 },
-  inputError: { borderColor: tokens.color.error, borderWidth: 2, paddingHorizontal: 13 },
-  inputDisabled: { backgroundColor: tokens.color.background, color: tokens.color.muted },
+  inputMultiline: {
+    height: 116,
+    minHeight: 116,
+    paddingTop: 12,
+    paddingBottom: 12,
+    textAlignVertical: "top",
+  },
+  inputFocused: {
+    borderColor: tokens.color.brand,
+    borderWidth: 2,
+    paddingHorizontal: 13,
+  },
+  inputError: {
+    borderColor: tokens.color.error,
+    borderWidth: 2,
+    paddingHorizontal: 13,
+  },
+  inputDisabled: {
+    backgroundColor: tokens.color.background,
+    color: tokens.color.muted,
+  },
   hint: { fontSize: 12, lineHeight: 16, color: tokens.color.muted },
-  error: { fontSize: 12, lineHeight: 16, color: tokens.color.error, fontWeight: '700' },
+  error: {
+    fontSize: 12,
+    lineHeight: 16,
+    color: tokens.color.error,
+    fontWeight: "700",
+  },
 });

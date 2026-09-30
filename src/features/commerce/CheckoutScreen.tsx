@@ -1,463 +1,545 @@
-import { useEffect, useRef, useState } from "react";
-import { AppState, Linking, Text, View } from "react-native";
-import { router } from "expo-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Ionicons } from "@expo/vector-icons";
 import * as Location from "expo-location";
+import { router } from "expo-router";
+import { useMutation } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
+import { Linking, Text, View } from "react-native";
 import { useAuth } from "@/auth/AuthProvider";
+import { trackCommerceEvent } from "@/observability/commerce-events";
 import {
-  Screen,
-  AccountRequired,
-  Section,
-  Chip,
-  Notice,
   Feedback,
-  ui,
+  Notice,
+  Screen,
+  Section,
+  ui as baseUi,
 } from "@/components/ui/Commerce";
-import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { useBag, usePreferences } from "./store";
-import { shopApi, customerApi, payments } from "./api";
+import { CheckoutProgress } from "@/components/storefront/CheckoutProgress";
+import { Input } from "@/components/ui/Input";
+import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
+import { loadBillingProfile, saveBillingProfile } from "./billing-profile";
+import { money } from "./contracts";
+import { locationAddressSuggestion } from "./location-assistance";
+import { useBag } from "./store";
+import { selectCouponCode, useCouponWallet } from "./coupon-wallet";
+import { cartHasRequestedCoupon, normalizeCouponCode } from "./website-cart";
 import {
-  checkoutBlock,
-  money,
-  type CheckoutInput,
-  type DeliveryQuote,
-} from "./contracts";
+  prepareWebsiteCheckoutCart,
+  setWebsiteCartCoupon,
+  submitWebsiteCheckout,
+  websiteCartTotal,
+  type WebsiteCheckoutSession,
+  websiteOrderUrl,
+  type WebsiteCheckoutDetails,
+  type WebsiteCheckoutResult,
+} from "./website-checkout";
 import {
-  createAttempt,
-  restoreAttempt,
-  persistAttempt,
-  clearAttempt,
-  type PaymentAttempt,
-} from "./payment-recovery";
+  clearWebsiteCheckoutSession,
+  clearWebsitePaymentAttempt,
+  loadWebsitePaymentAttempt,
+  saveWebsitePaymentAttempt,
+  websiteCheckoutFingerprint,
+  websiteCheckoutOwnerScope,
+} from "./website-checkout-session";
+import { saveWebsiteOrder } from "./website-order-history";
+
+type StartedCheckout = {
+  order: WebsiteCheckoutResult;
+  paymentUrl: string | null;
+};
+
+function checkoutError(details: WebsiteCheckoutDetails) {
+  if (!details.firstName.trim() || !details.lastName.trim())
+    return "Enter your first and last name.";
+  if (!/^\S+@\S+\.\S+$/.test(details.email.trim()))
+    return "Enter a valid email address.";
+  if (!/^(?:\+?254|0)[17]\d{8}$/.test(details.phone.replace(/\s/g, "")))
+    return "Enter a valid Kenyan phone number.";
+  if (!details.address.trim() || !details.area.trim() || !details.city.trim())
+    return "Enter your delivery address, area and city.";
+  return null;
+}
 
 export function CheckoutScreen() {
-  const { customer } = useAuth();
   return (
-    <Screen title="The final sweet details." back right={null}>
-      <AccountRequired>
-        <CheckoutForm key={customer?.id ?? "guest"} />
-      </AccountRequired>
+    <Screen
+      title="Secure checkout"
+      subtitle="One payment for your full bag."
+      back
+    >
+      <CheckoutForm />
     </Screen>
   );
 }
+
 function CheckoutForm() {
   const { customer } = useAuth();
-  const cache = useQueryClient();
-  const bag = useBag();
-  const branch = usePreferences((s) => s.branch);
-  const [method, setMethod] = useState<"delivery" | "pickup">("delivery");
-  const [payment, setPayment] = useState<"mpesa" | "card" | "wallet">("mpesa");
-  const [name, setName] = useState(
-    [customer?.first_name, customer?.last_name].filter(Boolean).join(" "),
-  );
+  const { colors } = useTheme();
+  const ui = useThemedStyles(baseUi);
+  const themedUi = ui;
+  const wallet = useCouponWallet(customer?.id);
+  const lines = useBag((state) => state.lines);
+  const clearBag = useBag((state) => state.clear);
+  const [firstName, setFirstName] = useState(customer?.first_name ?? "");
+  const [lastName, setLastName] = useState(customer?.last_name ?? "");
   const [email, setEmail] = useState(customer?.email ?? "");
   const [phone, setPhone] = useState(customer?.phone ?? "");
-  const [line1, setLine1] = useState("");
+  const [address, setAddress] = useState("");
   const [area, setArea] = useState("");
   const [city, setCity] = useState("Nairobi");
   const [notes, setNotes] = useState("");
-  const [coupon, setCoupon] = useState("");
-  const [applied, setApplied] = useState("");
-  const [location, setLocation] = useState<{
-    latitude: number;
-    longitude: number;
-  } | null>(null);
-  const [delivery, setDelivery] = useState<DeliveryQuote | null>(null);
-  const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [restoring, setRestoring] = useState(true);
-  const [attempt, setAttempt] = useState<PaymentAttempt | null>(null);
-  const [now, setNow] = useState(Date.now());
-  const [recoveryError, setRecoveryError] = useState("");
-  const [recoveryRetry, setRecoveryRetry] = useState(0);
-  const settlement = useRef(false);
-  const gate = useRef(false);
-  const addresses = useQuery({
-    queryKey: ["addresses", customer?.id],
-    queryFn: customerApi.addresses,
+  const [locationBusy, setLocationBusy] = useState(false);
+  const [locationNotice, setLocationNotice] = useState("");
+  const [error, setError] = useState("");
+  const [couponDraft, setCouponDraft] = useState("");
+  const [couponBusy, setCouponBusy] = useState(false);
+  const [couponError, setCouponError] = useState("");
+  const [couponCart, setCouponCart] = useState<{
+    fingerprint: string;
+    session: WebsiteCheckoutSession;
+  } | null>(null);
+  const couponFlight = useRef(false);
+  const [started, setStarted] = useState<StartedCheckout | null>(null);
+  const [paymentAttemptRestored, setPaymentAttemptRestored] = useState(false);
+  const autoPreparedFingerprint = useRef<string | null>(null);
+  const previousOwnerScope = useRef<string | null | undefined>(undefined);
+  const ownerScope = websiteCheckoutOwnerScope(customer?.id);
+  const fingerprint = websiteCheckoutFingerprint(lines, ownerScope);
+  const currentFingerprint = useRef(fingerprint);
+  currentFingerprint.current = fingerprint;
+  const cartMutation = useMutation<WebsiteCheckoutSession, Error>({
+    mutationKey: ["website-checkout-cart", fingerprint],
+    mutationFn: () =>
+      prepareWebsiteCheckoutCart(lines, fingerprint, ownerScope),
+    retry: false,
   });
-  const config = useQuery({
-    queryKey: ["mobile-config"],
-    queryFn: ({ signal }) => shopApi.config(signal),
-  });
-  const input: CheckoutInput = {
-    items: bag.lines.map((l) => ({
-      product_slug: l.slug,
-      quantity: l.quantity,
-      ...l.selection,
-    })),
-    fulfilment: method,
-    delivery_area: area || undefined,
-    coupon_code: applied || undefined,
-    branch_id: branch?.id,
-    delivery_quote_id: method === "delivery" ? delivery?.id : undefined,
+
+  // Mutation results are scoped to the exact bag that started them. A cart
+  // built for a previous quantity or variation can never authorize payment.
+  const cart =
+    cartMutation.data && autoPreparedFingerprint.current === fingerprint
+      ? couponCart?.fingerprint === fingerprint
+        ? couponCart.session
+        : cartMutation.data
+      : null;
+  const total = cart ? websiteCartTotal(cart.cart) : null;
+  const couponConfirmed = Boolean(
+    cart && cartHasRequestedCoupon(cart.cart, wallet.selected),
+  );
+  const couponDraftChanged =
+    couponDraft.trim().toLowerCase() !== (wallet.selected ?? "");
+  const couponBlocked =
+    couponBusy ||
+    Boolean(couponError) ||
+    !couponConfirmed ||
+    couponDraftChanged;
+  const details: WebsiteCheckoutDetails = {
+    firstName,
+    lastName,
+    email,
+    phone,
+    address,
+    area,
+    city,
+    notes,
   };
-  const quote = useQuery({
-    queryKey: ["checkout-quote", input],
-    queryFn: ({ signal }) => shopApi.quote(input, signal),
-    enabled: !!input.items.length && !attempt,
-    staleTime: 15000,
-    retry: false,
-  });
-  const status = useQuery({
-    queryKey: ["payment-status", attempt?.intent?.id],
-    queryFn: () =>
-      payments.status(attempt!.intent!.id, attempt!.intent!.client_secret),
-    enabled: !!attempt?.intent,
-    refetchInterval: (q) =>
-      ["paid", "failed", "cancelled", "review_required"].includes(
-        q.state.data?.state ?? "",
-      )
-        ? false
-        : 5000,
-    refetchIntervalInBackground: false,
-    retry: false,
-    gcTime: 0,
-  });
+
+  useEffect(() => {
+    setCouponDraft(wallet.selected ?? "");
+  }, [wallet.selected, wallet.scope]);
+
+  async function updateCoupon(remove = false) {
+    if (!cart || couponFlight.current || busy) return;
+    couponFlight.current = true;
+    setCouponBusy(true);
+    setCouponError("");
+    try {
+      const requested = remove ? null : normalizeCouponCode(couponDraft);
+      // Selection is a request, never evidence that the website accepted it.
+      await selectCouponCode(wallet.scope, requested);
+      const verified = await setWebsiteCartCoupon(
+        cart,
+        requested,
+        fingerprint,
+        ownerScope,
+      );
+      if (currentFingerprint.current !== fingerprint) return;
+      setCouponCart({ fingerprint, session: verified });
+      setCouponDraft(requested ?? "");
+    } catch (reason) {
+      if (currentFingerprint.current === fingerprint)
+        setCouponError(
+          reason instanceof Error
+            ? reason.message
+            : "Your coupon could not be verified. Try again or remove it before payment.",
+        );
+    } finally {
+      couponFlight.current = false;
+      if (currentFingerprint.current === fingerprint) setCouponBusy(false);
+    }
+  }
+
+  // A restored or newly completed login can arrive after this screen mounts.
+  // Preserve anything the customer has already edited, while filling only blank
+  // billing contact fields from the authenticated account.
+  useEffect(() => {
+    if (!customer) return;
+    setFirstName((current) => current || customer.first_name);
+    setLastName((current) => current || customer.last_name);
+    setEmail((current) => current || customer.email);
+    setPhone((current) => current || customer.phone || "");
+  }, [customer]);
+
+  // A sign-in/out can occur while this screen is mounted. Do not leave an old
+  // account's handoff, contact fields, or private order link on screen for the
+  // next person using the device. The bag remains intentionally local.
+  useEffect(() => {
+    if (previousOwnerScope.current === undefined) {
+      previousOwnerScope.current = ownerScope;
+      return;
+    }
+    if (previousOwnerScope.current === ownerScope) return;
+    previousOwnerScope.current = ownerScope;
+    setStarted(null);
+    setPaymentAttemptRestored(false);
+    setFirstName(customer?.first_name ?? "");
+    setLastName(customer?.last_name ?? "");
+    setEmail(customer?.email ?? "");
+    setPhone(customer?.phone ?? "");
+    setAddress("");
+    setArea("");
+    setCity("Nairobi");
+    setNotes("");
+    void Promise.all([
+      clearWebsiteCheckoutSession(),
+      clearWebsitePaymentAttempt(),
+    ]).catch(() => undefined);
+  }, [customer, ownerScope]);
+
+  // An address is never present in the login response. Once this customer has
+  // completed a checkout handoff, restore their own encrypted, device-local
+  // billing fields without replacing anything they are already editing.
+  useEffect(() => {
+    if (!customer?.id) return;
+    let active = true;
+    void loadBillingProfile(customer.id).then((profile) => {
+      if (!active || !profile) return;
+      setFirstName((current) => current || profile.firstName);
+      setLastName((current) => current || profile.lastName);
+      setEmail((current) => current || profile.email);
+      setPhone((current) => current || profile.phone);
+      setAddress((current) => current || profile.address);
+      setArea((current) => current || profile.area);
+      setCity((current) => current || profile.city);
+    });
+    return () => {
+      active = false;
+    };
+  }, [customer?.id]);
+
+  // A Pesapal handoff may return to a fresh JavaScript process. Restore the
+  // recorded order before preparing a new WooCommerce cart, so a foreground
+  // event or app restart can never repost the same bag automatically.
   useEffect(() => {
     let active = true;
-    setRestoring(true);
-    setRecoveryError("");
-    void restoreAttempt(customer!.id)
-      .then((a) => {
-        if (active) setAttempt(a);
+    setStarted(null);
+    setPaymentAttemptRestored(false);
+    void loadWebsitePaymentAttempt(fingerprint, ownerScope)
+      .then((order) => {
+        if (!active || !order) return;
+        setStarted({
+          order,
+          paymentUrl: order.payment_result.redirect_url ?? null,
+        });
       })
-      .catch((e) => {
-        if (active)
-          setRecoveryError(
-            e instanceof Error
-              ? e.message
-              : "Your saved payment could not be read. Please try again.",
-          );
+      .catch(() => {
+        // A missing recovery record is not a checkout failure. The secure cart
+        // preparation below remains the authoritative source of truth.
       })
       .finally(() => {
-        if (active) setRestoring(false);
+        if (active) setPaymentAttemptRestored(true);
       });
     return () => {
       active = false;
     };
-  }, [customer?.id, recoveryRetry]);
+  }, [fingerprint, ownerScope]);
+
   useEffect(() => {
-    setDelivery(null);
+    autoPreparedFingerprint.current = null;
+    setCouponCart(null);
+    setCouponError("");
+    setCouponBusy(false);
+    cartMutation.reset();
+  }, [fingerprint]);
+
+  useEffect(() => {
+    if (
+      !lines.length ||
+      !paymentAttemptRestored ||
+      started ||
+      autoPreparedFingerprint.current === fingerprint
+    )
+      return;
+    autoPreparedFingerprint.current = fingerprint;
+    cartMutation.mutate();
   }, [
-    branch?.id,
-    location?.latitude,
-    location?.longitude,
-    line1,
-    area,
-    city,
-    JSON.stringify(input.items),
+    cartMutation.mutate,
+    fingerprint,
+    lines.length,
+    paymentAttemptRestored,
+    started,
   ]);
-  useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 10000);
-    const listener = AppState.addEventListener("change", (s) => {
-      if (s === "active") {
-        setNow(Date.now());
-        if (attempt?.intent) void status.refetch();
-      }
-    });
-    return () => {
-      clearInterval(timer);
-      listener.remove();
-    };
-  }, [attempt?.intent?.id]);
-  const confirmed = status.data?.state === "paid";
-  useEffect(() => {
-    if (!confirmed || !attempt?.intent || settlement.current) return;
-    settlement.current = true;
-    void (async () => {
-      if (!useBag.persist.hasHydrated()) await useBag.persist.rehydrate();
-      if (!useBag.persist.hasHydrated())
-        throw new Error(
-          "Your bag could not be restored. Your payment is confirmed; reopen the app to update your bag.",
-        );
-      await useBag
-        .getState()
-        .settle(attempt.intent!.id, attempt.payload.checkout.items);
-      await clearAttempt(customer!.id);
-      await Promise.all([
-        cache.invalidateQueries({ queryKey: ["orders"] }),
-        cache.invalidateQueries({ queryKey: ["rewards"] }),
-      ]);
-    })().catch((e) => {
-      settlement.current = false;
-      setError(
-        e instanceof Error
-          ? e.message
-          : "Your payment is confirmed. Reopen the app to update your bag.",
-      );
-    });
-  }, [confirmed, attempt, customer?.id, cache]);
-  async function locate() {
-    setBusy(true);
-    setError("");
+
+  async function useCurrentLocation() {
+    setLocationBusy(true);
+    setLocationNotice("");
     try {
-      const p = await Location.requestForegroundPermissionsAsync();
-      if (p.status !== "granted")
-        throw new Error(
-          "Location permission is needed for a distance quote. You can choose pickup instead.",
+      const permission = await Location.requestForegroundPermissionsAsync();
+      if (permission.status !== "granted") {
+        setLocationNotice(
+          "Location access was not granted. You can still enter your delivery address.",
         );
-      const point = await Location.getCurrentPositionAsync({
+        return;
+      }
+      if (!(await Location.hasServicesEnabledAsync())) {
+        setLocationNotice(
+          "Location services are turned off. Turn them on, then try again, or enter your address manually.",
+        );
+        return;
+      }
+
+      const position = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
       });
-      setLocation({
-        latitude: point.coords.latitude,
-        longitude: point.coords.longitude,
-      });
-    } catch (e) {
-      setError(
-        e instanceof Error ? e.message : "Your location could not be found.",
+      const [place] = await Location.reverseGeocodeAsync(position.coords);
+      const suggestion = locationAddressSuggestion(place);
+      if (!suggestion) {
+        setLocationNotice(
+          "We found your location but could not suggest an address. Please enter it manually.",
+        );
+        return;
+      }
+
+      setAddress((current) => current || suggestion.address);
+      setArea((current) => current || suggestion.area);
+      setCity((current) => current || suggestion.city || "Nairobi");
+      setLocationNotice(
+        "Current location added. Please confirm your building or apartment before payment.",
+      );
+    } catch {
+      setLocationNotice(
+        "We could not read your current location. Check location services or enter your address manually.",
       );
     } finally {
-      setBusy(false);
+      setLocationBusy(false);
     }
   }
-  async function quoteDelivery() {
-    if (!branch || !location) return;
-    setBusy(true);
-    setError("");
-    try {
-      setDelivery(
-        await shopApi.delivery({
-          branch_id: branch.id,
-          ...location,
-          items: input.items,
-        }),
-      );
-    } catch (e) {
+
+  async function continueToPayment() {
+    const validation = checkoutError(details);
+    if (validation) {
+      setError(validation);
+      return;
+    }
+    if (!cart) {
+      setError("Your secure cart is not ready yet.");
+      return;
+    }
+    if (couponBlocked) {
       setError(
-        e instanceof Error ? e.message : "Delivery is currently unavailable.",
+        "Apply or remove your coupon and review the verified total before payment.",
       );
-    } finally {
-      setBusy(false);
+      return;
     }
-  }
-  async function pay() {
-    if (gate.current) return;
-    gate.current = true;
+
     setBusy(true);
     setError("");
+    trackCommerceEvent("checkout_started", { line_count: lines.length });
+    trackCommerceEvent("payment_started", {
+      method: "pesapal",
+      line_count: lines.length,
+    });
     try {
-      let current = attempt;
-      if (!current) {
-        if (recoveryError) throw new Error(recoveryError);
-        if (!customer) throw new Error("Please sign in again.");
-        if (
-          branch &&
-          !(method === "pickup"
-            ? branch.pickup_available
-            : branch.delivery_available)
-        )
-          throw new Error(
-            "This branch does not offer your selected fulfilment method.",
+      const order = await submitWebsiteCheckout(cart, details, wallet.selected);
+      if (customer) {
+        void saveBillingProfile(customer.id, {
+          firstName,
+          lastName,
+          email,
+          phone,
+          address,
+          area,
+          city,
+        }).catch(() => undefined);
+      }
+      const paymentUrl = order.payment_result.redirect_url ?? null;
+      if (paymentUrl && new URL(paymentUrl).protocol !== "https:")
+        throw new Error("Cake City's payment link could not be verified.");
+      setStarted({ order, paymentUrl });
+      if (order.payment_result.payment_status === "success") {
+        trackCommerceEvent("payment_success", { method: "pesapal" });
+        trackCommerceEvent("order_completed", { method: "pesapal" });
+      }
+      try {
+        await Promise.all([
+          saveWebsiteOrder(order, details.email, ownerScope),
+          saveWebsitePaymentAttempt(fingerprint, order, ownerScope),
+        ]);
+        await clearWebsiteCheckoutSession();
+      } catch {
+        // The WooCommerce order already exists at this point. Do not turn a
+        // secure-storage issue into an invitation to submit payment again.
+        setError(
+          "Your Cake City order has started. Keep this screen open and use the order update if you need to return to payment.",
+        );
+      }
+      if (paymentUrl) {
+        try {
+          await Linking.openURL(paymentUrl);
+        } catch {
+          setError(
+            "Your secure payment page is ready. Use Return to secure payment below if it did not open automatically.",
           );
-        if (
-          !name.trim() ||
-          !/^\S+@\S+\.\S+$/.test(email) ||
-          !/^(?:\+?254|0)[17]\d{8}$/.test(phone.replace(/\s/g, ""))
-        )
-          throw new Error("Check your name, email and Kenyan phone number.");
-        if (method === "delivery" && (!line1.trim() || !area.trim()))
-          throw new Error("Enter your full delivery address.");
-        const refreshed = await quote.refetch();
-        if (refreshed.isError || !refreshed.data)
-          throw refreshed.error ?? new Error("Refresh your order quote.");
-        const block = checkoutBlock(input, refreshed.data, delivery);
-        if (block) throw new Error(block);
-        if (
-          quote.data &&
-          Math.abs(quote.data.total - refreshed.data.total) > 0.01
-        )
-          throw new Error("Your order total changed. Review it before paying.");
-        current = await createAttempt(customer.id, {
-          method: payment,
-          checkout: input,
-          customer: {
-            name: name.trim(),
-            email: email.trim(),
-            phone: phone.replace(/\s/g, ""),
-          },
-          delivery_address:
-            method === "delivery"
-              ? { line1, area, city, notes: notes || undefined }
-              : undefined,
-        });
-        setAttempt(current);
+        }
       }
-      const intent =
-        current.intent ?? (await payments.create(current.payload, current.key));
-      const next = { ...current, intent };
-      setAttempt(next);
-      await persistAttempt(next);
-      if (intent.action.type === "redirect" && intent.action.redirect_url) {
-        const url = new URL(intent.action.redirect_url);
-        if (url.protocol !== "https:")
-          throw new Error("The payment page could not be verified.");
-        await Linking.openURL(url.toString());
-      }
-    } catch (e) {
+    } catch (reason) {
+      trackCommerceEvent("payment_failed", { method: "pesapal" });
       setError(
-        e instanceof Error
-          ? e.message
-          : "Payment could not be started. Your order has not been confirmed.",
+        reason instanceof Error
+          ? reason.message
+          : "Cake City could not begin payment. Please try again.",
       );
     } finally {
-      gate.current = false;
       setBusy(false);
     }
   }
-  if (restoring) return <Feedback loading />;
-  if (recoveryError)
+
+  if (!lines.length)
     return (
       <>
-        <Feedback
-          error={new Error(recoveryError)}
-          onRetry={() => setRecoveryRetry((n) => n + 1)}
-        />
+        <Feedback empty="Your bag is empty." />
         <Button
-          variant="outline"
-          label="Contact Cake City"
-          onPress={() => router.push("/help")}
+          label="Find your cake"
+          onPress={() => router.replace("/(tabs)/shop")}
         />
       </>
     );
-  if (confirmed)
+
+  if (!paymentAttemptRestored || cartMutation.isPending)
+    return <Feedback loading />;
+
+  if (cartMutation.isError)
     return (
-      <View style={{ gap: 22 }}>
-        <View
-          style={[
-            ui.panel,
-            { backgroundColor: "#EAF8FE", borderWidth: 0, padding: 28 },
-          ]}
-        >
-          <Text style={ui.eyebrow}>PAYMENT CONFIRMED</Text>
-          <Text style={ui.title}>Your celebration is officially underway.</Text>
-          <Text style={ui.body}>{status.data?.order_reference}</Text>
-          <Text style={ui.heading}>{money(status.data!.amount)}</Text>
-          <Text style={ui.body}>
-            We’ll keep you posted as your order comes together.
-          </Text>
-        </View>
-        {error ? <Notice error message={error} /> : null}
-        {attempt?.payload.checkout.items.map((item, index) => (
-          <Text key={index} style={ui.body}>
-            {item.quantity} × {item.product_slug.replace(/-/g, " ")}
-            {item.message ? " · “" + item.message + "”" : ""}
-          </Text>
-        ))}
-        <Button
-          label="Track my order"
-          onPress={() =>
-            router.replace({
-              pathname: "/order/[reference]",
-              params: { reference: status.data!.order_reference },
-            })
-          }
+      <>
+        <Feedback
+          error={cartMutation.error}
+          onRetry={() => {
+            cartMutation.reset();
+            cartMutation.mutate();
+          }}
         />
         <Button
           variant="outline"
-          label="Continue shopping"
-          onPress={() => router.replace("/(tabs)/shop")}
+          label="Return to bag"
+          onPress={() => router.back()}
         />
-      </View>
+      </>
     );
-  if (attempt)
+
+  if (started) {
+    const receiptUrl = websiteOrderUrl(started.order);
+    const awaitingPayment =
+      started.order.payment_result.payment_status !== "success";
     return (
       <View style={{ gap: 20 }}>
-        <Section title="Your payment" />
-        <Text style={ui.body}>
-          {attempt.intent?.order_reference ?? "Recovering your payment request"}
-        </Text>
-        <Notice
-          message={
-            status.data?.failure_message ??
-            (status.data?.state === "review_required"
-              ? "Cake City is reviewing this payment. Contact our team with your order reference before trying another payment."
-              : null) ??
-            attempt.intent?.action.message ??
-            "Keep this screen open while Cake City confirms your payment. Returning from the payment page does not confirm payment."
-          }
-        />
-        {attempt.intent ? (
-          <Text style={ui.heading}>
-            {money(status.data?.amount ?? attempt.intent.amount)}
+        <CheckoutProgress current={2} />
+        <View style={[ui.panel, { gap: 8 }]}>
+          <Ionicons name="receipt-outline" size={28} color="#EC008C" />
+          <Text style={ui.eyebrow}>CAKE CITY ORDER</Text>
+          <Text style={ui.title}>Order {started.order.order_number}</Text>
+          <Text style={ui.body}>
+            {awaitingPayment
+              ? "Your order is awaiting payment confirmation. Complete payment only on Cake City's secure page."
+              : "Cake City has recorded your payment result. Open your order update for the latest status."}
           </Text>
-        ) : null}
+        </View>
+        <Notice message="Order updates are always shown by Cake City. This app does not guess a payment or delivery status." />
         {error ? <Notice error message={error} /> : null}
-        {status.error ? (
-          <Feedback
-            error={status.error}
-            onRetry={() => void status.refetch()}
+        {started.paymentUrl ? (
+          <Button
+            label="Return to secure payment"
+            onPress={() => void Linking.openURL(started.paymentUrl!)}
           />
         ) : null}
-        {["failed", "cancelled"].includes(status.data?.state ?? "") ? (
+        <Button
+          variant="outline"
+          label="Open order update"
+          onPress={() => void Linking.openURL(receiptUrl)}
+        />
+        {ownerScope ? (
           <Button
-            label="Review order and try again"
-            onPress={async () => {
-              try {
-                await clearAttempt(customer!.id);
-                setAttempt(null);
-                setError("");
-                settlement.current = false;
-              } catch {
-                setError(
-                  "Your saved payment could not be cleared. Please try again.",
-                );
-              }
-            }}
+            variant="outline"
+            label="My tracked orders"
+            onPress={() => router.replace("/(tabs)/orders")}
           />
         ) : (
-          <>
-            <Button
-              disabled={status.data?.state === "review_required"}
-              label={
-                attempt.intent?.action.type === "redirect"
-                  ? "Open secure payment page"
-                  : "Resume payment check"
-              }
-              loading={busy}
-              onPress={() =>
-                attempt.intent?.action.type === "await_mpesa"
-                  ? void status.refetch()
-                  : void pay()
-              }
-            />
-            {attempt.intent ? (
-              <Button
-                variant="outline"
-                label="Check payment status"
-                onPress={() => void status.refetch()}
-              />
-            ) : null}
-          </>
+          <Notice message="For privacy on shared devices, keep your official Cake City order page or sign in before leaving this guest checkout." />
         )}
-        <Text style={ui.body}>
-          Your payment request is saved securely, so you can return here after
-          an interruption.
-        </Text>
+        {!awaitingPayment ? (
+          <Button
+            variant="outline"
+            label="Continue shopping"
+            onPress={() => {
+              void clearWebsitePaymentAttempt();
+              clearBag();
+              router.replace("/(tabs)");
+            }}
+          />
+        ) : null}
       </View>
     );
-  if (!bag.lines.length) return <Feedback empty="Your bag is empty." />;
-  const blocked =
-    branch &&
-    !(method === "pickup" ? branch.pickup_available : branch.delivery_available)
-      ? "Choose a branch that offers this fulfilment method."
-      : quote.isError
-        ? "Refresh your order quote before paying."
-        : quote.data
-          ? checkoutBlock(input, quote.data, delivery, now)
-          : "An order quote is required.";
+  }
+
+  if (!cart) return <Feedback loading />;
+
   return (
     <View style={{ gap: 22 }}>
-      <Section title="01 / You" />
+      <CheckoutProgress current={1} />
+      <View style={[ui.panel, { gap: 7 }]}>
+        <View style={ui.row}>
+          <Ionicons name="shield-checkmark-outline" size={20} color="#EC008C" />
+          <Text style={ui.heading}>One Cake City checkout</Text>
+        </View>
+        <Text style={ui.body}>
+          Every eligible item below is verified in one Cake City cart, then paid
+          together through the secure Pesapal checkout.
+        </Text>
+      </View>
+
+      <Section title="01 / Contact details" />
+      {customer ? (
+        <View style={ui.row}>
+          <Ionicons name="person-circle-outline" size={17} color="#EC008C" />
+          <Text style={ui.body}>
+            We filled the contact details available in your account.
+          </Text>
+        </View>
+      ) : null}
       <Input
-        label="Full name"
-        value={name}
-        onChangeText={setName}
-        maxLength={240}
+        autoComplete="given-name"
+        label="First name"
+        value={firstName}
+        onChangeText={setFirstName}
       />
       <Input
+        autoComplete="family-name"
+        label="Last name"
+        value={lastName}
+        onChangeText={setLastName}
+      />
+      <Input
+        autoComplete="email"
         label="Email address"
         value={email}
         onChangeText={setEmail}
@@ -465,175 +547,143 @@ function CheckoutForm() {
         autoCapitalize="none"
       />
       <Input
-        label="Phone for this order"
+        label="Phone number"
         value={phone}
         onChangeText={setPhone}
         keyboardType="phone-pad"
         autoComplete="tel"
       />
-      <Section title="02 / Your celebration, your way" />
-      <View style={ui.row}>
-        <Chip
-          label="Delivery"
-          selected={method === "delivery"}
-          onPress={() => setMethod("delivery")}
-        />
-        <Chip
-          label="Pickup"
-          selected={method === "pickup"}
-          onPress={() => setMethod("pickup")}
-        />
-      </View>
+
+      <Section title="02 / Delivery details" />
       <Button
+        icon={<Ionicons name="locate-outline" size={18} color="#EC008C" />}
+        label={
+          locationBusy ? "Finding your location…" : "Use my current location"
+        }
+        loading={locationBusy}
+        onPress={() => void useCurrentLocation()}
         variant="outline"
-        label={branch?.name ?? "Choose your branch"}
-        onPress={() => router.push("/branches")}
       />
-      {method === "delivery" ? (
-        <>
-          {addresses.data?.map((a) => (
-            <Chip
-              key={a.id}
-              label={a.label + " · " + a.area}
-              selected={line1 === a.line1}
-              onPress={() => {
-                setLine1([a.line1, a.line2].filter(Boolean).join(", "));
-                setArea(a.area);
-                setCity(a.city);
-                setNotes(a.delivery_notes ?? "");
-                setName(a.recipient_name);
-                setPhone(a.phone);
-                setLocation(null);
-              }}
-            />
-          ))}
-          <Input
-            label="Building, street and apartment"
-            value={line1}
-            onChangeText={setLine1}
-            autoComplete="street-address"
-          />
-          <Input label="Area" value={area} onChangeText={setArea} />
-          <Input label="City" value={city} onChangeText={setCity} />
-          <Input
-            label="Delivery instructions (optional)"
-            value={notes}
-            onChangeText={setNotes}
-            maxLength={500}
-          />
-          <Notice message="Use the device at your delivery address to confirm the location. Delivery is priced from the selected branch to this point." />
-          <Button
-            variant="outline"
-            label={
-              location ? "Update delivery location" : "Use my current location"
-            }
-            loading={busy}
-            onPress={() => void locate()}
-          />
-          {location ? (
-            <Text style={ui.body}>
-              Location selected: {location.latitude.toFixed(5)},{" "}
-              {location.longitude.toFixed(5)}
-            </Text>
-          ) : null}
-          {!config.data?.capabilities.distance_delivery ? (
-            <Notice message="Distance-based delivery is unavailable at the moment. Please try again later or select pickup." />
-          ) : (
-            <Button
-              variant="secondary"
-              label="Calculate delivery"
-              disabled={!branch || !location || !line1 || !area}
-              loading={busy}
-              onPress={() => void quoteDelivery()}
-            />
-          )}{" "}
-          {delivery ? (
-            <Notice
-              message={
-                delivery.distance_km.toFixed(1) +
-                " km · " +
-                money(delivery.delivery_fee) +
-                " · estimated " +
-                delivery.estimated_delivery_minutes +
-                " minutes"
-              }
-            />
-          ) : null}
-        </>
-      ) : null}
-      <Section title="03 / A little extra value" />
+      <Text style={ui.body}>
+        We use your location only when you tap this button to suggest editable
+        delivery fields. It is not tracked in the background.
+      </Text>
+      {locationNotice ? <Notice message={locationNotice} /> : null}
       <Input
-        label="Offer code"
-        value={coupon}
-        onChangeText={setCoupon}
-        autoCapitalize="characters"
-        maxLength={80}
+        autoComplete="street-address"
+        label="Building, street and apartment"
+        value={address}
+        onChangeText={setAddress}
       />
-      <Button
-        variant="outline"
-        label={applied ? "Remove offer" : "Apply offer"}
-        disabled={!applied && !coupon.trim()}
-        onPress={() => setApplied(applied ? "" : coupon.trim())}
+      <Input
+        autoComplete="address-line2"
+        label="Area"
+        value={area}
+        onChangeText={setArea}
       />
-      <Section title="04 / Your order" />
-      {bag.lines.map((l) => (
-        <View key={l.key} style={ui.spread}>
+      <Input label="City" value={city} onChangeText={setCity} />
+      <Input
+        label="Order notes (optional)"
+        value={notes}
+        onChangeText={setNotes}
+        maxLength={500}
+      />
+
+      <Section title="03 / Your Cake City bag" />
+      {cart.cart.items.map((item) => (
+        <View key={item.id} style={ui.spread}>
           <Text style={[ui.body, { flex: 1 }]}>
-            {l.quantity} × {l.name}
+            {item.quantity} × {item.name}
           </Text>
-          <Text style={ui.label}>{money(l.price * l.quantity)}</Text>
         </View>
       ))}
-      <Feedback
-        loading={quote.isPending}
-        error={quote.error}
-        onRetry={() => void quote.refetch()}
-      />
-      {quote.data ? (
-        <View style={ui.panel}>
-          {[
-            ["Cakes & extras", quote.data.subtotal],
-            ["Delivery", quote.data.delivery_fee],
-            ["Discount", -quote.data.discount],
-          ].map(([label, amount]) => (
-            <View key={label} style={ui.spread}>
-              <Text style={ui.body}>{label}</Text>
-              <Text style={ui.label}>{money(Number(amount))}</Text>
-            </View>
-          ))}
-          <View style={ui.line} />
-          <View style={ui.spread}>
-            <Text style={ui.heading}>Total</Text>
-            <Text style={ui.heading}>{money(quote.data.total)}</Text>
-          </View>
-        </View>
-      ) : null}
-      {blocked ? <Notice message={blocked} /> : null}
-      <Section title="05 / Secure payment" />
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-        {(["mpesa", "card", "wallet"] as const).map((p) => (
-          <Chip
-            key={p}
-            label={
-              { mpesa: "M-Pesa", card: "Card", wallet: "Cake City credit" }[p]
-            }
-            selected={payment === p}
-            onPress={() => setPayment(p)}
+      <View style={[themedUi.panel, { gap: 12, borderRadius: 26 }]}>
+        <View style={themedUi.row}>
+          <Ionicons
+            name="ticket-outline"
+            size={22}
+            color={colors.brandStrong}
           />
-        ))}
+          <Text style={themedUi.heading}>Coupon code</Text>
+        </View>
+        <Input
+          label="Add a coupon"
+          placeholder="Enter a Cake City code"
+          value={couponDraft}
+          onChangeText={setCouponDraft}
+          autoCapitalize="none"
+          autoCorrect={false}
+          maxLength={100}
+          editable={!busy && !couponBusy}
+        />
+        <Text style={themedUi.body}>
+          {wallet.selected && !couponConfirmed
+            ? "Your selected code still needs to be applied to this bag."
+            : "Saved codes are checked against your cakes by Cake City. Only the website can confirm a discount."}
+        </Text>
+        <Button
+          variant="outline"
+          label="Apply coupon"
+          loading={couponBusy}
+          disabled={busy || couponBusy || !couponDraft.trim()}
+          onPress={() => void updateCoupon()}
+        />
+        {wallet.selected || couponDraft || cart.cart.coupons.length ? (
+          <Button
+            variant="ghost"
+            label="Remove coupon / continue without"
+            disabled={busy || couponBusy}
+            onPress={() => void updateCoupon(true)}
+          />
+        ) : null}
+        <Button
+          variant="ghost"
+          label="Open my coupon wallet"
+          disabled={busy || couponBusy}
+          onPress={() => router.push("/(tabs)/loyalty")}
+        />
+        {couponError ? <Notice error message={couponError} /> : null}
+        {couponConfirmed && wallet.selected && !couponError ? (
+          <Notice
+            message={`Cake City confirmed coupon ${wallet.selected}. The verified total below includes its discount.`}
+          />
+        ) : null}
+        {cart.cart.totals.total_discount &&
+        Number(cart.cart.totals.total_discount) > 0 ? (
+          <View style={themedUi.spread}>
+            <Text style={themedUi.body}>Verified coupon savings</Text>
+            <Text style={themedUi.heading}>
+              {money(
+                Number(cart.cart.totals.total_discount) /
+                  10 ** cart.cart.totals.currency_minor_unit,
+              )}
+            </Text>
+          </View>
+        ) : null}
       </View>
+      <View style={ui.panel}>
+        <View style={ui.spread}>
+          <Text style={ui.heading}>Verified total</Text>
+          <Text style={ui.heading}>
+            {total === null ? "Cake City will confirm" : money(total)}
+          </Text>
+        </View>
+      </View>
+      <Text style={ui.body}>
+        Cake City calculates the final price, delivery and payment result. No
+        local price is used to authorize payment.
+      </Text>
       {error ? <Notice error message={error} /> : null}
       <Button
         label={
-          "Pay securely" + (quote.data ? " · " + money(quote.data.total) : "")
+          total === null
+            ? "Continue to secure payment"
+            : `Pay ${money(total)} securely`
         }
-        disabled={!!blocked || quote.isFetching}
         loading={busy}
-        onPress={() => void pay()}
+        disabled={busy || couponBlocked}
+        onPress={() => void continueToPayment()}
       />
-      <Text style={[ui.body, { fontSize: 12, textAlign: "center" }]}>
-        Your payment is confirmed directly by Cake City’s payment service.
-      </Text>
     </View>
   );
 }

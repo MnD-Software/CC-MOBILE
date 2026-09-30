@@ -1,0 +1,2304 @@
+# MASTER CODEX PROMPT
+
+## Cake City Production Mobile Commerce & Customer Platform
+
+You are the lead staff-level mobile, backend, cloud, security, DevOps and product engineer responsible for building a **production-ready Cake City mobile commerce platform**.
+
+This is **NOT a demo, prototype, proof of concept, UI mockup, template, or academic project**.
+
+Build a real, scalable, secure, cloud-ready application that can eventually be deployed to production and used by real Cake City customers, branches, kitchen staff, dispatch teams, call-centre staff, marketing teams and administrators.
+
+Do not take shortcuts that would make the application unsuitable for production.
+
+Do not replace real functionality with fake data.
+
+Do not create placeholder implementations for core business functionality.
+
+Do not mark features as complete merely because the UI exists.
+
+If an external integration cannot be completed because credentials or access are unavailable, implement the complete production integration architecture, environment configuration, interfaces, validation, error handling, logging and test strategy, then clearly document the exact credentials/configuration required to activate it.
+
+---
+
+# 1. PRIMARY OBJECTIVE
+
+Build the Cake City digital ecosystem as a modern mobile-first commerce platform.
+
+The existing Cake City website and WooCommerce installation are the existing commerce source that must initially be integrated rather than unnecessarily discarded.
+
+The new system must progressively evolve from:
+
+> "Cake City website inside an app"
+
+into:
+
+> "Cake City customer, commerce, loyalty, delivery, marketing and operational platform."
+
+The mobile application must support:
+
+* Android
+* iOS
+
+from a shared React Native/TypeScript codebase.
+
+The backend must be independently deployable and scalable.
+
+The architecture must support future:
+
+* AI
+* analytics
+* personalization
+* CRM
+* branch operations
+* kitchen operations
+* dispatch
+* delivery tracking
+* loyalty
+* corporate ordering
+* event ordering
+* marketing automation
+
+---
+
+# 2. REQUIRED TECHNOLOGY STACK
+
+Use the following architecture unless there is a compelling technical reason to deviate.
+
+## Mobile
+
+* React Native
+* TypeScript
+* Expo
+* Expo Router
+* NativeWind or equivalent Tailwind-compatible styling system
+* React Native Reanimated
+* React Native Gesture Handler
+* TanStack Query
+* Zustand where local/global client state is appropriate
+* React Hook Form
+* Zod
+* Expo SecureStore
+* Expo Notifications
+* Expo Location
+* Expo Image
+* appropriate Expo/native modules for device capabilities
+
+Do not use JavaScript where TypeScript is appropriate.
+
+Enable strict TypeScript.
+
+---
+
+# 3. BACKEND
+
+Use:
+
+* Python
+* FastAPI
+* Pydantic
+* SQLAlchemy 2.x
+* Alembic
+* PostgreSQL
+* Redis
+* Celery or an appropriate production-grade background-job system
+* WebSockets where real-time functionality is required
+
+The backend must be independently deployable.
+
+Use a clean architecture separating:
+
+* API
+* application/business logic
+* domain
+* infrastructure
+* integrations
+* database
+* background jobs
+
+Do not put business logic directly inside route handlers.
+
+---
+
+# 4. DATABASE
+
+Use PostgreSQL as the production database.
+
+Design proper normalized relational models with appropriate indexes, foreign keys, constraints and transaction handling.
+
+Core entities should include, where applicable:
+
+* users
+* customer_profiles
+* addresses
+* branches
+* products
+* product_categories
+* product_variants
+* product_images
+* product_attributes
+* inventory
+* orders
+* order_items
+* payments
+* delivery_orders
+* delivery_addresses
+* delivery_slots
+* drivers
+* loyalty_accounts
+* loyalty_transactions
+* rewards
+* customer_favorites
+* customer_events
+* birthdays
+* celebrations
+* custom_cake_requests
+* corporate_orders
+* event_orders
+* promotions
+* coupons
+* notifications
+* notification_preferences
+* reviews
+* support_conversations
+* audit_logs
+* admin_users
+* roles
+* permissions
+
+Use UUIDs or another secure non-sequential identifier strategy where appropriate.
+
+Implement database migrations with Alembic.
+
+Never modify the production schema manually without a migration.
+
+---
+
+# 5. ENVIRONMENT ARCHITECTURE
+
+Create separate environments:
+
+* development
+* staging
+* production
+
+Never hard-code:
+
+* API keys
+* passwords
+* JWT secrets
+* payment credentials
+* WooCommerce credentials
+* database credentials
+* cloud credentials
+* OpenAI credentials
+* notification credentials
+
+Use environment variables.
+
+Provide:
+
+`.env.example`
+
+without exposing real secrets.
+
+The mobile app must support environment-specific API endpoints.
+
+Example:
+
+```text
+Development:
+https://api-dev.example.com
+
+Staging:
+https://api-staging.example.com
+
+Production:
+https://api.example.com
+```
+
+Use secure secret management in production.
+
+---
+
+# 6. CAKE CITY BRANDING
+
+The application must visually belong to Cake City.
+
+Use the existing Cake City visual identity and website as the primary branding reference.
+
+Primary visual direction:
+
+* Cake City pink/magenta
+* white
+* black/dark charcoal
+* subtle neutral backgrounds
+* premium photography
+* elegant typography
+* modern rounded surfaces
+* tasteful glassmorphism where appropriate
+* sophisticated shadows
+* premium card layouts
+* smooth animations
+* generous spacing
+
+Do not overuse glassmorphism.
+
+The application must feel:
+
+* premium
+* elegant
+* warm
+* celebratory
+* modern
+* trustworthy
+* fast
+* commercially focused
+
+Do not create a generic SaaS dashboard aesthetic.
+
+Do not make it look like a developer template.
+
+Do not use excessive gradients.
+
+Do not use random colors that conflict with Cake City branding.
+
+Create a centralized design-token system.
+
+Example conceptual tokens:
+
+```text
+brand.primary
+brand.secondary
+brand.dark
+brand.background
+brand.surface
+brand.success
+brand.warning
+brand.error
+text.primary
+text.secondary
+border.default
+shadow.card
+radius.sm
+radius.md
+radius.lg
+spacing.*
+```
+
+Ensure accessibility and sufficient contrast.
+
+---
+
+# 7. MOBILE APPLICATION INFORMATION ARCHITECTURE
+
+Create a professional mobile navigation system.
+
+Primary navigation should support:
+
+* Home
+* Shop
+* Orders
+* Rewards
+* Account
+
+Additional functionality should be accessible through contextual navigation.
+
+---
+
+# 8. HOME SCREEN
+
+The home screen must be personalized.
+
+Display:
+
+* customer greeting
+* delivery location
+* nearby/preferred branch
+* active promotions
+* featured products
+* recommended products
+* ready cakes
+* custom cake entry
+* rewards balance
+* upcoming celebrations
+* reorder suggestions
+* event/corporate ordering
+* support entry point
+
+The home screen should not simply display the WooCommerce homepage.
+
+It must become a personalized commerce dashboard.
+
+---
+
+# 9. PRODUCT CATALOGUE
+
+Synchronize the existing Cake City product catalogue from WooCommerce through a proper integration layer.
+
+Do not hard-code products.
+
+Support:
+
+* categories
+* subcategories
+* products
+* variants
+* sizes
+* egg/eggless options
+* prices
+* sale prices
+* images
+* availability
+* attributes
+* ratings
+* descriptions
+* preparation times
+* delivery eligibility
+* branch availability
+
+The application should accommodate hundreds or thousands of products.
+
+Implement pagination/infinite scrolling.
+
+Implement caching.
+
+Optimize image loading.
+
+Use responsive image sizes.
+
+Do not load the entire catalogue into memory.
+
+---
+
+# 10. SEARCH
+
+Implement production-quality product search.
+
+Support:
+
+* keyword search
+* category filtering
+* price filtering
+* egg/eggless
+* availability
+* size
+* ratings
+* branch
+* delivery date
+* promotions
+
+Search must be fast.
+
+Use debouncing.
+
+Use server-side search/filtering.
+
+Prepare the architecture for future semantic/AI search.
+
+Example:
+
+Customer searches:
+
+"Chocolate cake for birthday under 4000 tomorrow"
+
+The architecture should eventually support interpreting:
+
+```text
+product_type = cake
+flavour = chocolate
+occasion = birthday
+maximum_price = 4000
+required_date = tomorrow
+```
+
+Do not fake AI responses.
+
+Create an extensible recommendation/search service.
+
+---
+
+# 11. PRODUCT DETAILS
+
+Create premium product pages with:
+
+* high-resolution images
+* product title
+* rating
+* price
+* sale pricing
+* size selection
+* egg/eggless selection
+* quantity
+* cake message
+* product information
+* preparation time
+* delivery availability
+* branch availability
+* related products
+* add-ons
+* recommendations
+* reviews
+* favorite button
+* share button
+
+Support deep links to individual products.
+
+---
+
+# 12. CART
+
+Implement a persistent cart.
+
+Support:
+
+* multiple products
+* quantities
+* variants
+* add-ons
+* cake messages
+* delivery location
+* delivery date
+* delivery slot
+* coupons
+* loyalty redemption
+* taxes/fees where applicable
+* delivery fees
+* order totals
+
+Validate all pricing server-side.
+
+Never trust prices sent by the mobile client.
+
+---
+
+# 13. CHECKOUT
+
+Build a production-grade checkout.
+
+Support:
+
+* authenticated checkout
+* guest checkout where appropriate
+* saved addresses
+* new addresses
+* GPS/location selection
+* delivery method
+* delivery date
+* delivery time
+* branch selection
+* coupon
+* loyalty points
+* payment method
+* order notes
+* contact information
+
+Before creating the order, the backend must revalidate:
+
+* product availability
+* price
+* promotion
+* delivery eligibility
+* delivery fee
+* delivery slot
+* inventory
+* branch
+
+---
+
+# 14. PAYMENTS
+
+Create an extensible payment abstraction.
+
+Initial architecture should support:
+
+* M-Pesa
+* card payments
+* future payment providers
+
+Do not tightly couple checkout logic to one payment provider.
+
+Implement:
+
+```text
+PaymentProvider
+├── MpesaProvider
+├── CardProvider
+└── FutureProvider
+```
+
+Handle:
+
+* payment initiation
+* callbacks
+* webhook verification
+* pending state
+* successful state
+* failed state
+* timeout
+* retries
+* reconciliation
+* idempotency
+
+Never mark an order as paid based solely on a client-side success response.
+
+Use verified server-side callbacks/webhooks.
+
+---
+
+# 15. ORDER MANAGEMENT
+
+Customers must be able to view:
+
+* active orders
+* completed orders
+* cancelled orders
+* order details
+* payment status
+* preparation status
+* delivery status
+* branch
+* delivery information
+* receipts
+
+Order statuses should be modeled properly.
+
+Example:
+
+```text
+PENDING_PAYMENT
+PAYMENT_CONFIRMED
+RECEIVED
+CONFIRMED
+PREPARING
+READY
+ASSIGNED_TO_DRIVER
+OUT_FOR_DELIVERY
+DELIVERED
+COMPLETED
+CANCELLED
+REFUNDED
+```
+
+Do not create arbitrary status strings throughout the codebase.
+
+Use a controlled domain model.
+
+---
+
+# 16. ORDER TRACKING
+
+Build the architecture for real-time order tracking.
+
+Customer view:
+
+```text
+Order received
+      ↓
+Cake being prepared
+      ↓
+Cake ready
+      ↓
+Driver assigned
+      ↓
+Out for delivery
+      ↓
+Delivered
+```
+
+Use WebSockets or another appropriate real-time mechanism where useful.
+
+Provide polling fallback.
+
+---
+
+# 17. DELIVERY SYSTEM
+
+Support:
+
+* customer address
+* GPS coordinates
+* delivery zones
+* delivery fees
+* branch assignment
+* delivery slots
+* same-day delivery
+* scheduled delivery
+* express delivery
+* driver assignment
+* delivery status
+* estimated arrival time
+* future live driver tracking
+
+The architecture must support branch-specific delivery rules.
+
+Do not hard-code delivery pricing into the mobile app.
+
+---
+
+# 18. BRANCH SYSTEM
+
+Create a branch service.
+
+Support:
+
+* branch name
+* address
+* coordinates
+* phone
+* operating hours
+* delivery zones
+* products
+* inventory
+* availability
+* order capacity
+
+Use location services to recommend nearby branches.
+
+Example:
+
+```text
+Nearest branch
+Available cakes
+Estimated preparation
+Delivery time
+Delivery cost
+```
+
+---
+
+# 19. CUSTOM CAKE BUILDER
+
+Build a proper custom cake workflow.
+
+Customer should be able to provide:
+
+* occasion
+* cake size
+* flavour
+* egg/eggless
+* design style
+* colors
+* message
+* reference image
+* delivery date
+* delivery location
+* budget
+* special instructions
+
+Allow image uploads.
+
+Use Cloudinary or an equivalent production media service.
+
+Create a proper custom-cake request workflow.
+
+Status:
+
+```text
+REQUESTED
+UNDER_REVIEW
+QUOTE_SENT
+CUSTOMER_APPROVED
+PAYMENT_PENDING
+CONFIRMED
+IN_PRODUCTION
+READY
+DELIVERED
+CANCELLED
+```
+
+Do not pretend that custom-cake pricing can always be calculated automatically.
+
+Support manual quotation where required.
+
+---
+
+# 20. AI CAKE ASSISTANT
+
+Build an AI service layer that can eventually support:
+
+* product recommendations
+* natural-language product search
+* occasion recommendations
+* budget recommendations
+* custom cake assistance
+* customer support
+* order assistance
+* reorder suggestions
+
+The AI must never invent:
+
+* prices
+* product availability
+* delivery times
+* promotions
+* branch information
+
+AI must retrieve authoritative information from backend services before answering commerce questions.
+
+Use tool/function calling or an equivalent architecture.
+
+Example tools:
+
+```text
+search_products()
+get_product()
+get_branch()
+check_inventory()
+calculate_delivery()
+get_promotions()
+get_customer_orders()
+create_custom_cake_request()
+```
+
+The AI should not directly modify sensitive records without explicit controlled backend actions.
+
+---
+
+# 21. PERSONALIZATION
+
+Build the data model for personalization.
+
+Track appropriate first-party events such as:
+
+* product_viewed
+* product_favorited
+* search_performed
+* cart_created
+* checkout_started
+* order_completed
+* promotion_clicked
+* reward_redeemed
+* review_submitted
+
+Use this to support:
+
+* recommendations
+* reorder prompts
+* relevant promotions
+* customer segmentation
+
+Respect privacy and provide appropriate consent/preferences.
+
+---
+
+# 22. BIRTHDAYS AND CELEBRATIONS
+
+Create a celebration management feature.
+
+Customers can save:
+
+* person's name
+* birthday
+* anniversary
+* event date
+* favorite cake
+* preferred size
+* delivery address
+* notes
+
+Use this for reminders.
+
+Example:
+
+```text
+Sarah's birthday is in 5 days.
+
+Her previous order:
+Chocolate Fudge 1kg
+
+[REORDER]
+```
+
+Do not spam users.
+
+Provide notification preferences.
+
+---
+
+# 23. LOYALTY
+
+Create a real loyalty system.
+
+Support:
+
+* points balance
+* points earning
+* points redemption
+* reward catalogue
+* tiers
+* transactions
+* expiry rules
+* promotional multipliers
+
+Example:
+
+```text
+Bronze
+Silver
+Gold
+Platinum
+```
+
+All loyalty calculations must happen server-side.
+
+Maintain a transaction ledger.
+
+Never simply store and overwrite a points balance without an audit trail.
+
+---
+
+# 24. FAVORITES AND REORDERING
+
+Support:
+
+* favorites
+* recent products
+* previous orders
+* one-tap reorder
+* reorder validation
+
+Before reordering, revalidate:
+
+* product availability
+* current price
+* branch availability
+* delivery eligibility
+
+---
+
+# 25. PROMOTIONS
+
+Create a proper promotion engine.
+
+Support:
+
+* percentage discount
+* fixed discount
+* product-specific discount
+* category-specific discount
+* branch-specific promotion
+* date-based promotion
+* time-based promotion
+* minimum order
+* coupon
+* loyalty promotion
+* campaign tracking
+
+Promotions must be controlled server-side.
+
+---
+
+# 26. PUSH NOTIFICATIONS
+
+Implement notification infrastructure.
+
+Categories:
+
+* order updates
+* delivery
+* promotions
+* rewards
+* birthdays
+* abandoned cart
+* personalized recommendations
+* operational notifications
+
+Store notification preferences.
+
+Support deep linking from notifications into the relevant application screen.
+
+---
+
+# 27. CORPORATE ORDERS
+
+Create a corporate ordering workflow.
+
+Support:
+
+* company information
+* contact person
+* order volume
+* event date
+* delivery location
+* budget
+* invoice requirement
+* recurring orders
+* notes
+* quotation workflow
+
+---
+
+# 28. EVENT ORDERING
+
+Support event packages.
+
+Examples:
+
+* birthdays
+* weddings
+* graduations
+* baby showers
+* corporate events
+* celebrations
+
+Allow customers to specify:
+
+* guest count
+* budget
+* event type
+* date
+* location
+* products/services required
+
+Generate recommended order packages where appropriate.
+
+---
+
+# 29. REVIEWS
+
+Create structured reviews.
+
+Allow customers to review:
+
+* cake quality
+* delivery
+* packaging
+* branch service
+* overall experience
+
+Only verified customers should be able to review completed orders.
+
+Prevent duplicate reviews.
+
+Implement moderation capability.
+
+---
+
+# 30. CUSTOMER SUPPORT
+
+Build a support layer supporting:
+
+* FAQ
+* AI assistant
+* order support
+* human escalation
+* WhatsApp escalation
+* call-centre contact
+
+Support conversations should be linked to the customer/order when appropriate.
+
+---
+
+# 31. ADMIN PLATFORM
+
+Create a separate web administration platform.
+
+Recommended:
+
+* Next.js
+* TypeScript
+* Tailwind CSS
+* secure role-based authentication
+
+Admin modules:
+
+```text
+Dashboard
+Orders
+Customers
+Products
+Categories
+Branches
+Inventory
+Delivery
+Drivers
+Kitchen
+Promotions
+Coupons
+Rewards
+Reviews
+Custom Cakes
+Corporate Orders
+Events
+Notifications
+Marketing
+Analytics
+AI
+Users
+Roles
+Audit Logs
+Settings
+```
+
+---
+
+# 32. BRANCH DASHBOARD
+
+Each branch should have a controlled operational dashboard.
+
+Display:
+
+* incoming orders
+* preparing orders
+* ready orders
+* completed orders
+* inventory
+* capacity
+* branch sales
+* customer issues
+
+Branch users must only access authorized branch data.
+
+---
+
+# 33. KITCHEN DISPLAY SYSTEM
+
+Create a kitchen-oriented interface.
+
+Orders should move through:
+
+```text
+NEW
+PREPARING
+DECORATING
+PACKAGING
+READY
+```
+
+Support:
+
+* timers
+* priority
+* delivery deadline
+* order notes
+* cake message
+* special instructions
+
+The interface must be optimized for tablets/screens used by kitchen staff.
+
+---
+
+# 34. DISPATCH SYSTEM
+
+Create dispatch functionality.
+
+Support:
+
+* ready orders
+* driver assignment
+* route information
+* delivery status
+* ETA
+* failed delivery
+* customer contact
+
+Architecture must allow future integration with external delivery providers.
+
+---
+
+# 35. MARKETING PLATFORM
+
+Create marketing infrastructure supporting:
+
+* campaigns
+* customer segments
+* push campaigns
+* promotions
+* coupon campaigns
+* deep links
+* attribution
+* campaign analytics
+
+Support future Meta/Google integrations.
+
+---
+
+# 36. META AD DEEP LINKING
+
+Design the app for advertising campaigns.
+
+Examples:
+
+```text
+Meta Ad
+   ↓
+Deep Link
+   ↓
+Cake City App
+   ↓
+Specific campaign/product/category
+```
+
+If the app is not installed, support a deferred-deep-link strategy where technically feasible.
+
+Campaign URLs must not simply send customers to the generic home screen.
+
+---
+
+# 37. ANALYTICS
+
+Implement first-party event tracking.
+
+Track:
+
+* app_opened
+* product_viewed
+* search
+* category_viewed
+* add_to_cart
+* checkout_started
+* payment_started
+* payment_completed
+* order_completed
+* coupon_used
+* reward_redeemed
+* notification_opened
+* promotion_clicked
+
+Use:
+
+* GA4 where appropriate
+* backend analytics
+* internal reporting
+
+Ensure personally identifiable information is handled appropriately.
+
+---
+
+# 38. SECURITY
+
+Implement production-grade security.
+
+Requirements:
+
+* JWT authentication
+* refresh token rotation where appropriate
+* secure token storage
+* password hashing using Argon2 or equivalent
+* RBAC
+* server-side authorization
+* request validation
+* rate limiting
+* CORS configuration
+* CSRF protection where applicable
+* secure headers
+* SQL injection protection
+* XSS protection
+* input sanitization
+* webhook verification
+* audit logging
+* secret management
+* encrypted sensitive data where appropriate
+
+Never trust the mobile client.
+
+Every sensitive operation must be authorized server-side.
+
+---
+
+# 39. API DESIGN
+
+Create versioned APIs.
+
+Example:
+
+```text
+/api/v1/auth
+/api/v1/users
+/api/v1/products
+/api/v1/categories
+/api/v1/cart
+/api/v1/orders
+/api/v1/payments
+/api/v1/delivery
+/api/v1/branches
+/api/v1/loyalty
+/api/v1/rewards
+/api/v1/promotions
+/api/v1/custom-cakes
+/api/v1/events
+/api/v1/corporate
+/api/v1/reviews
+/api/v1/notifications
+/api/v1/support
+/api/v1/ai
+```
+
+Generate OpenAPI documentation automatically.
+
+Use consistent response/error structures.
+
+---
+
+# 40. WOOCOMMERCE INTEGRATION
+
+The existing Cake City WooCommerce system must initially be treated as a first-class external integration.
+
+Create a dedicated integration module.
+
+Do not scatter WooCommerce API calls throughout the application.
+
+Example:
+
+```text
+integrations/
+└── woocommerce/
+    ├── client.py
+    ├── products.py
+    ├── orders.py
+    ├── customers.py
+    ├── categories.py
+    ├── webhooks.py
+    └── sync.py
+```
+
+Implement synchronization where appropriate.
+
+Support webhooks if available.
+
+Use retry logic.
+
+Use timeouts.
+
+Handle rate limits.
+
+Log integration failures.
+
+Do not allow WooCommerce downtime to crash the entire mobile application.
+
+Use caching and graceful degradation where appropriate.
+
+---
+
+# 41. DATA SYNCHRONIZATION
+
+Design reliable synchronization between Cake City's existing commerce infrastructure and the new platform.
+
+Avoid duplicate orders.
+
+Use:
+
+* idempotency keys
+* external IDs
+* synchronization timestamps
+* conflict handling
+* retry queues
+* audit logs
+
+Document the source of truth for each entity.
+
+---
+
+# 42. OFFLINE SUPPORT
+
+The app should gracefully handle intermittent connectivity.
+
+Cache appropriate:
+
+* catalogue data
+* product images
+* branch information
+* user preferences
+* previous orders
+
+Do not allow offline mode to falsely represent an order as successfully placed.
+
+Payments and order creation require confirmed server communication.
+
+---
+
+# 43. PERFORMANCE
+
+Optimize for real-world mobile networks in Kenya.
+
+Prioritize:
+
+* low bandwidth
+* fast startup
+* compressed images
+* caching
+* pagination
+* lazy loading
+* API response optimization
+* efficient rendering
+* minimal unnecessary network calls
+
+Use skeleton loading states.
+
+Avoid blocking the main UI thread.
+
+---
+
+# 44. ACCESSIBILITY
+
+Implement:
+
+* semantic labels
+* accessible touch targets
+* readable typography
+* contrast
+* screen reader compatibility
+* dynamic font considerations
+* reduced-motion considerations
+
+---
+
+# 45. ERROR HANDLING
+
+Every production operation needs proper error handling.
+
+Do not show:
+
+```text
+Something went wrong.
+```
+
+without useful recovery.
+
+Provide:
+
+* human-readable messages
+* retry options
+* support references
+* logging
+* correlation/request IDs
+
+Never expose internal stack traces to users.
+
+---
+
+# 46. OBSERVABILITY
+
+Integrate:
+
+* structured logging
+* error tracking
+* performance monitoring
+* request IDs
+* API metrics
+* database metrics
+* background-job monitoring
+
+Use Sentry or an equivalent service.
+
+---
+
+# 47. TESTING
+
+Do not consider the project complete without tests.
+
+Backend:
+
+* unit tests
+* integration tests
+* API tests
+* authentication tests
+* payment tests
+* webhook tests
+* authorization tests
+* database tests
+
+Mobile:
+
+* unit tests
+* component tests
+* navigation tests
+* API integration tests
+* critical user-flow tests
+
+Critical flows:
+
+```text
+Register
+Login
+Browse
+Search
+Product
+Cart
+Checkout
+Payment
+Order
+Track Order
+Reorder
+Rewards
+Custom Cake
+```
+
+Add end-to-end testing where practical using an appropriate framework.
+
+---
+
+# 48. CI/CD
+
+Create GitHub Actions pipelines.
+
+At minimum:
+
+```text
+Pull Request
+    ↓
+Lint
+    ↓
+Type Check
+    ↓
+Unit Tests
+    ↓
+Integration Tests
+    ↓
+Build
+```
+
+For deployment:
+
+```text
+main
+ ↓
+Tests
+ ↓
+Build
+ ↓
+Deploy staging
+ ↓
+Verification
+ ↓
+Production approval
+ ↓
+Deploy production
+```
+
+Do not automatically deploy untested code to production.
+
+---
+
+# 49. MOBILE BUILD SYSTEM
+
+Configure Expo/EAS.
+
+Create build profiles for:
+
+```text
+development
+preview
+production
+```
+
+Example conceptual flow:
+
+```text
+development
+→ local development
+
+preview
+→ QA/testing
+
+production
+→ App Store / Google Play
+```
+
+Provide proper Android and iOS configuration.
+
+Configure:
+
+* app icon
+* splash screen
+* package identifier
+* bundle identifier
+* permissions
+* deep links
+* notifications
+* build profiles
+* environment variables
+
+---
+
+# 50. CLOUD ARCHITECTURE
+
+The backend must be deployable to a cloud environment.
+
+Preferred initial architecture:
+
+```text
+                         INTERNET
+                             │
+                             ▼
+                       Cloudflare/CDN
+                             │
+                             ▼
+                       API Gateway
+                             │
+                             ▼
+                    FastAPI Application
+                             │
+                ┌────────────┼────────────┐
+                ▼            ▼            ▼
+           PostgreSQL      Redis      Background Jobs
+                │                         │
+                └────────────┬────────────┘
+                             ▼
+                        Integrations
+                             │
+             ┌───────────────┼────────────────┐
+             ▼               ▼                ▼
+        WooCommerce        M-Pesa          AI APIs
+```
+
+The architecture must be cloud-provider agnostic enough to support:
+
+* Render
+* AWS
+* Azure
+* GCP
+
+Do not introduce unnecessary infrastructure complexity at the beginning.
+
+---
+
+# 51. CONTAINERIZATION
+
+Provide Docker support.
+
+Create:
+
+```text
+Dockerfile
+docker-compose.yml
+.dockerignore
+```
+
+Development compose services should support:
+
+* API
+* PostgreSQL
+* Redis
+
+Do not store production secrets in Docker files.
+
+---
+
+# 52. PROJECT STRUCTURE
+
+Use a clean monorepo structure.
+
+Recommended:
+
+```text
+cake-city-platform/
+│
+├── apps/
+│   ├── mobile/
+│   ├── admin/
+│   └── api/
+│
+├── packages/
+│   ├── types/
+│   ├── config/
+│   └── design-system/
+│
+├── infrastructure/
+│   ├── docker/
+│   ├── deployment/
+│   └── monitoring/
+│
+├── docs/
+│
+├── scripts/
+│
+├── .github/
+│   └── workflows/
+│
+├── .env.example
+├── docker-compose.yml
+├── README.md
+└── LICENSE
+```
+
+Adjust the structure where necessary, but preserve clear separation of concerns.
+
+---
+
+# 53. DESIGN SYSTEM
+
+Build the design system before creating hundreds of screens.
+
+Create reusable:
+
+* Button
+* Input
+* SearchBar
+* ProductCard
+* ProductCarousel
+* ProductImage
+* PriceDisplay
+* Badge
+* Chip
+* BottomSheet
+* Modal
+* Toast
+* Skeleton
+* EmptyState
+* ErrorState
+* OrderStatus
+* DeliveryTracker
+* RewardCard
+* BranchCard
+* ReviewCard
+* PromotionCard
+
+Do not duplicate components.
+
+---
+
+# 54. PREMIUM UX REQUIREMENTS
+
+The application should feel comparable to high-quality modern consumer applications.
+
+Prioritize:
+
+* beautiful imagery
+* smooth transitions
+* tactile interactions
+* fast navigation
+* thoughtful empty states
+* subtle animation
+* clear hierarchy
+* minimal cognitive load
+* one-handed usability
+
+Use animation intentionally.
+
+Avoid animation simply because the framework makes it possible.
+
+---
+
+# 55. IMAGE STRATEGY
+
+Do not use arbitrary stock images.
+
+Use Cake City product imagery and existing brand assets where available.
+
+Build the architecture so images can be served through an optimized CDN.
+
+Support:
+
+* thumbnails
+* medium
+* high resolution
+* responsive sizes
+* lazy loading
+* caching
+
+---
+
+# 56. REAL DATA REQUIREMENT
+
+The application must work with actual Cake City data.
+
+Do not create:
+
+```text
+Fake Cake
+Test Product
+Sample User
+Lorem ipsum
+Mock Order
+Dummy Payment
+```
+
+unless explicitly contained in automated tests or isolated development fixtures.
+
+Development fixtures must be clearly separated from production data.
+
+---
+
+# 57. ADMIN SECURITY
+
+Implement role-based access.
+
+Example roles:
+
+```text
+SUPER_ADMIN
+ADMIN
+MARKETING
+CALL_CENTER
+BRANCH_MANAGER
+KITCHEN
+DISPATCH
+DRIVER
+FINANCE
+CUSTOMER_SUPPORT
+```
+
+Permissions should be granular.
+
+Do not simply hide UI elements.
+
+Authorization must happen on the backend.
+
+---
+
+# 58. AUDIT LOGGING
+
+Log important administrative actions.
+
+Examples:
+
+```text
+Product price changed
+Promotion created
+Order modified
+Refund issued
+Customer account changed
+Reward points adjusted
+Branch settings changed
+Admin role changed
+```
+
+Store:
+
+* actor
+* action
+* target
+* timestamp
+* metadata
+* IP/device information where appropriate
+
+---
+
+# 59. DOCUMENTATION
+
+Create serious technical documentation.
+
+Include:
+
+```text
+README.md
+ARCHITECTURE.md
+API.md
+DATABASE.md
+DEPLOYMENT.md
+SECURITY.md
+TESTING.md
+ENVIRONMENT.md
+INTEGRATIONS.md
+MOBILE_RELEASE.md
+ADMIN_GUIDE.md
+```
+
+Document how another engineer can clone, configure, test, build and deploy the system.
+
+---
+
+# 60. DEPLOYMENT DOCUMENTATION
+
+Document:
+
+### Local development
+
+```text
+clone
+install
+configure env
+start services
+run migrations
+start API
+start mobile
+```
+
+### Staging
+
+```text
+build
+test
+deploy
+migrate
+verify
+```
+
+### Production
+
+```text
+backup
+migration
+deployment
+health checks
+monitoring
+rollback
+```
+
+Include rollback procedures.
+
+---
+
+# 61. DATABASE MIGRATION SAFETY
+
+Never perform destructive migrations without explicit safeguards.
+
+For production migrations:
+
+* backup
+* migration validation
+* transaction where possible
+* rollback strategy
+* compatibility considerations
+
+---
+
+# 62. API SECURITY
+
+Implement:
+
+* rate limiting
+* pagination limits
+* maximum request body sizes
+* validation
+* authentication
+* authorization
+* request logging
+* abuse prevention
+
+Protect sensitive endpoints.
+
+---
+
+# 63. HEALTH CHECKS
+
+Implement:
+
+```text
+/health
+/ready
+```
+
+Health checks should verify appropriate dependencies.
+
+Do not expose sensitive information.
+
+---
+
+# 64. BACKUP AND RECOVERY
+
+Document:
+
+* database backups
+* retention
+* recovery
+* disaster recovery
+* rollback
+* cloud failure strategy
+
+---
+
+# 65. FEATURE FLAGS
+
+Create a feature flag architecture for controlled rollout.
+
+Examples:
+
+```text
+AI_ASSISTANT
+LOYALTY
+LIVE_TRACKING
+CUSTOM_CAKE_AI
+CORPORATE_ORDERS
+EVENT_PLANNER
+```
+
+This allows features to be enabled gradually.
+
+---
+
+# 66. FUTURE AI ARCHITECTURE
+
+Prepare the system for:
+
+* recommendation engine
+* demand forecasting
+* customer segmentation
+* sales forecasting
+* intelligent campaign generation
+* customer support automation
+* inventory prediction
+* branch performance analysis
+* delivery optimization
+
+Do not implement fake AI simply to claim the application is AI-powered.
+
+Build proper interfaces so these systems can be added incrementally.
+
+---
+
+# 67. BUSINESS INTELLIGENCE
+
+Prepare analytics dashboards for:
+
+* revenue
+* orders
+* average order value
+* conversion rate
+* repeat purchase rate
+* customer lifetime value
+* branch performance
+* product performance
+* campaign performance
+* delivery performance
+* loyalty performance
+
+---
+
+# 68. DEVELOPMENT PROCESS
+
+Do not attempt to create everything blindly in one massive implementation.
+
+Work in production-grade vertical slices.
+
+Recommended sequence:
+
+## Phase 1
+
+Foundation
+
+* monorepo
+* mobile
+* API
+* database
+* authentication
+* design system
+* environments
+* CI/CD
+* Docker
+
+## Phase 2
+
+Commerce
+
+* WooCommerce integration
+* products
+* categories
+* search
+* cart
+* checkout
+* payments
+* orders
+
+## Phase 3
+
+Delivery
+
+* addresses
+* branches
+* delivery pricing
+* delivery slots
+* order tracking
+
+## Phase 4
+
+Customer platform
+
+* profile
+* favorites
+* reorder
+* notifications
+* rewards
+* celebrations
+
+## Phase 5
+
+Advanced commerce
+
+* custom cakes
+* corporate orders
+* event orders
+* promotions
+
+## Phase 6
+
+Operations
+
+* admin
+* branch
+* kitchen
+* dispatch
+* drivers
+
+## Phase 7
+
+AI
+
+* AI assistant
+* intelligent search
+* recommendations
+* automation
+
+## Phase 8
+
+Optimization
+
+* analytics
+* performance
+* security
+* monitoring
+* scaling
+* production hardening
+
+---
+
+# 69. IMPLEMENTATION RULE
+
+For every phase:
+
+1. Analyze existing code.
+2. Plan architecture.
+3. Implement.
+4. Write tests.
+5. Run linting.
+6. Run type checking.
+7. Run tests.
+8. Fix errors.
+9. Verify integration.
+10. Update documentation.
+11. Only then move to the next phase.
+
+Do not leave the repository in a broken state.
+
+---
+
+# 70. CODE QUALITY
+
+Write production-quality code.
+
+Requirements:
+
+* TypeScript strict mode
+* Python type hints
+* clean naming
+* small focused functions
+* separation of concerns
+* dependency injection where appropriate
+* proper error handling
+* reusable components
+* no duplicated business logic
+* no dead code
+* no unnecessary dependencies
+* no hard-coded business rules
+* no secrets
+* no giant files when modularization is appropriate
+
+---
+
+# 71. NO SHORTCUTS
+
+Do not:
+
+* fake APIs
+* hard-code products
+* fake payment success
+* fake order tracking
+* fake inventory
+* use placeholder business logic
+* use static JSON as the production data layer
+* disable authentication to simplify development
+* ignore authorization
+* skip migrations
+* skip tests
+* skip error handling
+* build only the frontend
+* create screens without backend integration
+* call a UI mockup a finished feature
+
+---
+
+# 72. WHEN ACCESS OR CREDENTIALS ARE MISSING
+
+If WooCommerce, M-Pesa, Cloudinary, Firebase, OpenAI, Google Maps, Meta or other credentials are unavailable:
+
+Do NOT replace the integration with fake behavior.
+
+Instead:
+
+1. Create the production integration interface.
+2. Create environment variables.
+3. Create configuration validation.
+4. Implement real request/response models.
+5. Implement error handling.
+6. Implement webhook architecture.
+7. Implement tests using mocked external boundaries.
+8. Document the exact credentials/configuration required.
+9. Clearly identify the integration as awaiting activation.
+
+---
+
+# 73. FINAL ACCEPTANCE CRITERIA
+
+Do not consider the application complete until:
+
+### Mobile
+
+* Android builds successfully.
+* iOS builds successfully.
+* Navigation works.
+* Authentication works.
+* Product catalogue works.
+* Search works.
+* Cart works.
+* Checkout works.
+* Payments are properly integrated.
+* Orders work.
+* Delivery workflow works.
+* Notifications work.
+* Customer account works.
+* Rewards work.
+* Custom cake workflow works.
+* Error states work.
+* Offline behavior is handled appropriately.
+
+### Backend
+
+* API starts cleanly.
+* Database migrations work.
+* Authentication works.
+* Authorization works.
+* Tests pass.
+* Health checks work.
+* Logging works.
+* Error monitoring works.
+* API documentation exists.
+
+### Admin
+
+* Authentication works.
+* RBAC works.
+* Orders can be managed.
+* Products can be managed.
+* Branches can be managed.
+* Promotions can be managed.
+* Customers can be managed.
+* Operations can be monitored.
+
+### Infrastructure
+
+* Docker works.
+* Environment configuration works.
+* CI/CD works.
+* Staging deployment works.
+* Production deployment is documented.
+* Backup/recovery is documented.
+* Monitoring is configured.
+
+---
+
+# 74. FIRST TASK
+
+Before writing large amounts of code:
+
+1. Inspect the repository.
+2. Inspect all existing files.
+3. Determine whether a project already exists.
+4. Identify the current stack.
+5. Identify reusable code.
+6. Identify existing API credentials/configuration without exposing secrets.
+7. Identify existing Cake City integrations.
+8. Identify existing WooCommerce integration points.
+9. Determine whether the repository is monorepo or single application.
+10. Create an architecture assessment.
+
+Then produce:
+
+```text
+ARCHITECTURE ASSESSMENT
+CURRENT STATE
+TARGET STATE
+GAPS
+RISKS
+IMPLEMENTATION PLAN
+DATABASE PLAN
+API PLAN
+MOBILE PLAN
+ADMIN PLAN
+CLOUD PLAN
+SECURITY PLAN
+TESTING PLAN
+```
+
+Do not destroy or overwrite existing functionality without understanding it first.
+
+---
+
+# 75. IMPORTANT PRODUCT PRINCIPLE
+
+The goal is not to make a beautiful app.
+
+The goal is to build a **beautiful production system that makes Cake City more profitable, easier to operate, easier for customers to use, and capable of becoming an intelligent digital commerce platform.**
+
+Every feature should answer at least one of these questions:
+
+1. Does it increase conversion?
+2. Does it increase average order value?
+3. Does it increase repeat purchases?
+4. Does it improve customer experience?
+5. Does it reduce operational workload?
+6. Does it improve branch efficiency?
+7. Does it improve marketing performance?
+8. Does it improve data quality?
+9. Does it create a foundation for automation or AI?
+
+If a feature does none of these, question whether it belongs in the product.
+
+---
+
+# 76. EXECUTION STANDARD
+
+Act as a senior engineering team, not a code generator.
+
+Before implementing major functionality:
+
+* inspect
+* reason
+* architect
+* implement
+* test
+* verify
+* document
+
+Prefer production-grade simplicity over unnecessary complexity.
+
+Do not optimize prematurely, but do not knowingly create architecture that will become impossible to scale.
+
+Do not stop after generating the UI.
+
+The feature is only complete when:
+
+```text
+UI
++
+API
++
+Database
++
+Authentication
++
+Validation
++
+Business Logic
++
+Error Handling
++
+Tests
++
+Observability
++
+Documentation
+```
+
+are all appropriately implemented.
+
+The final system must be capable of being deployed to cloud infrastructure and eventually submitted to:
+
+* Google Play Store
+* Apple App Store
+
+without requiring a complete architectural rewrite.
+
+Begin by inspecting the existing repository and producing the architecture assessment described above.
+
+Do not start by generating fake screens.

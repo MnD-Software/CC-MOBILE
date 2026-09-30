@@ -38,9 +38,12 @@ def mobile_config() -> MobileConfigResponse:
 async def catalogue_products(
     page: int = Query(default=1, ge=1),
     per_page: int = Query(default=24, ge=1, le=100),
+    category: int | None = Query(default=None, ge=1),
     search: str | None = None,
 ):
     params: dict[str, str | int] = {"page": page, "per_page": per_page}
+    if category is not None:
+        params["category"] = category
     if search:
         params["search"] = search
     try:

@@ -1,0 +1,49 @@
+build:
+  name: Unsigned iPhone app for local Apple ID signing
+  steps:
+    - eas/checkout
+    - eas/install_node_modules
+    - eas/resolve_build_config
+    - eas/prebuild
+    - run:
+        name: Install iOS pods
+        working_directory: ios
+        command: pod install
+    - eas/configure_eas_update
+    - run:
+        name: Build and package unsigned iPhone app
+        command: |
+          set -euo pipefail
+          workspace=$(find ios -maxdepth 1 -name '*.xcworkspace' -print -quit)
+          test -n "$workspace"
+          scheme=$(basename "$workspace" .xcworkspace)
+          xcodebuild -list -json -workspace "$workspace" | ruby -rjson -e 'schemes = JSON.parse(STDIN.read).fetch("workspace").fetch("schemes"); abort "Missing app scheme: #{ARGV.fetch(0)}" unless schemes.include?(ARGV.fetch(0))' "$scheme"
+          echo "Building app scheme: $scheme"
+
+          xcodebuild \
+            -workspace "$workspace" \
+            -scheme "$scheme" \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath ios/build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY='' \
+            build
+
+          app=$(find ios/build/Build/Products/Release-iphoneos -maxdepth 1 -name '*.app' -print -quit)
+          test -d "$app"
+          echo "Built app: $app"
+          test "$(plutil -extract CFBundleIdentifier raw -o - "$app/Info.plist")" = 'ke.co.cakecity.mobile'
+          executable=$(plutil -extract CFBundleExecutable raw -o - "$app/Info.plist")
+          lipo -archs "$app/$executable" | grep -q arm64
+
+          mkdir -p unsigned-iphone/Payload
+          ditto "$app" "unsigned-iphone/Payload/$(basename "$app")"
+          (cd unsigned-iphone && zip -qry ../CakeCity-unsigned-iphone.ipa Payload)
+          unzip -t CakeCity-unsigned-iphone.ipa | tail -n 1
+    - eas/upload_artifact:
+        name: Unsigned iPhone IPA for local signing
+        inputs:
+          path: CakeCity-unsigned-iphone.ipa

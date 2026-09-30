@@ -1,0 +1,47 @@
+# Dependencies and local Expo state
+node_modules/
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Generated native and local build output
+/ios/
+/android/
+.kotlin/
+.rebuild-backup/
+.build-work/
+artifacts/
+downloads/
+web-preview/
+
+# Local QA captures and scratch files are not part of the application bundle
+docs/*.png
+docs/prompt.txt
+z4.txt
+z5.txt
+
+# Local environment, credentials, caches, and logs
+.env*.local
+.venv/
+*.db
+__pycache__/
+.pytest_cache/
+*.tsbuildinfo
+*.log
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.pem
+.DS_Store
+.metro-health-check*
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+google-services.json
+GoogleService-Info.plist
+.neon/
+.git/

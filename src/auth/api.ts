@@ -17,8 +17,12 @@ const sessionSchema = z.object({
 });
 export type Customer = z.infer<typeof customerSchema>;
 export type MobileSession = z.infer<typeof sessionSchema>;
+const AUTH_TIMEOUT_MS = 45_000;
+
 async function session(path: string, body: unknown) {
-  return sessionSchema.parse(await api.post<unknown>(path, body));
+  return sessionSchema.parse(
+    await api.post<unknown>(path, body, { timeoutMs: AUTH_TIMEOUT_MS }),
+  );
 }
 export const authApi = {
   login: (email: string, password: string) =>
@@ -35,12 +39,21 @@ export const authApi = {
   refresh: (refreshToken: string) =>
     session("/v1/auth/mobile/refresh", { refresh_token: refreshToken }),
   logout: (refreshToken: string) =>
-    api.post<void>("/v1/auth/mobile/logout", { refresh_token: refreshToken }),
+    api.post<void>(
+      "/v1/auth/mobile/logout",
+      { refresh_token: refreshToken },
+      { timeoutMs: AUTH_TIMEOUT_MS },
+    ),
   forgotPassword: (email: string) =>
-    api.post<void>("/v1/auth/forgot-password", {
-      email,
-      redirect_uri: "cakecity://reset-password",
-    }),
+    api.post<void>(
+      "/v1/auth/forgot-password",
+      { email, redirect_uri: "cakecity://reset-password" },
+      { timeoutMs: AUTH_TIMEOUT_MS },
+    ),
   resetPassword: (token: string, password: string) =>
-    api.post<void>("/v1/auth/reset-password", { token, password }),
+    api.post<void>(
+      "/v1/auth/reset-password",
+      { token, password },
+      { timeoutMs: AUTH_TIMEOUT_MS },
+    ),
 };

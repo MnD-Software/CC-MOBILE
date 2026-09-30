@@ -1,6 +1,8 @@
 import { Image } from "expo-image";
-import { useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useEffect, useRef, useState } from "react";
+import { StyleSheet, Text, View } from "react-native";
+import { recordPerformanceMetric } from "@/observability/commerce-events";
 
 // Display the supplied artwork without resampling or redrawing the brand marks.
 // The promotional banner is supplied artwork; its tap target is native UI.
@@ -68,12 +70,31 @@ export function CakeArtwork({
   source,
   detail = false,
   compact = false,
+  recyclingKey,
 }: {
   source: string;
   detail?: boolean;
   compact?: boolean;
+  /** Resets recycled product-image views before their next image is ready. */
+  recyclingKey?: string;
 }) {
   const [size, setSize] = useState({ width: 0, height: 0 });
+  const [loaded, setLoaded] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const requestedAt = useRef(Date.now());
+  useEffect(() => {
+    requestedAt.current = Date.now();
+    setLoaded(false);
+    setFailed(false);
+  }, [source]);
+  const reportLoad = () => {
+    setLoaded(true);
+    recordPerformanceMetric("image_load_ms", Date.now() - requestedAt.current, {
+      compact,
+      detail,
+      surface: "product_artwork",
+    });
+  };
   const artwork = source.replace("cakecity-artwork:", "");
   const name =
     compact && artwork === "black-forest-delight"
@@ -87,12 +108,36 @@ export function CakeArtwork({
             : artwork;
   if (!source.startsWith("cakecity-artwork:") || !(name in regions)) {
     return (
-      <Image
-        source={source}
-        contentFit="contain"
-        cachePolicy="memory-disk"
-        style={StyleSheet.absoluteFill}
-      />
+      <View style={StyleSheet.absoluteFill}>
+        {!loaded ? (
+          <View
+            style={[
+              StyleSheet.absoluteFill,
+              { alignItems: "center", justifyContent: "center", gap: 5 },
+            ]}
+          >
+            <Ionicons name="image-outline" size={24} color="#A09490" />
+            {failed ? (
+              <Text
+                style={{ fontSize: 9, color: "#766C69", textAlign: "center" }}
+              >
+                Photo unavailable
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
+        <Image
+          source={source}
+          contentFit="contain"
+          contentPosition="center"
+          cachePolicy="memory-disk"
+          recyclingKey={recyclingKey ?? source}
+          onLoad={reportLoad}
+          onError={() => setFailed(true)}
+          transition={120}
+          style={StyleSheet.absoluteFill}
+        />
+      </View>
     );
   }
   return (

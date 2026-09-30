@@ -1,4 +1,9 @@
 import { env } from "@/config/env";
+import { recordPerformanceMetric } from "@/observability/commerce-events";
+import {
+  reportNetworkFailure,
+  reportNetworkSuccess,
+} from "@/platform/connectivity";
 
 export const DEFAULT_REQUEST_TIMEOUT_MS = 15_000;
 
@@ -111,12 +116,33 @@ function fallbackMessage(status: number): string {
     return "This request conflicts with the latest Cake City data. Please try again.";
   if (status === 422) return "Please check the information and try again.";
   if (status === 429) return "Too many requests. Please try again shortly.";
+  if (status === 501) return "This Cake City feature is not available yet.";
   if (status >= 500)
     return "Cake City is temporarily unavailable. Please try again.";
   return "Cake City could not complete the request.";
 }
 
+function validationMessage(payload: unknown): string | null {
+  if (!isRecord(payload) || !Array.isArray(payload.detail)) return null;
+
+  const issue = payload.detail.find(isRecord);
+  if (!issue || typeof issue.msg !== "string" || !issue.msg.trim()) return null;
+
+  const location = Array.isArray(issue.loc)
+    ? issue.loc.filter((part): part is string => typeof part === "string")
+    : [];
+  const field = location.filter((part) => part !== "body").at(-1);
+  if (!field) return issue.msg;
+
+  const label = field
+    .replace(/_/g, " ")
+    .replace(/^./, (letter) => letter.toUpperCase());
+  return `${label}: ${issue.msg}`;
+}
+
 function responseMessage(payload: unknown, status: number): string {
+  const validation = validationMessage(payload);
+  if (validation) return validation;
   if (isRecord(payload)) {
     for (const key of ["detail", "message", "error"]) {
       const value = payload[key];
@@ -132,6 +158,13 @@ function responseCode(payload: unknown, status: number): string {
     payload.code.trim()
     ? payload.code
     : `HTTP_${status}`;
+}
+
+function metricRoute(path: string) {
+  return path
+    .split("?", 1)[0]
+    .replace(/\/\d+(?=\/|$)/g, "/:id")
+    .replace(/\/[a-f0-9-]{16,}(?=\/|$)/gi, "/:id");
 }
 
 type ParsedResponse =
@@ -185,6 +218,7 @@ async function request<T>(
   }
 
   const requestTimeoutMs = timeoutFor(options);
+  const requestStartedAt = Date.now();
   const controller = new AbortController();
   let timedOut = false;
   let abortedByCaller = false;
@@ -210,6 +244,12 @@ async function request<T>(
       headers,
       body: body === undefined ? undefined : JSON.stringify(body),
       signal: controller.signal,
+    });
+    reportNetworkSuccess();
+    recordPerformanceMetric("api_latency_ms", Date.now() - requestStartedAt, {
+      method,
+      route: metricRoute(path),
+      status: response.status,
     });
     const parsed = await parseResponse(response);
     const requestId = getRequestId(response);
@@ -244,8 +284,21 @@ async function request<T>(
 
     return (parsed.kind === "empty" ? undefined : parsed.value) as T;
   } catch (error) {
-    if (isApiError(error)) throw error;
+    if (isApiError(error)) {
+      recordPerformanceMetric("api_failure", Date.now() - requestStartedAt, {
+        method,
+        route: metricRoute(path),
+        status: error.status,
+        code: error.code,
+      });
+      throw error;
+    }
     if (timedOut) {
+      recordPerformanceMetric("api_failure", Date.now() - requestStartedAt, {
+        method,
+        route: metricRoute(path),
+        reason: "timeout",
+      });
       throw new ApiError(
         "Cake City took too long to respond. Please try again.",
         { code: "REQUEST_TIMEOUT" },
@@ -256,6 +309,12 @@ async function request<T>(
         code: "REQUEST_ABORTED",
       });
     }
+    reportNetworkFailure();
+    recordPerformanceMetric("api_failure", Date.now() - requestStartedAt, {
+      method,
+      route: metricRoute(path),
+      reason: "network",
+    });
     throw new ApiError(
       "Unable to reach Cake City. Check your connection and try again.",
       {

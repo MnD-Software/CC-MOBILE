@@ -1,9 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
 import {
   Component,
   createContext,
+  ErrorInfo,
+  memo,
   PropsWithChildren,
   ReactNode,
   useContext,
@@ -30,6 +31,10 @@ import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 import { tokens } from "@/theme/tokens";
+import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
+import { trackCommerceEvent } from "@/observability/commerce-events";
+import { performHaptic } from "@/design";
+import { GlassSurface } from "@/components/storefront/GlassSurface";
 import { Button } from "./Button";
 import {
   plainText,
@@ -38,7 +43,6 @@ import {
   type StoreProduct,
 } from "@/features/commerce/contracts";
 import { useBag, usePreferences } from "@/features/commerce/store";
-import { customerApi } from "@/features/commerce/api";
 import { CakeArtwork } from "./ReferenceArtwork";
 import { useAuth } from "@/auth/AuthProvider";
 export const ui = StyleSheet.create({
@@ -109,9 +113,9 @@ export const ui = StyleSheet.create({
     backgroundColor: tokens.color.brandLight,
   },
   icon: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
+    width: 44,
+    height: 44,
+    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: tokens.color.surface,
@@ -119,6 +123,8 @@ export const ui = StyleSheet.create({
     borderColor: tokens.color.border,
   },
 });
+const baseUi = ui;
+
 export function IconButton({
   name,
   label,
@@ -132,6 +138,8 @@ export function IconButton({
   badge?: number;
   plain?: boolean;
 }) {
+  const themed = useThemedStyles(ui);
+  const { colors } = useTheme();
   return (
     <Pressable
       accessibilityRole="button"
@@ -139,12 +147,12 @@ export function IconButton({
       onPress={onPress}
       hitSlop={4}
       style={({ pressed }) => [
-        ui.icon,
+        themed.icon,
         plain && { backgroundColor: "transparent", borderWidth: 0 },
         { opacity: pressed ? 0.65 : 1 },
       ]}
     >
-      <Ionicons name={name} size={22} color={tokens.color.ink} />
+      <Ionicons name={name} size={22} color={colors.ink} />
       {badge ? (
         <View
           style={{
@@ -174,10 +182,75 @@ export function BagButton() {
       name="bag-handle-outline"
       label={"Shopping bag, " + count + " items"}
       badge={count}
-      onPress={() => router.navigate("/cart")}
+      onPress={() => {
+        trackCommerceEvent("cart_viewed", { item_count: count });
+        router.navigate("/cart");
+      }}
     />
   );
 }
+/**
+ * Persistent browsing chrome for the catalogue surfaces. It intentionally
+ * lives outside each screen's scrolling list: the search affordance and bag
+ * are always one tap away, rather than disappearing with the first products.
+ * Consumers own the brand/title treatment and the actual search control so
+ * Home can stay lightweight while Shop keeps its native TextInput.
+ */
+export function CommerceBrowseHeader({
+  brand,
+  children,
+  right,
+}: {
+  brand: ReactNode;
+  children: ReactNode;
+  right?: ReactNode;
+}) {
+  const browseHeader = useThemedStyles(browseHeaderStyles);
+  return (
+    <View style={browseHeader.shell}>
+      <View style={browseHeader.topRow}>
+        <View style={browseHeader.brand}>{brand}</View>
+        <View style={browseHeader.actions}>
+          <BagButton />
+          {right}
+        </View>
+      </View>
+      <View style={browseHeader.search}>{children}</View>
+    </View>
+  );
+}
+
+const browseHeaderStyles = StyleSheet.create({
+  shell: {
+    width: "100%",
+    maxWidth: 700,
+    alignSelf: "center",
+    gap: 9,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 10,
+    backgroundColor: "rgba(255,254,255,0.985)",
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "rgba(81,56,45,0.10)",
+    shadowColor: "#51382D",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 4,
+    zIndex: 2,
+  },
+  topRow: {
+    height: 44,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  brand: { flex: 1, minWidth: 0 },
+  actions: { flexDirection: "row", alignItems: "center", gap: 8 },
+  search: { width: "100%" },
+});
+
 export function Screen({
   title,
   subtitle,
@@ -198,8 +271,9 @@ export function Screen({
   contentStyle?: StyleProp<ViewStyle>;
 }) {
   const insets = useSafeAreaInsets();
+  const themed = useThemedStyles(ui);
   return (
-    <SafeAreaView edges={["top", "left", "right"]} style={ui.page}>
+    <SafeAreaView edges={["top", "left", "right"]} style={themed.page}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -229,15 +303,15 @@ export function Screen({
             ) : null}
             <View style={{ flex: 1 }}>
               {title ? (
-                <Text accessibilityRole="header" style={ui.title}>
+                <Text accessibilityRole="header" style={themed.title}>
                   {title}
                 </Text>
               ) : null}
               {subtitle ? (
-                <Text style={[ui.body, { marginTop: 3 }]}>{subtitle}</Text>
+                <Text style={[themed.body, { marginTop: 3 }]}>{subtitle}</Text>
               ) : null}
             </View>
-            {right === undefined ? <BagButton /> : right}
+            {right === undefined ? null : right}
           </View>
         )}
         {scroll ? (
@@ -271,9 +345,11 @@ export function Section({
   onPress?: () => void;
   compact?: boolean;
 }) {
+  const themed = useThemedStyles(ui);
+  const { colors } = useTheme();
   return (
     <View style={ui.spread}>
-      <Text accessibilityRole="header" style={[ui.heading, { flex: 1 }]}>
+      <Text accessibilityRole="header" style={[themed.heading, { flex: 1 }]}>
         {title}
       </Text>
       {action && onPress ? (
@@ -283,12 +359,7 @@ export function Section({
           hitSlop={compact ? 5 : 0}
           style={{ minHeight: compact ? 34 : 44, justifyContent: "center" }}
         >
-          <Text
-            style={[
-              ui.label,
-              { fontSize: 13, color: tokens.color.brandStrong },
-            ]}
-          >
+          <Text style={[ui.label, { fontSize: 13, color: colors.brandStrong }]}>
             {action}
           </Text>
         </Pressable>
@@ -309,6 +380,8 @@ export function Chip({
   filled?: boolean;
   compact?: boolean;
 }) {
+  const themed = useThemedStyles(ui);
+  const { colors } = useTheme();
   return (
     <Pressable
       accessibilityRole="button"
@@ -317,14 +390,14 @@ export function Chip({
       onPress={onPress}
       hitSlop={compact ? 6 : 2}
       style={[
-        ui.chip,
+        themed.chip,
         compact && {
           minHeight: 32,
           paddingVertical: 5,
           paddingHorizontal: 19,
           borderRadius: 10,
         },
-        selected && ui.chipActive,
+        selected && themed.chipActive,
         selected && filled && { backgroundColor: tokens.color.brandStrong },
       ]}
     >
@@ -338,8 +411,8 @@ export function Chip({
               selected && filled
                 ? "#FFFFFF"
                 : selected
-                  ? tokens.color.brandStrong
-                  : tokens.color.ink,
+                  ? colors.brandStrong
+                  : colors.ink,
           },
         ]}
       >
@@ -355,26 +428,23 @@ export function Notice({
   message: string;
   error?: boolean;
 }) {
+  const themed = useThemedStyles(ui);
+  const { colors } = useTheme();
   return (
     <View
       accessibilityRole={error ? "alert" : undefined}
       accessibilityLiveRegion="polite"
       style={[
-        ui.panel,
+        themed.panel,
         {
-          backgroundColor: error
-            ? tokens.color.errorLight
-            : tokens.color.accentLight,
+          backgroundColor: error ? colors.errorLight : colors.accentLight,
           borderWidth: 0,
           padding: 14,
         },
       ]}
     >
       <Text
-        style={[
-          ui.body,
-          { color: error ? "#90252A" : tokens.color.accentStrong },
-        ]}
+        style={[ui.body, { color: error ? colors.error : colors.accentStrong }]}
       >
         {message}
       </Text>
@@ -392,6 +462,8 @@ export function Feedback({
   empty?: string;
   onRetry?: () => void;
 }) {
+  const ui = useThemedStyles(baseUi);
+  const { colors } = useTheme();
   if (loading)
     return (
       <View
@@ -399,18 +471,14 @@ export function Feedback({
         accessibilityLabel="Loading Cake City"
         style={[ui.panel, { minHeight: 140, justifyContent: "center" }]}
       >
-        <ActivityIndicator color={tokens.color.brandStrong} />
+        <ActivityIndicator color={colors.brandStrong} />
         <Text style={[ui.body, { textAlign: "center" }]}>Just a moment…</Text>
       </View>
     );
   if (error)
     return (
       <View style={ui.panel}>
-        <Ionicons
-          name="cloud-offline-outline"
-          size={32}
-          color={tokens.color.cocoa}
-        />
+        <Ionicons name="cloud-offline-outline" size={32} color={colors.cocoa} />
         <Text style={ui.heading}>Let’s try that again</Text>
         <Text style={ui.body}>
           {error instanceof Error
@@ -428,7 +496,7 @@ export function Feedback({
         <Ionicons
           name="sparkles-outline"
           size={34}
-          color={tokens.color.brandStrong}
+          color={colors.brandStrong}
         />
         <Text style={ui.heading}>{empty}</Text>
         <Text style={ui.body}>Your next celebration starts here.</Text>
@@ -437,6 +505,8 @@ export function Feedback({
   return null;
 }
 export function AccountRequired({ children }: PropsWithChildren) {
+  const ui = useThemedStyles(baseUi);
+  const { colors } = useTheme();
   const { customer, restoring } = useAuth();
   if (restoring) return <Feedback loading />;
   if (!customer)
@@ -445,7 +515,7 @@ export function AccountRequired({ children }: PropsWithChildren) {
         <Ionicons
           name="person-circle-outline"
           size={42}
-          color={tokens.color.brandStrong}
+          color={colors.brandStrong}
         />
         <Text style={ui.heading}>A little more personal.</Text>
         <Text style={ui.body}>
@@ -471,27 +541,12 @@ export function FavouriteButton({
   small?: boolean;
   diameter?: number;
 }) {
-  const { customer } = useAuth();
-  const cache = useQueryClient();
   const toast = useToast();
-  const saved = usePreferences((state) => state.savedReferenceCakes);
-  const toggle = usePreferences((state) => state.toggleReferenceCake);
-  const isReference = product.type === "reference";
-  const favourites = useQuery({
-    queryKey: ["favourites", customer?.id],
-    queryFn: customerApi.favourites,
-    enabled: !!customer && !isReference,
-  });
-  const selected = isReference
-    ? (saved ?? []).includes(product.id)
-    : Boolean(favourites.data?.some((item) => item.slug === product.slug));
-  const mutation = useMutation({
-    mutationFn: () => customerApi.favourite(product.slug, selected),
-    onSuccess: () => {
-      void cache.invalidateQueries({ queryKey: ["favourites"] });
-    },
-    onError: (error) => toast(error.message),
-  });
+  const { colors } = useTheme();
+  const { customer } = useAuth();
+  const saved = usePreferences((state) => state.savedProductSlugs);
+  const toggle = usePreferences((state) => state.toggleSavedProduct);
+  const selected = (saved ?? []).includes(product.slug);
   return (
     <Pressable
       accessibilityRole="button"
@@ -500,20 +555,29 @@ export function FavouriteButton({
         plainText(product.name) +
         (selected ? " from favourites" : " to favourites")
       }
-      accessibilityState={{ selected, busy: mutation.isPending }}
-      disabled={mutation.isPending}
+      accessibilityState={{ selected }}
       hitSlop={6}
       onPress={(event) => {
         event.stopPropagation();
-        if (isReference) toggle(product.id);
-        else if (!customer) router.push("/sign-in");
-        else mutation.mutate();
+        trackCommerceEvent("product_favorited", {
+          product_id: product.id,
+          saved: !selected,
+        });
+        toggle(product.slug);
+        void performHaptic(selected ? "toggleOff" : "toggleOn");
+        toast(
+          selected
+            ? "Removed from My cakes."
+            : customer
+              ? "Saved to My cakes."
+              : "Saved. Sign in to keep it with your account.",
+        );
       }}
       style={{
         width: diameter ?? (small ? 29 : 35),
         height: diameter ?? (small ? 29 : 35),
         borderRadius: 30,
-        backgroundColor: "#FFFCFC",
+        backgroundColor: colors.surface,
         alignItems: "center",
         justifyContent: "center",
       }}
@@ -521,59 +585,129 @@ export function FavouriteButton({
       <Ionicons
         name={selected ? "heart" : "heart-outline"}
         size={small ? 17 : 20}
-        color={selected ? tokens.color.brandStrong : tokens.color.cocoa}
+        color={selected ? colors.brandStrong : colors.cocoa}
       />
     </Pressable>
   );
 }
 
-export function ProductTile({
+const PRODUCT_TILE_CANVAS = "#FFFFFF";
+
+export const ProductTile = memo(function ProductTile({
   product,
   width,
   onPress,
   compact = false,
+  layout = "card",
 }: {
   product: StoreProduct;
   width?: number;
   onPress?: () => void;
   compact?: boolean;
+  layout?: "card" | "row";
 }) {
+  const { colors, isDark } = useTheme();
+  const tileStyles = useThemedStyles(productTileStyles);
+  const horizontal = layout === "row";
   const price = productPrice(product);
-  const portraitArtwork =
-    !compact &&
-    product.type === "reference" &&
-    product.slug === "black-forest-delight";
-  const artworkWidth = width ?? 164;
+  const addToBag = useBag((state) => state.add);
+  const toast = useToast();
+  const category = product.categories[0]?.name
+    ? plainText(product.categories[0].name)
+    : "Cake City";
+  const quickAddAllowed =
+    product.type === "simple" &&
+    product.variations.length === 0 &&
+    product.is_in_stock &&
+    product.is_purchasable &&
+    price !== null;
+  const quickAddSize = /(?:^|\D)2(?:\.0)?\s*kg/i.test(plainText(product.name))
+    ? "2kg"
+    : /1[.\s-]*5\s*kg/i.test(plainText(product.name))
+      ? "1.5kg"
+      : "1kg";
+  const openProduct = () => {
+    trackCommerceEvent("product_viewed", {
+      product_id: product.id,
+      source: compact ? "product_rail" : "product_grid",
+    });
+    if (onPress) {
+      onPress();
+      return;
+    }
+    router.push({
+      pathname: "/product/[id]",
+      params: { id: String(product.id), slug: product.slug },
+    });
+  };
+  const quickAdd = () => {
+    if (!quickAddAllowed || price === null) return;
+    addToBag({
+      key: "",
+      product_id: product.id,
+      slug: product.slug,
+      name: plainText(product.name),
+      image: product.images[0]?.src ?? null,
+      price,
+      quantity: 1,
+      selection: {
+        size: quickAddSize,
+        message: "",
+        add_ons: [],
+      },
+    });
+    trackCommerceEvent("quick_add", { product_id: product.id });
+    void performHaptic("addToCart");
+    toast("Added to your bag.");
+  };
   return (
-    <View style={{ width, flex: width ? undefined : 1, minWidth: 0 }}>
+    <GlassSurface
+      intensity={28}
+      opaque={horizontal}
+      tintColor={colors.surface}
+      style={{
+        width,
+        flex: horizontal || width ? undefined : 1,
+        minWidth: 0,
+        overflow: "hidden",
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: colors.border,
+        backgroundColor: colors.surface,
+        borderRadius: 30,
+        ...tokens.shadow.card,
+      }}
+    >
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={
           plainText(product.name) + (price !== null ? ", " + money(price) : "")
         }
-        onPress={
-          onPress ??
-          (() =>
-            router.push({
-              pathname: "/product/[id]",
-              params: { id: String(product.id) },
-            }))
-        }
-        style={({ pressed }) => ({ opacity: pressed ? 0.8 : 1, minWidth: 0 })}
+        onPress={openProduct}
+        style={({ pressed }) => ({
+          opacity: pressed ? 0.86 : 1,
+          minWidth: 0,
+          flexDirection: horizontal ? "row" : "column",
+          alignItems: horizontal ? "center" : undefined,
+          minHeight: horizontal ? 156 : undefined,
+          transform: [{ scale: pressed ? 0.99 : 1 }],
+        })}
       >
         <View
           style={{
-            aspectRatio: compact ? 0.77 : 1.1,
-            backgroundColor: "#F3D9DC",
+            aspectRatio: horizontal ? 1 : compact ? 1.03 : 1.08,
+            width: horizontal ? 90 : undefined,
+            marginLeft: horizontal ? 10 : 0,
+            borderRadius: horizontal ? 23 : 0,
+            backgroundColor: PRODUCT_TILE_CANVAS,
             overflow: "hidden",
-            borderTopLeftRadius: 14,
-            borderTopRightRadius: 14,
-            borderBottomLeftRadius: compact ? 12 : 0,
-            borderBottomRightRadius: compact ? 12 : 0,
           }}
         >
           {product.images[0] ? (
-            <CakeArtwork source={product.images[0].src} compact={compact} />
+            <CakeArtwork
+              source={product.images[0].src}
+              compact={compact}
+              recyclingKey={`${product.id}:${product.images[0].src}`}
+            />
           ) : (
             <View
               style={{
@@ -592,46 +726,67 @@ export function ProductTile({
         </View>
         <View
           style={{
-            paddingHorizontal: 5,
-            paddingTop: 10,
-            paddingBottom: 7,
-            gap: 7,
+            backgroundColor: colors.surface,
+            paddingHorizontal: 14,
+            paddingTop: 12,
+            paddingBottom: 14,
+            paddingRight: horizontal ? 10 : 14,
+            paddingLeft: horizontal ? 9 : 14,
+            flex: horizontal ? 1 : undefined,
+            minWidth: 0,
+            gap: 5,
           }}
         >
           <Text
-            numberOfLines={2}
+            numberOfLines={1}
             style={{
-              color: tokens.color.ink,
-              fontWeight: "600",
-              minHeight: 35,
-              fontSize: compact ? 12 : 13,
-              lineHeight: 18,
+              color: product.on_sale ? colors.brandStrong : colors.muted,
+              fontSize: 9,
+              lineHeight: 12,
+              fontWeight: "800",
+              letterSpacing: 0.75,
+              textTransform: "uppercase",
             }}
           >
-            {product.type === "reference"
-              ? plainText(product.name).replace(
-                  / (Delight|Dream|Cheesecake|Bliss)$/,
-                  "\n$1",
-                )
-              : plainText(product.name)}
+            {product.on_sale ? "Special price" : category}
           </Text>
           <Text
+            numberOfLines={2}
             style={{
-              color: compact ? tokens.color.cocoa : tokens.color.brandStrong,
-              fontWeight: compact ? "400" : "600",
-              fontSize: 13,
-              lineHeight: 18,
+              color: colors.ink,
+              fontWeight: "700",
+              minHeight: compact ? 36 : 40,
+              fontSize: horizontal ? 13 : compact ? 12.5 : 14,
+              lineHeight: horizontal ? 18 : compact ? 17 : 20,
+              letterSpacing: -0.15,
+            }}
+          >
+            {plainText(product.name)}
+          </Text>
+          {horizontal && product.review_count > 0 ? (
+            <Text style={{ fontSize: 10, color: colors.muted }}>
+              ★ {product.average_rating} · {product.review_count} reviews
+            </Text>
+          ) : null}
+          <Text
+            style={{
+              color: compact ? colors.cocoa : colors.brandStrong,
+              fontWeight: "800",
+              fontSize: compact ? 13 : 14,
+              lineHeight: 19,
               minHeight: 18,
+              paddingRight: 42,
+              marginTop: 7,
+              minWidth: 0,
             }}
           >
             {price === null ? (
               "Ask Cake City"
             ) : (
               <>
-                {!compact && (
-                  <Text
-                    style={{ color: tokens.color.cocoa, fontWeight: "400" }}
-                  >
+                {(product.type === "variable" ||
+                  product.variations.length > 0) && (
+                  <Text style={{ color: colors.cocoa, fontWeight: "400" }}>
                     From{" "}
                   </Text>
                 )}
@@ -639,24 +794,70 @@ export function ProductTile({
               </>
             )}
           </Text>
+          <Text
+            style={{
+              fontSize: 9,
+              lineHeight: 13,
+              color: colors.muted,
+              paddingRight: 44,
+            }}
+          >
+            {!product.is_in_stock
+              ? "Out of stock"
+              : !product.is_purchasable || price === null
+                ? "View details"
+                : quickAddAllowed
+                  ? "Ready to add"
+                  : "Choose size & options"}
+          </Text>
         </View>
       </Pressable>
-      <View
-        style={{
-          position: "absolute",
-          top: portraitArtwork ? artworkWidth * 0.03 : 7,
-          right: portraitArtwork ? artworkWidth * 0.06 : 7,
-        }}
+      {!horizontal ? (
+        <View
+          style={{
+            position: "absolute",
+            top: 13,
+            right: 13,
+          }}
+        >
+          <FavouriteButton
+            product={product}
+            small={compact}
+            diameter={undefined}
+          />
+        </View>
+      ) : null}
+      <Pressable
+        accessibilityLabel={`${!product.is_in_stock ? "Out of stock:" : quickAddAllowed ? "Quick add to bag:" : "Choose options for:"} ${plainText(product.name)}`}
+        accessibilityRole="button"
+        accessibilityState={{ disabled: !product.is_in_stock }}
+        disabled={!product.is_in_stock}
+        onPress={quickAddAllowed ? quickAdd : openProduct}
+        style={({ pressed }) => [
+          tileStyles.quickAdd,
+          !product.is_in_stock && { backgroundColor: colors.mutedSoft },
+          pressed && tileStyles.quickAddPressed,
+        ]}
       >
-        <FavouriteButton
-          product={product}
-          small={compact}
-          diameter={portraitArtwork ? artworkWidth * 0.25 : undefined}
-        />
-      </View>
-    </View>
+        <Ionicons name="add" size={26} color="#FFFFFF" />
+      </Pressable>
+    </GlassSurface>
   );
-}
+});
+const productTileStyles = StyleSheet.create({
+  quickAdd: {
+    position: "absolute",
+    right: 12,
+    bottom: 11,
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 22,
+    backgroundColor: tokens.color.brandStrong,
+  },
+  quickAddPressed: { opacity: 0.8, transform: [{ scale: 0.94 }] },
+});
 const ToastContext = createContext<(message: string) => void>(() => undefined);
 export function ToastProvider({ children }: PropsWithChildren) {
   const [message, setMessage] = useState("");
@@ -715,6 +916,16 @@ export class AppErrorBoundary extends Component<
   static getDerivedStateFromError() {
     return { failed: true };
   }
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    // Keep the customer-facing fallback calm, while preserving the actual
+    // stack in Logcat/Sentry-compatible console capture. Never send product,
+    // account, address, or payment data from this boundary.
+    console.error(
+      "[Cake City] Screen render failed",
+      error,
+      info.componentStack,
+    );
+  }
   render() {
     return this.state.failed ? (
       <SafeAreaView
@@ -735,14 +946,15 @@ export class AppErrorBoundary extends Component<
   }
 }
 export function Reveal({ children }: PropsWithChildren) {
-  const opacity = useRef(new Animated.Value(1)).current;
+  // Native Liquid Glass loses its effect when any ancestor reaches opacity 0.
+  const offset = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     let active = true;
     void AccessibilityInfo.isReduceMotionEnabled().then((reduced) => {
       if (!reduced && active) {
-        opacity.setValue(0);
-        Animated.timing(opacity, {
-          toValue: 1,
+        offset.setValue(8);
+        Animated.timing(offset, {
+          toValue: 0,
           duration: 220,
           useNativeDriver: true,
         }).start();
@@ -750,8 +962,12 @@ export function Reveal({ children }: PropsWithChildren) {
     });
     return () => {
       active = false;
-      opacity.stopAnimation();
+      offset.stopAnimation();
     };
-  }, [opacity]);
-  return <Animated.View style={{ opacity, gap: 22 }}>{children}</Animated.View>;
+  }, [offset]);
+  return (
+    <Animated.View style={{ transform: [{ translateY: offset }], gap: 22 }}>
+      {children}
+    </Animated.View>
+  );
 }

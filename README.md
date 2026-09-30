@@ -1,13 +1,14 @@
 # Cake City Mobile
 
 Native Cake City customer app for Android and iOS, using Expo SDK 57, React Native
-and strict TypeScript. The rebuilt app has Home, Shop, Custom, Orders and Account
-tabs, real WooCommerce browsing, secure account/payment integration and a
-configuration-driven Cake Studio.
+and strict TypeScript. It has five focused destinations: Home, Shop, Orders,
+Loyalty and Account. Its glossy white interface only renders products returned by
+the Cake City mobile API.
 
-The deployed account API and several backend capabilities still need activation
-and end-to-end verification. See [rebuild status](docs/REBUILD_STATUS.md) for the
-feature inventory, validation evidence and launch blockers.
+The live deployment currently supports email registration, sign-in, session
+refresh/logout and current catalogue browsing. Checkout, tracking, rewards,
+addresses and Google/password-reset identity remain backend dependencies, so the
+app presents those areas honestly rather than sending customers into failed calls.
 
 ## Development
 
@@ -21,32 +22,38 @@ npm.cmd test
 npm.cmd start
 ```
 
-Set `EXPO_PUBLIC_API_URL` in `.env.local` to your backend. Local HTTP is allowed
-only in development. A phone interprets `127.0.0.1` as itself; use a reachable LAN
-address or USB port forwarding for local development.
+`.env.example` is preconfigured with `https://cc-mobile-1.onrender.com`; change it
+only for an intentional staging build. Local HTTP is allowed only in development.
+A phone interprets `127.0.0.1` as itself; use a reachable LAN address or USB port
+forwarding for local development.
 
-The public catalogue works without the account API. There are no production
-demo customers, fake orders, simulated payments or fallback product records.
-Saved designs and the bag persist locally; account favourites and addresses use
-the backend.
+There are no production demo customers, fake orders, simulated payments or
+fallback product records. Saved cakes are explicitly device-local and revalidated
+against the live catalogue before they are shown.
 
 ## Android APK
 
 ```powershell
-# Optional until the deployed backend is available:
-$env:EXPO_PUBLIC_API_URL = '<actual deployed HTTPS API root>'
+# Preview APK for installation and presentation
+npx.cmd eas-cli build --platform android --profile preview
+
+# Production Android App Bundle
+npx.cmd eas-cli build --platform android --profile production
+
+# Local, signed test APK (requires Android tooling)
+$env:EXPO_PUBLIC_API_URL = 'https://cc-mobile-1.onrender.com'
 npm.cmd run android:release
 ```
 
-The build script stages source outside OneDrive, installs locked dependencies when
-needed, runs checks, regenerates Android configuration and verifies APK signing,
-identity, version and SHA256. It emits `dist/CakeCity-0.2.0-preview.apk` plus
-`dist/build-manifest.json`. The APK uses a test certificate and embeds its bundle,
-so it does not require Metro. A missing API is recorded in the manifest.
+The local build script stages source outside OneDrive, installs locked dependencies
+when needed, runs checks, regenerates Android configuration and verifies APK
+signing, identity, version and SHA256. It emits `dist/CakeCity-0.2.0-preview.apk`
+plus `dist/build-manifest.json`. The APK uses a test certificate and embeds its
+bundle, so it does not require Metro.
 
-Build environment variables are explicit: the local APK script deliberately does
-not read a workstation `.env.local`. Omit the API variable for catalogue-only
-review; rebuild with the real HTTPS endpoint for account/checkout testing.
+Preview and production EAS profiles both embed the mobile API URL. The local APK
+script deliberately does not read a workstation `.env.local`, so set the variable
+shown above when producing a local artifact.
 
 ## Store and iOS builds
 

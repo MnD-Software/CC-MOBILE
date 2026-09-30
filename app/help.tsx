@@ -1,48 +1,53 @@
 import { Linking, Text, View } from "react-native";
 import { router } from "expo-router";
-import { Screen, ui, useToast } from "@/components/ui/Commerce";
+import { Screen, ui as baseUi, useToast } from "@/components/ui/Commerce";
 import { Button } from "@/components/ui/Button";
+import { useThemedStyles } from "@/theme/ThemeProvider";
+
+const helpTopics = [
+  [
+    "Finding the right cake",
+    "Browse the live Shop to see the cakes currently available from Cake City.",
+  ],
+  [
+    "Need help with an order?",
+    "Contact Cake City support with your order details. The team can confirm what is possible.",
+  ],
+  [
+    "Payments and delivery",
+    "Secure ordering is being connected. We will only show payment and delivery choices when they can be confirmed live.",
+  ],
+  [
+    "Rewards and special offers",
+    "These will appear as soon as Cake City's secure account service is connected.",
+  ],
+] as const;
+
 export default function Help() {
+  const ui = useThemedStyles(baseUi);
   const toast = useToast();
   return (
-    <Screen title="We’re here to help." back>
+    <Screen title="We're here to help." back right={null}>
       <Text style={ui.body}>
-        From choosing the right cake to finding your delivery, let’s make your
-        celebration a little easier.
+        Need a hand choosing a cake or managing your account? Our team is here
+        to help make the celebration easy.
       </Text>
-      {[
-        [
-          "Where is my order?",
-          "Open Orders for the latest confirmed preparation and delivery updates.",
-        ],
-        [
-          "Can I change my cake?",
-          "Contact your branch with the order reference. The team will confirm what is possible before preparation.",
-        ],
-        [
-          "My payment was interrupted",
-          "Return to Checkout. Your saved payment request can be checked without creating another charge.",
-        ],
-        [
-          "How do I use rewards?",
-          "Your account shows your current points and Cake City credit. Available redemptions are confirmed before your balance changes.",
-        ],
-      ].map(([title, copy]) => (
+      {helpTopics.map(([title, copy]) => (
         <View key={title} style={ui.panel}>
           <Text style={ui.heading}>{title}</Text>
           <Text style={ui.body}>{copy}</Text>
         </View>
       ))}
       <Button
-        label="Find & contact your branch"
-        onPress={() => router.push("/branches")}
+        label="Explore live cakes"
+        onPress={() => router.push("/(tabs)/shop")}
       />
       <Button
         variant="outline"
-        label="Cake City customer support"
+        label="Call Cake City · 0709 729 000"
         onPress={() =>
-          void Linking.openURL("https://cakecity.co.ke/contact-us/").catch(() =>
-            toast("The support page could not be opened."),
+          void Linking.openURL("tel:+254709729000").catch(() =>
+            toast("Calling is unavailable on this device."),
           )
         }
       />

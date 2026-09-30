@@ -1,28 +1,28 @@
 {
   "expo": {
     "name": "Cake City",
-    "slug": "cakecity",
+    "slug": "cakecitymobiledev",
     "scheme": "cakecity",
-    "version": "0.2.0",
+    "version": "0.2.3",
     "orientation": "portrait",
     "icon": "./assets/cake-city-app-icon.png",
-    "userInterfaceStyle": "light",
-    "backgroundColor": "#FFFCFA",
+    "userInterfaceStyle": "automatic",
+    "backgroundColor": "#FFFEFF",
     "primaryColor": "#EC008C",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "ke.co.cakecity.mobile",
-      "buildNumber": "2",
+      "buildNumber": "16",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#FFF7FB",
+        "backgroundColor": "#FFF5FA",
         "foregroundImage": "./assets/cake-city-icon-foreground.png"
       },
-      "versionCode": 2,
+      "versionCode": 16,
       "predictiveBackGestureEnabled": true,
       "package": "ke.co.cakecity.mobile"
     },
@@ -35,9 +35,24 @@
       "expo-font",
       "expo-image",
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "Cake City uses your selected photo for your profile picture or a custom cake inspiration.",
+          "cameraPermission": false,
+          "microphonePermission": false,
+          "colors": {
+            "cropToolbarColor": "#FFF5FA",
+            "cropToolbarIconColor": "#B80068",
+            "cropToolbarActionTextColor": "#B80068",
+            "cropBackButtonIconColor": "#51382D",
+            "cropBackgroundColor": "#FFFEFF"
+          }
+        }
+      ],
+      [
         "expo-splash-screen",
         {
-          "backgroundColor": "#FFF7FB",
+          "backgroundColor": "#FFFEFF",
           "image": "./assets/cake-city-splash.png",
           "imageWidth": 260,
           "resizeMode": "contain"
@@ -46,7 +61,7 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Cake City uses your location to find nearby branches and quote delivery to your address."
+          "locationWhenInUsePermission": "Cake City uses your location while you are checking out to suggest your delivery address."
         }
       ],
       [
@@ -61,21 +76,38 @@
       "typedRoutes": true
     },
     "updates": {
-      "url": "https://u.expo.dev/3bcef2b6-1064-461f-a7e8-620bfc94e13d",
+      "url": "https://u.expo.dev/dad0f312-d1c4-4636-bf66-9f813e436509",
       "enabled": true,
       "checkAutomatically": "ON_LOAD",
       "fallbackToCacheTimeout": 0,
       "useEmbeddedUpdate": true
     },
     "runtimeVersion": {
-      "policy": "sdkVersion"
+      "policy": "appVersion"
     },
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "3bcef2b6-1064-461f-a7e8-620bfc94e13d"
+        "build": {
+          "experimental": {
+            "ios": {
+              "appExtensions": [
+                {
+                  "targetName": "ExpoWidgetsTarget",
+                  "bundleIdentifier": "ke.co.cakecity.mobile.ExpoWidgetsTarget",
+                  "entitlements": {
+                    "com.apple.security.application-groups": [
+                      "group.ke.co.cakecity.mobile"
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "projectId": "dad0f312-d1c4-4636-bf66-9f813e436509"
       }
     },
-    "owner": "marcosnoel23"
+    "owner": "marcos_noel23"
   }
 }

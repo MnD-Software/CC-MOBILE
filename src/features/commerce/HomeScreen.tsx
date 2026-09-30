@@ -3,7 +3,11 @@ import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
+import { useEffect, useMemo, useState } from "react";
 import {
+  FlatList,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -11,517 +15,1101 @@ import {
   View,
   useWindowDimensions,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useAuth } from "@/auth/AuthProvider";
 import { BrandLogo } from "@/components/BrandLogo";
+import { ProfileAvatarButton } from "@/components/ProfileAvatar";
+import { GlassSurface } from "@/components/storefront/GlassSurface";
 import {
-  BagButton,
-  IconButton,
+  CommerceBrowseHeader,
+  Feedback,
   ProductTile,
   Screen,
   Section,
 } from "@/components/ui/Commerce";
-import {
-  ReferenceArtwork,
-  type ReferenceArtworkName,
-} from "@/components/ui/ReferenceArtwork";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { tokens } from "@/theme/tokens";
-import { shopApi } from "./api";
-import { activeCampaigns, plainText } from "./contracts";
-import { referenceBestsellers, referenceCakes } from "./reference-catalogue";
+import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
+import { CATALOGUE_GC_TIME_MS, CATALOGUE_STALE_TIME_MS, shopApi } from "./api";
+import { homeCollections } from "./collection-artwork";
+import { money, plainText, productPrice, type StoreProduct } from "./contracts";
+import { usePreferences } from "./store";
 
-const departments: {
-  label: string;
-  artwork: ReferenceArtworkName;
-  match: RegExp;
-}[] = [
-  { label: "Cakes", artwork: "cakes", match: /^cake city classics$|^cakes$/i },
-  { label: "Cupcakes", artwork: "cupcakes", match: /^cupcakes$/i },
-  { label: "Pastries", artwork: "pastries", match: /pastr|cake slice/i },
+// Zustand requires a stable snapshot when there is no account history.
+const EMPTY_RECENT_SLUGS: readonly string[] = [];
+
+type CarouselItem =
+  | { id: string; kind: "deal"; product: StoreProduct }
+  | { id: "no-live-deals"; kind: "empty" };
+
+type OccasionIdea = {
+  id: string;
+  title: string;
+  query: string;
+  image: string;
+  tint: string;
+  /**
+   * The title shown by Shop after a compact occasion tile is selected. This
+   * may be more descriptive than the compact rail label without changing the
+   * live search that supplies the products.
+   */
+  department?: string;
+};
+
+function isDealsAndSteals(product: StoreProduct) {
+  return (
+    product.is_in_stock &&
+    product.is_purchasable &&
+    productPrice(product) !== null &&
+    product.categories.some(
+      (category) =>
+        category.id === 206 ||
+        category.slug === "deals-and-steals" ||
+        plainText(category.name).toLocaleLowerCase() === "deals and steals",
+    )
+  );
+}
+
+/**
+ * Compact navigation imagery sourced from Cake City media. These are not
+ * product records, prices, or stock fallbacks: each tap opens a live Shop
+ * query for the selected occasion.
+ */
+const occasionIdeas: readonly OccasionIdea[] = [
   {
-    label: "Party Items",
-    artwork: "party",
-    match: /party accessories|party items/i,
+    id: "birthday",
+    title: "Birthday",
+    query: "birthday",
+    image:
+      "https://cakecity.co.ke/wp-content/uploads/2025/08/SPONGEBOB-1-300x300.avif",
+    tint: "#FFF0F8",
   },
   {
-    label: "Accessories",
-    artwork: "accessories",
-    match: /^accessories$|gifts and giggles/i,
+    id: "wedding",
+    title: "Wedding",
+    query: "wedding",
+    image:
+      "https://i0.wp.com/cakecity.co.ke/wp-content/uploads/2025/02/WhatsApp-Image-2026-04-02-at-12.40.45-Edit-with-AI.jpg-1.webp?fit=360%2C360&ssl=1",
+    tint: "#F7F3FF",
+  },
+  {
+    id: "baby-shower",
+    title: "Baby shower",
+    query: "baby shower",
+    image:
+      "https://cakecity.co.ke/wp-content/uploads/2025/08/BSHOWER-12-300x300.avif",
+    tint: "#EAF8FE",
+  },
+  {
+    id: "graduation",
+    title: "Graduation",
+    query: "graduation",
+    image:
+      "https://cakecity.co.ke/wp-content/uploads/2025/08/GRAD-4-300x300.avif",
+    tint: "#FFF6DF",
+  },
+  {
+    id: "pink-simba",
+    title: "Pink Simba",
+    query: "pink simba",
+    image:
+      "https://i0.wp.com/cakecity.co.ke/wp-content/uploads/2024/08/simba-Photoroom.jpg?fit=520%2C520&ssl=1",
+    tint: "#FFF0F8",
+  },
+  {
+    id: "anniversary",
+    title: "Anniversary",
+    // The public catalogue does not return a reliable generic anniversary
+    // search. This is a verified live Cake City product search for a romantic
+    // floral cake, rather than silently substituting generic wedding results.
+    query: "romantic red floral",
+    department: "Anniversary cakes",
+    image: "https://cakecity.co.ke/wp-content/uploads/2025/08/FLORAL-27.avif",
+    tint: "#FFF5F7",
   },
 ];
 
-export function HomeScreen() {
-  const { width } = useWindowDimensions();
-  const contentWidth = Math.min(width, 600) - 24;
-  const cardWidth = (contentWidth - 26) / 3;
-  const categories = useQuery({
-    queryKey: ["categories"],
-    queryFn: ({ signal }) => shopApi.categories(signal),
-    staleTime: 15 * 60000,
-  });
-  const products = useQuery({
-    queryKey: ["catalogue", "home", "popular"],
-    queryFn: ({ signal }) =>
-      shopApi.products(
-        { page: 1, orderby: "popularity", order: "desc" },
-        signal,
-      ),
-    staleTime: 10 * 60000,
-  });
-  const config = useQuery({
-    queryKey: ["mobile-config"],
-    queryFn: ({ signal }) => shopApi.config(signal),
-    staleTime: 10 * 60000,
-  });
-  const liveProducts = products.data?.data ?? [];
-  const catalogue = liveProducts.length ? liveProducts : referenceCakes;
-  const hero = catalogue[0];
-  const bestsellers = liveProducts.length
-    ? liveProducts.slice(0, 8)
-    : referenceBestsellers;
-  const promotions = config.data
-    ? activeCampaigns(config.data.campaigns).slice(0, 3)
-    : [];
-  const pairings = catalogue.slice(1, 5);
-  const heroImage = hero.images[0]?.src;
+function HomeSkeleton({ cardWidth }: { cardWidth: number }) {
+  const styles = useThemedStyles(baseStyles);
+  return (
+    <View
+      accessibilityLabel="Loading today’s Cake City collection"
+      accessibilityRole="progressbar"
+      style={styles.loading}
+    >
+      <Skeleton height={238} radius={28} />
+      <OccasionRail />
+      <CollectionGrid cardWidth={cardWidth} />
+      <View style={styles.skeletonRail}>
+        <Skeleton height={205} radius={22} width="47%" />
+        <Skeleton height={205} radius={22} width="47%" />
+      </View>
+    </View>
+  );
+}
 
+export function HomeScreen() {
+  const styles = useThemedStyles(baseStyles);
+  const { colors, isDark } = useTheme();
+  const { customer } = useAuth();
+  const ownerKey = customer?.id ? String(customer.id) : null;
+  const recentSlugs = usePreferences((state) =>
+    ownerKey
+      ? (state.recentSlugsByOwner?.[ownerKey] ?? EMPTY_RECENT_SLUGS)
+      : EMPTY_RECENT_SLUGS,
+  );
+  const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const [activeSlide, setActiveSlide] = useState(0);
+  const availableWidth = Math.max(1, width - insets.left - insets.right);
+  const contentWidth = Math.max(1, Math.min(availableWidth, 600) - 32);
+  const collectionCardWidth = Math.max(0, (contentWidth - 12) / 2);
+  const productCardWidth = Math.max(
+    158,
+    Math.min(184, (contentWidth - 24) / 2.2),
+  );
+  const catalogue = useQuery({
+    queryKey: ["catalogue", "home", "deals-and-steals", 206],
+    queryFn: ({ signal }) => shopApi.productsByCategory(206, signal),
+    staleTime: CATALOGUE_STALE_TIME_MS,
+    gcTime: CATALOGUE_GC_TIME_MS,
+    // Permit the query function to reach its read-only cached-catalogue
+    // fallback when NetInfo has already marked the device offline.
+    networkMode: "always",
+    refetchOnMount: false,
+    refetchOnReconnect: true,
+    refetchOnWindowFocus: false,
+  });
+  const signatures = useQuery({
+    queryKey: ["catalogue", "home", "category", 229],
+    queryFn: ({ signal }) => shopApi.productsByCategory(229, signal),
+    // This rail owns its small, category-specific live request, so it can
+    // begin alongside the carousel without delaying either first paint.
+    staleTime: CATALOGUE_STALE_TIME_MS,
+    gcTime: CATALOGUE_GC_TIME_MS,
+    networkMode: "always",
+    refetchOnMount: false,
+    refetchOnReconnect: true,
+    refetchOnWindowFocus: false,
+  });
+
+  const products = catalogue.data ?? [];
+  const dealsAndSteals = useMemo(
+    () => products.filter(isDealsAndSteals),
+    [products],
+  );
+  const carouselItems = useMemo<CarouselItem[]>(
+    () =>
+      dealsAndSteals.map((product) => ({
+        id: `deal-${product.id}`,
+        kind: "deal" as const,
+        product,
+      })),
+    [dealsAndSteals],
+  );
+  // FlatList measures its paging cells once. Re-key it when an orientation,
+  // safe-area, or live-deal change alters their width/order, so it cannot hold
+  // a partial old page with an incorrect indicator.
+  const carouselLayoutKey = `${contentWidth}:${carouselItems
+    .map((item) => item.id)
+    .join("|")}`;
+  const signatureProducts = useMemo(
+    () =>
+      (signatures.data ?? [])
+        .filter(
+          (product) =>
+            product.is_in_stock &&
+            product.is_purchasable &&
+            productPrice(product) !== null,
+        )
+        .slice(0, 6),
+    [signatures.data],
+  );
+  // This rail only contains products the customer actually opened and that we
+  // still hold as live records in this app run. It never invents a personal
+  // recommendation or downloads another home-blocking payload to fill space.
+  const continueShopping = useMemo(() => {
+    const visibleProducts = new Map<string, StoreProduct>(
+      [...products, ...signatureProducts].map(
+        (product) => [product.slug, product] as const,
+      ),
+    );
+    return recentSlugs
+      .flatMap((slug) => {
+        const product =
+          visibleProducts.get(slug) ?? shopApi.cachedProduct(slug);
+        return product &&
+          product.is_in_stock &&
+          product.is_purchasable &&
+          productPrice(product) !== null
+          ? [product]
+          : [];
+      })
+      .slice(0, 6);
+  }, [products, recentSlugs, signatureProducts]);
+
+  useEffect(() => {
+    const urls = dealsAndSteals
+      .slice(0, 2)
+      .map((product) => product.images[0]?.src)
+      .filter((url): url is string => Boolean(url));
+    if (urls.length)
+      void Image.prefetch(urls, "memory-disk").catch(() => false);
+  }, [dealsAndSteals]);
+
+  useEffect(() => {
+    const urls = signatureProducts
+      .slice(0, 2)
+      .map((product) => product.images[0]?.src)
+      .filter((url): url is string => Boolean(url));
+    if (urls.length)
+      void Image.prefetch(urls, "memory-disk").catch(() => false);
+  }, [signatureProducts]);
+
+  useEffect(() => {
+    setActiveSlide(0);
+  }, [carouselLayoutKey]);
+
+  const greeting = customer?.first_name
+    ? `Hello, ${customer.first_name}`
+    : "Welcome to Cake City";
+  const openShop = () => router.push("/(tabs)/shop");
+  const openProduct = (product: StoreProduct) =>
+    router.push({
+      pathname: "/product/[id]",
+      params: { id: String(product.id), slug: product.slug },
+    });
+  const updateSlide = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    setActiveSlide(
+      Math.max(
+        0,
+        Math.min(
+          carouselItems.length - 1,
+          Math.round(event.nativeEvent.contentOffset.x / contentWidth),
+        ),
+      ),
+    );
+  };
   return (
     <Screen
-      contentStyle={styles.content}
+      scroll={false}
       header={
-        <View style={styles.header}>
-          <BrandLogo width={145} />
-          <View style={styles.headerActions}>
-            <IconButton
-              name="heart-outline"
-              label="Favourites"
-              onPress={() => router.push("/favourites")}
-            />
-            <BagButton />
-          </View>
-        </View>
+        <CommerceBrowseHeader
+          right={<ProfileAvatarButton />}
+          brand={
+            <View style={styles.brandBlock}>
+              <BrandLogo width={108} />
+              <Text numberOfLines={1} style={styles.greeting}>
+                {greeting}
+              </Text>
+            </View>
+          }
+        >
+          <GlassSurface interactive style={styles.searchGlass}>
+            <Pressable
+              accessibilityLabel="Search the Cake City collection"
+              accessibilityRole="search"
+              onPress={() => router.navigate("/(tabs)/search")}
+              style={({ pressed }) => [
+                styles.search,
+                pressed && styles.pressed,
+              ]}
+            >
+              <View style={styles.searchIcon}>
+                <Ionicons color={colors.brandStrong} name="search" size={18} />
+              </View>
+              <Text style={styles.searchText}>
+                Search cakes, flavours, themes…
+              </Text>
+              <Ionicons color={colors.cocoa} name="options-outline" size={19} />
+            </Pressable>
+          </GlassSurface>
+        </CommerceBrowseHeader>
       }
     >
-      <Pressable
-        accessibilityRole="search"
-        accessibilityLabel="Search cakes, flavors, and more"
-        onPress={() =>
-          router.push({ pathname: "/(tabs)/shop", params: { focus: "1" } })
-        }
-        style={styles.search}
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
-        <Ionicons name="search-outline" size={20} color={tokens.color.cocoa} />
-        <Text style={styles.searchText}>
-          Search cakes, flavors, and more...
-        </Text>
-        <Ionicons
-          name="options-outline"
-          size={20}
-          color={tokens.color.brandStrong}
-        />
-      </Pressable>
-
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={
-          "New: " + hero.name + ". Rich. Moist. Irresistible. Shop Now"
-        }
-        onPress={() =>
-          router.push({
-            pathname: "/product/[id]",
-            params: { id: String(hero.id) },
-          })
-        }
-        style={({ pressed }) => [
-          styles.hero,
-          { height: (contentWidth * 208) / 350 },
-          pressed && styles.pressed,
-        ]}
-      >
-        <LinearGradient
-          colors={[tokens.color.brandDark, tokens.color.brandStrong, "#F14286"]}
-          start={{ x: 0, y: 0.2 }}
-          end={{ x: 1, y: 1 }}
-          style={StyleSheet.absoluteFill}
-        />
-        <View style={styles.heroCta}>
-          <Text style={styles.heroCtaText}>Shop this cake</Text>
-          <Ionicons
-            name="arrow-forward"
-            size={15}
-            color={tokens.color.brandDark}
-          />
+        {!isDark ? (
+          <>
+            <View pointerEvents="none" style={styles.ambientPink} />
+            <View pointerEvents="none" style={styles.ambientBlue} />
+          </>
+        ) : null}
+        <View style={styles.editorial}>
+          <Text style={styles.editorialEyebrow}>
+            A LITTLE JOY. A BIG CELEBRATION.
+          </Text>
+          <Text accessibilityRole="header" style={styles.editorialTitle}>
+            Make room for{"\n"}something sweet.
+          </Text>
+          <Text style={styles.editorialCopy}>
+            Your next favourite cake starts here.
+          </Text>
         </View>
-        {heroImage?.startsWith("https://") ? (
-          <Image
-            source={heroImage}
-            contentFit="contain"
-            transition={180}
-            style={styles.heroImage}
-          />
-        ) : (
-          <View style={styles.fallbackHeroArt}>
-            <ReferenceArtwork
-              name="chocolateBanner"
-              width={contentWidth * 0.58}
-            />
-          </View>
-        )}
-      </Pressable>
 
-      <View style={styles.categoryRow}>
-        {departments.map((department, index) => {
-          const category = categories.data?.find((item) =>
-            department.match.test(item.name),
-          );
-          return (
-            <Pressable
-              key={department.label}
-              accessibilityRole="button"
-              accessibilityLabel={"Browse " + department.label}
-              onPress={() =>
-                router.push({
-                  pathname: "/(tabs)/shop",
-                  params:
-                    index === 0
-                      ? { department: "Cakes", category: "" }
-                      : category
-                        ? {
-                            category: String(category.id),
-                            department: department.label,
-                          }
-                        : {
-                            search: department.label,
-                            department: department.label,
-                          },
-                })
-              }
-              style={({ pressed }) => [
-                styles.category,
-                pressed && styles.pressed,
-              ]}
-            >
-              <View style={styles.categoryIcon}>
-                <ReferenceArtwork
-                  name={department.artwork}
-                  width={Math.min(60, (contentWidth - 44) / 5)}
+        {catalogue.isPending ? (
+          <HomeSkeleton cardWidth={collectionCardWidth} />
+        ) : catalogue.isError ? (
+          <>
+            <View style={styles.carouselSection}>
+              <EmptyDealSlide onPress={openShop} width={contentWidth} />
+            </View>
+            <OccasionRail />
+            <CollectionGrid cardWidth={collectionCardWidth} />
+            <Feedback
+              error={catalogue.error}
+              onRetry={() => void catalogue.refetch()}
+            />
+          </>
+        ) : (
+          <>
+            <View style={styles.carouselSection}>
+              {carouselItems.length === 0 ? (
+                <EmptyDealSlide onPress={openShop} width={contentWidth} />
+              ) : (
+                <FlatList
+                  key={carouselLayoutKey}
+                  data={carouselItems}
+                  decelerationRate="fast"
+                  disableIntervalMomentum
+                  getItemLayout={(_, index) => ({
+                    index,
+                    length: contentWidth,
+                    offset: contentWidth * index,
+                  })}
+                  horizontal
+                  keyExtractor={(item) => item.id}
+                  onMomentumScrollEnd={updateSlide}
+                  pagingEnabled
+                  renderItem={({ item }) => (
+                    <View style={{ width: contentWidth }}>
+                      {item.kind === "deal" ? (
+                        <DealSlide
+                          onPress={() => openProduct(item.product)}
+                          product={item.product}
+                        />
+                      ) : (
+                        <EmptyDealSlide
+                          onPress={openShop}
+                          width={contentWidth}
+                        />
+                      )}
+                    </View>
+                  )}
+                  showsHorizontalScrollIndicator={false}
+                  snapToInterval={contentWidth}
+                />
+              )}
+              <View accessibilityRole="tablist" style={styles.carouselDots}>
+                {carouselItems.map((item, index) => (
+                  <View
+                    key={item.id}
+                    accessibilityRole="tab"
+                    accessibilityState={{ selected: index === activeSlide }}
+                    style={[
+                      styles.carouselDot,
+                      index === activeSlide && styles.carouselDotActive,
+                    ]}
+                  />
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.shortcuts}>
+              {(
+                [
+                  {
+                    title: "Cake concierge",
+                    detail: "Help with an order",
+                    icon: "chatbubble-ellipses-outline",
+                    href: "/help",
+                  },
+                  {
+                    title: "Cake Studio",
+                    detail: "Make it yours",
+                    icon: "color-wand-outline",
+                    href: "/(tabs)/custom",
+                  },
+                  {
+                    title: "Find a bakery",
+                    detail: "Visit Cake City",
+                    icon: "location-outline",
+                    href: "/branches",
+                  },
+                ] as const
+              ).map((item) => (
+                <Pressable
+                  key={item.title}
+                  accessibilityRole="button"
+                  onPress={() => router.push(item.href)}
+                  style={({ pressed }) => [
+                    styles.shortcut,
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  <View style={styles.shortcutIcon}>
+                    <Ionicons
+                      name={item.icon}
+                      size={21}
+                      color={colors.brandStrong}
+                    />
+                  </View>
+                  <Text style={styles.shortcutTitle}>{item.title}</Text>
+                  <Text style={styles.shortcutDetail}>{item.detail}</Text>
+                </Pressable>
+              ))}
+            </View>
+
+            {continueShopping.length ? (
+              <View style={styles.continueShopping}>
+                <View style={styles.sectionPadding}>
+                  <Section compact title="Recently viewed" />
+                </View>
+                <FlatList
+                  contentContainerStyle={styles.productRail}
+                  data={continueShopping}
+                  horizontal
+                  initialNumToRender={3}
+                  keyExtractor={(product) => String(product.id)}
+                  maxToRenderPerBatch={3}
+                  renderItem={({ item }) => (
+                    <ProductTile
+                      compact
+                      product={item}
+                      width={productCardWidth}
+                    />
+                  )}
+                  showsHorizontalScrollIndicator={false}
+                  windowSize={3}
                 />
               </View>
-              <Text
-                numberOfLines={1}
-                style={[
-                  styles.categoryLabel,
-                  index === 0 && styles.categoryActive,
-                ]}
-              >
-                {department.label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
+            ) : null}
 
-      <View style={styles.bestsellers}>
-        <Section
-          compact
-          title="Bestsellers"
-          action="See all"
-          onPress={() =>
-            router.push({
-              pathname: "/(tabs)/shop",
-              params: { department: "Cakes", category: "", search: "" },
-            })
-          }
-        />
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.productRail}
-        >
-          {bestsellers.map((product) => (
-            <ProductTile
-              key={product.id}
-              product={product}
-              width={cardWidth}
-              compact
-            />
-          ))}
-        </ScrollView>
-      </View>
+            <OccasionRail />
 
-      <View style={styles.pairingSection}>
-        <Section
-          compact
-          title="Perfect pairings"
-          action="Browse all"
-          onPress={() => router.push("/(tabs)/shop")}
-        />
-        <Text style={styles.sectionIntro}>
-          Curated combinations for birthdays, sharing, and every sweet moment.
-        </Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.productRail}
-        >
-          {pairings.map((product) => (
-            <ProductTile
-              key={product.id}
-              product={product}
-              width={cardWidth}
-              compact
-            />
-          ))}
-        </ScrollView>
-      </View>
+            <CollectionGrid cardWidth={collectionCardWidth} />
 
-      <View style={styles.promotionSection}>
-        <Section
-          compact
-          title="Promotions"
-          action="See offers"
-          onPress={() => router.push("/offers")}
-        />
-        {promotions.length ? (
-          promotions.map((promotion) => (
-            <Pressable
-              key={promotion.id}
-              onPress={() => router.push("/offers")}
-              style={styles.promotionCard}
-            >
-              {promotion.image_url ? (
-                <Image
-                  source={promotion.image_url}
-                  contentFit="cover"
-                  style={styles.promotionImage}
+            <View style={styles.featured}>
+              <View style={styles.sectionPadding}>
+                <Section
+                  compact
+                  action="See all"
+                  onPress={() =>
+                    router.push({
+                      pathname: "/(tabs)/shop",
+                      params: {
+                        categoryName: "signature cakes",
+                        department: "Signature Cakes",
+                      },
+                    })
+                  }
+                  title="Signature Cakes"
                 />
-              ) : null}
-              <View style={styles.promotionCopy}>
-                <Text style={styles.promotionKicker}>LIMITED TIME</Text>
-                <Text style={styles.promotionTitle}>
-                  {plainText(promotion.title)}
-                </Text>
-                <Text numberOfLines={2} style={styles.promotionDescription}>
-                  {plainText(promotion.description)}
-                </Text>
               </View>
-              <Ionicons
-                name="chevron-forward"
-                size={20}
-                color={tokens.color.brandStrong}
-              />
-            </Pressable>
-          ))
-        ) : (
-          <Pressable
-            onPress={() => router.push("/offers")}
-            style={styles.promotionCard}
-          >
-            <LinearGradient
-              colors={["#FFF0F6", "#FFF8E9"]}
-              style={StyleSheet.absoluteFill}
-            />
-            <View style={styles.promotionBadge}>
-              <Ionicons name="sparkles" size={17} color="#FFFFFF" />
+              {signatures.isPending ? (
+                <View style={styles.signatureLoading}>
+                  <Skeleton height={205} radius={22} width={productCardWidth} />
+                  <Skeleton height={205} radius={22} width={productCardWidth} />
+                </View>
+              ) : signatureProducts.length ? (
+                <FlatList
+                  contentContainerStyle={styles.productRail}
+                  data={signatureProducts}
+                  horizontal
+                  initialNumToRender={3}
+                  keyExtractor={(product) => String(product.id)}
+                  maxToRenderPerBatch={3}
+                  renderItem={({ item }) => (
+                    <ProductTile
+                      compact
+                      product={item}
+                      width={productCardWidth}
+                    />
+                  )}
+                  showsHorizontalScrollIndicator={false}
+                  windowSize={3}
+                />
+              ) : (
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={openShop}
+                  style={styles.featuredEmpty}
+                >
+                  <Text style={styles.featuredEmptyText}>
+                    Explore live Signature Cakes
+                  </Text>
+                  <Ionicons
+                    color={colors.brandStrong}
+                    name="arrow-forward"
+                    size={17}
+                  />
+                </Pressable>
+              )}
             </View>
-            <View style={styles.promotionCopy}>
-              <Text style={styles.promotionKicker}>CAKE CITY EDIT</Text>
-              <Text style={styles.promotionTitle}>
-                Make the table unforgettable
-              </Text>
-              <Text style={styles.promotionDescription}>
-                Fresh pairings, celebration cakes, and sweet extras in one
-                place.
-              </Text>
-            </View>
-            <Ionicons
-              name="chevron-forward"
-              size={20}
-              color={tokens.color.brandStrong}
-            />
-          </Pressable>
+          </>
         )}
-      </View>
-
-      <View style={styles.exploreSection}>
-        <Section compact title="Explore Cake City" />
-        <View style={styles.moduleGrid}>
-          {[
-            ["Shop all", "grid-outline", "/(tabs)/shop"],
-            ["Offers", "pricetag-outline", "/offers"],
-            ["Custom cakes", "color-palette-outline", "/(tabs)/custom"],
-            ["Rewards", "star-outline", "/rewards"],
-            ["Orders", "receipt-outline", "/(tabs)/orders"],
-            ["Profile", "person-outline", "/(tabs)/account"],
-          ].map(([label, icon, route]) => (
-            <Pressable
-              key={label}
-              onPress={() => router.push(route as never)}
-              style={({ pressed }) => [
-                styles.moduleButton,
-                pressed && styles.pressed,
-              ]}
-            >
-              <Ionicons
-                name={icon as keyof typeof Ionicons.glyphMap}
-                size={19}
-                color={tokens.color.brandStrong}
-              />
-              <Text style={styles.moduleLabel}>{label}</Text>
-            </Pressable>
-          ))}
-        </View>
-      </View>
+      </ScrollView>
     </Screen>
   );
 }
 
-const styles = StyleSheet.create({
-  header: {
+function DealSlide({
+  onPress,
+  product,
+}: {
+  onPress: () => void;
+  product: StoreProduct;
+}) {
+  const styles = useThemedStyles(baseStyles);
+  const { colors } = useTheme();
+  const price = productPrice(product);
+  const image = product.images[0]?.src;
+  return (
+    <Pressable
+      accessibilityHint="Opens this cake and its available options"
+      accessibilityLabel={`${plainText(product.name)}. ${
+        price !== null ? money(price) : "Live offer"
+      }`}
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [styles.dealHero, pressed && styles.pressed]}
+    >
+      {image ? (
+        <Image
+          cachePolicy="memory-disk"
+          contentFit="cover"
+          source={{ uri: image }}
+          style={styles.heroImage}
+          transition={120}
+        />
+      ) : null}
+      <LinearGradient
+        colors={["rgba(39,18,30,0.08)", "rgba(81,56,45,0.95)"]}
+        end={{ x: 0.5, y: 1 }}
+        start={{ x: 0.5, y: 0 }}
+        style={StyleSheet.absoluteFill}
+      />
+      <View style={styles.dealCopy}>
+        <View style={styles.dealPill}>
+          <Ionicons color="#FFFFFF" name="sparkles" size={12} />
+          <Text style={styles.dealPillText}>DEALS & STEALS</Text>
+        </View>
+        <Text numberOfLines={2} style={styles.dealTitle}>
+          {plainText(product.name)}
+        </Text>
+        <View style={styles.dealFooter}>
+          <View>
+            <Text style={styles.dealLabel}>
+              {product.type === "variable" ? "FROM" : "CAKE CITY"}
+            </Text>
+            <Text style={styles.dealPrice}>
+              {price !== null ? money(price) : "View offer"}
+            </Text>
+          </View>
+          <View style={styles.dealArrow}>
+            <Ionicons color={colors.cocoa} name="arrow-forward" size={17} />
+          </View>
+        </View>
+      </View>
+    </Pressable>
+  );
+}
+
+function EmptyDealSlide({
+  onPress,
+  width,
+}: {
+  onPress: () => void;
+  width: number;
+}) {
+  const styles = useThemedStyles(baseStyles);
+  return (
+    <Pressable
+      accessibilityLabel="Browse the Cake City collection"
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.emptyHero,
+        { width },
+        pressed && styles.pressed,
+      ]}
+    >
+      <LinearGradient
+        colors={["#5A223E", "#B80068", "#EC008C"]}
+        end={{ x: 1, y: 1 }}
+        start={{ x: 0, y: 0 }}
+        style={StyleSheet.absoluteFill}
+      />
+      <Ionicons name="sparkles" color="rgba(255,255,255,0.96)" size={62} />
+      <Text style={styles.emptyKicker}>DEALS & STEALS</Text>
+      <Text style={styles.emptyTitle}>
+        No Deals & Steals available right now.
+      </Text>
+      <Text style={styles.emptyCopy}>
+        Browse today’s live cakes and check back for the next Deal & Steal.
+      </Text>
+    </Pressable>
+  );
+}
+
+function OccasionRail() {
+  const styles = useThemedStyles(baseStyles);
+  const { colors, isDark } = useTheme();
+  return (
+    <View style={styles.occasionSection}>
+      <View style={styles.occasionHeadingRow}>
+        <View>
+          <Text accessibilityRole="header" style={styles.occasionHeading}>
+            Celebrate every chapter
+          </Text>
+          <Text style={styles.occasionCopy}>Pick an occasion to begin</Text>
+        </View>
+        <Ionicons
+          color={colors.brandStrong}
+          name="sparkles-outline"
+          size={19}
+        />
+      </View>
+      <ScrollView
+        horizontal
+        contentContainerStyle={styles.occasionRail}
+        showsHorizontalScrollIndicator={false}
+      >
+        {occasionIdeas.map((occasion) => (
+          <Pressable
+            key={occasion.id}
+            accessibilityHint="Opens live Cake City cakes for this occasion"
+            accessibilityLabel={`Browse ${occasion.title} cakes`}
+            accessibilityRole="button"
+            onPress={() =>
+              router.push({
+                pathname: "/(tabs)/shop",
+                params: {
+                  search: occasion.query,
+                  department: occasion.department ?? occasion.title,
+                },
+              })
+            }
+            style={({ pressed }) => [
+              styles.occasionChip,
+              pressed && styles.pressed,
+            ]}
+          >
+            <View
+              style={[
+                styles.occasionArtwork,
+                {
+                  backgroundColor: isDark ? colors.surfaceTint : occasion.tint,
+                },
+              ]}
+            >
+              <Image
+                cachePolicy="memory-disk"
+                contentFit="cover"
+                contentPosition="center"
+                recyclingKey={`occasion-${occasion.id}`}
+                source={{ uri: occasion.image }}
+                style={styles.occasionImage}
+                transition={120}
+              />
+            </View>
+            <Text numberOfLines={2} style={styles.occasionLabelText}>
+              {occasion.title}
+            </Text>
+          </Pressable>
+        ))}
+      </ScrollView>
+    </View>
+  );
+}
+
+function CollectionGrid({ cardWidth }: { cardWidth: number }) {
+  const styles = useThemedStyles(baseStyles);
+  const { colors, isDark } = useTheme();
+  return (
+    <View style={styles.collectionSection}>
+      <Text accessibilityRole="header" style={styles.collectionHeading}>
+        Find your flavour
+      </Text>
+      <Text style={styles.collectionCopy}>
+        Explore the collection, one favourite at a time.
+      </Text>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.collectionGrid}
+      >
+        {homeCollections.map((collection) => (
+          <Pressable
+            key={collection.id}
+            accessibilityHint="Opens the live category in Shop"
+            accessibilityLabel={`Browse ${collection.name}`}
+            accessibilityRole="button"
+            onPress={() =>
+              router.push({
+                pathname: "/(tabs)/shop",
+                params: {
+                  categoryName: collection.lookup[0],
+                  department: collection.name,
+                },
+              })
+            }
+            style={({ pressed }) => [
+              styles.collectionCard,
+              {
+                width: cardWidth,
+                backgroundColor: isDark ? colors.surfaceTint : collection.tint,
+              },
+              pressed && styles.pressed,
+            ]}
+          >
+            <Image
+              cachePolicy="memory-disk"
+              contentFit="cover"
+              source={{ uri: collection.image }}
+              style={styles.collectionImage}
+              transition={140}
+            />
+            <LinearGradient
+              colors={["rgba(255,255,255,0)", "rgba(255,255,255,0.20)"]}
+              end={{ x: 0.5, y: 1 }}
+              start={{ x: 0.5, y: 0 }}
+              style={StyleSheet.absoluteFill}
+            />
+            <View style={styles.collectionLabelBand}>
+              <Text numberOfLines={2} style={styles.collectionLabel}>
+                {collection.name}
+              </Text>
+              <Ionicons
+                color={colors.brandStrong}
+                name="arrow-forward-circle"
+                size={17}
+              />
+            </View>
+          </Pressable>
+        ))}
+      </ScrollView>
+    </View>
+  );
+}
+
+const baseStyles = StyleSheet.create({
+  editorial: { gap: 6, paddingVertical: 2 },
+  editorialEyebrow: {
+    color: tokens.color.brandStrong,
+    fontSize: 9,
+    fontWeight: "800",
+    letterSpacing: 1.7,
+  },
+  editorialTitle: {
+    color: tokens.color.cocoa,
+    fontSize: 32,
+    lineHeight: 36,
+    letterSpacing: -1.3,
+    fontWeight: "800",
+  },
+  editorialCopy: { color: tokens.color.muted, fontSize: 13, lineHeight: 20 },
+  shortcuts: { flexDirection: "row", gap: 8 },
+  shortcut: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 13,
+    gap: 5,
+    borderRadius: 22,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(81,56,45,0.12)",
+    backgroundColor: "#FFFFFF",
+  },
+  shortcutIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFF0F8",
+    marginBottom: 3,
+  },
+  shortcutTitle: { color: tokens.color.cocoa, fontWeight: "700", fontSize: 11 },
+  shortcutDetail: { color: tokens.color.muted, fontSize: 9 },
+  heroImage: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
+  content: {
     width: "100%",
     maxWidth: 600,
     alignSelf: "center",
-    height: 74,
-    paddingHorizontal: 18,
-    paddingTop: 8,
-    paddingBottom: 10,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  headerActions: { flexDirection: "row", alignItems: "center", gap: 8 },
-  content: { maxWidth: 600, paddingHorizontal: 12, paddingTop: 12, gap: 0 },
-  search: {
-    height: 50,
-    marginHorizontal: 5,
-    paddingHorizontal: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#F2E6E9",
-    backgroundColor: "#F6ECEE",
-  },
-  searchText: { flex: 1, color: tokens.color.muted, fontSize: 12 },
-  hero: {
-    marginTop: 18,
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 128,
+    gap: 22,
     overflow: "hidden",
-    borderRadius: 18,
-    backgroundColor: "#A90048",
   },
-  heroCta: {
+  ambientPink: {
     position: "absolute",
-    zIndex: 3,
-    left: 18,
-    bottom: 18,
-    marginTop: 7,
+    width: 260,
+    height: 260,
+    top: -110,
+    right: -120,
+    borderRadius: 130,
+    backgroundColor: "rgba(236,0,140,0.055)",
+  },
+  ambientBlue: {
+    position: "absolute",
+    width: 190,
+    height: 190,
+    top: 360,
+    left: -130,
+    borderRadius: 95,
+    backgroundColor: "rgba(0,174,239,0.045)",
+  },
+  brandBlock: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    minWidth: 0,
+  },
+  greeting: {
+    flex: 1,
+    minWidth: 0,
+    color: tokens.color.brandStrong,
+    fontSize: 11.5,
+    lineHeight: 15,
+    fontWeight: "800",
+    letterSpacing: 0.2,
+  },
+  searchGlass: { borderRadius: 22, ...tokens.shadow.card },
+  search: {
+    minHeight: 58,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 11,
+    paddingHorizontal: 10,
+  },
+  searchIcon: {
+    width: 38,
+    height: 38,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 14,
+    backgroundColor: tokens.color.brandLight,
+  },
+  searchText: { flex: 1, color: tokens.color.muted, fontSize: 13.5 },
+  carouselSection: { gap: 4 },
+  dealHero: {
+    minHeight: 238,
+    justifyContent: "flex-end",
+    padding: 18,
+    overflow: "hidden",
+    borderRadius: 28,
+    backgroundColor: tokens.color.cocoa,
+    ...tokens.shadow.floating,
+  },
+  dealCopy: {
+    justifyContent: "flex-end",
+    gap: 7,
+  },
+  dealPill: {
     alignSelf: "flex-start",
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
-    paddingHorizontal: 11,
-    paddingVertical: 8,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
     borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.18)",
+  },
+  dealPillText: {
+    color: "#FFFFFF",
+    fontSize: 8.5,
+    fontWeight: "900",
+    letterSpacing: 0.85,
+  },
+  dealTitle: {
+    maxWidth: "84%",
+    color: "#FFFFFF",
+    fontSize: 22,
+    lineHeight: 26,
+    fontWeight: "900",
+    letterSpacing: -0.45,
+  },
+  dealFooter: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  dealLabel: {
+    color: "rgba(255,255,255,0.78)",
+    fontSize: 8.5,
+    fontWeight: "800",
+    letterSpacing: 0.72,
+  },
+  dealPrice: { color: "#FFFFFF", fontSize: 20, fontWeight: "900" },
+  dealArrow: {
+    width: 39,
+    height: 39,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 15,
     backgroundColor: "#FFFFFF",
   },
-  heroCtaText: {
-    color: tokens.color.brandDark,
-    fontSize: 11,
-    fontWeight: "800",
-  },
-  heroImage: {
-    position: "absolute",
-    right: -10,
-    bottom: -5,
-    width: "58%",
-    height: "100%",
-  },
-  fallbackHeroArt: {
-    position: "absolute",
-    right: 0,
-    bottom: 0,
-    width: "58%",
-    height: "100%",
-    opacity: 0.9,
-  },
-  pressed: { opacity: 0.8 },
-  categoryRow: {
-    marginTop: 24,
-    flexDirection: "row",
+  emptyHero: {
+    minHeight: 238,
     alignItems: "flex-start",
-    justifyContent: "space-between",
-    gap: 4,
+    justifyContent: "center",
+    gap: 7,
+    overflow: "hidden",
+    padding: 22,
+    borderRadius: 28,
+    ...tokens.shadow.floating,
   },
-  category: { flex: 1, minWidth: 0, alignItems: "center" },
-  categoryIcon: { overflow: "hidden", borderRadius: 16 },
-  categoryLabel: {
-    marginTop: 7,
-    color: tokens.color.cocoa,
-    fontSize: 10.5,
-    lineHeight: 15,
+  emptyKicker: {
+    color: "rgba(255,255,255,0.82)",
+    fontSize: 9,
+    fontWeight: "900",
+    letterSpacing: 1.05,
+  },
+  emptyTitle: {
+    maxWidth: "82%",
+    color: "#FFFFFF",
+    fontSize: 22,
+    lineHeight: 27,
+    fontWeight: "900",
+  },
+  emptyCopy: {
+    maxWidth: "88%",
+    color: "rgba(255,255,255,0.86)",
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  carouselDots: {
+    minHeight: 22,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+  carouselDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: tokens.color.borderStrong,
+  },
+  carouselDotActive: { width: 22, backgroundColor: tokens.color.brandStrong },
+  occasionSection: { gap: 9 },
+  occasionHeadingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  occasionHeading: {
+    color: tokens.color.ink,
+    fontSize: 16,
+    lineHeight: 20,
+    fontWeight: "900",
+    letterSpacing: -0.25,
+  },
+  occasionCopy: { color: tokens.color.muted, fontSize: 11, lineHeight: 15 },
+  occasionRail: { gap: 13, paddingRight: 8 },
+  occasionChip: {
+    width: 72,
+    alignItems: "center",
+    gap: 6,
+  },
+  occasionArtwork: {
+    width: 62,
+    height: 62,
+    overflow: "hidden",
+    borderRadius: 31,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(81,56,45,0.14)",
+    ...tokens.shadow.card,
+  },
+  occasionImage: { width: "100%", height: "100%" },
+  occasionLabelText: {
+    color: tokens.color.ink,
+    fontSize: 10,
+    lineHeight: 13,
+    fontWeight: "800",
     textAlign: "center",
   },
-  categoryActive: { color: tokens.color.brandStrong, fontWeight: "500" },
-  bestsellers: { marginTop: 20, gap: 7, paddingHorizontal: 3 },
-  productRail: { gap: 10, paddingBottom: 6 },
-  pairingSection: { marginTop: 23, gap: 7, paddingHorizontal: 3 },
-  sectionIntro: {
-    color: tokens.color.muted,
-    fontSize: 11,
-    lineHeight: 16,
-    maxWidth: 430,
+  collectionSection: { gap: 7 },
+  collectionHeading: {
+    color: tokens.color.cocoa,
+    fontSize: 19,
+    fontWeight: "800",
+    letterSpacing: -0.5,
+    textAlign: "left",
   },
-  promotionSection: { marginTop: 24, gap: 8, paddingHorizontal: 3 },
-  promotionCard: {
-    minHeight: 104,
+  collectionCopy: {
+    color: tokens.color.muted,
+    fontSize: 12,
+    lineHeight: 17,
+    textAlign: "left",
+  },
+  collectionGrid: {
+    flexDirection: "row",
+    gap: 12,
+    paddingTop: 7,
+  },
+  collectionCard: {
+    minHeight: 172,
     overflow: "hidden",
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: tokens.color.border,
-    backgroundColor: tokens.color.surface,
+    borderRadius: 22,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(81,56,45,0.12)",
+    ...tokens.shadow.card,
+  },
+  collectionImage: { width: "100%", height: 126 },
+  collectionLabelBand: {
+    minHeight: 46,
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    padding: 13,
+    justifyContent: "space-between",
+    gap: 6,
+    paddingHorizontal: 11,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: tokens.color.borderStrong,
+    backgroundColor: "rgba(255,255,255,0.96)",
   },
-  promotionImage: { width: 76, height: 76, borderRadius: 14 },
-  promotionBadge: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
-    backgroundColor: tokens.color.brandStrong,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  promotionCopy: { flex: 1, gap: 3 },
-  promotionKicker: {
+  collectionLabel: {
+    flex: 1,
     color: tokens.color.brandStrong,
-    fontSize: 9,
+    fontSize: 11.5,
+    lineHeight: 14,
+    fontWeight: "900",
+    letterSpacing: 0.18,
+    textTransform: "uppercase",
+  },
+  featured: { gap: 12, marginHorizontal: -16 },
+  continueShopping: { gap: 12, marginHorizontal: -16 },
+  sectionPadding: { paddingHorizontal: 16 },
+  productRail: { gap: 13, paddingHorizontal: 16, paddingBottom: 4 },
+  featuredEmpty: {
+    minHeight: 76,
+    marginHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    backgroundColor: tokens.color.brandLight,
+  },
+  featuredEmptyText: {
+    color: tokens.color.cocoa,
+    fontSize: 13,
     fontWeight: "800",
-    letterSpacing: 1.3,
   },
-  promotionTitle: {
-    color: tokens.color.ink,
-    fontSize: 15,
-    lineHeight: 19,
-    fontWeight: "800",
+  signatureLoading: {
+    flexDirection: "row",
+    gap: 13,
+    paddingHorizontal: 16,
+    paddingBottom: 4,
   },
-  promotionDescription: {
-    color: tokens.color.muted,
-    fontSize: 11,
-    lineHeight: 16,
-  },
-  exploreSection: { marginTop: 25, gap: 10, paddingHorizontal: 3 },
-  moduleGrid: { flexDirection: "row", flexWrap: "wrap", gap: 9 },
-  moduleButton: {
-    width: "31.7%",
-    minHeight: 70,
-    padding: 11,
-    gap: 8,
-    justifyContent: "center",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: tokens.color.border,
-    backgroundColor: tokens.color.glassStrong,
-  },
-  moduleLabel: { color: tokens.color.ink, fontSize: 11, fontWeight: "700" },
+  loading: { gap: 18 },
+  skeletonRail: { flexDirection: "row", gap: 12 },
+  pressed: { opacity: 0.86, transform: [{ scale: 0.99 }] },
 });

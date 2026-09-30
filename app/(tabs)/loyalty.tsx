@@ -1,1 +1,1 @@
-export { RewardsScreen as default } from "../rewards";
+export { default } from "../rewards";

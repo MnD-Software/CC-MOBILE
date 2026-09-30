@@ -51,6 +51,7 @@ export const storeProductSchema = z.object({
       z.object({
         id: z.number(),
         name: z.string(),
+        taxonomy: z.string().nullable().optional(),
         has_variations: z.boolean().optional(),
         terms: z
           .array(
@@ -78,13 +79,24 @@ export type Category = z.infer<typeof categorySchema>;
 // WooCommerce can return wildcard/null attributes. Preserve these catalogue
 // records, but only quote combinations whose configuration is explicit.
 export function selectableVariations(product: StoreProduct) {
-  const groups = product.attributes.filter((a) => a.has_variations);
+  // Some WooCommerce products include presentation-only variation attributes
+  // with wildcard/null values. They are not customer choices, so requiring
+  // them would make otherwise valid combinations impossible to select.
+  const groups = product.attributes.filter(
+    (group) =>
+      group.has_variations &&
+      product.variations.some((variation) =>
+        variation.attributes.some(
+          (attribute) =>
+            attribute.name === group.name && !!attribute.value?.trim(),
+        ),
+      ),
+  );
   return product.variations.filter(
     (v) =>
-      v.attributes.length > 0 &&
-      v.attributes.every((a) => !!a.value) &&
+      v.attributes.some((a) => !!a.value?.trim()) &&
       groups.every((group) =>
-        v.attributes.some((a) => a.name === group.name && !!a.value),
+        v.attributes.some((a) => a.name === group.name && !!a.value?.trim()),
       ),
   );
 }
@@ -93,21 +105,53 @@ export function variationLabel(
   variant: StoreProduct["variations"][number],
 ) {
   return variant.attributes
-    .map(
-      (a) =>
+    .flatMap((attribute) => {
+      const value = attribute.value?.trim();
+      if (!value) return [];
+      return [
         product.attributes
-          .find((g) => g.name === a.name)
-          ?.terms.find((t) => t.slug === a.value)?.name ??
-        a.value ??
-        a.name,
-    )
+          .find((group) => group.name === attribute.name)
+          ?.terms.find((term) => term.slug === value)?.name ?? value,
+      ];
+    })
     .join(" / ");
+}
+
+export const variationAttributeSchema = z.object({
+  attribute: z.string().min(1),
+  value: z.string().min(1),
+});
+export type VariationAttribute = z.infer<typeof variationAttributeSchema>;
+
+/**
+ * Store API needs the real WooCommerce attribute key, not its display label.
+ * Global attributes use their `pa_` taxonomy; product-specific attributes use
+ * their exact customer-facing name. Wildcards are deliberately omitted.
+ */
+export function variationCartAttributes(
+  product: StoreProduct,
+  variant: StoreProduct["variations"][number],
+): VariationAttribute[] {
+  return variant.attributes.flatMap((attribute) => {
+    const value = attribute.value?.trim();
+    if (!value) return [];
+    const group = product.attributes.find(
+      (candidate) => candidate.name === attribute.name,
+    );
+    return [
+      {
+        attribute: group?.taxonomy?.trim() || group?.name || attribute.name,
+        value,
+      },
+    ];
+  });
 }
 export type CakeSelection = {
   size: "1kg" | "1.5kg" | "2kg";
   message: string;
   add_ons: string[];
   variation_id?: number;
+  variation_attributes?: VariationAttribute[];
   studio_quote_id?: string;
 };
 export const selectionSchema = z.object({
@@ -115,10 +159,12 @@ export const selectionSchema = z.object({
   message: z.string().max(32),
   add_ons: z.array(z.string()),
   variation_id: z.number().int().positive().optional(),
+  variation_attributes: z.array(variationAttributeSchema).max(8).optional(),
   studio_quote_id: z.string().min(1).optional(),
 });
 export const bagLineSchema = z.object({
   key: z.string(),
+  product_id: z.number().int().positive().optional(),
   slug: z.string().min(1),
   name: z.string(),
   image: z.string().nullable(),
@@ -389,6 +435,9 @@ export function lineKey(slug: string, selection: CakeSelection) {
     selection.message,
     [...selection.add_ons].sort(),
     selection.variation_id,
+    [...(selection.variation_attributes ?? [])]
+      .map((attribute) => [attribute.attribute, attribute.value])
+      .sort(([left], [right]) => left.localeCompare(right)),
     selection.studio_quote_id,
   ]);
 }

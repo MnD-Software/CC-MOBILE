@@ -1,19 +1,31 @@
 # Cake City iOS Live Activities
 
-This Expo app must not draw a fake Dynamic Island in React Native. The React Native layer talks to a real native iOS module through `src/native/live-activities.ts`.
+Cake City uses SDK 57 `expo-widgets` to generate a real WidgetKit / ActivityKit extension. It does not draw a fake Dynamic Island inside React Native.
 
-Prepared files:
+Current implementation:
 
-- `src/native/live-activities.ts` defines the app-facing bridge.
-- `ios-live-activities/CakeCityLiveActivitiesModule.swift` defines the ActivityKit native module.
-- `ios-live-activities/CakeCityOrderActivityAttributes.swift` defines the order activity model.
-- `ios-live-activities/CakeCityOrderLiveActivityWidget.swift` defines Lock Screen and Dynamic Island UI.
+- `src/native/CakeCityOrderActivity.tsx`: Lock Screen, compact, minimal and expanded Dynamic Island layouts, including a stale-data presentation.
+- `src/native/order-activity-state.ts`: explicit server-status mapping; no invented delivery time or timed kitchen progress.
+- `src/native/order-activity-controller.ts`: guarded native loading, start/update/end, one activity at a time, two-minute stale dates derived from the server-check timestamp.
+- `src/native/OrderActivityControl.tsx`: opt-in control on an authenticated, device-saved order with a successful live response. Activity ends when its screen unmounts or the server reports a terminal outcome.
+- `app.config.js`: Expo Widgets config plugin; generates `ke.co.cakecity.mobile.ExpoWidgetsTarget`, app-group entitlement and `NSSupportsLiveActivities`.
 
-Final iOS integration requires macOS, Xcode, Apple Developer signing, an iOS app target, and a Widget Extension target. After running iOS prebuild on macOS, add the Swift files to the app and widget targets, enable the Live Activities entitlement, and archive with:
+The older `ios-live-activities/` Swift files and `src/native/live-activities.ts` bridge are legacy reference material, not the active implementation. Do not add them as a second extension.
+
+Limits:
+
+- Expo Go cannot host this extension. A new signed device build is required; reloading JS or downloading the existing unsigned IPA will not enable it.
+- A supported iPhone shows Dynamic Island; other supported iPhones use the Lock Screen presentation. The user must allow Live Activities in Settings.
+- Updates currently follow the order screen's foreground server polling. No APNs sender or background delivery integration is connected. When suspended, the OS marks the snapshot stale after two minutes and the layout asks the user to open Cake City.
+- No email, address, order key or payment token is shown in the activity.
+- App Groups must be provisioned for the app and its extension. The previous free-account sideload route is not a verified signing path for this extension.
+
+Build and device acceptance:
 
 ```sh
-npx expo prebuild --platform ios
 eas build --platform ios --profile production
 ```
 
-The Expo config already sets `NSSupportsLiveActivities` and `NSSupportsLiveActivitiesFrequentUpdates` in `app.json`. The Widget Extension target cannot be generated and validated on Windows.
+Check that the signed archive contains `PlugIns/ExpoWidgetsTarget.appex`; install on a supported iPhone, open a real order, opt into Lock Screen tracking, then verify compact/expanded/Lock Screen presentations, stale state, terminal state, deep linking and disabled Live Activities. Local type checking, JS export and config introspection do not prove native compilation or device behavior.
+
+Reference: https://docs.expo.dev/versions/v57.0.0/sdk/widgets/

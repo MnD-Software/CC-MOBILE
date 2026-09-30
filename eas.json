@@ -13,11 +13,30 @@
       "channel": "preview",
       "distribution": "internal",
       "environment": "preview",
+      "autoIncrement": true,
       "android": {
         "buildType": "apk"
       },
       "env": {
-        "CAKECITY_BUILD_PROFILE": "preview"
+        "CAKECITY_BUILD_PROFILE": "preview",
+        "EXPO_PUBLIC_API_URL": "https://cc-mobile-1.onrender.com"
+      }
+    },
+    "ios-simulator": {
+      "extends": "preview",
+      "autoIncrement": false,
+      "ios": {
+        "simulator": true,
+        "withoutCredentials": true
+      }
+    },
+    "ios-unsigned-device": {
+      "extends": "preview",
+      "autoIncrement": false,
+      "ios": {
+        "simulator": false,
+        "withoutCredentials": true,
+        "config": "unsigned-device.yml"
       }
     },
     "production": {
@@ -31,7 +50,8 @@
         "simulator": false
       },
       "env": {
-        "CAKECITY_BUILD_PROFILE": "production"
+        "CAKECITY_BUILD_PROFILE": "production",
+        "EXPO_PUBLIC_API_URL": "https://cc-mobile-1.onrender.com"
       }
     }
   },

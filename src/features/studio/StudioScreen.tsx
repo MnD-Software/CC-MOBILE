@@ -11,7 +11,7 @@ import {
   Section,
   Chip,
   Reveal,
-  ui,
+  ui as baseUi,
   useToast,
 } from "@/components/ui/Commerce";
 import { Input } from "@/components/ui/Input";
@@ -20,7 +20,11 @@ import { shopApi } from "@/features/commerce/api";
 import { studioEstimate, money } from "@/features/commerce/contracts";
 import { useBag, usePreferences } from "@/features/commerce/store";
 import { tokens } from "@/theme/tokens";
+import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
+import { CustomCakeBrief } from "./CustomCakeBrief";
 export function StudioScreen() {
+  const ui = useThemedStyles(baseUi);
+  const { colors } = useTheme();
   const configQuery = useQuery({
     queryKey: ["mobile-config"],
     queryFn: ({ signal }) => shopApi.config(signal),
@@ -138,7 +142,7 @@ export function StudioScreen() {
       <View
         style={[
           ui.panel,
-          { backgroundColor: tokens.color.accentLight, borderWidth: 0 },
+          { backgroundColor: colors.accentLight, borderWidth: 0 },
         ]}
       >
         <Text style={ui.eyebrow}>A LITTLE CREATIVITY. A LOT OF CAKE.</Text>
@@ -201,7 +205,7 @@ export function StudioScreen() {
                     fontSize: 17,
                     fontStyle: "italic",
                     fontWeight: "600",
-                    color: tokens.color.cocoa,
+                    color: colors.cocoa,
                     textAlign: "center",
                     backgroundColor: "rgba(255,255,255,.82)",
                     padding: 5,
@@ -312,8 +316,8 @@ export function StudioScreen() {
             onPress={saveDesign}
           />
         </Reveal>
-      ) : !configQuery.isPending && !configQuery.error ? (
-        <Notice message="Cake Studio materials are unavailable at the moment. Try refreshing, or discover our finished cakes." />
+      ) : !configQuery.isPending ? (
+        <CustomCakeBrief />
       ) : null}
       {designs.length ? (
         <>

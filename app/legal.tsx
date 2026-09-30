@@ -1,7 +1,9 @@
 import { Linking, Text } from "react-native";
-import { Screen, Notice, ui, useToast } from "@/components/ui/Commerce";
+import { Screen, Notice, ui as baseUi, useToast } from "@/components/ui/Commerce";
 import { Button } from "@/components/ui/Button";
+import { useThemedStyles } from "@/theme/ThemeProvider";
 export default function Legal() {
+  const ui = useThemedStyles(baseUi);
   const toast = useToast();
   return (
     <Screen title="The important details." back>

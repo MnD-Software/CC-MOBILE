@@ -1,0 +1,8 @@
+★ eas-cli@24.7.0 is now available.
+To upgrade, run:
+npm install -g eas-cli
+Proceeding with outdated version.
+
+Nonexistent flag: --non-interactive
+See more help with --help
+    Error: env:list command failed.

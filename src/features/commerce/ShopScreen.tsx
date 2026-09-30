@@ -1,437 +1,806 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   FlatList,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
-  useWindowDimensions,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
-  BagButton,
   Chip,
+  CommerceBrowseHeader,
   Feedback,
   IconButton,
   ProductTile,
   Screen,
-  ui,
 } from "@/components/ui/Commerce";
+import { ProfileAvatarButton } from "@/components/ProfileAvatar";
+import { GlassSurface } from "@/components/storefront/GlassSurface";
 import { Button } from "@/components/ui/Button";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { tokens } from "@/theme/tokens";
-import { plainText, productPrice } from "./contracts";
-import { referenceCakes, referenceCategories } from "./reference-catalogue";
-import { shopApi } from "./api";
+import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
+import { plainText, type StoreProduct } from "./contracts";
+import { CATALOGUE_GC_TIME_MS, CATALOGUE_STALE_TIME_MS, shopApi } from "./api";
+import { homeCollections } from "./collection-artwork";
+import { suggestedSearchTerm, browseSearchIdeas } from "./search-intelligence";
 import { usePreferences } from "./store";
+import { parseBudget } from "./shop-browse";
 
-export function ShopScreen() {
+// Do not include the broad Classics parent (71): its children also contain
+// party accessories and a published test record, not just cakes.
+const menuCategories = [229, 168, 169, 170, 171, 72, 110, 112];
+const departments = [
+  { label: "Signature", id: 229 },
+  { label: "Menu cakes", id: 0 },
+  { label: "Chocolate sponge", id: 168 },
+  { label: "Pound cakes", id: 170 },
+  { label: "Vanilla sponge", id: 169 },
+  { label: "Cheesecakes", id: 171 },
+] as const;
+const roots = [
+  { id: 229, name: "Signature", icon: "ribbon-outline" },
+  { id: 168, name: "Chocolate", icon: "cafe-outline" },
+  { id: 169, name: "Vanilla", icon: "flower-outline" },
+  { id: 170, name: "Pound", icon: "layers-outline" },
+  { id: 171, name: "Cheesecakes", icon: "pie-chart-outline" },
+  { id: 72, name: "Instant cakes", icon: "flash-outline" },
+  { id: 110, name: "Cupcakes", icon: "ice-cream-outline" },
+  { id: 112, name: "Tea cakes", icon: "cafe-outline" },
+] as const;
+const knownIds: Record<string, number> = {
+  "signature cakes": 229,
+  "chocolate base sponge": 168,
+  "vanilla base sponge": 169,
+  "pound cakes": 170,
+  "cheese cakes": 171,
+  "custom cakes": 123,
+  "deals and steals": 206,
+};
+
+export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
+  const styles = useThemedStyles(baseStyles);
+  const { colors, isDark } = useTheme();
   const params = useLocalSearchParams<{
     category?: string;
+    categoryName?: string;
     search?: string;
-    offers?: string;
     department?: string;
     focus?: string;
   }>();
+  const insets = useSafeAreaInsets();
+  const searchInputRef = useRef<TextInput>(null);
+  const listRef = useRef<FlatList<StoreProduct>>(null);
   const [search, setSearch] = useState(params.search ?? "");
   const [debounced, setDebounced] = useState(search);
-  const [category, setCategory] = useState<number | undefined>(
-    params.category ? Number(params.category) : undefined,
+  const [department, setDepartment] = useState(0);
+  const [category, setCategory] = useState<number | undefined>();
+  const [budgetOpen, setBudgetOpen] = useState(false);
+  const [minimum, setMinimum] = useState("");
+  const [maximum, setMaximum] = useState("");
+  const [budget, setBudget] = useState<Partial<ReturnType<typeof parseBudget>>>(
+    {},
   );
-  const [sort, setSort] = useState("popularity");
-  const [sale, setSale] = useState(params.offers === "1");
-  const [budget, setBudget] = useState(false);
-  const [filtersOpen, setFiltersOpen] = useState(false);
-  const recent = usePreferences((state) => state.recentSearches);
-  const remember = usePreferences((state) => state.search);
-  const { width } = useWindowDimensions();
-  const columns = width > 700 ? 3 : 2;
-  const referenceMode =
-    (!params.department || params.department === "Cakes") &&
-    (!category || category < 0);
+  const [budgetError, setBudgetError] = useState("");
+  const rememberSearch = usePreferences((s) => s.search);
+  const recentSearches = usePreferences((s) => s.recentSearches);
 
   useEffect(() => {
-    const timer = setTimeout(() => setDebounced(search.trim()), 350);
+    const selected = params.category
+      ? Number(params.category)
+      : knownIds[plainText(params.categoryName ?? "").toLowerCase()];
+    setCategory(
+      Number.isSafeInteger(selected) && selected > 0 ? selected : undefined,
+    );
+    setDepartment(
+      departments.some((item) => item.id === selected) ? selected : 0,
+    );
+    setSearch(params.search ?? "");
+  }, [params.category, params.categoryName, params.search]);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(search.trim()), 250);
     return () => clearTimeout(timer);
   }, [search]);
 
-  useEffect(() => {
-    if (params.category !== undefined)
-      setCategory(params.category ? Number(params.category) : undefined);
-    if (params.search !== undefined) setSearch(params.search);
-    if (params.offers !== undefined) setSale(params.offers === "1");
-  }, [params.category, params.search, params.offers]);
-
-  const categories = useQuery({
-    queryKey: ["categories"],
+  const categoriesQuery = useQuery({
+    queryKey: ["catalogue", "categories"],
     queryFn: ({ signal }) => shopApi.categories(signal),
-    staleTime: 15 * 60000,
+    staleTime: CATALOGUE_STALE_TIME_MS,
+    gcTime: CATALOGUE_GC_TIME_MS,
   });
+  const childCategories = (categoriesQuery.data ?? []).filter(
+    (item) => item.parent === department,
+  );
+  const rail =
+    department && childCategories.length
+      ? childCategories.map((item) => ({
+          id: item.id,
+          name: plainText(item.name),
+          icon: "sparkles-outline" as const,
+        }))
+      : roots;
+  const selectedCategories =
+    debounced && !category && !department
+      ? undefined
+      : category
+        ? [category]
+        : department
+          ? [department]
+          : menuCategories;
   const products = useInfiniteQuery({
-    queryKey: ["catalogue", "shop", debounced, category, sort, sale, budget],
+    queryKey: [
+      "catalogue",
+      "shop-browse",
+      { search: debounced, categories: selectedCategories, ...budget },
+    ],
     initialPageParam: 1,
     queryFn: ({ pageParam, signal }) =>
-      shopApi.products(
+      shopApi.browseProducts(
         {
           page: pageParam,
+          perPage: 16,
           search: debounced,
-          category,
-          orderby: sort === "price-desc" ? "price" : sort,
-          order: sort === "price" ? "asc" : "desc",
-          on_sale: sale || undefined,
-          max_price: budget ? 500000 : undefined,
+          categories: selectedCategories,
+          ...budget,
         },
         signal,
       ),
-    getNextPageParam: (last, all) =>
-      all.length < last.pages ? all.length + 1 : undefined,
+    getNextPageParam: (last) => last.nextPage,
+    staleTime: CATALOGUE_STALE_TIME_MS,
+    gcTime: CATALOGUE_GC_TIME_MS,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
   });
-
-  const referenceRows = referenceCakes.filter(
-    (product) =>
-      (!debounced ||
-        product.name.toLowerCase().includes(debounced.toLowerCase())) &&
-      (!category || product.categories.some((item) => item.id === category)) &&
-      (!sale || product.on_sale) &&
-      (!budget || (productPrice(product) ?? Infinity) < 5000),
+  const rows = useMemo(
+    () => [
+      ...new Map(
+        (products.data?.pages.flatMap((page) => page.data) ?? []).map(
+          (product) => [product.id, product],
+        ),
+      ).values(),
+    ],
+    [products.data],
   );
-  if (sort === "price" || sort === "price-desc")
-    referenceRows.sort(
-      (a, b) =>
-        ((productPrice(a) ?? 0) - (productPrice(b) ?? 0)) *
-        (sort === "price" ? 1 : -1),
-    );
-  const liveRows =
-    products.data?.pages
-      .flatMap((page) => page.data)
-      .filter(
-        (product, index, all) =>
-          all.findIndex((candidate) => candidate.id === product.id) === index,
-      ) ?? [];
-  const rows = liveRows.length ? liveRows : referenceRows;
-  const parent = categories.data?.find((item) => item.id === category);
-  const options = categories.data?.length
-    ? categories.data.filter(
-        (item) =>
-          item.count > 0 &&
-          (item.parent === 0 ||
-            item.parent === category ||
-            item.parent === parent?.parent),
-      )
-    : referenceCategories;
+  const activeName =
+    (categoriesQuery.data ?? []).find((item) => item.id === category)?.name ??
+    roots.find((item) => item.id === category)?.name ??
+    departments.find((item) => item.id === department)?.label ??
+    "Menu cakes";
+  const title = debounced
+    ? `Results for “${debounced}”`
+    : plainText(activeName);
+  const collection =
+    homeCollections.find(
+      (item) => knownIds[item.lookup[0]] === (category ?? department),
+    ) ?? homeCollections[5];
+  const hasBudget =
+    budget.minimumKes !== undefined || budget.maximumKes !== undefined;
+  const budgetLabel = hasBudget
+    ? `${budget.minimumKes ?? 0}${budget.maximumKes === undefined ? "+" : `–${budget.maximumKes}`} KSh`
+    : "Your budget";
+  const suggestion = suggestedSearchTerm(debounced);
+  useEffect(() => {
+    listRef.current?.scrollToOffset({ offset: 0, animated: false });
+  }, [department, category, debounced, budget]);
 
+  const selectDepartment = (id: number) => {
+    setDepartment(id);
+    setCategory(undefined);
+    setSearch("");
+  };
+  const changeSearch = (value: string) => {
+    setSearch(value);
+    setCategory(undefined);
+    setDepartment(0);
+  };
+  const applyBudget = () => {
+    try {
+      setBudget(parseBudget(minimum, maximum));
+      setBudgetError("");
+      setBudgetOpen(false);
+    } catch (error) {
+      setBudgetError(
+        error instanceof Error ? error.message : "Check your budget.",
+      );
+    }
+  };
   return (
     <Screen
       scroll={false}
       header={
-        <View style={styles.header}>
-          <View style={styles.headerSpacer}>
-            <IconButton
-              name="arrow-back"
-              label="Go back"
-              plain
-              onPress={() => router.replace("/(tabs)")}
-            />
-          </View>
-          <Text accessibilityRole="header" style={styles.headerTitle}>
-            {params.department || "Cakes"}
-          </Text>
-          <View style={styles.headerActions}>
-            <IconButton
-              name="heart-outline"
-              label="Favourites"
-              onPress={() => router.push("/favourites")}
-            />
-            <BagButton />
-          </View>
-        </View>
-      }
-    >
-      <FlatList
-        key={columns}
-        numColumns={columns}
-        data={rows}
-        keyExtractor={(item) => String(item.id)}
-        columnWrapperStyle={styles.columns}
-        contentContainerStyle={styles.content}
-        renderItem={({ item }) => (
-          <ProductTile
-            product={item}
-            width={(Math.min(width, 700) - 28 - 13 * (columns - 1)) / columns}
-          />
-        )}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="on-drag"
-        onEndReached={() => {
-          if (products.hasNextPage && !products.isFetchingNextPage) {
-            void products.fetchNextPage();
+        <CommerceBrowseHeader
+          right={<ProfileAvatarButton />}
+          brand={
+            <View style={styles.titleRow}>
+              {searchOnly ? (
+                <IconButton
+                  name="arrow-back"
+                  label="Go back"
+                  plain
+                  onPress={() =>
+                    router.canGoBack()
+                      ? router.back()
+                      : router.navigate("/(tabs)/shop")
+                  }
+                />
+              ) : null}
+              <Text accessibilityRole="header" style={styles.title}>
+                {searchOnly ? "Find your cake" : "The cake shop"}
+              </Text>
+            </View>
           }
-        }}
-        onEndReachedThreshold={0.5}
-        initialNumToRender={8}
-        windowSize={7}
-        refreshing={
-          !referenceMode &&
-          products.isRefetching &&
-          !products.isFetchingNextPage
-        }
-        onRefresh={referenceMode ? undefined : () => void products.refetch()}
-        showsVerticalScrollIndicator={false}
-        ListHeaderComponent={
-          <View style={styles.listHeader}>
+        >
+          <GlassSurface style={styles.searchGlass}>
             <View style={styles.search}>
-              <Ionicons
-                name="search-outline"
-                size={20}
-                color={tokens.color.muted}
-              />
+              <Ionicons name="search-outline" size={20} color={colors.cocoa} />
               <TextInput
-                autoFocus={params.focus === "1"}
-                accessibilityLabel="Search Cake City"
-                placeholder="Search cakes..."
-                placeholderTextColor={tokens.color.muted}
-                selectionColor={tokens.color.brandStrong}
+                ref={searchInputRef}
                 value={search}
-                onChangeText={setSearch}
-                returnKeyType="search"
+                onChangeText={changeSearch}
+                placeholder="Search cakes, flavours, occasions"
+                placeholderTextColor={colors.muted}
+                accessibilityLabel="Search Cake City"
+                autoFocus={searchOnly || params.focus === "1"}
                 maxLength={120}
+                returnKeyType="search"
                 onSubmitEditing={() => {
-                  if (search.trim()) remember(search.trim());
+                  if (search.trim()) rememberSearch(search.trim());
+                  setDebounced(search.trim());
                 }}
                 style={styles.searchInput}
               />
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={
-                  filtersOpen ? "Close filters" : "Open filters"
-                }
-                accessibilityState={{ expanded: filtersOpen }}
-                onPress={() => setFiltersOpen((open) => !open)}
-                style={({ pressed }) => [
-                  styles.filterButton,
-                  pressed && styles.filterButtonPressed,
-                ]}
-              >
-                <Ionicons name="options-outline" size={19} color="#FFFFFF" />
-              </Pressable>
-            </View>
-
-            {filtersOpen && !search && recent.length ? (
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.chips}
-              >
-                {recent.map((term) => (
-                  <Chip
-                    key={term}
-                    label={term}
-                    onPress={() => setSearch(term)}
-                  />
-                ))}
-              </ScrollView>
-            ) : null}
-
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.chips}
-            >
-              <Chip
-                label="All"
-                filled
-                selected={!category}
-                onPress={() => setCategory(undefined)}
-              />
-              {options.slice(0, 16).map((item) => (
-                <Chip
-                  key={item.id}
-                  filled
-                  label={plainText(item.name)}
-                  selected={category === item.id}
-                  onPress={() => setCategory(item.id)}
+              {search ? (
+                <IconButton
+                  name="close-circle"
+                  label="Clear search"
+                  plain
+                  onPress={() => changeSearch("")}
                 />
-              ))}
-            </ScrollView>
-
-            {filtersOpen ? (
-              <View style={styles.filters}>
-                <Text style={styles.filterLabel}>Sort and refine</Text>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.chips}
-                >
-                  {[
-                    ["popularity", "Popular"],
-                    ["date", "Just added"],
-                    ["price", "Price: low to high"],
-                    ["price-desc", "Price: high to low"],
-                  ].map(([id, label]) => (
-                    <Chip
-                      key={id}
-                      label={label}
-                      selected={sort === id}
-                      onPress={() => setSort(id)}
+              ) : null}
+            </View>
+          </GlassSurface>
+        </CommerceBrowseHeader>
+      }
+    >
+      <View style={styles.shell}>
+        <View style={styles.departments}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.departmentContent}
+          >
+            {departments.map((item) => (
+              <Chip
+                key={item.id}
+                label={item.label}
+                selected={department === item.id}
+                filled
+                onPress={() => selectDepartment(item.id)}
+              />
+            ))}
+          </ScrollView>
+        </View>
+        <View style={styles.body}>
+          {!searchOnly && !debounced ? (
+            <ScrollView
+              style={styles.sidebar}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: insets.bottom + 112 }}
+            >
+              {[
+                { id: 0, name: "All cakes", icon: "grid-outline" as const },
+                ...rail,
+              ].map((item) => {
+                const selected = item.id === (category ?? 0);
+                return (
+                  <Pressable
+                    key={item.id}
+                    accessibilityRole="button"
+                    accessibilityLabel={item.name}
+                    accessibilityState={{ selected }}
+                    onPress={() => {
+                      setCategory(item.id || undefined);
+                      if (item.id && (!department || !childCategories.length))
+                        setDepartment(0);
+                    }}
+                    style={[styles.railItem, selected && styles.railSelected]}
+                  >
+                    <Ionicons
+                      name={item.icon}
+                      size={24}
+                      color={selected ? colors.brandStrong : colors.cocoa}
                     />
+                    <Text
+                      numberOfLines={3}
+                      style={[
+                        styles.railText,
+                        selected && {
+                          color: colors.brandStrong,
+                          fontWeight: "700",
+                        },
+                      ]}
+                    >
+                      {item.name}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          ) : null}
+          <FlatList
+            ref={listRef}
+            style={styles.productPane}
+            data={rows}
+            keyExtractor={(item) => String(item.id)}
+            renderItem={({ item }) => (
+              <ProductTile product={item} layout="row" />
+            )}
+            contentContainerStyle={[
+              styles.content,
+              { paddingBottom: insets.bottom + 128 },
+            ]}
+            ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            showsVerticalScrollIndicator={false}
+            initialNumToRender={6}
+            maxToRenderPerBatch={6}
+            windowSize={5}
+            removeClippedSubviews={Platform.OS === "android"}
+            refreshing={products.isRefetching && !products.isFetchingNextPage}
+            onRefresh={() => {
+              void products.refetch();
+              void categoriesQuery.refetch();
+            }}
+            onEndReachedThreshold={0.5}
+            onEndReached={() => {
+              if (
+                products.hasNextPage &&
+                !products.isFetching &&
+                !products.isError
+              )
+                void products.fetchNextPage();
+            }}
+            ListHeaderComponent={
+              <View style={styles.listHeader}>
+                {!debounced && !searchOnly ? (
+                  <View
+                    style={[
+                      styles.banner,
+                      {
+                        backgroundColor: isDark
+                          ? colors.surfaceTint
+                          : collection.tint,
+                      },
+                    ]}
+                  >
+                    <View style={styles.bannerCopy}>
+                      <Text style={styles.eyebrow}>BAKED FOR YOUR MOMENT</Text>
+                      <Text style={styles.bannerTitle}>
+                        A little slice{`\n`}of happiness.
+                      </Text>
+                      <Text style={styles.bannerSubtitle}>
+                        Find your celebration cake.
+                      </Text>
+                    </View>
+                    <Image
+                      source={{ uri: collection.image }}
+                      contentFit="contain"
+                      style={styles.bannerImage}
+                      accessibilityLabel={collection.name}
+                    />
+                  </View>
+                ) : null}
+                <Text accessibilityRole="header" style={styles.sectionTitle}>
+                  {title}
+                </Text>
+                <View style={styles.filterRow}>
+                  <Text style={styles.sortLabel}>Price: low to high</Text>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Filter by budget"
+                    onPress={() => {
+                      setMinimum(
+                        budget.minimumKes === undefined
+                          ? ""
+                          : String(budget.minimumKes),
+                      );
+                      setMaximum(
+                        budget.maximumKes === undefined
+                          ? ""
+                          : String(budget.maximumKes),
+                      );
+                      setBudgetError("");
+                      setBudgetOpen(true);
+                    }}
+                    style={[
+                      styles.budgetButton,
+                      hasBudget && styles.budgetActive,
+                    ]}
+                  >
+                    <Ionicons
+                      name="options-outline"
+                      size={16}
+                      color={tokens.color.brandStrong}
+                    />
+                    <Text style={styles.budgetText}>{budgetLabel}</Text>
+                  </Pressable>
+                </View>
+                {hasBudget ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => setBudget({})}
+                    style={styles.clearBudget}
+                  >
+                    <Text style={styles.budgetText}>Clear budget ×</Text>
+                  </Pressable>
+                ) : null}
+                {searchOnly && !debounced ? (
+                  <View style={styles.suggestions}>
+                    {(recentSearches.length
+                      ? recentSearches.slice(0, 4)
+                      : browseSearchIdeas.slice(0, 4)
+                    ).map((term) => (
+                      <Chip
+                        key={term}
+                        label={term}
+                        onPress={() => changeSearch(term)}
+                      />
+                    ))}
+                  </View>
+                ) : null}
+                {suggestion && suggestion !== debounced ? (
+                  <Pressable
+                    onPress={() => changeSearch(suggestion)}
+                    accessibilityRole="button"
+                  >
+                    <Text style={styles.budgetText}>Try “{suggestion}”</Text>
+                  </Pressable>
+                ) : null}
+              </View>
+            }
+            ListEmptyComponent={
+              products.isPending ? (
+                <View style={{ gap: 12 }}>
+                  {[0, 1, 2].map((key) => (
+                    <Skeleton key={key} height={142} radius={18} />
                   ))}
-                </ScrollView>
-                <View style={styles.quickFilters}>
-                  <Chip
-                    label="Special prices"
-                    selected={sale}
-                    onPress={() => setSale((enabled) => !enabled)}
-                  />
-                  <Chip
-                    label="Under KSh 5,000"
-                    selected={budget}
-                    onPress={() => setBudget((enabled) => !enabled)}
+                </View>
+              ) : products.isError ? (
+                <Feedback
+                  error={products.error}
+                  onRetry={() => void products.refetch()}
+                />
+              ) : (
+                <View style={styles.empty}>
+                  <Text style={styles.sectionTitle}>
+                    No cakes in this selection
+                  </Text>
+                  <Text style={styles.sortLabel}>
+                    Try a wider budget or another collection.
+                  </Text>
+                  <Button
+                    label="Reset filters"
+                    variant="outline"
+                    onPress={() => {
+                      setBudget({});
+                      selectDepartment(0);
+                    }}
                   />
                 </View>
-              </View>
-            ) : null}
-
-            {filtersOpen && (
-              <View style={styles.results}>
-                <Text style={styles.resultsTitle}>
-                  {category
-                    ? plainText(
-                        categories.data?.find((item) => item.id === category)
-                          ?.name ?? "Cakes",
-                      )
-                    : "All cakes"}
-                </Text>
-                <Text style={styles.resultsCount}>
-                  {products.data?.pages[0]?.total ?? rows.length} results
-                </Text>
-              </View>
-            )}
-          </View>
-        }
-        ListEmptyComponent={
-          <Feedback
-            loading={products.isPending && !rows.length}
-            error={products.error}
-            empty={
-              !products.isPending && !products.error
-                ? "No cakes found for that search."
-                : undefined
+              )
             }
-            onRetry={() => void products.refetch()}
+            ListFooterComponent={
+              products.isFetchingNextPage ? (
+                <ActivityIndicator
+                  style={{ padding: 20 }}
+                  color={tokens.color.brandStrong}
+                />
+              ) : products.isError && rows.length ? (
+                <Feedback
+                  error={products.error}
+                  onRetry={() =>
+                    void (products.isFetchNextPageError
+                      ? products.fetchNextPage()
+                      : products.refetch())
+                  }
+                />
+              ) : rows.length && !products.hasNextPage ? (
+                <Text style={styles.endNote}>
+                  You've seen this selection. Explore another collection.
+                </Text>
+              ) : null
+            }
           />
-        }
-        ListFooterComponent={
-          products.isFetchingNextPage ? (
-            <Feedback loading />
-          ) : products.isError && rows.length ? (
+        </View>
+      </View>
+      <Modal
+        visible={budgetOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setBudgetOpen(false)}
+      >
+        <KeyboardAvoidingView
+          style={styles.modalBackdrop}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        >
+          <Pressable
+            style={styles.dismissArea}
+            accessibilityLabel="Close budget filter"
+            accessibilityRole="button"
+            onPress={() => setBudgetOpen(false)}
+          />
+          <View
+            accessibilityViewIsModal
+            style={[
+              styles.sheet,
+              { paddingBottom: Math.max(24, insets.bottom + 16) },
+            ]}
+          >
+            <View style={styles.filterRow}>
+              <Text accessibilityRole="header" style={styles.title}>
+                Find your sweet spot
+              </Text>
+              <IconButton
+                name="close"
+                label="Close budget filter"
+                onPress={() => setBudgetOpen(false)}
+              />
+            </View>
+            <Text style={styles.sortLabel}>
+              Set your cake budget in KSh. Final options and delivery are priced
+              at checkout.
+            </Text>
+            <View style={styles.budgetInputs}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.inputLabel}>Minimum</Text>
+                <TextInput
+                  accessibilityLabel="Minimum budget in KSh"
+                  value={minimum}
+                  onChangeText={setMinimum}
+                  placeholder="0"
+                  keyboardType="decimal-pad"
+                  maxLength={10}
+                  style={styles.budgetInput}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.inputLabel}>Maximum</Text>
+                <TextInput
+                  accessibilityLabel="Maximum budget in KSh"
+                  value={maximum}
+                  onChangeText={setMaximum}
+                  placeholder="No limit"
+                  keyboardType="decimal-pad"
+                  maxLength={10}
+                  style={styles.budgetInput}
+                />
+              </View>
+            </View>
+            <View style={styles.suggestions}>
+              {[2500, 4000, 6000].map((amount) => (
+                <Chip
+                  key={amount}
+                  label={`Under ${amount.toLocaleString()}`}
+                  selected={maximum === String(amount) && !minimum}
+                  onPress={() => {
+                    setMinimum("");
+                    setMaximum(String(amount));
+                  }}
+                />
+              ))}
+            </View>
+            {budgetError ? (
+              <Text accessibilityRole="alert" style={styles.error}>
+                {budgetError}
+              </Text>
+            ) : null}
+            <Button label="Show cakes in my budget" onPress={applyBudget} />
             <Button
-              label="Load more cakes"
-              variant="outline"
-              onPress={() => void products.fetchNextPage()}
+              label="Clear budget"
+              variant="ghost"
+              onPress={() => {
+                setBudget({});
+                setBudgetOpen(false);
+              }}
             />
-          ) : null
-        }
-      />
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </Screen>
   );
 }
 
-const styles = StyleSheet.create({
-  header: {
+const baseStyles = StyleSheet.create({
+  shell: {
+    flex: 1,
     width: "100%",
-    maxWidth: 700,
-    minHeight: 82,
+    maxWidth: 900,
     alignSelf: "center",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    backgroundColor: "#FFFFFF",
   },
-  headerSpacer: { width: 84 },
-  headerTitle: {
+  titleRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  title: {
+    fontSize: 22,
+    fontWeight: "800",
+    letterSpacing: -0.7,
     color: tokens.color.ink,
-    fontSize: 18,
-    lineHeight: 24,
-    fontWeight: "700",
-    textAlign: "center",
   },
-  headerActions: {
-    width: 84,
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    gap: 8,
-  },
-  content: {
-    width: "100%",
-    maxWidth: 700,
-    alignSelf: "center",
-    paddingHorizontal: 14,
-    paddingTop: 3,
-    paddingBottom: 32,
-    gap: 14,
-  },
-  columns: { gap: 13 },
-  listHeader: { gap: 16 },
+  searchGlass: { borderRadius: 15 },
   search: {
-    minHeight: 50,
     flexDirection: "row",
     alignItems: "center",
+    paddingLeft: 13,
+    minHeight: 44,
     gap: 9,
-    paddingLeft: 14,
-    paddingRight: 6,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: tokens.color.border,
-    backgroundColor: "#F6ECEE",
+    backgroundColor: "#F8F7F8",
   },
   searchInput: {
     flex: 1,
     minWidth: 0,
-    minHeight: 48,
+    height: 44,
+    fontSize: 13,
     color: tokens.color.ink,
-    fontSize: 12,
   },
-  filterButton: {
-    width: 40,
-    height: 40,
+  departments: {
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: tokens.color.border,
+  },
+  departmentContent: { paddingHorizontal: 12, gap: 8 },
+  body: { flex: 1, flexDirection: "row" },
+  sidebar: {
+    width: 74,
+    flexGrow: 0,
+    backgroundColor: "#F7F6F7",
+    borderRightWidth: StyleSheet.hairlineWidth,
+    borderRightColor: "#ECE8EB",
+  },
+  railItem: {
+    minHeight: 86,
+    paddingVertical: 15,
+    paddingHorizontal: 5,
+    gap: 7,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 12,
-    backgroundColor: tokens.color.brandStrong,
+    borderLeftWidth: 3,
+    borderLeftColor: "transparent",
   },
-  filterButtonPressed: { opacity: 0.82, transform: [{ scale: 0.97 }] },
-  chips: { gap: 8, paddingRight: 8 },
-  filters: {
-    gap: 11,
-    padding: 12,
-    borderRadius: 15,
-    borderWidth: 1,
-    borderColor: tokens.color.border,
-    backgroundColor: tokens.color.surface,
+  railSelected: {
+    backgroundColor: "#FFFFFF",
+    borderLeftColor: tokens.color.brand,
   },
-  filterLabel: {
-    color: tokens.color.ink,
-    fontSize: 12,
-    fontWeight: "900",
+  railText: {
+    fontSize: 10,
+    lineHeight: 13,
+    color: tokens.color.muted,
+    textAlign: "center",
   },
-  quickFilters: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  results: {
+  productPane: { flex: 1, backgroundColor: "#F6F4F6" },
+  content: { padding: 10, flexGrow: 1 },
+  listHeader: { gap: 12, paddingBottom: 14 },
+  banner: {
+    height: 142,
+    borderRadius: 26,
+    overflow: "hidden",
     flexDirection: "row",
-    alignItems: "baseline",
-    justifyContent: "space-between",
-    gap: 12,
-    marginTop: 2,
+    alignItems: "center",
   },
-  resultsTitle: {
-    flex: 1,
-    color: tokens.color.ink,
+  bannerCopy: { flex: 1, paddingLeft: 13, zIndex: 1 },
+  eyebrow: {
+    fontSize: 7,
+    lineHeight: 10,
+    fontWeight: "800",
+    letterSpacing: 0.7,
+    color: tokens.color.brandStrong,
+  },
+  bannerTitle: {
     fontSize: 19,
-    lineHeight: 24,
-    fontWeight: "900",
+    lineHeight: 22,
+    fontWeight: "800",
+    letterSpacing: -0.6,
+    marginTop: 9,
+    color: tokens.color.cocoa,
   },
-  resultsCount: { color: tokens.color.muted, fontSize: 11, fontWeight: "700" },
+  bannerSubtitle: {
+    fontSize: 10,
+    lineHeight: 14,
+    marginTop: 8,
+    color: tokens.color.muted,
+  },
+  bannerImage: { width: "43%", height: 128 },
+  sectionTitle: {
+    fontSize: 17,
+    lineHeight: 23,
+    fontWeight: "800",
+    color: tokens.color.ink,
+    letterSpacing: -0.4,
+  },
+  filterRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 8,
+    flexWrap: "wrap",
+  },
+  sortLabel: { fontSize: 11, lineHeight: 17, color: tokens.color.muted },
+  budgetButton: {
+    minHeight: 36,
+    flexDirection: "row",
+    gap: 5,
+    paddingHorizontal: 9,
+    alignItems: "center",
+    borderRadius: 12,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#EADFE5",
+  },
+  budgetActive: {
+    backgroundColor: tokens.color.brandLight,
+    borderColor: tokens.color.brandStrong,
+  },
+  budgetText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: tokens.color.brandStrong,
+  },
+  clearBudget: {
+    minHeight: 30,
+    justifyContent: "center",
+    alignSelf: "flex-start",
+  },
+  suggestions: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
+  empty: { padding: 14, gap: 15, borderRadius: 16, backgroundColor: "#FFFFFF" },
+  endNote: {
+    fontSize: 11,
+    lineHeight: 17,
+    textAlign: "center",
+    paddingVertical: 24,
+    color: tokens.color.muted,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(25,15,22,0.4)",
+    justifyContent: "flex-end",
+  },
+  dismissArea: { flex: 1 },
+  sheet: {
+    backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    padding: 22,
+    gap: 18,
+    maxWidth: 600,
+    width: "100%",
+    alignSelf: "center",
+  },
+  budgetInputs: { flexDirection: "row", gap: 14 },
+  inputLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: tokens.color.cocoa,
+    marginBottom: 8,
+  },
+  budgetInput: {
+    borderWidth: 1,
+    borderColor: tokens.color.borderStrong,
+    borderRadius: 13,
+    height: 48,
+    paddingHorizontal: 13,
+    fontSize: 16,
+    color: tokens.color.ink,
+    backgroundColor: "#FCFAFC",
+  },
+  error: { color: tokens.color.error, fontSize: 13 },
 });

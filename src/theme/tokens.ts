@@ -1,45 +1,45 @@
 /**
  * Shared visual primitives for the native Cake City experience.
  *
- * Design language: the warm white, blush and Cake City magenta system from
- * the supplied September 14 three-screen storefront reference. Screens and reusable
+ * Design language: glossy warm-white surfaces with Cake City pink, blue and
+ * cocoa used as deliberate, high-contrast accents. Screens and reusable
  * components should consume these semantic values instead of introducing
  * one-off colours, spacing, or elevation rules.
  */
 export const tokens = {
   color: {
     // Canvas & surfaces
-    background: "#FFFDFE",
+    background: "#FFFEFF",
     surface: "#FFFFFF",
     surfaceRaised: "#FFFFFF",
-    surfaceTint: "#FFF0F6",
-    glass: "rgba(255, 255, 255, 0.76)",
-    glassStrong: "rgba(255, 255, 255, 0.9)",
+    surfaceTint: "#FFF5FA",
+    glass: "rgba(255, 255, 255, 0.82)",
+    glassStrong: "rgba(255, 255, 255, 0.94)",
     white: "#FFFFFF",
 
     // Text
-    ink: "#24151C",
-    cocoa: "#633642",
-    muted: "#82777A",
-    mutedSoft: "#A08C93",
+    ink: "#251914",
+    cocoa: "#51382D",
+    muted: "#766C69",
+    mutedSoft: "#A09490",
 
     // Lines
-    border: "#EADCE2",
-    borderStrong: "#E8C2D1",
+    border: "#EEE6E4",
+    borderStrong: "#EBC7DA",
 
     // Brand
-    brand: "#DF0064",
-    brandStrong: "#D60060",
-    brandPressed: "#B90050",
-    brandDark: "#810033",
-    brandLight: "#FBE7EE",
+    brand: "#EC008C",
+    brandStrong: "#B80068",
+    brandPressed: "#930052",
+    brandDark: "#51382D",
+    brandLight: "#FFF0F8",
 
     // Supporting accents are used sparingly so the catalogue remains pink-led.
-    violet: "#8B4562",
-    violetStrong: "#6F304A",
-    violetLight: "#F5E8ED",
+    violet: "#8A5B72",
+    violetStrong: "#684054",
+    violetLight: "#F6EDF2",
     accent: "#00AEEF",
-    accentStrong: "#006C94",
+    accentStrong: "#006E95",
     accentLight: "#EAF8FE",
     sunshine: "#E8A323",
     sunshineStrong: "#A96B00",
@@ -58,12 +58,12 @@ export const tokens = {
    * Colours are listed in paint order (start → end).
    */
   gradient: {
-    /** Hero / feature banners: magenta → violet → indigo */
-    hero: ["#5B0E35", "#C90859", "#FF4D92"],
-    /** Primary actions: hot magenta → electric purple */
-    primary: ["#F70B72", "#C90859"],
-    /** Cool counterpoint: cyan → periwinkle */
-    cool: ["#00AEEF", "#70B8A8"],
+    /** Hero / feature banners: cocoa → Cake City pink */
+    hero: ["#51382D", "#B80068", "#EC008C"],
+    /** Primary actions: Cake City pink → a rich accessible pink */
+    primary: ["#EC008C", "#B80068"],
+    /** Cool counterpoint, used only for supporting information */
+    cool: ["#00AEEF", "#00749E"],
     /** Rewards & gold moments */
     gold: ["#FFC53D", "#FF8A00"],
     /** Full-screen aurora canvas behind glass surfaces */
@@ -88,24 +88,24 @@ export const tokens = {
   },
   shadow: {
     card: {
-      shadowColor: "#5D263C",
+      shadowColor: "#51382D",
       shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.1,
+      shadowOpacity: 0.08,
       shadowRadius: 12,
       elevation: 3,
     },
     floating: {
-      shadowColor: "#5D263C",
+      shadowColor: "#51382D",
       shadowOffset: { width: 0, height: 10 },
-      shadowOpacity: 0.18,
+      shadowOpacity: 0.13,
       shadowRadius: 22,
       elevation: 8,
     },
-    /** Neon glow used by the futuristic tab bar and hero actions */
+    /** Reserved for a single focused brand action, never a full screen. */
     glow: {
-      shadowColor: "#D90C61",
+      shadowColor: "#EC008C",
       shadowOffset: { width: 0, height: 6 },
-      shadowOpacity: 0.42,
+      shadowOpacity: 0.24,
       shadowRadius: 16,
       elevation: 8,
     },

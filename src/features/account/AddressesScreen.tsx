@@ -8,13 +8,14 @@ import {
   Feedback,
   Chip,
   Section,
-  ui,
+  ui as baseUi,
   useToast,
 } from "@/components/ui/Commerce";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { customerApi } from "@/features/commerce/api";
 import type { SavedAddress } from "@/features/commerce/contracts";
+import { useThemedStyles } from "@/theme/ThemeProvider";
 export function AddressesScreen() {
   return (
     <Screen title="Your happy places." back>
@@ -25,6 +26,7 @@ export function AddressesScreen() {
   );
 }
 function AddressList() {
+  const ui = useThemedStyles(baseUi);
   const { customer } = useAuth();
   const cache = useQueryClient();
   const toast = useToast();

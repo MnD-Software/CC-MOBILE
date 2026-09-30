@@ -1,40 +1,27 @@
 # Cake City mobile API integration
 
-The native app never calculates a charge locally. Product browsing uses the real
-Cake City public WooCommerce Store API. Account, quoting, orders, rewards and
-payments use `EXPO_PUBLIC_API_URL`. A missing API has an explicit unavailable state.
+The mobile API is `https://cc-mobile-1.onrender.com`. The native app treats it
+as the authoritative boundary for account identity and catalogue visibility; it
+does not fall back to bundled display products when that service is unavailable.
 
-The earlier production audit recorded inspection of a sibling FastAPI backend.
-That sibling path is absent in the current workspace. The contracts below are
-implemented by this client and covered by contract tests; they are **not evidence
-that the corresponding backend is deployed or reachable**.
+## Verified live capabilities (2026-09-19)
 
-## Existing integration contracts
-
-| Feature | Request | Important behavior |
+| Feature | Request | Mobile behavior |
 | --- | --- | --- |
-| Catalogue | `GET https://cakecity.co.ke/wp-json/wc/store/v1/products` | 24 items/page; server search, category, sale, price filters and sorting. Prices use the declared currency minor unit. |
-| Categories | `GET /products/categories` on the Store API | Parents, children and real category imagery. |
-| Product | `GET /products/{id}` on the Store API | Stock, attributes, variations, images and price. Saved items resolve through `?slug=`. |
-| Email identity | `POST /v1/auth/mobile/register`, `/login` | Validated bearer session; refresh token in native Keychain/Keystore. |
-| Google identity | `POST /v1/auth/mobile/google` | Exchange `{id_token}`; requires actual Google client IDs and native signing setup. |
-| Session | `POST /v1/auth/mobile/refresh`, `/logout` | Rotating `{refresh_token}`; logout supports HTTP 204. Concurrent 401s share one refresh. |
-| Quote | `POST /v1/checkout/quote` | Product slug, quantity, size, message, add-ons, fulfilment and optional configuration IDs. No client amount. |
-| Payment | `POST /v1/payments/intents` | Preserve `mpesa`, `card`, `wallet`; `Idempotency-Key`, checkout, customer and address. |
-| Payment status | `GET /v1/payments/intents/{id}` | `X-Payment-Secret`; only server `paid` confirms success. Returning from a hosted page is insufficient. |
-| Orders | `GET /v1/account/orders`, `GET /{reference}` | Authenticated account ownership, totals, timeline, driver location and ETA when supplied. |
-| Reorder | `POST /v1/account/orders/{reference}/reorder` | Available lines with current prices/configuration plus explanations for unavailable lines. |
-| Addresses | `GET/POST /v1/account/addresses`, `PUT/DELETE /{id}` | Persisted addresses; default-address state belongs to the server. |
-| Favourites | `GET /v1/account/saved/cakes`, `PUT/DELETE /{slug}` | Account-backed saved products. |
-| Rewards | `GET /v1/account/rewards`, `/rewards/activity` | Account balance, tiers, wallet, referral and transaction history. |
-| Redemption | `POST /v1/account/rewards/redeem` | `{points}` and idempotency key; server enforces redemption limits and calculates wallet credit. |
-| Moments | `GET/POST /v1/account/moments`, `DELETE /{id}` | Birthdays/events and requested reminder days. The backend schedules reminders. |
-| Inbox | `GET /v1/account/notifications`, `POST /{id}/read` | No fabricated notifications. |
-| Preferences | `GET/PUT /v1/account/notifications/preferences` | In-app, email, push, SMS and WhatsApp preferences. |
-| Courier chat | `GET/POST /v1/account/orders/{reference}/delivery/messages` | Available only with server-provided delivery tracking. |
+| Catalogue | `GET /v1/catalogue/products?page=&per_page=&search=` | Raw current WooCommerce product records. The proxy supports pagination and search; it does not currently forward totals, categories, price/sale filters or sort metadata. |
+| Email registration | `POST /v1/auth/mobile/register` | Requires valid email, 8-128 character password, first name and last name (1-80 characters), optional phone. Returns a bearer/refresh session. |
+| Email sign-in | `POST /v1/auth/mobile/login` | Returns the same session shape; refresh token remains in native Keychain/Keystore. |
+| Session | `POST /v1/auth/mobile/refresh`, `/logout` | Refresh rotates the native session; logout returns HTTP 204. |
+| Mobile config | `GET /v1/mobile/config` | Available, but current capabilities do not enable checkout, rewards, delivery or studio ordering. |
 
-Runtime schemas are in `src/features/commerce/contracts.ts`. API calls are in
-`src/features/commerce/api.ts`; authentication is in `src/auth/api.ts`.
+`/v1/auth/mobile/google`, password-reset routes, account orders, addresses,
+favourites, rewards, checkout quotes, payments and delivery routes are not live
+on this deployment. The app intentionally does not present them as working
+actions. Device-local saved cakes are labelled as local and are resolved against
+the current catalogue before display.
+
+Runtime schemas are in `src/features/commerce/contracts.ts`. The API boundary is
+in `src/features/commerce/api.ts`; authentication is in `src/auth/api.ts`.
 
 ## Required additive backend capabilities
 
