@@ -4,9 +4,9 @@ import {
   PressableProps,
   StyleProp,
   StyleSheet,
-  Text,
   ViewStyle,
 } from "react-native";
+import { Text } from "@/components/ui/Typography";
 import { tokens } from "@/theme/tokens";
 import { selectionFeedback } from "@/native/haptics";
 import { useTheme } from "@/theme/ThemeProvider";
@@ -29,7 +29,7 @@ const variantStyles: Record<
 > = {
   primary: {
     bg: tokens.color.brandStrong,
-    border: tokens.color.brandDark,
+    border: tokens.color.brandStrong,
     text: tokens.color.white,
   },
   secondary: {

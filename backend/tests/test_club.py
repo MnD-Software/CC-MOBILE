@@ -268,3 +268,25 @@ def test_cloud_wallet_merges_codes_idempotently_and_is_account_isolated(client):
     assert client.get("/v1/club/coupons", headers=bob).json() == []
     assert client.post("/v1/club/coupons/remove", headers=bob, json={"code": "welcome"}).status_code == 200
     assert client.get("/v1/club/coupons", headers=alice).json() == ["birthday", "welcome"]
+
+
+def test_branch_barcode_lookup_is_staff_only_and_identifies_without_redeeming(client):
+    import base64
+    from uuid import UUID
+    from app.models import Customer
+    target, target_headers = register(client)
+    staff_id, staff_headers = register(client)
+    code = "CC1:" + base64.urlsafe_b64encode(UUID(target).bytes).decode().rstrip("=")
+    body = {"barcode": code}
+    assert client.post("/v1/admin/club/lookup", json=body).status_code == 401
+    assert client.post("/v1/admin/club/lookup", headers=target_headers, json=body).status_code == 403
+    with SessionLocal() as db:
+        db.get(Customer, staff_id).role = "staff"
+        db.commit()
+    response = client.post("/v1/admin/club/lookup", headers=staff_headers, json=body)
+    assert response.status_code == 200
+    assert response.json() == {"member_id": target, "name": "Club Member", "tier": "Silver", "points": 0, "review_required": False}
+    assert client.post("/v1/admin/club/lookup", headers=staff_headers, json={"barcode": "CC1:" + "!" * 22}).status_code == 422
+    missing = "CC1:" + base64.urlsafe_b64encode(uuid4().bytes).decode().rstrip("=")
+    assert client.post("/v1/admin/club/lookup", headers=staff_headers, json={"barcode": missing}).status_code == 404
+    assert client.get("/v1/club", headers=target_headers).json()["points"] == 0

@@ -48,9 +48,18 @@ test("recovered history stays account-scoped and stale recovery cannot save", as
     filename: storagePath,
     loaded: true,
     exports: {
-      getStorageItem: async (key) => storage.get(key) ?? null,
-      setStorageItem: async (key, value) => storage.set(key, value),
-      deleteStorageItem: async (key) => storage.delete(key),
+      getStorageItem: async (key) => {
+        assert.match(key, /^[A-Za-z0-9._-]+$/);
+        return storage.get(key) ?? null;
+      },
+      setStorageItem: async (key, value) => {
+        assert.match(key, /^[A-Za-z0-9._-]+$/);
+        storage.set(key, value);
+      },
+      deleteStorageItem: async (key) => {
+        assert.match(key, /^[A-Za-z0-9._-]+$/);
+        storage.delete(key);
+      },
     },
   };
   const apiPath = require.resolve(

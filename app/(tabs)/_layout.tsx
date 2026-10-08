@@ -32,7 +32,7 @@ export default function TabLayout() {
 
   return (
     <Tabs
-      tabBar={(props) => <FloatingTabBar {...props} />}
+      tabBar={() => null}
       backBehavior="history"
       screenOptions={({ route }) => {
         const icons =

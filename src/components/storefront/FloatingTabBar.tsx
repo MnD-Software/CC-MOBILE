@@ -1,17 +1,18 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Tabs } from "expo-router";
+import { Tabs, router, usePathname } from "expo-router";
 import { useEffect, useRef, useState, type ComponentProps } from "react";
 import {
   Animated,
-  Easing,
   Keyboard,
   Platform,
+  PanResponder,
   Pressable,
   StyleSheet,
-  Text,
   View,
   useWindowDimensions,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { Text } from "@/components/ui/Typography";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useReducedMotion } from "@/design/useReducedMotion";
 import { selectionFeedback } from "@/native/haptics";
@@ -36,7 +37,12 @@ const destinations = [
   { name: "account", label: "You", icon: "person-outline", active: "person" },
 ] as const;
 
-export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
+export function FloatingTabBar(
+  props: BottomTabBarProps | Record<string, never> = {},
+) {
+  const state = "state" in props ? props.state : undefined;
+  const navigation = "navigation" in props ? props.navigation : undefined;
+  const pathname = usePathname();
   const styles = useThemedStyles(baseStyles);
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
@@ -46,16 +52,138 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
   const [railWidth, setRailWidth] = useState(0);
   const highlightX = useRef(new Animated.Value(0)).current;
   const previousRailWidth = useRef(0);
+  const dragStart = useRef(0);
+  const currentX = useRef(0);
+  const lens = useRef(new Animated.Value(0)).current;
+  const dragging = useRef(false);
   const activeIndex = destinations.findIndex(
-    (destination) => destination.name === state.routes[state.index].name,
+    (destination) =>
+      destination.name ===
+      (state
+        ? state.routes[state.index].name
+        : pathname === "/"
+          ? "index"
+          : pathname.startsWith("/product") ||
+              pathname.startsWith("/cart") ||
+              pathname.startsWith("/search")
+            ? "shop"
+            : pathname.startsWith("/order")
+              ? "orders"
+              : pathname.startsWith("/loyalty")
+                ? "loyalty"
+                : pathname.split("/")[1]),
   );
   const tabWidth = Math.max(
     0,
     (railWidth - 2 * (destinations.length - 1)) / destinations.length,
   );
+  const settle = (position: number, velocity = 0) => {
+    highlightX.stopAnimation();
+    if (reduceMotion) {
+      highlightX.setValue(position);
+      return;
+    }
+    Animated.spring(highlightX, {
+      toValue: position,
+      velocity,
+      stiffness: 330,
+      damping: 32,
+      mass: 0.85,
+      overshootClamping: true,
+      useNativeDriver: Platform.OS !== "web",
+    }).start();
+  };
+  const releaseLens = () => {
+    dragging.current = false;
+    Animated.spring(lens, {
+      toValue: 0,
+      stiffness: 300,
+      damping: 28,
+      useNativeDriver: Platform.OS !== "web",
+    }).start();
+  };
+  const navigateTo = (index: number) => {
+    const destination = destinations[index];
+    const route = state?.routes.find((item) => item.name === destination.name);
+    if (navigation && route) {
+      const event = navigation.emit({
+        type: "tabPress",
+        target: route.key,
+        canPreventDefault: true,
+      });
+      if (event.defaultPrevented) {
+        settle(Math.max(0, activeIndex) * (tabWidth + 2));
+        return;
+      }
+      if (activeIndex !== index) navigation.navigate(route.name, route.params);
+    } else if (activeIndex !== index) {
+      router.navigate(
+        destination.name === "index"
+          ? "/(tabs)"
+          : `/(tabs)/${destination.name}`,
+      );
+    }
+    if (activeIndex !== index) void selectionFeedback();
+    settle(index * (tabWidth + 2));
+  };
+  const swipe = PanResponder.create({
+    onMoveShouldSetPanResponder: (_, gesture) =>
+      railWidth > 0 &&
+      Math.abs(gesture.dx) > 6 &&
+      Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.5,
+    onPanResponderGrant: () => {
+      dragging.current = true;
+      highlightX.stopAnimation();
+      dragStart.current = currentX.current;
+      Animated.timing(lens, {
+        toValue: reduceMotion ? 0 : 1,
+        duration: 130,
+        useNativeDriver: Platform.OS !== "web",
+      }).start();
+    },
+    onPanResponderMove: (_, gesture) => {
+      const position = Math.max(
+        0,
+        Math.min(
+          (destinations.length - 1) * (tabWidth + 2),
+          dragStart.current + gesture.dx,
+        ),
+      );
+      currentX.current = position;
+      highlightX.setValue(position);
+    },
+    onPanResponderRelease: (_, gesture) => {
+      releaseLens();
+      const step = Math.max(1, tabWidth + 2);
+      // A short, bounded projection makes flicks responsive without skipping
+      // several destinations when the finger lifts at high speed.
+      const momentum = reduceMotion
+        ? 0
+        : Math.max(-step * 0.3, Math.min(step * 0.3, gesture.vx * 70));
+      const index = Math.max(
+        0,
+        Math.min(
+          destinations.length - 1,
+          Math.round((dragStart.current + gesture.dx + momentum) / step),
+        ),
+      );
+      navigateTo(index);
+    },
+    onPanResponderTerminate: () => {
+      releaseLens();
+      settle(Math.max(0, activeIndex) * (tabWidth + 2));
+    },
+  });
 
   useEffect(() => {
-    if (railWidth <= 0 || activeIndex < 0) return;
+    const listener = highlightX.addListener(({ value }) => {
+      currentX.current = value;
+    });
+    return () => highlightX.removeListener(listener);
+  }, [highlightX]);
+
+  useEffect(() => {
+    if (railWidth <= 0 || activeIndex < 0 || dragging.current) return;
     const nextPosition = activeIndex * (tabWidth + 2);
     const geometryChanged = previousRailWidth.current !== railWidth;
     previousRailWidth.current = railWidth;
@@ -66,10 +194,12 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
     }
     // Move the glass itself; fading a glass ancestor to zero breaks native
     // Liquid Glass rendering on iOS 26.
-    const animation = Animated.timing(highlightX, {
+    const animation = Animated.spring(highlightX, {
       toValue: nextPosition,
-      duration: 280,
-      easing: Easing.bezier(0.2, 0.8, 0.2, 1),
+      stiffness: 330,
+      damping: 32,
+      mass: 0.85,
+      overshootClamping: true,
       useNativeDriver: Platform.OS !== "web",
     });
     animation.start();
@@ -94,7 +224,7 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
   return (
     <View
       pointerEvents="box-none"
-      style={[styles.position, { bottom: Math.max(insets.bottom, 12) }]}
+      style={[styles.position, { bottom: insets.bottom + 10 }]}
     >
       <View
         style={[
@@ -104,6 +234,7 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
       >
         <GlassSurface style={styles.dock}>
           <View
+            {...swipe.panHandlers}
             onLayout={(event) => setRailWidth(event.nativeEvent.layout.width)}
             style={styles.rail}
           >
@@ -112,45 +243,67 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
                 pointerEvents="none"
                 style={[
                   styles.highlight,
-                  { width: tabWidth, transform: [{ translateX: highlightX }] },
+                  {
+                    width: tabWidth,
+                    transform: [
+                      { translateX: highlightX },
+                      {
+                        scaleX: lens.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [1, 1.045],
+                        }),
+                      },
+                      {
+                        scaleY: lens.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [1, 1.025],
+                        }),
+                      },
+                    ],
+                  },
                 ]}
               >
                 <GlassSurface
+                  interactive={!reduceMotion}
                   glassStyle="clear"
                   tintColor="rgba(236,0,140,0.06)"
                   style={styles.highlightGlass}
                 >
                   <View style={styles.highlightTint} />
+                  <LinearGradient
+                    pointerEvents="none"
+                    colors={[
+                      "rgba(255,255,255,0.60)",
+                      "rgba(255,255,255,0.02)",
+                      "rgba(236,0,140,0.09)",
+                    ]}
+                    locations={[0, 0.45, 1]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={StyleSheet.absoluteFill}
+                  />
+                  <View style={styles.lensRim} />
                 </GlassSurface>
               </Animated.View>
             ) : null}
             {destinations.map((destination) => {
-              const route = state.routes.find(
+              const route = state?.routes.find(
                 (item) => item.name === destination.name,
               );
-              if (!route) return null;
-              const focused = state.routes[state.index].key === route.key;
+              const focused = activeIndex === destinations.indexOf(destination);
               const isClub = destination.name === "loyalty";
               return (
                 <Pressable
-                  key={route.key}
+                  key={destination.name}
                   accessibilityRole="tab"
                   accessibilityLabel={
                     isClub ? "Cake City Club" : destination.label
                   }
                   accessibilityState={{ selected: focused }}
-                  onPress={() => {
-                    const event = navigation.emit({
-                      type: "tabPress",
-                      target: route.key,
-                      canPreventDefault: true,
-                    });
-                    if (!focused && !event.defaultPrevented) {
-                      void selectionFeedback();
-                      navigation.navigate(route.name, route.params);
-                    }
-                  }}
+                  onPress={() => navigateTo(destinations.indexOf(destination))}
                   onLongPress={() =>
+                    navigation &&
+                    route &&
                     navigation.emit({ type: "tabLongPress", target: route.key })
                   }
                   style={({ pressed }) => [
@@ -166,7 +319,7 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
                         isClub
                           ? "#FFFFFF"
                           : focused
-                            ? colors.brandStrong
+                            ? colors.brand
                             : colors.cocoa
                       }
                     />
@@ -221,6 +374,19 @@ const baseStyles = StyleSheet.create({
     borderColor: "rgba(236,0,140,0.10)",
     backgroundColor: "rgba(236,0,140,0.07)",
   },
+  lensRim: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    borderRadius: 28,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "rgba(255,255,255,0.95)",
+    borderLeftColor: "rgba(255,255,255,0.7)",
+    borderRightColor: "rgba(236,0,140,0.16)",
+    borderBottomColor: "rgba(236,0,140,0.20)",
+  },
   tab: {
     flex: 1,
     minWidth: 44,
@@ -239,10 +405,10 @@ const baseStyles = StyleSheet.create({
   clubFace: {
     marginHorizontal: 4,
     borderRadius: 25,
-    backgroundColor: tokens.color.brandStrong,
+    backgroundColor: tokens.color.brand,
   },
   pressed: { transform: [{ scale: 0.96 }] },
-  label: { fontSize: 10, fontWeight: "600", color: tokens.color.cocoa },
+  label: { fontSize: 11, fontWeight: "600", color: tokens.color.cocoa },
   activeLabel: { fontWeight: "800", color: tokens.color.brandStrong },
   clubLabel: { color: "#FFFFFF", fontWeight: "800" },
 });

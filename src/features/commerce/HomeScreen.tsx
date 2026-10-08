@@ -11,10 +11,10 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
   View,
   useWindowDimensions,
 } from "react-native";
+import { Text } from "@/components/ui/Typography";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/auth/AuthProvider";
 import { BrandLogo } from "@/components/BrandLogo";
@@ -113,7 +113,7 @@ const occasionIdeas: readonly OccasionIdea[] = [
     title: "Pink Simba",
     query: "pink simba",
     image:
-      "https://i0.wp.com/cakecity.co.ke/wp-content/uploads/2024/08/simba-Photoroom.jpg?fit=520%2C520&ssl=1",
+      "https://i0.wp.com/cakecity.co.ke/wp-content/uploads/2024/08/simba-Photoroom.webp?fit=520%2C520&ssl=1",
     tint: "#FFF0F8",
   },
   {
@@ -200,12 +200,17 @@ export function HomeScreen() {
   );
   const carouselItems = useMemo<CarouselItem[]>(
     () =>
-      dealsAndSteals.map((product) => ({
+      (dealsAndSteals.length
+        ? dealsAndSteals
+        : (signatures.data ?? [])
+            .filter((product) => product.is_in_stock && product.is_purchasable)
+            .slice(0, 3)
+      ).map((product) => ({
         id: `deal-${product.id}`,
         kind: "deal" as const,
         product,
       })),
-    [dealsAndSteals],
+    [dealsAndSteals, signatures.data],
   );
   // FlatList measures its paging cells once. Re-key it when an orientation,
   // safe-area, or live-deal change alters their width/order, so it cannot hold
@@ -270,9 +275,6 @@ export function HomeScreen() {
     setActiveSlide(0);
   }, [carouselLayoutKey]);
 
-  const greeting = customer?.first_name
-    ? `Hello, ${customer.first_name}`
-    : "Welcome to Cake City";
   const openShop = () => router.push("/(tabs)/shop");
   const openProduct = (product: StoreProduct) =>
     router.push({
@@ -299,9 +301,6 @@ export function HomeScreen() {
           brand={
             <View style={styles.brandBlock}>
               <BrandLogo width={108} />
-              <Text numberOfLines={1} style={styles.greeting}>
-                {greeting}
-              </Text>
             </View>
           }
         >
@@ -328,7 +327,10 @@ export function HomeScreen() {
       }
     >
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: insets.bottom + 112 },
+        ]}
         keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
@@ -339,18 +341,6 @@ export function HomeScreen() {
             <View pointerEvents="none" style={styles.ambientBlue} />
           </>
         ) : null}
-        <View style={styles.editorial}>
-          <Text style={styles.editorialEyebrow}>
-            A LITTLE JOY. A BIG CELEBRATION.
-          </Text>
-          <Text accessibilityRole="header" style={styles.editorialTitle}>
-            Make room for{"\n"}something sweet.
-          </Text>
-          <Text style={styles.editorialCopy}>
-            Your next favourite cake starts here.
-          </Text>
-        </View>
-
         {catalogue.isPending ? (
           <HomeSkeleton cardWidth={collectionCardWidth} />
         ) : catalogue.isError ? (
@@ -419,50 +409,8 @@ export function HomeScreen() {
               </View>
             </View>
 
-            <View style={styles.shortcuts}>
-              {(
-                [
-                  {
-                    title: "Cake concierge",
-                    detail: "Help with an order",
-                    icon: "chatbubble-ellipses-outline",
-                    href: "/help",
-                  },
-                  {
-                    title: "Cake Studio",
-                    detail: "Make it yours",
-                    icon: "color-wand-outline",
-                    href: "/(tabs)/custom",
-                  },
-                  {
-                    title: "Find a bakery",
-                    detail: "Visit Cake City",
-                    icon: "location-outline",
-                    href: "/branches",
-                  },
-                ] as const
-              ).map((item) => (
-                <Pressable
-                  key={item.title}
-                  accessibilityRole="button"
-                  onPress={() => router.push(item.href)}
-                  style={({ pressed }) => [
-                    styles.shortcut,
-                    pressed && styles.pressed,
-                  ]}
-                >
-                  <View style={styles.shortcutIcon}>
-                    <Ionicons
-                      name={item.icon}
-                      size={21}
-                      color={colors.brandStrong}
-                    />
-                  </View>
-                  <Text style={styles.shortcutTitle}>{item.title}</Text>
-                  <Text style={styles.shortcutDetail}>{item.detail}</Text>
-                </Pressable>
-              ))}
-            </View>
+            <CollectionGrid cardWidth={collectionCardWidth} />
+            <OccasionRail />
 
             {continueShopping.length ? (
               <View style={styles.continueShopping}>
@@ -488,10 +436,6 @@ export function HomeScreen() {
                 />
               </View>
             ) : null}
-
-            <OccasionRail />
-
-            <CollectionGrid cardWidth={collectionCardWidth} />
 
             <View style={styles.featured}>
               <View style={styles.sectionPadding}>
@@ -540,7 +484,7 @@ export function HomeScreen() {
                   style={styles.featuredEmpty}
                 >
                   <Text style={styles.featuredEmptyText}>
-                    Explore live Signature Cakes
+                    Explore Signature Cakes
                   </Text>
                   <Ionicons
                     color={colors.brandStrong}
@@ -572,7 +516,7 @@ function DealSlide({
     <Pressable
       accessibilityHint="Opens this cake and its available options"
       accessibilityLabel={`${plainText(product.name)}. ${
-        price !== null ? money(price) : "Live offer"
+        price !== null ? money(price) : "View offer"
       }`}
       accessibilityRole="button"
       onPress={onPress}
@@ -596,7 +540,11 @@ function DealSlide({
       <View style={styles.dealCopy}>
         <View style={styles.dealPill}>
           <Ionicons color="#FFFFFF" name="sparkles" size={12} />
-          <Text style={styles.dealPillText}>DEALS & STEALS</Text>
+          <Text style={styles.dealPillText}>
+            {isDealsAndSteals(product)
+              ? "DEALS & STEALS"
+              : "THE SIGNATURE EDIT"}
+          </Text>
         </View>
         <Text numberOfLines={2} style={styles.dealTitle}>
           {plainText(product.name)}
@@ -645,12 +593,11 @@ function EmptyDealSlide({
         style={StyleSheet.absoluteFill}
       />
       <Ionicons name="sparkles" color="rgba(255,255,255,0.96)" size={62} />
-      <Text style={styles.emptyKicker}>DEALS & STEALS</Text>
-      <Text style={styles.emptyTitle}>
-        No Deals & Steals available right now.
-      </Text>
+      <Text style={styles.emptyKicker}>A SLICE OF SOMETHING SPECIAL</Text>
+      <Text style={styles.emptyTitle}>Big moments. Little treats.</Text>
       <Text style={styles.emptyCopy}>
-        Browse today’s live cakes and check back for the next Deal & Steal.
+        Find a cake that makes it yours. Explore flavours, designs and
+        celebrations.
       </Text>
     </Pressable>
   );
@@ -682,7 +629,7 @@ function OccasionRail() {
         {occasionIdeas.map((occasion) => (
           <Pressable
             key={occasion.id}
-            accessibilityHint="Opens live Cake City cakes for this occasion"
+            accessibilityHint="Opens Cake City cakes for this occasion"
             accessibilityLabel={`Browse ${occasion.title} cakes`}
             accessibilityRole="button"
             onPress={() =>
@@ -746,7 +693,7 @@ function CollectionGrid({ cardWidth }: { cardWidth: number }) {
         {homeCollections.map((collection) => (
           <Pressable
             key={collection.id}
-            accessibilityHint="Opens the live category in Shop"
+            accessibilityHint="Opens this category in Shop"
             accessibilityLabel={`Browse ${collection.name}`}
             accessibilityRole="button"
             onPress={() =>
@@ -879,20 +826,24 @@ const baseStyles = StyleSheet.create({
     fontWeight: "800",
     letterSpacing: 0.2,
   },
-  searchGlass: { borderRadius: 22, ...tokens.shadow.card },
+  searchGlass: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: tokens.color.border,
+  },
   search: {
-    minHeight: 58,
+    minHeight: 48,
     flexDirection: "row",
     alignItems: "center",
     gap: 11,
     paddingHorizontal: 10,
   },
   searchIcon: {
-    width: 38,
-    height: 38,
+    width: 32,
+    height: 32,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 14,
+    borderRadius: 11,
     backgroundColor: tokens.color.brandLight,
   },
   searchText: { flex: 1, color: tokens.color.muted, fontSize: 13.5 },
@@ -1063,7 +1014,7 @@ const baseStyles = StyleSheet.create({
     borderColor: "rgba(81,56,45,0.12)",
     ...tokens.shadow.card,
   },
-  collectionImage: { width: "100%", height: 126 },
+  collectionImage: { width: "100%", height: 126, backgroundColor: "#FFFFFF" },
   collectionLabelBand: {
     minHeight: 46,
     flexDirection: "row",

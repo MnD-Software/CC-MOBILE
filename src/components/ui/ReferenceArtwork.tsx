@@ -1,7 +1,8 @@
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useRef, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { Text } from "@/components/ui/Typography";
 import { recordPerformanceMetric } from "@/observability/commerce-events";
 
 // Display the supplied artwork without resampling or redrawing the brand marks.

@@ -31,7 +31,12 @@ const historySchema = z
 export type WebsiteOrderRecord = z.infer<typeof historySchema>[number];
 
 function historyKey(ownerScope: string) {
-  return `${HISTORY_KEY_PREFIX}${encodeURIComponent(ownerScope)}`;
+  // SecureStore accepts only letters, digits, dots, hyphens and underscores.
+  // URI encoding introduces percent signs for the customer: scope separator.
+  const safeScope = Array.from(ownerScope, (character) =>
+    character.codePointAt(0)!.toString(16).padStart(6, "0"),
+  ).join("");
+  return `${HISTORY_KEY_PREFIX}${safeScope}`;
 }
 
 async function removeLegacyHistory() {

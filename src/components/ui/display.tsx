@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, View, ViewStyle } from "react-native";
+import { Text } from "@/components/ui/Typography";
 import { tokens } from '@/theme/tokens';
 
 /** Badge — used for status pills, sale tags, stock availability. */

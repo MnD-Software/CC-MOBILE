@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -12,10 +12,10 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
   TextInput,
   View,
 } from "react-native";
+import { Text, brandFontFamily } from "@/components/ui/Typography";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   Chip,
@@ -33,45 +33,29 @@ import { tokens } from "@/theme/tokens";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import { plainText, type StoreProduct } from "./contracts";
 import { CATALOGUE_GC_TIME_MS, CATALOGUE_STALE_TIME_MS, shopApi } from "./api";
-import { homeCollections } from "./collection-artwork";
 import { suggestedSearchTerm, browseSearchIdeas } from "./search-intelligence";
 import { usePreferences } from "./store";
 import { parseBudget } from "./shop-browse";
 
-// Do not include the broad Classics parent (71): its children also contain
-// party accessories and a published test record, not just cakes.
-const menuCategories = [229, 168, 169, 170, 171, 72, 110, 112];
-const departments = [
-  { label: "Signature", id: 229 },
-  { label: "Menu cakes", id: 0 },
-  { label: "Chocolate sponge", id: 168 },
-  { label: "Pound cakes", id: 170 },
-  { label: "Vanilla sponge", id: 169 },
-  { label: "Cheesecakes", id: 171 },
-] as const;
-const roots = [
-  { id: 229, name: "Signature", icon: "ribbon-outline" },
-  { id: 168, name: "Chocolate", icon: "cafe-outline" },
-  { id: 169, name: "Vanilla", icon: "flower-outline" },
-  { id: 170, name: "Pound", icon: "layers-outline" },
-  { id: 171, name: "Cheesecakes", icon: "pie-chart-outline" },
-  { id: 72, name: "Instant cakes", icon: "flash-outline" },
-  { id: 110, name: "Cupcakes", icon: "ice-cream-outline" },
-  { id: 112, name: "Tea cakes", icon: "cafe-outline" },
-] as const;
+import { BrandLogo } from "@/components/BrandLogo";
+import {
+  shopDepartments,
+  departmentForCategory,
+  matchesShopSelection,
+  type ShopDepartmentId,
+} from "./shop-departments";
 const knownIds: Record<string, number> = {
   "signature cakes": 229,
-  "chocolate base sponge": 168,
   "vanilla base sponge": 169,
+  "chocolate base sponge": 168,
   "pound cakes": 170,
   "cheese cakes": 171,
-  "custom cakes": 123,
   "deals and steals": 206,
 };
 
 export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
   const styles = useThemedStyles(baseStyles);
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const params = useLocalSearchParams<{
     category?: string;
     categoryName?: string;
@@ -84,7 +68,9 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
   const listRef = useRef<FlatList<StoreProduct>>(null);
   const [search, setSearch] = useState(params.search ?? "");
   const [debounced, setDebounced] = useState(search);
-  const [department, setDepartment] = useState(0);
+  const [department, setDepartment] = useState<ShopDepartmentId>("all");
+  const [subfilter, setSubfilter] = useState("all");
+  const [paneWidth, setPaneWidth] = useState(0);
   const [category, setCategory] = useState<number | undefined>();
   const [budgetOpen, setBudgetOpen] = useState(false);
   const [minimum, setMinimum] = useState("");
@@ -103,9 +89,9 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
     setCategory(
       Number.isSafeInteger(selected) && selected > 0 ? selected : undefined,
     );
-    setDepartment(
-      departments.some((item) => item.id === selected) ? selected : 0,
-    );
+    const next = departmentForCategory(selected);
+    setDepartment(next);
+    setSubfilter(shopDepartments.find((d) => d.id === next)!.filters[0].id);
     setSearch(params.search ?? "");
   }, [params.category, params.categoryName, params.search]);
   useEffect(() => {
@@ -113,31 +99,12 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
     return () => clearTimeout(timer);
   }, [search]);
 
-  const categoriesQuery = useQuery({
-    queryKey: ["catalogue", "categories"],
-    queryFn: ({ signal }) => shopApi.categories(signal),
-    staleTime: CATALOGUE_STALE_TIME_MS,
-    gcTime: CATALOGUE_GC_TIME_MS,
-  });
-  const childCategories = (categoriesQuery.data ?? []).filter(
-    (item) => item.parent === department,
-  );
-  const rail =
-    department && childCategories.length
-      ? childCategories.map((item) => ({
-          id: item.id,
-          name: plainText(item.name),
-          icon: "sparkles-outline" as const,
-        }))
-      : roots;
-  const selectedCategories =
-    debounced && !category && !department
-      ? undefined
-      : category
-        ? [category]
-        : department
-          ? [department]
-          : menuCategories;
+  const selection = shopDepartments.find((item) => item.id === department)!;
+  const selectedCategories = debounced
+    ? undefined
+    : category && department === "all"
+      ? [category]
+      : selection.categories;
   const products = useInfiniteQuery({
     queryKey: [
       "catalogue",
@@ -149,7 +116,7 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
       shopApi.browseProducts(
         {
           page: pageParam,
-          perPage: 16,
+          perPage: 100,
           search: debounced,
           categories: selectedCategories,
           ...budget,
@@ -163,27 +130,18 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
     refetchOnWindowFocus: false,
   });
   const rows = useMemo(
-    () => [
-      ...new Map(
-        (products.data?.pages.flatMap((page) => page.data) ?? []).map(
-          (product) => [product.id, product],
-        ),
-      ).values(),
-    ],
-    [products.data],
+    () =>
+      [
+        ...new Map(
+          (products.data?.pages.flatMap((page) => page.data) ?? []).map(
+            (product) => [product.id, product],
+          ),
+        ).values(),
+      ].filter((product) =>
+        debounced ? true : matchesShopSelection(product, department, subfilter),
+      ),
+    [products.data, department, subfilter, debounced],
   );
-  const activeName =
-    (categoriesQuery.data ?? []).find((item) => item.id === category)?.name ??
-    roots.find((item) => item.id === category)?.name ??
-    departments.find((item) => item.id === department)?.label ??
-    "Menu cakes";
-  const title = debounced
-    ? `Results for “${debounced}”`
-    : plainText(activeName);
-  const collection =
-    homeCollections.find(
-      (item) => knownIds[item.lookup[0]] === (category ?? department),
-    ) ?? homeCollections[5];
   const hasBudget =
     budget.minimumKes !== undefined || budget.maximumKes !== undefined;
   const budgetLabel = hasBudget
@@ -192,17 +150,19 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
   const suggestion = suggestedSearchTerm(debounced);
   useEffect(() => {
     listRef.current?.scrollToOffset({ offset: 0, animated: false });
-  }, [department, category, debounced, budget]);
+  }, [department, category, subfilter, debounced, budget]);
 
-  const selectDepartment = (id: number) => {
+  const selectDepartment = (id: ShopDepartmentId) => {
     setDepartment(id);
+    setSubfilter(shopDepartments.find((d) => d.id === id)!.filters[0].id);
     setCategory(undefined);
     setSearch("");
   };
   const changeSearch = (value: string) => {
     setSearch(value);
     setCategory(undefined);
-    setDepartment(0);
+    setDepartment("all");
+    setSubfilter("all");
   };
   const applyBudget = () => {
     try {
@@ -235,9 +195,7 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
                   }
                 />
               ) : null}
-              <Text accessibilityRole="header" style={styles.title}>
-                {searchOnly ? "Find your cake" : "The cake shop"}
-              </Text>
+              <BrandLogo width={100} />
             </View>
           }
         >
@@ -274,23 +232,6 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
       }
     >
       <View style={styles.shell}>
-        <View style={styles.departments}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.departmentContent}
-          >
-            {departments.map((item) => (
-              <Chip
-                key={item.id}
-                label={item.label}
-                selected={department === item.id}
-                filled
-                onPress={() => selectDepartment(item.id)}
-              />
-            ))}
-          </ScrollView>
-        </View>
         <View style={styles.body}>
           {!searchOnly && !debounced ? (
             <ScrollView
@@ -298,28 +239,23 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
               showsVerticalScrollIndicator={false}
               contentContainerStyle={{ paddingBottom: insets.bottom + 112 }}
             >
-              {[
-                { id: 0, name: "All cakes", icon: "grid-outline" as const },
-                ...rail,
-              ].map((item) => {
-                const selected = item.id === (category ?? 0);
+              {shopDepartments.map((item) => {
+                const selected = item.id === department;
                 return (
                   <Pressable
                     key={item.id}
                     accessibilityRole="button"
                     accessibilityLabel={item.name}
                     accessibilityState={{ selected }}
-                    onPress={() => {
-                      setCategory(item.id || undefined);
-                      if (item.id && (!department || !childCategories.length))
-                        setDepartment(0);
-                    }}
+                    onPress={() => selectDepartment(item.id)}
                     style={[styles.railItem, selected && styles.railSelected]}
                   >
-                    <Ionicons
-                      name={item.icon}
-                      size={24}
-                      color={selected ? colors.brandStrong : colors.cocoa}
+                    <Image
+                      source={{ uri: item.image }}
+                      contentFit="contain"
+                      cachePolicy="memory-disk"
+                      style={styles.categoryImage}
+                      accessibilityLabel={item.name}
                     />
                     <Text
                       numberOfLines={3}
@@ -339,12 +275,20 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
             </ScrollView>
           ) : null}
           <FlatList
+            stickyHeaderIndices={[0]}
             ref={listRef}
             style={styles.productPane}
+            onLayout={(event) => setPaneWidth(event.nativeEvent.layout.width)}
             data={rows}
+            numColumns={2}
+            columnWrapperStyle={{ gap: 8 }}
             keyExtractor={(item) => String(item.id)}
             renderItem={({ item }) => (
-              <ProductTile product={item} layout="row" />
+              <ProductTile
+                product={item}
+                compact
+                width={Math.max(0, (paneWidth - 28) / 2)}
+              />
             )}
             contentContainerStyle={[
               styles.content,
@@ -361,7 +305,6 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
             refreshing={products.isRefetching && !products.isFetchingNextPage}
             onRefresh={() => {
               void products.refetch();
-              void categoriesQuery.refetch();
             }}
             onEndReachedThreshold={0.5}
             onEndReached={() => {
@@ -374,37 +317,69 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
             }}
             ListHeaderComponent={
               <View style={styles.listHeader}>
-                {!debounced && !searchOnly ? (
-                  <View
-                    style={[
-                      styles.banner,
-                      {
-                        backgroundColor: isDark
-                          ? colors.surfaceTint
-                          : collection.tint,
-                      },
-                    ]}
+                {!debounced ? (
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={{ gap: 16, paddingHorizontal: 4 }}
                   >
-                    <View style={styles.bannerCopy}>
-                      <Text style={styles.eyebrow}>BAKED FOR YOUR MOMENT</Text>
-                      <Text style={styles.bannerTitle}>
-                        A little slice{`\n`}of happiness.
-                      </Text>
-                      <Text style={styles.bannerSubtitle}>
-                        Find your celebration cake.
-                      </Text>
-                    </View>
-                    <Image
-                      source={{ uri: collection.image }}
-                      contentFit="contain"
-                      style={styles.bannerImage}
-                      accessibilityLabel={collection.name}
-                    />
-                  </View>
+                    {selection.filters.map((item) => (
+                      <Pressable
+                        key={item.id}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: subfilter === item.id }}
+                        accessibilityLabel={
+                          item.label + ("note" in item ? `. ${item.note}` : "")
+                        }
+                        onPress={() => setSubfilter(item.id)}
+                        style={{
+                          paddingHorizontal: 14,
+                          paddingVertical: 10,
+                          minHeight: 56,
+                          maxWidth: 155,
+                          justifyContent: "center",
+                          gap: 3,
+                          borderRadius: 18,
+                          borderWidth: 1,
+                          borderColor:
+                            subfilter === item.id
+                              ? colors.brand
+                              : colors.border,
+                          backgroundColor: subfilter === item.id ? colors.brandLight : colors.surface,
+                          shadowColor: colors.brand,
+                          shadowOpacity: subfilter === item.id ? 0.15 : 0,
+                          shadowRadius: 9,
+                          shadowOffset: { width: 0, height: 3 },
+                          elevation: subfilter === item.id ? 2 : 0,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            color:
+                              subfilter === item.id
+                                ? colors.brandStrong
+                                : colors.ink,
+                            fontSize: 13,
+                            fontWeight: "700",
+                          }}
+                        >
+                          {item.label}
+                        </Text>
+                        {"note" in item ? (
+                          <Text
+                            style={{
+                              color: colors.muted,
+                              fontSize: 10,
+                              lineHeight: 14,
+                            }}
+                          >
+                            {item.note}
+                          </Text>
+                        ) : null}
+                      </Pressable>
+                    ))}
+                  </ScrollView>
                 ) : null}
-                <Text accessibilityRole="header" style={styles.sectionTitle}>
-                  {title}
-                </Text>
                 <View style={styles.filterRow}>
                   <Text style={styles.sortLabel}>Price: low to high</Text>
                   <Pressable
@@ -488,14 +463,18 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
                     No cakes in this selection
                   </Text>
                   <Text style={styles.sortLabel}>
-                    Try a wider budget or another collection.
+                    {department === "cheesecakes" && subfilter !== "all"
+                      ? "No cakes have this preparation time listed yet. Browse All cheesecakes or contact us."
+                      : department === "cupcakes" && subfilter === "filled"
+                        ? "No filled cupcakes are currently listed. Try Plain or Frosted."
+                        : "Try a wider budget or another collection."}
                   </Text>
                   <Button
                     label="Reset filters"
                     variant="outline"
                     onPress={() => {
                       setBudget({});
-                      selectDepartment(0);
+                      selectDepartment("all");
                     }}
                   />
                 </View>
@@ -637,19 +616,24 @@ const baseStyles = StyleSheet.create({
     letterSpacing: -0.7,
     color: tokens.color.ink,
   },
-  searchGlass: { borderRadius: 15 },
+  searchGlass: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: tokens.color.border,
+  },
   search: {
     flexDirection: "row",
     alignItems: "center",
     paddingLeft: 13,
-    minHeight: 44,
+    minHeight: 48,
     gap: 9,
     backgroundColor: "#F8F7F8",
   },
   searchInput: {
+    fontFamily: brandFontFamily,
     flex: 1,
     minWidth: 0,
-    height: 44,
+    height: 48,
     fontSize: 13,
     color: tokens.color.ink,
   },
@@ -667,9 +651,15 @@ const baseStyles = StyleSheet.create({
     borderRightWidth: StyleSheet.hairlineWidth,
     borderRightColor: "#ECE8EB",
   },
+  categoryImage: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: "#FFFFFF",
+  },
   railItem: {
     minHeight: 86,
-    paddingVertical: 15,
+    paddingVertical: 10,
     paddingHorizontal: 5,
     gap: 7,
     alignItems: "center",
@@ -689,7 +679,14 @@ const baseStyles = StyleSheet.create({
   },
   productPane: { flex: 1, backgroundColor: "#F6F4F6" },
   content: { padding: 10, flexGrow: 1 },
-  listHeader: { gap: 12, paddingBottom: 14 },
+  listHeader: {
+    gap: 10,
+    paddingTop: 0,
+    paddingBottom: 10,
+    backgroundColor: tokens.color.surface,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: tokens.color.border,
+  },
   banner: {
     height: 142,
     borderRadius: 26,

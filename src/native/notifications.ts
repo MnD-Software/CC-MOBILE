@@ -4,6 +4,8 @@ import Constants from 'expo-constants';
 import { api } from '@/api/client';
 import type { Href } from 'expo-router';
 export function notificationRoute(data:Record<string,unknown>):Href|null {
+  const orderId=data.cakeCityOrderTracking===true?Number(data.orderId):Number.NaN;
+  if(Number.isSafeInteger(orderId)&&orderId>0)return {pathname:'/order/[reference]',params:{reference:`website-${orderId}`}};
   if(typeof data.reference==='string'&&/^CC-[A-Za-z0-9-]+$/.test(data.reference))return {pathname:'/order/[reference]',params:{reference:data.reference}};
   const url=typeof data.url==='string'?data.url:'';
   const match=url.match(/^\/account\/orders\/(CC-[A-Za-z0-9-]+)$/);

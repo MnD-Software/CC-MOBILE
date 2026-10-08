@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { api } from "@/api/client";
 import {
   reportNetworkFailure,
   reportNetworkSuccess,
@@ -51,6 +52,12 @@ export type WebsiteCheckoutDetails = {
   area: string;
   city: string;
   notes?: string;
+  gift?: {
+    firstName: string;
+    lastName: string;
+    phone: string;
+    message: string;
+  };
 };
 
 export type WebsiteOrderAccess = {
@@ -388,8 +395,24 @@ export async function submitWebsiteCheckout(
       method: "POST",
       body: JSON.stringify({
         billing_address: billingAddress,
-        shipping_address: billingAddress,
-        customer_note: details.notes?.trim() || undefined,
+        shipping_address: details.gift
+          ? {
+              ...billingAddress,
+              first_name: details.gift.firstName.trim(),
+              last_name: details.gift.lastName.trim(),
+              phone: details.gift.phone.replace(/\s/g, ""),
+              email: "",
+            }
+          : billingAddress,
+        customer_note:
+          [
+            details.notes?.trim(),
+            details.gift?.message.trim()
+              ? `Gift message: ${details.gift.message.trim()}`
+              : null,
+          ]
+            .filter(Boolean)
+            .join("\n") || undefined,
         payment_method: "pesapal",
       }),
     },
@@ -422,8 +445,28 @@ export async function fetchWebsiteOrder(
     key: order.key,
     billing_email: order.billingEmail.trim().toLowerCase(),
   });
-  const result = await storeRequest(`/order/${order.id}?${query.toString()}`);
-  const status = orderStatusSchema.safeParse(result.body);
+  let body: unknown;
+  try {
+    body = (await storeRequest(`/order/${order.id}?${query.toString()}`)).body;
+  } catch (error) {
+    // Website-account orders require WP cookies that the app does not share.
+    // The backend independently verifies the same private receipt credentials.
+    if (
+      !(error instanceof WebsiteCheckoutError) ||
+      ![401, 403, 404].includes(error.status ?? 0)
+    )
+      throw error;
+    body = await api.post(
+      "/v1/orders/track",
+      {
+        order_id: order.id,
+        order_key: order.key,
+        billing_email: order.billingEmail.trim().toLowerCase(),
+      },
+      { auth: true, timeoutMs: 65_000 },
+    );
+  }
+  const status = orderStatusSchema.safeParse(body);
   if (!status.success)
     throw new Error("Cake City returned an incomplete order update.");
   return status.data;

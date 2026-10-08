@@ -1,4 +1,5 @@
-import { Linking, Text, View } from "react-native";
+import { Linking, View } from "react-native";
+import { Text } from "@/components/ui/Typography";
 import { router } from "expo-router";
 import { Screen, ui as baseUi, useToast } from "@/components/ui/Commerce";
 import { Button } from "@/components/ui/Button";
@@ -39,7 +40,11 @@ export default function Help() {
         </View>
       ))}
       <Button
-        label="Explore live cakes"
+        label="Requests, quotes & order support"
+        onPress={() => router.push("/requests")}
+      />
+      <Button
+        label="Explore cakes"
         onPress={() => router.push("/(tabs)/shop")}
       />
       <Button

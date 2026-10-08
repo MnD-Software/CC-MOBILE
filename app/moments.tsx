@@ -1,12 +1,15 @@
-import { UnavailableExperience } from "@/components/ui/UnavailableExperience";
-
+import { Screen, Notice } from "@/components/ui/Commerce";
+import { Celebrations } from "@/features/account/ClubMembership";
+import { useAuth } from "@/auth/AuthProvider";
 export default function Moments() {
+  const { customer } = useAuth();
   return (
-    <UnavailableExperience
-      title="Celebration reminders"
-      heading="Reminders are being connected."
-      message="Birthday and celebration reminders will appear here when Cake City's secure account service is ready."
-      icon="calendar-outline"
-    />
+    <Screen title="Celebration calendar" back>
+      {customer ? (
+        <Celebrations key={customer.id} />
+      ) : (
+        <Notice message="Sign in to save and manage your celebrations." />
+      )}
+    </Screen>
   );
 }

@@ -2,12 +2,14 @@ import "react-native-gesture-handler";
 import { router, Stack, usePathname } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
-import { BackHandler, Platform } from "react-native";
+import { BackHandler, Platform, View } from "react-native";
+import { FloatingTabBar } from "@/components/storefront/FloatingTabBar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider } from "@/auth/AuthProvider";
 import { QueryProvider } from "@/providers/QueryProvider";
 import { AppErrorBoundary, ToastProvider } from "@/components/ui/Commerce";
 import { OfflineNotice } from "@/components/ui/OfflineNotice";
+import { CelebrationReminderPrivacy } from "@/native/celebration-reminders";
 import { NotificationObserver } from "@/native/NotificationObserver";
 import {
   recordPerformanceMetric,
@@ -72,25 +74,29 @@ function AppShell() {
             <AuthProvider>
               <ToastProvider>
                 <NotificationObserver />
+                <CelebrationReminderPrivacy />
                 <AndroidBackNavigator />
                 <OfflineNotice />
                 <StatusBar style={isDark ? "light" : "dark"} />
-                <Stack
-                  screenOptions={{
-                    headerShown: false,
-                    contentStyle: { backgroundColor: colors.background },
-                  }}
-                >
-                  <Stack.Screen name="(tabs)" />
-                  <Stack.Screen
-                    name="branches"
-                    options={{ presentation: "modal" }}
-                  />
-                  <Stack.Screen
-                    name="cart"
-                    options={{ presentation: "modal" }}
-                  />
-                </Stack>
+                <View style={{ flex: 1 }}>
+                  <Stack
+                    screenOptions={{
+                      headerShown: false,
+                      contentStyle: { backgroundColor: colors.background },
+                    }}
+                  >
+                    <Stack.Screen name="(tabs)" />
+                    <Stack.Screen
+                      name="branches"
+                      options={{ presentation: "card" }}
+                    />
+                    <Stack.Screen
+                      name="cart"
+                      options={{ presentation: "card" }}
+                    />
+                  </Stack>
+                  <FloatingTabBar />
+                </View>
               </ToastProvider>
             </AuthProvider>
           </QueryProvider>

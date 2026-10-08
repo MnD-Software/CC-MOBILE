@@ -9,23 +9,23 @@
 export const tokens = {
   color: {
     // Canvas & surfaces
-    background: "#FFFEFF",
+    background: "#FFF5FA",
     surface: "#FFFFFF",
     surfaceRaised: "#FFFFFF",
-    surfaceTint: "#FFF5FA",
+    surfaceTint: "#FFEAF4",
     glass: "rgba(255, 255, 255, 0.82)",
     glassStrong: "rgba(255, 255, 255, 0.94)",
     white: "#FFFFFF",
 
     // Text
-    ink: "#251914",
-    cocoa: "#51382D",
-    muted: "#766C69",
-    mutedSoft: "#A09490",
+    ink: "#21131B",
+    cocoa: "#49302E",
+    muted: "#62515C",
+    mutedSoft: "#715F6A",
 
     // Lines
-    border: "#EEE6E4",
-    borderStrong: "#EBC7DA",
+    border: "#DCC8D2",
+    borderStrong: "#B888A1",
 
     // Brand
     brand: "#EC008C",
@@ -46,11 +46,11 @@ export const tokens = {
     sunshineLight: "#FFF3D7",
 
     // Feedback
-    success: "#0FA36B",
+    success: "#087A4C",
     successLight: "#DCF7EA",
-    warning: "#B26A00",
+    warning: "#8C5300",
     warningLight: "#FFF1D6",
-    error: "#E5484D",
+    error: "#BC2939",
     errorLight: "#FFE5E5",
   },
   /**
@@ -61,7 +61,7 @@ export const tokens = {
     /** Hero / feature banners: cocoa → Cake City pink */
     hero: ["#51382D", "#B80068", "#EC008C"],
     /** Primary actions: Cake City pink → a rich accessible pink */
-    primary: ["#EC008C", "#B80068"],
+    primary: ["#C90077", "#B80068"],
     /** Cool counterpoint, used only for supporting information */
     cool: ["#00AEEF", "#00749E"],
     /** Rewards & gold moments */
@@ -90,14 +90,14 @@ export const tokens = {
     card: {
       shadowColor: "#51382D",
       shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.08,
+      shadowOpacity: 0.12,
       shadowRadius: 12,
       elevation: 3,
     },
     floating: {
       shadowColor: "#51382D",
       shadowOffset: { width: 0, height: 10 },
-      shadowOpacity: 0.13,
+      shadowOpacity: 0.18,
       shadowRadius: 22,
       elevation: 8,
     },

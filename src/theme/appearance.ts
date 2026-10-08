@@ -30,11 +30,11 @@ export const darkColors: ThemeColors = {
   glassStrong: "rgba(33,27,36,0.96)",
   ink: "#FFF5FB",
   cocoa: "#EED5DE",
-  muted: "#C3ACB9",
-  mutedSoft: "#AB919F",
-  border: "#463743",
-  borderStrong: "#795269",
-  brand: "#FF62B6",
+  muted: "#D7C2CF",
+  mutedSoft: "#C4AABA",
+  border: "#695463",
+  borderStrong: "#A87996",
+  brand: "#EC008C",
   brandStrong: "#FF8BCB",
   brandLight: "#3A2031",
   violet: "#D7ABCB",
@@ -73,6 +73,11 @@ const foreground = new Map<string, string>(
 );
 // Cocoa is a foreground only here: cocoa hero backgrounds must remain cocoa.
 foreground.set(tokens.color.cocoa, darkColors.cocoa);
+// Older screen styles still use these original neutral values.
+foreground.set("#251914", darkColors.ink);
+foreground.set("#51382D", darkColors.cocoa);
+foreground.set("#766C69", darkColors.muted);
+foreground.set("#A09490", darkColors.mutedSoft);
 foreground.set("#90252A", darkColors.error);
 
 const surfaces = new Map<string, string>([

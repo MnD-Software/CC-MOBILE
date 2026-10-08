@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, router, useLocalSearchParams } from "expo-router";
-import { Text, View } from "react-native";
+import { View } from "react-native";
+import { Text } from "@/components/ui/Typography";
 import { z } from "zod";
 import { ApiError } from "@/api/client";
 import { BrandLogo } from "@/components/BrandLogo";

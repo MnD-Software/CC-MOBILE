@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { RefObject } from 'react';
-import { Platform, Pressable, StyleSheet, Text, Vibration, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Vibration, View } from "react-native";
+import { Text } from "@/components/ui/Typography";
 
 import { GlassSurface } from '@/components/storefront/GlassSurface';
 import { tokens } from '@/theme/tokens';

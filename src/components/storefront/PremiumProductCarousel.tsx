@@ -1,14 +1,7 @@
 import { Image } from "expo-image";
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  AccessibilityInfo,
-  FlatList,
-  Pressable,
-  StyleSheet,
-  Text,
-  useWindowDimensions,
-  View,
-} from "react-native";
+import { AccessibilityInfo, FlatList, Pressable, StyleSheet, useWindowDimensions, View } from "react-native";
+import { Text } from "@/components/ui/Typography";
 import type {
   LayoutChangeEvent,
   NativeScrollEvent,

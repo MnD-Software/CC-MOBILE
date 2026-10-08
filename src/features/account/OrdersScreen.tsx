@@ -1,8 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
+import { Linking, Pressable, StyleSheet, View } from "react-native";
+import { Text } from "@/components/ui/Typography";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Feedback, Notice, Screen, useToast } from "@/components/ui/Commerce";
@@ -11,6 +12,7 @@ import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import { parseOrderReceipt } from "@/features/commerce/order-receipt";
 import { OrderActivityControl } from "@/native/OrderActivityControl";
 import { useAuth } from "@/auth/AuthProvider";
+import { api } from "@/api/client";
 import { money } from "@/features/commerce/contracts";
 import {
   orderJourney,
@@ -249,7 +251,7 @@ function RecoverOrder({
   return (
     <View style={styles.recoveryCard}>
       <Text style={styles.detailCardTitle}>
-        {initialRecord ? "Reconnect live tracking" : "Missing an order?"}
+        {initialRecord ? "Reconnect tracking" : "Missing an order?"}
       </Text>
       <Text style={styles.recoveryHint}>
         Use your official receipt link and the billing email. Cake City verifies
@@ -351,7 +353,7 @@ export function OrdersScreen() {
               <Ionicons name="location" size={23} color="#FFFFFF" />
             </View>
             <View style={styles.trackingCopy}>
-              <Text style={styles.trackingEyebrow}>LIVE ORDER UPDATES</Text>
+              <Text style={styles.trackingEyebrow}>YOUR ORDER UPDATES</Text>
               <Text style={styles.trackingTitle}>
                 Your saved order updates.
               </Text>
@@ -394,6 +396,7 @@ export function OrderScreen() {
   const { customer } = useAuth();
   const ownerScope = websiteCheckoutOwnerScope(customer?.id);
   const orderId = Number(reference?.replace(/^website-/, ""));
+  const cache = useQueryClient();
   const history = useQuery({
     queryKey: ["website-order-history", ownerScope],
     queryFn: () => websiteOrderHistory(ownerScope),
@@ -411,6 +414,30 @@ export function OrderScreen() {
       terminalStatuses.has(query.state.data?.status ?? record?.status ?? "")
         ? false
         : 30_000,
+  });
+
+  const clubLink = useMutation({
+    mutationFn: async () => {
+      if (!record?.billingEmail || !customer)
+        throw new Error("Sign in and recover this order first.");
+      return api.post<{ status: string }>(
+        "/v1/club/orders/link",
+        {
+          order_id: record.id,
+          order_key: record.key,
+          billing_email: record.billingEmail,
+        },
+        { auth: true },
+      );
+    },
+    onSuccess: (result) => {
+      toast(
+        result.status === "pending_payment"
+          ? "Order linked. Points follow a verified qualifying payment."
+          : "Order verified for Club. Open Club to see your points.",
+      );
+      void cache.invalidateQueries({ queryKey: ["club", customer?.id] });
+    },
   });
 
   if (history.isPending)
@@ -498,6 +525,16 @@ export function OrderScreen() {
               <Text style={styles.itemName}>
                 {item.quantity} × {item.name}
               </Text>
+              <Button
+                variant="outline"
+                label="Find this cake again"
+                onPress={() =>
+                  router.push({
+                    pathname: "/(tabs)/shop",
+                    params: { search: item.name },
+                  })
+                }
+              />
             </View>
           ))}
           {total !== null ? (
@@ -515,7 +552,7 @@ export function OrderScreen() {
           message={
             live.error instanceof Error
               ? live.error.message
-              : "Your live order update is unavailable right now."
+              : "Your order update is unavailable right now."
           }
         />
       ) : null}
@@ -544,6 +581,26 @@ export function OrderScreen() {
         {date(record.createdAt)}
         {live.isFetching ? " · Checking for an update..." : ""}
       </Text>
+      {customer && record.billingEmail ? (
+        <Button
+          variant="outline"
+          label="Connect this order to Club"
+          loading={clubLink.isPending}
+          disabled={clubLink.isPending}
+          onPress={() => clubLink.mutate()}
+        />
+      ) : null}
+      {clubLink.isError ? (
+        <Notice
+          error
+          message={
+            clubLink.error instanceof Error
+              ? clubLink.error.message
+              : "Club could not verify this order."
+          }
+        />
+      ) : null}
+      <Notice message="Ordering again uses today?s catalogue. Choose the available size and options; checkout confirms current prices and stock." />
       <Button
         label="Refresh tracking"
         loading={live.isFetching}

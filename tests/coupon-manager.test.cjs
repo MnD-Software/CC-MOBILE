@@ -96,6 +96,48 @@ test("coupon codes normalize safely without manufacturing eligibility", () => {
   assert.equal(cartHasRequestedCoupon(cart(["welcome"]), null), false);
 });
 
+test("gift checkout separates recipient contact from buyer payment details", async () => {
+  const calls = transport([
+    { body: cart() },
+    {
+      body: {
+        order_id: 456,
+        order_key: "test-order-key",
+        order_number: "456",
+        status: "pending",
+        payment_result: {
+          payment_status: "pending",
+          redirect_url: "https://cakecity.co.ke/pay",
+        },
+      },
+    },
+  ]);
+  await submitWebsiteCheckout(session(), {
+    firstName: "Buyer",
+    lastName: "Customer",
+    email: "buyer@example.com",
+    phone: "0712345678",
+    address: "Building",
+    area: "Westlands",
+    city: "Nairobi",
+    notes: "Call first",
+    gift: {
+      firstName: "Gift",
+      lastName: "Recipient",
+      phone: "0798765432",
+      message: "Happy birthday",
+    },
+  });
+  const body = JSON.parse(calls[1].body);
+  assert.equal(body.billing_address.first_name, "Buyer");
+  assert.equal(body.billing_address.email, "buyer@example.com");
+  assert.equal(body.shipping_address.first_name, "Gift");
+  assert.equal(body.shipping_address.phone, "0798765432");
+  assert.equal(body.shipping_address.email, "");
+  assert.equal(body.customer_note, "Call first\nGift message: Happy birthday");
+  assert.equal(body.payment_method, "pesapal");
+});
+
 test("applying a code verifies authoritative totals and preserves scoped recovery", async () => {
   const calls = transport([
     { body: cart() },

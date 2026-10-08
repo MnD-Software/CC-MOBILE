@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Text, View } from "react-native";
+import { View } from "react-native";
+import { Text } from "@/components/ui/Typography";
 import { Chip, Notice, ui } from "@/components/ui/Commerce";
 import {
   plainText,

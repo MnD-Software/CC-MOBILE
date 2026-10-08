@@ -9,10 +9,10 @@ import {
   ScrollView,
   Share,
   StyleSheet,
-  Text,
   View,
   useWindowDimensions,
 } from "react-native";
+import { Text } from "@/components/ui/Typography";
 import {
   SafeAreaView,
   useSafeAreaInsets,
@@ -44,6 +44,10 @@ import { fetchLiveVariations, liveVariationPrice } from "./store-variations";
 import { useBag, usePreferences } from "./store";
 import { tokens } from "@/theme/tokens";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
+import { api } from "@/api/client";
+import { z } from "zod";
+import { storeProductSchema } from "./contracts";
+import { rankPairings } from "./pairings";
 import { trackCommerceEvent } from "@/observability/commerce-events";
 
 function ProductSkeleton() {
@@ -65,43 +69,36 @@ function ProductSkeleton() {
   );
 }
 
-function pairingTerms(product: StoreProduct) {
-  const context = [
-    plainText(product.name),
-    ...product.categories.map((category) => plainText(category.name)),
-  ].join(" ");
-  return /\bbirthday\b/i.test(context)
-    ? ["cupcakes", "candles", "pink simba"]
-    : ["cupcakes", "candles"];
-}
-
 async function livePairings(product: StoreProduct, signal?: AbortSignal) {
-  const searches = pairingTerms(product);
-  const resultSets = await Promise.all(
-    searches.map((search) =>
-      shopApi.products({ page: 1, perPage: 8, search }, signal),
-    ),
-  );
-  const eligible = (candidate: StoreProduct) =>
-    candidate.id !== product.id &&
-    candidate.is_in_stock &&
-    candidate.is_purchasable &&
-    productPrice(candidate) !== null;
-  const preferred = resultSets
-    .map((result) => result.data.find(eligible))
-    .filter((candidate): candidate is StoreProduct => !!candidate);
-  const remaining = resultSets.flatMap((result) =>
-    result.data.filter(eligible),
-  );
-  const seen = new Set<number>();
-
-  return [...preferred, ...remaining]
-    .filter((candidate) => {
-      if (seen.has(candidate.id)) return false;
-      seen.add(candidate.id);
-      return true;
-    })
-    .slice(0, 6);
+  try {
+    const result = await api.get<unknown>(
+      `/v1/catalogue/products/${product.id}/pairings`,
+      { signal },
+    );
+    const payload = z
+      .object({
+        products: storeProductSchema.array(),
+        curated_ids: z.array(z.number().int().positive()),
+      })
+      .parse(result);
+    return rankPairings(product, payload.products, 6, payload.curated_ids);
+  } catch (error) {
+    if (signal?.aborted) throw error;
+    // Older deployments can still provide live complementary records. A failed
+    // search must not discard the other successful searches.
+    const results = await Promise.allSettled(
+      ["cupcake", "candle", "cake"].map((search) =>
+        shopApi.products({ page: 1, perPage: 12, search }, signal),
+      ),
+    );
+    if (signal?.aborted) throw error;
+    const successful = results.filter((r) => r.status === "fulfilled");
+    if (!successful.length) throw error;
+    return rankPairings(
+      product,
+      successful.flatMap((r) => r.value.data),
+    );
+  }
 }
 
 export function ProductScreen() {
@@ -118,6 +115,7 @@ export function ProductScreen() {
   const [activeImage, setActiveImage] = useState(0);
   const [variationOpen, setVariationOpen] = useState(false);
   const [pairingsReady, setPairingsReady] = useState(false);
+  const [selectedPairingIds, setSelectedPairingIds] = useState<number[]>([]);
   const [selectedVariationId, setSelectedVariationId] = useState<number | null>(
     null,
   );
@@ -151,11 +149,7 @@ export function ProductScreen() {
     refetchOnWindowFocus: false,
   });
   const pairings = useQuery({
-    queryKey: [
-      "product-pairings",
-      cake?.id ?? lookup,
-      cake ? pairingTerms(cake) : [],
-    ],
+    queryKey: ["product-pairings", cake?.id ?? lookup, "context-v2"],
     queryFn: ({ signal }) => (cake ? livePairings(cake, signal) : []),
     // Pairings are a secondary merchandising request. Let the first image,
     // price and add-to-bag controls win the network and render budget.
@@ -172,6 +166,7 @@ export function ProductScreen() {
     setActiveImage(0);
     setVariationOpen(false);
     setSelectedVariationId(null);
+    setSelectedPairingIds([]);
     if (cake) {
       remember(customer?.id ? String(customer.id) : null, cake.slug);
       trackCommerceEvent("product_viewed", {
@@ -242,24 +237,42 @@ export function ProductScreen() {
   // A variable parent price is a live starting price, not the price of an
   // unselected combination. Never put it in the bag or label it as selected.
   const price = variationRequired ? selectedVariationPrice : basePrice;
+  const selectedPairings = (pairings.data ?? [])
+    .map((entry) => entry.product)
+    .filter(
+      (item) =>
+        selectedPairingIds.includes(item.id) &&
+        item.type === "simple" &&
+        !item.variations.length &&
+        item.is_in_stock &&
+        item.is_purchasable &&
+        productPrice(item) !== null,
+    );
+  const combinedPrice =
+    price === null
+      ? null
+      : price +
+        selectedPairings.reduce((sum, item) => sum + productPrice(item)!, 0);
   const priceText =
     price !== null
-      ? money(price)
+      ? money(combinedPrice!)
       : variationRequired && !selectedVariation && basePrice !== null
         ? `From ${money(basePrice)}`
         : selectedVariation && liveVariations.isFetching
-          ? "Confirming live price…"
+          ? "Checking price…"
           : variationRequired
             ? "Price unavailable"
             : "Price on request";
   const priceCaption =
-    price !== null
-      ? variationRequired
-        ? "SELECTED LIVE PRICE"
-        : "LIVE PRICE"
-      : variationRequired && !selectedVariation
-        ? "LIVE PRICE RANGE"
-        : "PRICE CHECK";
+    selectedPairings.length && price !== null
+      ? "CAKE + EXTRAS"
+      : price !== null
+        ? variationRequired
+          ? "YOUR SELECTION"
+          : "PRICE"
+        : variationRequired && !selectedVariation
+          ? "STARTING FROM"
+          : "PRICE CHECK";
   const needsVariationChoice = variationRequired && !selectedVariation;
   const needsVariationPrice =
     variationRequired && !!selectedVariation && price === null;
@@ -319,8 +332,24 @@ export function ProductScreen() {
           : undefined,
       },
     });
+    for (const pairing of selectedPairings) {
+      addToBag({
+        key: "",
+        product_id: pairing.id,
+        slug: pairing.slug,
+        name: plainText(pairing.name),
+        image: pairing.images[0]?.src ?? null,
+        price: productPrice(pairing)!,
+        quantity: 1,
+        selection: { size: "1kg", message: "", add_ons: [] },
+      });
+    }
     void performHaptic("addToCart");
-    toast("Added to your bag.");
+    toast(
+      selectedPairings.length
+        ? "Cake and selected extras added to your bag."
+        : "Added to your bag.",
+    );
     if (openBag) router.push("/cart");
   }
 
@@ -472,7 +501,7 @@ export function ProductScreen() {
             {variationRequired ? (
               <Text style={styles.priceNote}>
                 {selectedVariation
-                  ? "The selected combination uses Cake City’s live variation price."
+                  ? "Price for your selected size and flavour."
                   : "Choose a variation to see its exact Cake City price."}
               </Text>
             ) : null}
@@ -553,10 +582,10 @@ export function ProductScreen() {
                         ? price !== null
                           ? `${money(price)} · available today`
                           : liveVariations.isFetching
-                            ? "Confirming its live price…"
+                            ? "Checking price…"
                             : "Price not confirmed. Choose another option or retry."
                         : liveVariations.isFetching
-                          ? "Loading exact live prices…"
+                          ? "Loading prices…"
                           : `${variations.length} selectable combinations`}
                     </Text>
                   </View>
@@ -569,7 +598,7 @@ export function ProductScreen() {
                 {liveVariations.isError ? (
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel="Retry loading live variation prices"
+                    accessibilityLabel="Retry loading option prices"
                     onPress={() => void liveVariations.refetch()}
                     style={({ pressed }) => [
                       styles.variationRetry,
@@ -582,7 +611,7 @@ export function ProductScreen() {
                       size={15}
                     />
                     <Text style={styles.variationRetryText}>
-                      Couldn’t confirm live prices. Retry
+                      Couldn’t confirm prices. Retry
                     </Text>
                   </Pressable>
                 ) : null}
@@ -602,7 +631,7 @@ export function ProductScreen() {
                           !liveVariation.is_purchasable ||
                           optionPrice === null);
                       const priceCopy = liveVariations.isFetching
-                        ? "Confirming live price"
+                        ? "Checking price"
                         : optionPrice !== null
                           ? money(optionPrice)
                           : "Unavailable";
@@ -697,13 +726,25 @@ export function ProductScreen() {
               </View>
             </View>
 
+            {pairings.isError ? (
+              <View style={styles.pairingGroup}>
+                <Text style={styles.pairingCopy}>Extras could not load.</Text>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => void pairings.refetch()}
+                >
+                  <Text style={styles.pairingTitle}>Try pairings again</Text>
+                </Pressable>
+              </View>
+            ) : null}
             {pairings.data?.length ? (
               <View style={styles.pairingGroup}>
                 <View style={styles.pairingHeading}>
                   <View>
                     <Text style={styles.pairingTitle}>Pair it with</Text>
                     <Text style={styles.pairingCopy}>
-                      Live Cake City extras for the celebration.
+                      Select extras to add with your cake. The total updates
+                      below.
                     </Text>
                   </View>
                   <Ionicons
@@ -717,30 +758,56 @@ export function ProductScreen() {
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={styles.pairingRail}
                 >
-                  {pairings.data.map((pairing) => {
+                  {pairings.data.map(({ product: pairing, reason }) => {
                     const pairingPrice = productPrice(pairing);
                     const pairingImage = pairing.images[0]?.src;
+                    const selectable =
+                      pairing.type === "simple" &&
+                      !pairing.variations.length &&
+                      pairingPrice !== null &&
+                      pairing.is_in_stock &&
+                      pairing.is_purchasable;
+                    const selected = selectedPairings.some(
+                      (item) => item.id === pairing.id,
+                    );
                     return (
                       <Pressable
                         key={pairing.id}
-                        accessibilityHint="Opens this live Cake City item"
+                        accessibilityHint={
+                          selectable
+                            ? "Select or remove this extra from your cake purchase"
+                            : "Opens this item to choose its options"
+                        }
+                        accessibilityState={{ selected }}
                         accessibilityLabel={`${plainText(pairing.name)}. ${
                           pairingPrice === null
                             ? "Price on request"
                             : money(pairingPrice)
                         }`}
                         accessibilityRole="button"
-                        onPress={() =>
+                        onPress={() => {
+                          if (selectable) {
+                            setSelectedPairingIds((ids) =>
+                              ids.includes(pairing.id)
+                                ? ids.filter((id) => id !== pairing.id)
+                                : [...ids, pairing.id],
+                            );
+                            return;
+                          }
                           router.push({
                             pathname: "/product/[id]",
                             params: {
                               id: String(pairing.id),
                               slug: pairing.slug,
                             },
-                          })
-                        }
+                          });
+                        }}
                         style={({ pressed }) => [
                           styles.pairingCard,
+                          selected && {
+                            borderColor: colors.brandStrong,
+                            backgroundColor: colors.brandLight,
+                          },
                           pressed && styles.pressed,
                         ]}
                       >
@@ -766,10 +833,26 @@ export function ProductScreen() {
                         <Text numberOfLines={2} style={styles.pairingName}>
                           {plainText(pairing.name)}
                         </Text>
+                        <Text numberOfLines={2} style={styles.pairingCopy}>
+                          {reason}
+                        </Text>
                         <Text style={styles.pairingPrice}>
                           {pairingPrice === null
                             ? "View item"
                             : money(pairingPrice)}
+                        </Text>
+                        <Text
+                          style={{
+                            color: colors.brandStrong,
+                            fontSize: 11,
+                            fontWeight: "700",
+                          }}
+                        >
+                          {selected
+                            ? "✓ Selected"
+                            : selectable
+                              ? "+ Add with cake"
+                              : "Choose options"}
                         </Text>
                       </Pressable>
                     );
@@ -781,7 +864,7 @@ export function ProductScreen() {
         </ScrollView>
 
         <GlassSurface
-          style={[styles.footer, { marginBottom: Math.max(insets.bottom, 12) }]}
+          style={[styles.footer, { marginBottom: insets.bottom + 90 }]}
         >
           <View style={styles.footerPrice}>
             <Text style={styles.footerLabel}>{priceCaption}</Text>

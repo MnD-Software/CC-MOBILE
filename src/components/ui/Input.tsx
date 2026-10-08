@@ -1,11 +1,6 @@
 import { forwardRef, useState } from "react";
-import {
-  StyleSheet,
-  Text,
-  TextInput,
-  TextInputProps,
-  View,
-} from "react-native";
+import { StyleSheet, TextInput, TextInputProps, View } from "react-native";
+import { Text, brandFontFamily } from "@/components/ui/Typography";
 import { tokens } from "@/theme/tokens";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 
@@ -60,6 +55,7 @@ export const Input = forwardRef<TextInput, Props>(function Input(
           onBlur?.(event);
         }}
         style={[
+          { fontFamily: brandFontFamily },
           styles.input,
           multiline && styles.inputMultiline,
           focused && !error && styles.inputFocused,

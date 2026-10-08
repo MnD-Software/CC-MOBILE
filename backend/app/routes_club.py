@@ -1,7 +1,9 @@
+import base64
+import re
 import hashlib
 import hmac
 from datetime import UTC, datetime, timedelta
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import httpx
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
@@ -87,6 +89,32 @@ def overview(customer: Customer = Depends(member), db: Session = Depends(get_db)
             "created_at": e.created_at.isoformat()} for e in entries],
         "coupons": [{"id": c.id, "points": c.points, "code": c.code if c.status == "issued" else None,
             "status": c.status, "request_key": c.request_key} for c in coupons]}
+    db.commit()
+    return payload
+
+
+class BranchLookup(BaseModel):
+    barcode: str = Field(min_length=26, max_length=26)
+
+
+@router.post("/v1/admin/club/lookup")
+def branch_lookup(body: BranchLookup, customer: Customer = Depends(member), db: Session = Depends(get_db)):
+    # The printed pass identifies a member; it never grants redemption authority.
+    if customer.role not in ("staff", "admin"):
+        raise HTTPException(403, "Staff access required")
+    if not re.fullmatch(r"CC1:[A-Za-z0-9_-]{22}", body.barcode):
+        raise HTTPException(422, "Invalid membership barcode")
+    raw = base64.urlsafe_b64decode(body.barcode[4:] + "==")
+    if base64.urlsafe_b64encode(raw).decode().rstrip("=") != body.barcode[4:]:
+        raise HTTPException(422, "Invalid membership barcode")
+    target = db.get(Customer, str(UUID(bytes=raw)))
+    if not target:
+        raise HTTPException(404, "Member not found")
+    value = account(db, target.id)
+    tiers = [(0, "Silver"), (2000000, "Gold"), (5000000, "Diamond"), (10000000, "Platinum")]
+    tier = next(name for threshold, name in reversed(tiers) if value.spend_minor >= threshold)
+    payload = {"member_id": target.id, "name": " ".join(filter(None, [target.first_name, target.last_name])),
+        "tier": tier, "points": value.points, "review_required": value.review_required}
     db.commit()
     return payload
 

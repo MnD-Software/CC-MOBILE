@@ -22,10 +22,10 @@ import {
   ScrollView,
   StyleSheet,
   StyleProp,
-  Text,
   View,
   ViewStyle,
 } from "react-native";
+import { Text } from "@/components/ui/Typography";
 import {
   SafeAreaView,
   useSafeAreaInsets,
@@ -162,7 +162,7 @@ export function IconButton({
             minWidth: 16,
             height: 16,
             borderRadius: 8,
-            backgroundColor: tokens.color.brandStrong,
+            backgroundColor: tokens.color.brand,
             alignItems: "center",
             justifyContent: "center",
           }}
@@ -225,22 +225,22 @@ const browseHeaderStyles = StyleSheet.create({
     width: "100%",
     maxWidth: 700,
     alignSelf: "center",
-    gap: 9,
+    gap: 10,
     paddingHorizontal: 16,
     paddingTop: 8,
-    paddingBottom: 10,
+    paddingBottom: 12,
     backgroundColor: "rgba(255,254,255,0.985)",
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "rgba(81,56,45,0.10)",
+    borderBottomColor: "rgba(236,0,140,0.12)",
     shadowColor: "#51382D",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
+    shadowOpacity: 0.04,
     shadowRadius: 10,
     elevation: 4,
     zIndex: 2,
   },
   topRow: {
-    height: 44,
+    minHeight: 44,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -663,7 +663,7 @@ export const ProductTile = memo(function ProductTile({
   return (
     <GlassSurface
       intensity={28}
-      opaque={horizontal}
+      opaque={horizontal || compact}
       tintColor={colors.surface}
       style={{
         width,
@@ -673,7 +673,7 @@ export const ProductTile = memo(function ProductTile({
         borderWidth: StyleSheet.hairlineWidth,
         borderColor: colors.border,
         backgroundColor: colors.surface,
-        borderRadius: 30,
+        borderRadius: compact ? 20 : 26,
         ...tokens.shadow.card,
       }}
     >
@@ -694,7 +694,7 @@ export const ProductTile = memo(function ProductTile({
       >
         <View
           style={{
-            aspectRatio: horizontal ? 1 : compact ? 1.03 : 1.08,
+            aspectRatio: 1,
             width: horizontal ? 90 : undefined,
             marginLeft: horizontal ? 10 : 0,
             borderRadius: horizontal ? 23 : 0,
@@ -727,11 +727,11 @@ export const ProductTile = memo(function ProductTile({
         <View
           style={{
             backgroundColor: colors.surface,
-            paddingHorizontal: 14,
-            paddingTop: 12,
+            paddingHorizontal: compact ? 9 : 14,
+            paddingTop: compact ? 9 : 12,
             paddingBottom: 14,
-            paddingRight: horizontal ? 10 : 14,
-            paddingLeft: horizontal ? 9 : 14,
+            paddingRight: horizontal ? 10 : compact ? 9 : 14,
+            paddingLeft: horizontal ? 9 : compact ? 9 : 14,
             flex: horizontal ? 1 : undefined,
             minWidth: 0,
             gap: 5,
@@ -744,7 +744,7 @@ export const ProductTile = memo(function ProductTile({
               fontSize: 9,
               lineHeight: 12,
               fontWeight: "800",
-              letterSpacing: 0.75,
+              letterSpacing: 0.3,
               textTransform: "uppercase",
             }}
           >
@@ -756,8 +756,8 @@ export const ProductTile = memo(function ProductTile({
               color: colors.ink,
               fontWeight: "700",
               minHeight: compact ? 36 : 40,
-              fontSize: horizontal ? 13 : compact ? 12.5 : 14,
-              lineHeight: horizontal ? 18 : compact ? 17 : 20,
+              fontSize: horizontal ? 13 : compact ? 13 : 14,
+              lineHeight: horizontal ? 18 : compact ? 18 : 20,
               letterSpacing: -0.15,
             }}
           >
@@ -770,13 +770,13 @@ export const ProductTile = memo(function ProductTile({
           ) : null}
           <Text
             style={{
-              color: compact ? colors.cocoa : colors.brandStrong,
+              color: colors.ink,
               fontWeight: "800",
-              fontSize: compact ? 13 : 14,
+              fontSize: compact ? 14 : 16,
               lineHeight: 19,
               minHeight: 18,
-              paddingRight: 42,
-              marginTop: 7,
+              paddingRight: compact ? 0 : 42,
+              marginTop: 3,
               minWidth: 0,
             }}
           >
@@ -799,7 +799,8 @@ export const ProductTile = memo(function ProductTile({
               fontSize: 9,
               lineHeight: 13,
               color: colors.muted,
-              paddingRight: 44,
+              paddingRight: compact ? 0 : 44,
+              marginBottom: compact ? 40 : 0,
             }}
           >
             {!product.is_in_stock
@@ -835,11 +836,33 @@ export const ProductTile = memo(function ProductTile({
         onPress={quickAddAllowed ? quickAdd : openProduct}
         style={({ pressed }) => [
           tileStyles.quickAdd,
+          compact && {
+            left: 10,
+            right: 10,
+            width: undefined,
+            height: 36,
+            borderRadius: 12,
+            flexDirection: "row",
+            gap: 5,
+          },
           !product.is_in_stock && { backgroundColor: colors.mutedSoft },
           pressed && tileStyles.quickAddPressed,
         ]}
       >
-        <Ionicons name="add" size={26} color="#FFFFFF" />
+        <Ionicons
+          name={quickAddAllowed ? "add" : "options-outline"}
+          size={20}
+          color="#FFFFFF"
+        />
+        {compact ? (
+          <Text style={{ color: "#FFFFFF", fontSize: 11, fontWeight: "700" }}>
+            {!product.is_in_stock
+              ? "Sold out"
+              : quickAddAllowed
+                ? "Add"
+                : "Choose"}
+          </Text>
+        ) : null}
       </Pressable>
     </GlassSurface>
   );
@@ -854,7 +877,7 @@ const productTileStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 22,
-    backgroundColor: tokens.color.brandStrong,
+    backgroundColor: tokens.color.brand,
   },
   quickAddPressed: { opacity: 0.8, transform: [{ scale: 0.94 }] },
 });

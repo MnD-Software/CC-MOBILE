@@ -9,7 +9,7 @@ export const homeCollections = [
     name: "Vanilla Base Sponge",
     lookup: ["vanilla base sponge", "vanilla sponge cakes"],
     image:
-      "https://i0.wp.com/cakecity.co.ke/wp-content/uploads/2024/08/Rasmalai-Photoroom-1.webp?fit=640%2C640&ssl=1",
+      "https://cakecity.co.ke/wp-content/uploads/2025/08/Lotus-biscoff-Photoroom.avif",
     tint: "#FFF4F5",
   },
   {
@@ -17,7 +17,7 @@ export const homeCollections = [
     name: "Chocolate Base Sponge",
     lookup: ["chocolate base sponge", "chocolate sponge cakes"],
     image:
-      "https://cakecity.co.ke/wp-content/uploads/2025/08/Checker-board-Photoroom-1-300x300.avif",
+      "https://cakecity.co.ke/wp-content/uploads/2025/08/Black-forest-Photoroom.avif",
     tint: "#F8F1E8",
   },
   {
@@ -40,8 +40,7 @@ export const homeCollections = [
     id: "custom-cakes",
     name: "Custom Cakes",
     lookup: ["custom cakes"],
-    image:
-      "https://cakecity.co.ke/wp-content/uploads/2025/08/GRAD-4-300x300.avif",
+    image: "https://cakecity.co.ke/wp-content/uploads/2025/08/GRAD-4.avif",
     tint: "#F6F0FF",
   },
   {
@@ -49,7 +48,7 @@ export const homeCollections = [
     name: "Signature Cakes",
     lookup: ["signature cakes", "signature cake"],
     image:
-      "https://cakecity.co.ke/wp-content/uploads/2025/08/Straw-gateau-Photoroom-2-300x300.avif",
+      "https://cakecity.co.ke/wp-content/uploads/2025/08/Straw-gateau-Photoroom-2.avif",
     tint: "#FFF1F5",
   },
 ] as const;

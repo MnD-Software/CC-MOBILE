@@ -1,8 +1,10 @@
+import { ClubMembership } from "./ClubMembership";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
+import { Text } from "@/components/ui/Typography";
 import { useAuth } from "@/auth/AuthProvider";
 import {
   BagButton,
@@ -10,9 +12,11 @@ import {
   Notice,
   Screen,
   Section,
+  CommerceBrowseHeader,
 } from "@/components/ui/Commerce";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { Disclosure } from "@/components/ui/Disclosure";
 import {
   removeCouponCode,
   saveCouponCode,
@@ -21,6 +25,7 @@ import {
 } from "@/features/commerce/coupon-wallet";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import { tokens } from "@/theme/tokens";
+import { BrandLogo } from "@/components/BrandLogo";
 
 export function RewardsScreen() {
   const { customer, restoring } = useAuth();
@@ -57,9 +62,13 @@ export function RewardsScreen() {
 
   return (
     <Screen
-      title="Cake City Club"
-      subtitle="Your next celebration, made sweeter."
-      right={<BagButton />}
+      header={
+        <CommerceBrowseHeader brand={<BrandLogo width={105} />}>
+          <Text style={{ color: colors.muted, fontSize: 12 }}>
+            A little extra with every celebration
+          </Text>
+        </CommerceBrowseHeader>
+      }
     >
       <LinearGradient
         colors={
@@ -75,183 +84,178 @@ export function RewardsScreen() {
           <View style={styles.heroMark}>
             <Ionicons name="ribbon" size={30} color="#FFFFFF" />
           </View>
-          <Text style={styles.heroEyebrow}>THE SWEET SIDE OF CAKE CITY</Text>
+          <Text style={styles.heroEyebrow}>CAKE CITY CLUB</Text>
         </View>
         <Text style={styles.heroTitle}>
-          A little more
-          {customer?.first_name ? `, ${customer.first_name}` : " to love"}.
+          {customer?.first_name
+            ? `Hello, ${customer.first_name}.`
+            : "Welcome to the sweet life."}
         </Text>
         <Text style={styles.heroCopy}>
-          Keep your coupon codes together, plan a celebration and pick up where
-          you left off.
+          Your points, your rewards, your next reason to celebrate.
         </Text>
       </LinearGradient>
 
-      <Section title="Your coupon wallet" />
-      <View style={styles.walletPanel}>
-        <View style={styles.panelHeading}>
-          <View style={styles.ticketIcon}>
-            <Ionicons
-              name="ticket-outline"
-              size={23}
-              color={colors.brandStrong}
-            />
-          </View>
-          <View style={styles.flex}>
-            <Text style={styles.panelTitle}>Have a Cake City code?</Text>
-            <Text style={styles.body}>
-              Save it here. Cake City checks its eligibility and discount
-              against your bag at checkout.
-            </Text>
-          </View>
-        </View>
-        <Input
-          label="Coupon code"
-          placeholder="Enter your code"
-          value={code}
-          onChangeText={setCode}
-          autoCapitalize="none"
-          autoCorrect={false}
-          maxLength={100}
-          editable={!busy && !restoring}
-        />
+      <ClubMembership key={wallet.scope} walletScope={wallet.scope} />
+      {!customer ? (
         <Button
-          label="Save coupon"
-          disabled={busy || restoring || !code.trim()}
-          loading={busy}
-          onPress={() =>
-            void change(async () => {
-              await saveCouponCode(wallet.scope, code);
-              setCode("");
-            }, "Code saved. It is not applied until Cake City confirms it at checkout.")
-          }
+          label="Sign in to Club"
+          onPress={() => router.push("/sign-in")}
         />
-        <Text style={styles.small}>
-          {customer
-            ? "Stored securely on this device for your signed-in account. Codes do not sync between devices."
-            : "Guest codes stay only in this app session. Signing in or switching accounts clears the guest wallet."}
-        </Text>
-      </View>
+      ) : null}
+      <Disclosure
+        title={`Have a promo code?${wallet.codes.length ? ` (${wallet.codes.length} saved)` : ""}`}
+      >
+        <View style={styles.walletPanel}>
+          <View style={styles.panelHeading}>
+            <View style={styles.ticketIcon}>
+              <Ionicons
+                name="ticket-outline"
+                size={23}
+                color={colors.brandStrong}
+              />
+            </View>
+            <View style={styles.flex}>
+              <Text style={styles.panelTitle}>Have a Cake City code?</Text>
+              <Text style={styles.body}>Save your code for checkout.</Text>
+            </View>
+          </View>
+          <Input
+            label="Coupon code"
+            placeholder="Enter your code"
+            value={code}
+            onChangeText={setCode}
+            autoCapitalize="none"
+            autoCorrect={false}
+            maxLength={100}
+            editable={!busy && !restoring}
+          />
+          <Button
+            label="Save coupon"
+            disabled={busy || restoring || !code.trim()}
+            loading={busy}
+            onPress={() =>
+              void change(async () => {
+                await saveCouponCode(wallet.scope, code);
+                setCode("");
+              }, "Code saved. It is not applied until Cake City confirms it at checkout.")
+            }
+          />
+          <Text style={styles.small}>
+            {customer
+              ? "Stored securely on this device for your signed-in account. Codes do not sync between devices."
+              : "Guest codes stay only in this app session. Signing in or switching accounts clears the guest wallet."}
+          </Text>
+        </View>
 
-      {error ? <Notice error message={error} /> : null}
-      {notice ? <Notice message={notice} /> : null}
-      {restoring ? (
-        <Feedback loading />
-      ) : wallet.codes.length ? (
-        <View style={styles.codeList}>
-          {wallet.codes.map((saved) => {
-            const selected = wallet.selected === saved;
-            return (
-              <View
-                key={saved}
-                style={[styles.couponCard, selected && styles.selectedCard]}
-              >
-                <View style={styles.panelHeading}>
-                  <Ionicons
-                    name="ticket"
-                    size={24}
-                    color={colors.brandStrong}
-                  />
-                  <View style={styles.flex}>
-                    <Text style={styles.couponCode}>{saved}</Text>
-                    <Text style={styles.small}>
-                      {selected
-                        ? "Selected for checkout - eligibility not yet verified"
-                        : "Saved code - eligibility checked at checkout"}
-                    </Text>
+        {error ? <Notice error message={error} /> : null}
+        {notice ? <Notice message={notice} /> : null}
+        {restoring ? (
+          <Feedback loading />
+        ) : wallet.codes.length ? (
+          <View style={styles.codeList}>
+            {wallet.codes.map((saved) => {
+              const selected = wallet.selected === saved;
+              return (
+                <View
+                  key={saved}
+                  style={[styles.couponCard, selected && styles.selectedCard]}
+                >
+                  <View style={styles.panelHeading}>
+                    <Ionicons
+                      name="ticket"
+                      size={24}
+                      color={colors.brandStrong}
+                    />
+                    <View style={styles.flex}>
+                      <Text style={styles.couponCode}>{saved}</Text>
+                      <Text style={styles.small}>
+                        {selected
+                          ? "Selected for checkout - eligibility not yet verified"
+                          : "Saved code - eligibility checked at checkout"}
+                      </Text>
+                    </View>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Remove coupon ${saved}`}
+                      disabled={busy}
+                      onPress={() =>
+                        void change(
+                          () => removeCouponCode(wallet.scope, saved),
+                          "Code removed from your wallet.",
+                        )
+                      }
+                      style={styles.remove}
+                    >
+                      <Ionicons
+                        name="trash-outline"
+                        size={19}
+                        color={colors.muted}
+                      />
+                    </Pressable>
                   </View>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={`Remove coupon ${saved}`}
+                  <Button
+                    variant={selected ? "secondary" : "outline"}
+                    label={selected ? "Clear selection" : "Use at checkout"}
                     disabled={busy}
                     onPress={() =>
                       void change(
-                        () => removeCouponCode(wallet.scope, saved),
-                        "Code removed from your wallet.",
+                        () =>
+                          selectCouponCode(
+                            wallet.scope,
+                            selected ? null : saved,
+                          ),
+                        selected
+                          ? "Coupon selection cleared. Checkout will confirm any removal."
+                          : "Selected. Open your bag to check this code against your cakes.",
                       )
                     }
-                    style={styles.remove}
-                  >
-                    <Ionicons
-                      name="trash-outline"
-                      size={19}
-                      color={colors.muted}
-                    />
-                  </Pressable>
+                  />
                 </View>
-                <Button
-                  variant={selected ? "secondary" : "outline"}
-                  label={selected ? "Clear selection" : "Use at checkout"}
-                  disabled={busy}
-                  onPress={() =>
-                    void change(
-                      () =>
-                        selectCouponCode(wallet.scope, selected ? null : saved),
-                      selected
-                        ? "Coupon selection cleared. Checkout will confirm any removal."
-                        : "Selected. Open your bag to check this code against your cakes.",
-                    )
-                  }
-                />
-              </View>
-            );
-          })}
-          <Button label="Open my bag" onPress={() => router.push("/cart")} />
+              );
+            })}
+            <Button label="Open my bag" onPress={() => router.push("/cart")} />
+          </View>
+        ) : (
+          <View style={styles.empty}>
+            <Ionicons name="ticket-outline" size={28} color={colors.muted} />
+            <Text style={styles.panelTitle}>Ready when you have a code</Text>
+            <Text style={styles.body}>
+              Add a code you received from Cake City. Saving a code does not
+              create a discount or confirm its expiry.
+            </Text>
+          </View>
+        )}
+      </Disclosure>
+      <Disclosure title="Explore more">
+        <View style={styles.actions}>
+          <Button
+            variant="outline"
+            label="Create a custom cake"
+            onPress={() => router.push("/(tabs)/custom")}
+          />
+          <Button
+            variant="outline"
+            label="Track an order"
+            onPress={() => router.push("/(tabs)/orders")}
+          />
+          <Button
+            variant="outline"
+            label="Browse Deals & Steals"
+            onPress={() =>
+              router.push({
+                pathname: "/(tabs)/shop",
+                params: { category: "206", categoryName: "Deals and Steals" },
+              })
+            }
+          />
         </View>
-      ) : (
-        <View style={styles.empty}>
-          <Ionicons name="ticket-outline" size={28} color={colors.muted} />
-          <Text style={styles.panelTitle}>Ready when you have a code</Text>
-          <Text style={styles.body}>
-            Add a code you received from Cake City. Saving a code does not
-            create a discount or confirm its expiry.
-          </Text>
-        </View>
-      )}
-
-      <Section title="Make it a celebration" />
-      <View style={styles.actions}>
         <Button
-          variant="outline"
-          label="Create a custom cake"
-          onPress={() => router.push("/(tabs)/custom")}
+          variant="ghost"
+          label="Get help with a coupon"
+          onPress={() => router.push("/help")}
         />
-        <Button
-          variant="outline"
-          label="Track an order"
-          onPress={() => router.push("/(tabs)/orders")}
-        />
-        <Button
-          variant="outline"
-          label="Browse Deals & Steals"
-          onPress={() =>
-            router.push({
-              pathname: "/(tabs)/shop",
-              params: { category: "206", categoryName: "Deals and Steals" },
-            })
-          }
-        />
-      </View>
-      <View style={styles.balanceNote}>
-        <Ionicons
-          name="information-circle-outline"
-          size={22}
-          color={colors.muted}
-        />
-        <View style={styles.flex}>
-          <Text style={styles.panelTitle}>Club points: not connected</Text>
-          <Text style={styles.body}>
-            A verified points balance and points redemption are not available
-            from Cake City's mobile service yet. Coupon discounts are separate
-            and verified by the website checkout.
-          </Text>
-        </View>
-      </View>
-      <Button
-        variant="ghost"
-        label="Get help with a coupon"
-        onPress={() => router.push("/help")}
-      />
+      </Disclosure>
     </Screen>
   );
 }

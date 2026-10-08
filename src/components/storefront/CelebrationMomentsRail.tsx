@@ -1,11 +1,6 @@
 import type { ReactNode } from 'react';
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Text } from "@/components/ui/Typography";
 import type { StyleProp, ViewStyle } from 'react-native';
 import { tokens } from '@/theme/tokens';
 

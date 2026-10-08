@@ -1,9 +1,11 @@
+import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import * as Sharing from "expo-sharing";
 import { useEffect, useState } from "react";
-import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
+import { Linking, Pressable, StyleSheet, View } from "react-native";
+import { Text } from "@/components/ui/Typography";
 import { Button } from "@/components/ui/Button";
 import { Chip, ui as baseUi, useToast } from "@/components/ui/Commerce";
 import { Input } from "@/components/ui/Input";
@@ -243,6 +245,11 @@ export function CustomCakeBrief() {
         </View>
       </View>
 
+      <Button
+        label="Send and track a quote request"
+        variant="outline"
+        onPress={() => router.push("/requests")}
+      />
       <Button
         label="Message Cake City for a quote"
         onPress={() => void messageCakeCity()}

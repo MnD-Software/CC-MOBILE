@@ -344,7 +344,7 @@ async function publicStoreRead(path: string, signal?: AbortSignal) {
     );
     if (!response.ok)
       throw new ApiError(
-        "The live catalogue could not be loaded. Please try again.",
+        "The shop could not be loaded. Please try again.",
         { code: "STORE_BROWSE_HTTP", status: response.status },
       );
     // Consume the body inside the timeout boundary too.
@@ -355,7 +355,7 @@ async function publicStoreRead(path: string, signal?: AbortSignal) {
   } catch (error) {
     if (isApiError(error)) throw error;
     throw new ApiError(
-      "Unable to reach the live catalogue. Check your connection and try again.",
+      "Unable to load cakes. Check your connection and try again.",
       { code: "STORE_BROWSE_NETWORK" },
     );
   } finally {

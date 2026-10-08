@@ -5,7 +5,7 @@ export default function Offers() {
     <UnavailableExperience
       title="Cake City offers"
       heading="Fresh offers are on their way."
-      message="We will surface promotions here only when the live catalogue can confirm their price and availability."
+      message="Check the shop for available offers and their latest prices."
       icon="pricetag-outline"
     />
   );

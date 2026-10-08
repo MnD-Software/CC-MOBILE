@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, type Href } from "expo-router";
-import { Text, View } from "react-native";
+import { View } from "react-native";
+import { Text } from "@/components/ui/Typography";
 import { tokens } from "@/theme/tokens";
 import { Button } from "./Button";
 import { Screen } from "./Commerce";
@@ -25,7 +26,7 @@ export function UnavailableExperience({
   heading,
   message,
   icon = "sparkles-outline",
-  actionLabel = "Browse live cakes",
+  actionLabel = "Browse cakes",
   actionHref = "/(tabs)/shop",
 }: UnavailableExperienceProps) {
   const styles = useThemedStyles(baseStyles);

@@ -10,6 +10,15 @@ Current implementation:
 - `src/native/OrderActivityControl.tsx`: opt-in control on an authenticated, device-saved order with a successful live response. Activity ends when its screen unmounts or the server reports a terminal outcome.
 - `app.config.js`: Expo Widgets config plugin; generates `ke.co.cakecity.mobile.ExpoWidgetsTarget`, app-group entitlement and `NSSupportsLiveActivities`.
 
+## Android equivalent
+
+Expo Widgets and ActivityKit are iOS-only; Android cannot receive a Dynamic
+Island or Live Activity target. On Android, `OrderActivityControl` instead
+offers an opt-in `expo-notifications` order-tracking notification. It uses the
+same verified order-status mapping, refreshes only while the order screen is
+open, and displays the time of the most recent server confirmation. It does not
+invent a delivery estimate or claim background status updates.
+
 The older `ios-live-activities/` Swift files and `src/native/live-activities.ts` bridge are legacy reference material, not the active implementation. Do not add them as a second extension.
 
 Limits:

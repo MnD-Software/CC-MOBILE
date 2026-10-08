@@ -3,7 +3,9 @@ import * as Location from "expo-location";
 import { router } from "expo-router";
 import { useMutation } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import { Linking, Text, View } from "react-native";
+import { Linking, View, Switch, Pressable } from "react-native";
+import { Disclosure } from "@/components/ui/Disclosure";
+import { Text } from "@/components/ui/Typography";
 import { useAuth } from "@/auth/AuthProvider";
 import { trackCommerceEvent } from "@/observability/commerce-events";
 import {
@@ -57,6 +59,16 @@ function checkoutError(details: WebsiteCheckoutDetails) {
     return "Enter a valid Kenyan phone number.";
   if (!details.address.trim() || !details.area.trim() || !details.city.trim())
     return "Enter your delivery address, area and city.";
+  if (
+    details.gift &&
+    (!details.gift.firstName.trim() || !details.gift.lastName.trim())
+  )
+    return "Enter the recipient's first and last name.";
+  if (
+    details.gift &&
+    !/^(?:\+?254|0)[17]\d{8}$/.test(details.gift.phone.replace(/\s/g, ""))
+  )
+    return "Enter a valid Kenyan phone number for the recipient.";
   return null;
 }
 
@@ -88,6 +100,11 @@ function CheckoutForm() {
   const [area, setArea] = useState("");
   const [city, setCity] = useState("Nairobi");
   const [notes, setNotes] = useState("");
+  const [isGift, setIsGift] = useState(false);
+  const [recipientFirst, setRecipientFirst] = useState("");
+  const [recipientLast, setRecipientLast] = useState("");
+  const [recipientPhone, setRecipientPhone] = useState("");
+  const [giftMessage, setGiftMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [locationBusy, setLocationBusy] = useState(false);
   const [locationNotice, setLocationNotice] = useState("");
@@ -143,6 +160,14 @@ function CheckoutForm() {
     area,
     city,
     notes,
+    gift: isGift
+      ? {
+          firstName: recipientFirst,
+          lastName: recipientLast,
+          phone: recipientPhone,
+          message: giftMessage,
+        }
+      : undefined,
   };
 
   useEffect(() => {
@@ -211,6 +236,11 @@ function CheckoutForm() {
     setArea("");
     setCity("Nairobi");
     setNotes("");
+    setIsGift(false);
+    setRecipientFirst("");
+    setRecipientLast("");
+    setRecipientPhone("");
+    setGiftMessage("");
     void Promise.all([
       clearWebsiteCheckoutSession(),
       clearWebsitePaymentAttempt(),
@@ -464,7 +494,6 @@ function CheckoutForm() {
               : "Cake City has recorded your payment result. Open your order update for the latest status."}
           </Text>
         </View>
-        <Notice message="Order updates are always shown by Cake City. This app does not guess a payment or delivery status." />
         {error ? <Notice error message={error} /> : null}
         {started.paymentUrl ? (
           <Button
@@ -478,24 +507,40 @@ function CheckoutForm() {
           onPress={() => void Linking.openURL(receiptUrl)}
         />
         {ownerScope ? (
-          <Button
-            variant="outline"
-            label="My tracked orders"
+          <Pressable
+            accessibilityRole="button"
             onPress={() => router.replace("/(tabs)/orders")}
-          />
+            style={{
+              minHeight: 44,
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <Text style={{ color: colors.brandStrong, fontSize: 13 }}>
+              View my orders
+            </Text>
+          </Pressable>
         ) : (
           <Notice message="For privacy on shared devices, keep your official Cake City order page or sign in before leaving this guest checkout." />
         )}
         {!awaitingPayment ? (
-          <Button
-            variant="outline"
-            label="Continue shopping"
+          <Pressable
+            accessibilityRole="button"
+            style={{
+              minHeight: 44,
+              justifyContent: "center",
+              alignItems: "center",
+            }}
             onPress={() => {
               void clearWebsitePaymentAttempt();
               clearBag();
               router.replace("/(tabs)");
             }}
-          />
+          >
+            <Text style={{ color: colors.brandStrong, fontSize: 13 }}>
+              Continue shopping
+            </Text>
+          </Pressable>
         ) : null}
       </View>
     );
@@ -506,18 +551,8 @@ function CheckoutForm() {
   return (
     <View style={{ gap: 22 }}>
       <CheckoutProgress current={1} />
-      <View style={[ui.panel, { gap: 7 }]}>
-        <View style={ui.row}>
-          <Ionicons name="shield-checkmark-outline" size={20} color="#EC008C" />
-          <Text style={ui.heading}>One Cake City checkout</Text>
-        </View>
-        <Text style={ui.body}>
-          Every eligible item below is verified in one Cake City cart, then paid
-          together through the secure Pesapal checkout.
-        </Text>
-      </View>
 
-      <Section title="01 / Contact details" />
+      <Section title="Contact details" />
       {customer ? (
         <View style={ui.row}>
           <Ionicons name="person-circle-outline" size={17} color="#EC008C" />
@@ -554,20 +589,72 @@ function CheckoutForm() {
         autoComplete="tel"
       />
 
-      <Section title="02 / Delivery details" />
-      <Button
-        icon={<Ionicons name="locate-outline" size={18} color="#EC008C" />}
-        label={
-          locationBusy ? "Finding your location…" : "Use my current location"
-        }
-        loading={locationBusy}
+      <View style={ui.spread}>
+        <View style={{ flex: 1, gap: 3 }}>
+          <Text style={ui.heading}>Send as a gift</Text>
+          <Text style={ui.body}>Deliver to someone special</Text>
+        </View>
+        <Switch
+          accessibilityLabel="Send this order as a gift"
+          value={isGift}
+          onValueChange={setIsGift}
+          trackColor={{ true: colors.brand }}
+        />
+      </View>
+      {isGift ? (
+        <>
+          <Input
+            label="Recipient first name"
+            value={recipientFirst}
+            onChangeText={setRecipientFirst}
+            maxLength={80}
+          />
+          <Input
+            label="Recipient last name"
+            value={recipientLast}
+            onChangeText={setRecipientLast}
+            maxLength={80}
+          />
+          <Input
+            label="Recipient phone"
+            value={recipientPhone}
+            onChangeText={setRecipientPhone}
+            keyboardType="phone-pad"
+            maxLength={20}
+          />
+          <Input
+            label="Gift message (optional)"
+            value={giftMessage}
+            onChangeText={setGiftMessage}
+            multiline
+            maxLength={300}
+          />
+          <Text style={ui.body}>
+            Enter the recipient's delivery address below. Payment and order
+            emails stay with you. Gift messages are sent as order notes; printed
+            cards depend on the store.
+          </Text>
+        </>
+      ) : null}
+      <Section title="Delivery address" />
+      <Pressable
+        accessibilityRole="button"
+        disabled={locationBusy}
         onPress={() => void useCurrentLocation()}
-        variant="outline"
-      />
-      <Text style={ui.body}>
-        We use your location only when you tap this button to suggest editable
-        delivery fields. It is not tracked in the background.
-      </Text>
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 8,
+          minHeight: 44,
+        }}
+      >
+        <Ionicons name="locate-outline" size={18} color={colors.brandStrong} />
+        <Text style={{ color: colors.brandStrong, fontSize: 13 }}>
+          {locationBusy
+            ? "Finding your location..."
+            : "Use my current location"}
+        </Text>
+      </Pressable>
       {locationNotice ? <Notice message={locationNotice} /> : null}
       <Input
         autoComplete="street-address"
@@ -582,14 +669,16 @@ function CheckoutForm() {
         onChangeText={setArea}
       />
       <Input label="City" value={city} onChangeText={setCity} />
-      <Input
-        label="Order notes (optional)"
-        value={notes}
-        onChangeText={setNotes}
-        maxLength={500}
-      />
+      <Disclosure title="Add a delivery note">
+        <Input
+          label="Order notes (optional)"
+          value={notes}
+          onChangeText={setNotes}
+          maxLength={500}
+        />
+      </Disclosure>
 
-      <Section title="03 / Your Cake City bag" />
+      <Section title="Order summary" />
       {cart.cart.items.map((item) => (
         <View key={item.id} style={ui.spread}>
           <Text style={[ui.body, { flex: 1 }]}>
@@ -597,15 +686,10 @@ function CheckoutForm() {
           </Text>
         </View>
       ))}
-      <View style={[themedUi.panel, { gap: 12, borderRadius: 26 }]}>
-        <View style={themedUi.row}>
-          <Ionicons
-            name="ticket-outline"
-            size={22}
-            color={colors.brandStrong}
-          />
-          <Text style={themedUi.heading}>Coupon code</Text>
-        </View>
+      <Disclosure
+        title={couponConfirmed ? "Promo code applied" : "Add a promo code"}
+        defaultOpen={!!wallet.selected}
+      >
         <Input
           label="Add a coupon"
           placeholder="Enter a Cake City code"
@@ -619,7 +703,7 @@ function CheckoutForm() {
         <Text style={themedUi.body}>
           {wallet.selected && !couponConfirmed
             ? "Your selected code still needs to be applied to this bag."
-            : "Saved codes are checked against your cakes by Cake City. Only the website can confirm a discount."}
+            : "Apply your code to check the discount."}
         </Text>
         <Button
           variant="outline"
@@ -636,12 +720,6 @@ function CheckoutForm() {
             onPress={() => void updateCoupon(true)}
           />
         ) : null}
-        <Button
-          variant="ghost"
-          label="Open my coupon wallet"
-          disabled={busy || couponBusy}
-          onPress={() => router.push("/(tabs)/loyalty")}
-        />
         {couponError ? <Notice error message={couponError} /> : null}
         {couponConfirmed && wallet.selected && !couponError ? (
           <Notice
@@ -660,7 +738,10 @@ function CheckoutForm() {
             </Text>
           </View>
         ) : null}
-      </View>
+      </Disclosure>
+      {couponBlocked ? (
+        <Notice message="Open promo code above to apply or remove your selected code before payment." />
+      ) : null}
       <View style={ui.panel}>
         <View style={ui.spread}>
           <Text style={ui.heading}>Verified total</Text>
@@ -670,8 +751,8 @@ function CheckoutForm() {
         </View>
       </View>
       <Text style={ui.body}>
-        Cake City calculates the final price, delivery and payment result. No
-        local price is used to authorize payment.
+        Secure payment through Pesapal. Your order total is checked before
+        payment.
       </Text>
       {error ? <Notice error message={error} /> : null}
       <Button

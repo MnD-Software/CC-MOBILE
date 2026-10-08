@@ -72,11 +72,10 @@ test("unconnected account routes fail honestly while checkout uses Cake City's s
     "addresses.tsx",
     "branches.tsx",
     "offers.tsx",
-    "moments.tsx",
     "notifications.tsx",
   ].map((route) => read("app", route));
 
-  assert.match(unavailable, /Browse live cakes/);
+  assert.match(unavailable, /Browse cakes/);
   assert.match(unavailable, /does not provide yet/);
   assert.doesNotMatch(commerce, /right === undefined \? <BagButton/);
 
@@ -128,7 +127,10 @@ test("Cake City Club manages real customer codes without inventing issued reward
   assert.match(rewards, /useCouponWallet/);
   assert.match(rewards, /saveCouponCode/);
   assert.match(rewards, /removeCouponCode/);
-  assert.match(rewards, /Club points: not connected/);
+  assert.match(rewards, /ClubMembership/);
+  const club = read("src", "features", "account", "ClubMembership.tsx");
+  assert.match(club, /clubApi.overview/);
+  assert.match(club, /redemption_available/);
   assert.match(rewards, /eligibility checked at checkout/);
   assert.match(rewards, /Guest codes stay only in this app session/);
   assert.doesNotMatch(rewards, /Saved cakes/);
@@ -257,13 +259,13 @@ test("search, account identity and checkout location stay customer-controlled", 
   const help = read("app", "help.tsx");
   const appConfig = read("app.json");
 
-  assert.match(shop, /perPage: 16/);
+  assert.match(shop, /perPage: 100/);
   assert.match(shop, /const changeSearch/);
   assert.match(shop, /setCategory\(undefined\)/);
   assert.match(shop, /rememberSearch\(search\.trim\(\)\)/);
   assert.match(shop, /shopApi\.browseProducts/);
   assert.match(shop, /getNextPageParam:.*last\.nextPage/);
-  assert.match(shop, /layout="row"/);
+  assert.match(shop, /numColumns=\{2\}/);
   assert.match(shop, /styles\.sidebar/);
   assert.match(shop, /initialNumToRender=\{6\}/);
   assert.match(shop, /maxToRenderPerBatch=\{6\}/);

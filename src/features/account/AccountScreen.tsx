@@ -3,7 +3,8 @@ import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, type Href } from "expo-router";
 import { useState } from "react";
-import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
+import { Linking, Pressable, StyleSheet, View } from "react-native";
+import { Text } from "@/components/ui/Typography";
 import { useAuth } from "@/auth/AuthProvider";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
 import {
@@ -520,9 +521,9 @@ export function AccountScreen() {
           />
         </View>
         <View style={styles.clubPreviewCopy}>
-          <Text style={styles.clubPreviewTitle}>Club coupons</Text>
+          <Text style={styles.clubPreviewTitle}>Cake City Club</Text>
           <Text style={styles.clubPreviewText} numberOfLines={2}>
-            Manage saved codes and check them against your bag.
+            Points, rewards, celebration dates and saved coupons.
           </Text>
         </View>
         <View style={styles.clubStatus}>

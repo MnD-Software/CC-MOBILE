@@ -3,7 +3,7 @@
     "name": "Cake City",
     "slug": "cakecitymobiledev",
     "scheme": "cakecity",
-    "version": "0.2.3",
+    "version": "0.2.6",
     "orientation": "portrait",
     "icon": "./assets/cake-city-app-icon.png",
     "userInterfaceStyle": "automatic",
@@ -76,7 +76,7 @@
       "typedRoutes": true
     },
     "updates": {
-      "url": "https://u.expo.dev/a656bf20-49d8-41a4-990b-9f3049a57a25",
+      "url": "https://u.expo.dev/dad0f312-d1c4-4636-bf66-9f813e436509",
       "enabled": true,
       "checkAutomatically": "ON_LOAD",
       "fallbackToCacheTimeout": 0,
