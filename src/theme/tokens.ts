@@ -9,7 +9,7 @@
 export const tokens = {
   color: {
     // Canvas & surfaces
-    background: "#FFF5FA",
+    background: "#FFFFFF",
     surface: "#FFFFFF",
     surfaceRaised: "#FFFFFF",
     surfaceTint: "#FFEAF4",
@@ -67,7 +67,7 @@ export const tokens = {
     /** Rewards & gold moments */
     gold: ["#FFC53D", "#FF8A00"],
     /** Full-screen aurora canvas behind glass surfaces */
-    aurora: ["#FFFFFF", "#FFFDFE", "#FFF8FB"],
+    aurora: ["#FFFFFF", "#FFFFFF", "#FFFFFF"],
   } as const,
   space: {
     none: 0,

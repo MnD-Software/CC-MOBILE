@@ -6,9 +6,12 @@ import { useState } from "react";
 import { Linking, Pressable, StyleSheet, View } from "react-native";
 import { Text } from "@/components/ui/Typography";
 import { useAuth } from "@/auth/AuthProvider";
+import { BrandLogo } from "@/components/BrandLogo";
+import { Disclosure } from "@/components/ui/Disclosure";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
 import {
   BagButton,
+  CommerceBrowseHeader,
   Feedback,
   Screen,
   Section,
@@ -314,7 +317,15 @@ export function AccountScreen() {
 
   if (restoring) {
     return (
-      <Screen title="Account" right={<BagButton />}>
+      <Screen
+        header={
+          <CommerceBrowseHeader
+            brand={<BrandLogo width={105} />}
+            right={<BagButton />}
+            children={null}
+          />
+        }
+      >
         <Feedback loading />
       </Screen>
     );
@@ -323,15 +334,19 @@ export function AccountScreen() {
   if (!customer) {
     return (
       <Screen
-        title="Account"
-        subtitle="Make Cake City feel like yours."
-        right={<BagButton />}
+        header={
+          <CommerceBrowseHeader
+            brand={<BrandLogo width={105} />}
+            right={<BagButton />}
+            children={null}
+          />
+        }
       >
         <LinearGradient
           colors={
             isDark
               ? ["#332030", "#211B24", "#172C38"]
-              : ["#FFF1F8", "#FFFFFF", "#F0F9FF"]
+              : ["#FFFFFF", "#FFFFFF", "#FFFFFF"]
           }
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
@@ -407,7 +422,7 @@ export function AccountScreen() {
           </Shortcut>
         </View>
         <AppearanceSelector />
-        <Section title="Your celebrations" />
+        <Section title="Your essentials" />
         <View style={styles.accountList}>
           {celebrationLinks
             .filter((link) => link.id === "orders")
@@ -429,22 +444,26 @@ export function AccountScreen() {
     );
   }
 
-  const firstName = customer.first_name.trim() || "Cake City guest";
+  const firstName = customer.first_name?.trim() || "Cake City guest";
   const avatarChoice = avatarChoices.find(
     (choice) => avatar?.kind === "preset" && choice.id === avatar.value,
   );
 
   return (
     <Screen
-      title="Account"
-      subtitle="Your celebrations, all together."
-      right={<BagButton />}
+      header={
+        <CommerceBrowseHeader
+          brand={<BrandLogo width={105} />}
+          right={<BagButton />}
+          children={null}
+        />
+      }
     >
       <LinearGradient
         colors={
           isDark
             ? ["#332030", "#211B24", "#172C38"]
-            : ["#FFF1F8", "#FFFFFF", "#F0F9FF"]
+            : ["#FFFFFF", "#FFFFFF", "#FFFFFF"]
         }
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -467,7 +486,7 @@ export function AccountScreen() {
         <View style={styles.memberHeroCopy}>
           <Text style={styles.heroEyebrow}>YOUR CAKE CITY</Text>
           <Text style={styles.memberName} numberOfLines={1}>
-            {firstName} {customer.last_name.trim()}
+            {firstName} {customer.last_name?.trim()}
           </Text>
           <Text style={styles.memberEmail} numberOfLines={1}>
             {customer.email}
@@ -523,11 +542,11 @@ export function AccountScreen() {
         <View style={styles.clubPreviewCopy}>
           <Text style={styles.clubPreviewTitle}>Cake City Club</Text>
           <Text style={styles.clubPreviewText} numberOfLines={2}>
-            Points, rewards, celebration dates and saved coupons.
+            Your membership, rewards and moments that matter.
           </Text>
         </View>
         <View style={styles.clubStatus}>
-          <Text style={styles.clubStatusText}>Coupons</Text>
+          <Text style={styles.clubStatusText}>Open Club</Text>
         </View>
         <Ionicons name="chevron-forward" size={18} color={colors.cocoa} />
       </Pressable>
@@ -632,8 +651,26 @@ export function AccountScreen() {
           </View>
         </>
       ) : null}
-      <Section title="Your celebrations" />
+      <Section title="Your essentials" />
       <View style={styles.accountList}>
+        <AccountRow
+          link={{
+            id: "addresses",
+            title: "Saved addresses",
+            detail: "Make your next delivery easier",
+            icon: "location-outline",
+            href: "/addresses",
+          }}
+        />
+        <AccountRow
+          link={{
+            id: "requests",
+            title: "Your requests",
+            detail: "Custom cakes, quotes and support replies",
+            icon: "chatbox-ellipses-outline",
+            href: "/requests",
+          }}
+        />
         {celebrationLinks.map((link) => (
           <AccountRow
             key={link.id}
@@ -653,8 +690,10 @@ export function AccountScreen() {
         ))}
       </View>
 
-      <AppearanceSelector />
-      <Section title="Support and settings" />
+      <Disclosure title="Appearance">
+        <AppearanceSelector />
+      </Disclosure>
+      <Section title="Here to help" />
       <View style={styles.serviceGrid}>
         {supportLinks.map((link) => (
           <ServiceTile
@@ -787,7 +826,9 @@ const baseStyles = StyleSheet.create({
     gap: 14,
     padding: 18,
     borderRadius: 26,
-    ...tokens.shadow.floating,
+    borderWidth: 1,
+    borderColor: tokens.color.border,
+    ...tokens.shadow.card,
   },
   avatarPressable: { position: "relative", borderRadius: 26 },
   editBadge: {
@@ -865,8 +906,8 @@ const baseStyles = StyleSheet.create({
     padding: 15,
     borderRadius: 21,
     borderWidth: 1,
-    borderColor: "#F2DEA7",
-    backgroundColor: "#FFF8E7",
+    borderColor: tokens.color.borderStrong,
+    backgroundColor: tokens.color.brandLight,
   },
   clubPreviewIcon: {
     width: 43,
@@ -883,7 +924,7 @@ const baseStyles = StyleSheet.create({
     fontWeight: "900",
   },
   clubPreviewText: {
-    color: tokens.color.warning,
+    color: tokens.color.brandStrong,
     fontSize: 11.5,
     lineHeight: 16,
   },
@@ -891,10 +932,10 @@ const baseStyles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 5,
     borderRadius: 999,
-    backgroundColor: "rgba(232,163,35,0.16)",
+    backgroundColor: tokens.color.surface,
   },
   clubStatusText: {
-    color: tokens.color.warning,
+    color: tokens.color.brandStrong,
     fontSize: 9.5,
     fontWeight: "900",
   },

@@ -32,14 +32,14 @@ type ThemeContextValue = {
 const ThemeContext = createContext<ThemeContextValue>({
   colors: tokens.color,
   isDark: false,
-  preference: "system",
+  preference: "light",
   setPreference: () => {},
   persistenceError: false,
 });
 
 export function ThemeProvider({ children }: PropsWithChildren) {
   const systemScheme = useColorScheme();
-  const [preference, setChoice] = useState<AppearancePreference>("system");
+  const [preference, setChoice] = useState<AppearancePreference>("light");
   const [persistenceError, setPersistenceError] = useState(false);
   const interacted = useRef(false);
   const writes = useRef(Promise.resolve());

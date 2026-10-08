@@ -82,7 +82,7 @@ export function RewardsScreen() {
       >
         <View style={styles.heroRow}>
           <View style={styles.heroMark}>
-            <Ionicons name="ribbon" size={30} color="#FFFFFF" />
+            <Ionicons name="ribbon" size={23} color="#FFFFFF" />
           </View>
           <Text style={styles.heroEyebrow}>CAKE CITY CLUB</Text>
         </View>
@@ -262,16 +262,16 @@ export function RewardsScreen() {
 
 const baseStyles = StyleSheet.create({
   hero: {
-    gap: 14,
-    padding: 23,
+    gap: 8,
+    padding: 18,
     borderRadius: 30,
     overflow: "hidden",
     ...tokens.shadow.floating,
   },
   heroRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   heroMark: {
-    width: 54,
-    height: 54,
+    width: 38,
+    height: 38,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 19,
@@ -289,8 +289,8 @@ const baseStyles = StyleSheet.create({
   },
   heroTitle: {
     color: "#FFFFFF",
-    fontSize: 27,
-    lineHeight: 33,
+    fontSize: 23,
+    lineHeight: 29,
     fontWeight: "900",
   },
   heroCopy: { color: "#FFF7E7", fontSize: 13, lineHeight: 20 },

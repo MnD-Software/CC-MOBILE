@@ -321,7 +321,11 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
                   <ScrollView
                     horizontal
                     showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={{ gap: 16, paddingHorizontal: 4 }}
+                    contentContainerStyle={{
+                      gap: 10,
+                      paddingHorizontal: 4,
+                      paddingVertical: 4,
+                    }}
                   >
                     {selection.filters.map((item) => (
                       <Pressable
@@ -333,19 +337,23 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
                         }
                         onPress={() => setSubfilter(item.id)}
                         style={{
-                          paddingHorizontal: 14,
+                          paddingHorizontal: 19,
                           paddingVertical: 10,
                           minHeight: 56,
                           maxWidth: 155,
                           justifyContent: "center",
+                          alignItems: "center",
                           gap: 3,
-                          borderRadius: 18,
+                          borderRadius: 999,
                           borderWidth: 1,
                           borderColor:
                             subfilter === item.id
                               ? colors.brand
                               : colors.border,
-                          backgroundColor: subfilter === item.id ? colors.brandLight : colors.surface,
+                          backgroundColor:
+                            subfilter === item.id
+                              ? colors.brandLight
+                              : colors.surface,
                           shadowColor: colors.brand,
                           shadowOpacity: subfilter === item.id ? 0.15 : 0,
                           shadowRadius: 9,

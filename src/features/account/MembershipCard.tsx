@@ -8,6 +8,7 @@ import {
   View,
   PixelRatio,
   StyleSheet,
+  type LayoutChangeEvent,
 } from "react-native";
 import { Text } from "@/components/ui/Typography";
 import { useReducedMotion } from "@/design/useReducedMotion";
@@ -33,7 +34,7 @@ export function MembershipCard({
   pointValue: number;
   rewards: number;
 }) {
-  const [faceHeight, setFaceHeight] = useState(300);
+  const [faceHeight, setFaceHeight] = useState(220);
   const shine = useRef(new Animated.Value(0)).current;
   const [back, setBack] = useState(false);
   const [barcodeWidth, setBarcodeWidth] = useState(0);
@@ -72,6 +73,12 @@ export function MembershipCard({
     animation.start();
     return () => animation.stop();
   }, [back, reduced, shine]);
+  const measureFace = (event: LayoutChangeEvent) => {
+    // Native synthetic events are released after the handler returns. Capture
+    // the primitive now; React may execute the state updater on a later render.
+    const measuredHeight = event.nativeEvent.layout.height;
+    setFaceHeight((height) => Math.max(height, Math.ceil(measuredHeight)));
+  };
   const flip = () => {
     const next = !back;
     setBack(next);
@@ -83,9 +90,9 @@ export function MembershipCard({
     }).start();
   };
   const face = {
-    borderRadius: 26,
-    padding: 22,
-    gap: 10,
+    borderRadius: 22,
+    padding: 18,
+    gap: 12,
     minHeight: faceHeight,
     overflow: "hidden",
     borderWidth: 1,
@@ -104,7 +111,7 @@ export function MembershipCard({
         accessibilityHint="Tap to turn your membership card"
         style={{
           minHeight: faceHeight,
-          borderRadius: 26,
+          borderRadius: 22,
           shadowColor: "#21131B",
           shadowOpacity: 0.2,
           shadowRadius: 16,
@@ -132,92 +139,70 @@ export function MembershipCard({
             colors={palette.gradient}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
-            onLayout={(event) =>
-              setFaceHeight((height) =>
-                Math.max(height, event.nativeEvent.layout.height),
-              )
-            }
+            onLayout={measureFace}
             style={face}
           >
             <View
               style={{
                 flexDirection: "row",
-                alignItems: "center",
                 justifyContent: "space-between",
+                alignItems: "center",
+                gap: 12,
               }}
             >
               <Text
                 style={{
                   color: palette.ink,
-                  fontSize: 12,
-                  letterSpacing: 1.5,
-                  fontWeight: "700",
+                  fontSize: 11,
+                  letterSpacing: 1,
+                  fontWeight: "800",
                 }}
               >
                 CAKE CITY CLUB
               </Text>
-              <Ionicons
-                name="diamond-outline"
-                size={25}
-                color={palette.accent}
-              />
-            </View>
-            <Text
-              style={{ color: palette.ink, fontSize: 24, fontWeight: "700" }}
-            >
-              {tier} membership
-            </Text>
-            <Text
-              style={{
-                color: palette.ink,
-                fontSize: 36,
-                lineHeight: 44,
-                fontWeight: "800",
-              }}
-            >
-              {points.toLocaleString()}{" "}
-              <Text style={{ fontSize: 16 }}>points</Text>
-            </Text>
-            <Text style={{ color: palette.muted, fontSize: 12 }}>
-              {points >= 100
-                ? "Your next reward is ready to explore"
-                : `${100 - points} points to your next reward`}
-            </Text>
-            <View
-              accessibilityRole="progressbar"
-              accessibilityValue={{
-                min: 0,
-                max: 100,
-                now: Math.min(100, points),
-              }}
-              style={{
-                height: 6,
-                backgroundColor: "rgba(100,110,125,0.22)",
-                borderRadius: 4,
-                overflow: "hidden",
-              }}
-            >
               <View
                 style={{
-                  width: `${Math.min(100, points)}%`,
-                  height: "100%",
-                  backgroundColor: palette.accent,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 5,
+                  borderRadius: 99,
+                  borderWidth: 1,
+                  borderColor: palette.accent,
+                  paddingHorizontal: 10,
+                  paddingVertical: 5,
                 }}
-              />
+              >
+                <Ionicons
+                  name="diamond-outline"
+                  size={13}
+                  color={palette.accent}
+                />
+                <Text
+                  style={{
+                    color: palette.ink,
+                    fontSize: 11,
+                    fontWeight: "700",
+                  }}
+                >
+                  {tier}
+                </Text>
+              </View>
             </View>
-            <View
-              style={{
-                flexDirection: "row",
-                justifyContent: "space-between",
-                gap: 12,
-                marginTop: 4,
-              }}
-            >
-              <Text style={{ color: palette.ink, fontSize: 12 }}>
-                Points value {money(points * pointValue)}
+            <View style={{ flex: 1, justifyContent: "center", gap: 4 }}>
+              <Text
+                style={{
+                  color: palette.ink,
+                  fontSize: 30,
+                  lineHeight: 38,
+                  fontWeight: "800",
+                }}
+              >
+                {points.toLocaleString()}{" "}
+                <Text style={{ fontSize: 13 }}>points</Text>
               </Text>
-              <Text style={{ color: palette.ink, fontSize: 12 }}>
-                {rewards} issued rewards
+              <Text style={{ color: palette.muted, fontSize: 11 }}>
+                Points value {money(points * pointValue)} ? {rewards} issued
+                rewards
               </Text>
             </View>
             <View
@@ -225,12 +210,17 @@ export function MembershipCard({
                 flexDirection: "row",
                 justifyContent: "space-between",
                 alignItems: "center",
-                gap: 10,
+                gap: 8,
               }}
             >
               <Text
                 numberOfLines={1}
-                style={{ color: palette.ink, fontWeight: "700", flex: 1 }}
+                style={{
+                  color: palette.ink,
+                  fontSize: 12,
+                  fontWeight: "700",
+                  flex: 1,
+                }}
               >
                 {name}
               </Text>
@@ -238,11 +228,11 @@ export function MembershipCard({
                 style={{ flexDirection: "row", alignItems: "center", gap: 5 }}
               >
                 <Text style={{ color: palette.muted, fontSize: 11 }}>
-                  Branch pass
+                  Tap to flip
                 </Text>
                 <Ionicons
-                  name="swap-horizontal"
-                  size={18}
+                  name="sync-outline"
+                  size={16}
                   color={palette.accent}
                 />
               </View>
@@ -317,20 +307,16 @@ export function MembershipCard({
         >
           <LinearGradient
             colors={palette.gradient}
-            onLayout={(event) =>
-              setFaceHeight((height) =>
-                Math.max(height, event.nativeEvent.layout.height),
-              )
-            }
-            style={face}
+            onLayout={measureFace}
+            style={[face, { gap: 6, padding: 16 }]}
           >
             <Text
-              style={{ color: palette.ink, fontSize: 20, fontWeight: "700" }}
+              style={{ color: palette.ink, fontSize: 17, fontWeight: "700" }}
             >
-              Your branch pass
+              Your Club pass
             </Text>
             <Text style={{ color: palette.muted, fontSize: 12 }}>
-              Show this barcode to your Cake City team.
+              Your membership, ready at the counter.
             </Text>
             <View
               onLayout={(event) =>
@@ -338,15 +324,15 @@ export function MembershipCard({
               }
               style={{
                 backgroundColor: "#FFFFFF",
-                paddingVertical: 16,
+                paddingVertical: 10,
                 alignItems: "center",
                 borderRadius: 12,
-                marginVertical: 8,
+                marginVertical: 2,
               }}
             >
               <View
                 accessible={false}
-                style={{ flexDirection: "row", height: 78 }}
+                style={{ flexDirection: "row", height: 54 }}
               >
                 {modulePixels > 0
                   ? Array.from(modules, (bit, index) => (
@@ -354,14 +340,14 @@ export function MembershipCard({
                         key={index}
                         style={{
                           width: modulePixels / scale,
-                          height: 78,
+                          height: 54,
                           backgroundColor: bit === "1" ? "#000000" : "#FFFFFF",
                         }}
                       />
                     ))
                   : null}
               </View>
-              <Text style={{ color: "#222222", fontSize: 10, marginTop: 8 }}>
+              <Text style={{ color: "#222222", fontSize: 10, marginTop: 5 }}>
                 {code}
               </Text>
             </View>
@@ -371,7 +357,7 @@ export function MembershipCard({
               {name} / {tier}
             </Text>
             <Text style={{ color: palette.accent, fontSize: 12 }}>
-              Tap to return to your points
+              Tap to flip back
             </Text>
           </LinearGradient>
         </Animated.View>

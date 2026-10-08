@@ -3,10 +3,12 @@ import { tokens } from "./tokens";
 export type AppearancePreference = "system" | "light" | "dark";
 export type ThemeColors = { [Key in keyof typeof tokens.color]: string };
 
-export const APPEARANCE_STORAGE_KEY = "cakecity.appearance.v1";
+export const APPEARANCE_STORAGE_KEY = "cakecity.appearance.v2";
 
 export function parseAppearance(value: unknown): AppearancePreference {
-  return value === "light" || value === "dark" ? value : "system";
+  return value === "light" || value === "dark" || value === "system"
+    ? value
+    : "light";
 }
 
 export function resolveAppearance(

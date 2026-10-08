@@ -12,8 +12,9 @@ const {
 test("appearance preference safely restores and follows system only when selected", () => {
   assert.equal(parseAppearance("dark"), "dark");
   assert.equal(parseAppearance("light"), "light");
-  for (const value of [null, "invalid", {}, "system"])
-    assert.equal(parseAppearance(value), "system");
+  assert.equal(parseAppearance("system"), "system");
+  for (const value of [null, "invalid", {}])
+    assert.equal(parseAppearance(value), "light");
   assert.equal(resolveAppearance("system", "dark"), "dark");
   assert.equal(resolveAppearance("system", null), "light");
   assert.equal(resolveAppearance("light", "dark"), "light");

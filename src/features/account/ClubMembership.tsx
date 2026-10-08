@@ -95,12 +95,79 @@ export function ClubMembership({ walletScope }: { walletScope: string }) {
         <>
           <MembershipCard
             id={data.member_id}
-            name={[customer.first_name, customer.last_name].filter(Boolean).join(" ") || "Club member"}
+            name={
+              [customer.first_name, customer.last_name]
+                .filter(Boolean)
+                .join(" ") || "Club member"
+            }
             tier={data.tier}
             points={data.points}
             pointValue={data.rules.point_value_kes}
-            rewards={data.coupons.filter((coupon) => coupon.status === "issued").length}
+            rewards={
+              data.coupons.filter((coupon) => coupon.status === "issued").length
+            }
           />
+          <View
+            style={{
+              padding: 16,
+              borderRadius: 22,
+              backgroundColor: colors.surface,
+              borderWidth: 1,
+              borderColor: colors.border,
+              gap: 10,
+            }}
+          >
+            <View
+              style={{ flexDirection: "row", alignItems: "center", gap: 10 }}
+            >
+              <Ionicons
+                name={
+                  data.points >= data.rules.minimum_redemption
+                    ? "gift-outline"
+                    : "sparkles-outline"
+                }
+                size={22}
+                color={colors.brandStrong}
+              />
+              <View style={{ flex: 1, gap: 3 }}>
+                <Text
+                  style={{ color: colors.ink, fontSize: 13, fontWeight: "700" }}
+                >
+                  {data.points >= data.rules.minimum_redemption
+                    ? "Your next reward is within reach"
+                    : `${data.rules.minimum_redemption - data.points} points to your next reward`}
+                </Text>
+                <Text style={{ color: colors.muted, fontSize: 11 }}>
+                  {data.next_tier
+                    ? `${money(data.next_tier.spend_required_kes)} qualifying spend to ${data.next_tier.name}`
+                    : "Enjoy your highest Club tier"}
+                </Text>
+              </View>
+            </View>
+            <View
+              accessibilityRole="progressbar"
+              accessibilityValue={{
+                min: 0,
+                max: data.rules.minimum_redemption,
+                now: Math.min(data.rules.minimum_redemption, data.points),
+              }}
+              style={{
+                height: 5,
+                borderRadius: 99,
+                backgroundColor: colors.brandLight,
+                overflow: "hidden",
+              }}
+            >
+              <View
+                style={{
+                  height: 5,
+                  borderRadius: 99,
+                  backgroundColor: colors.brandStrong,
+                  width: `${Math.min(100, (data.points / Math.max(1, data.rules.minimum_redemption)) * 100)}%`,
+                }}
+              />
+            </View>
+          </View>
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
             {(
               [

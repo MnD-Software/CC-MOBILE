@@ -7,7 +7,7 @@
     "orientation": "portrait",
     "icon": "./assets/cake-city-app-icon.png",
     "userInterfaceStyle": "automatic",
-    "backgroundColor": "#FFFEFF",
+    "backgroundColor": "#FFFFFF",
     "primaryColor": "#EC008C",
     "ios": {
       "supportsTablet": true,
@@ -52,7 +52,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#FFFEFF",
+          "backgroundColor": "#FFFFFF",
           "image": "./assets/cake-city-splash.png",
           "imageWidth": 260,
           "resizeMode": "contain"
