@@ -45,10 +45,13 @@ test("Android order tracking uses the same verified status boundary", () => {
   assert.match(tracking, /ANDROID_ORDER_TRACKING_CHANNEL = "order-tracking"/);
   assert.match(tracking, /orderActivityState\(snapshot\.status\)/);
   assert.match(tracking, /state\.terminal/);
-  assert.match(tracking, /Updated \$\{formatUpdatedAt\(snapshot\.checkedAt\)\}/);
+  assert.match(
+    tracking,
+    /Updated \$\{formatUpdatedAt\(snapshot\.checkedAt\)\}/,
+  );
   assert.match(tracking, /sound: false/);
   assert.match(tracking, /orderId: snapshot\.id/);
   assert.match(control, /startAndroidOrderTracking/);
   assert.match(control, /syncAndroidOrderTracking/);
-  assert.match(routes, /cakeCityOrderTracking===true/);
+  assert.match(routes, /cakeCityOrderTracking\s*===\s*true/);
 });

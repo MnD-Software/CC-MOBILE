@@ -34,7 +34,12 @@ const destinations = [
     icon: "receipt-outline",
     active: "receipt",
   },
-  { name: "account", label: "You", icon: "person-outline", active: "person" },
+  {
+    name: "account",
+    label: "Profile",
+    icon: "person-outline",
+    active: "person",
+  },
 ] as const;
 
 export function FloatingTabBar(

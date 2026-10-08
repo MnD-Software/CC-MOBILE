@@ -42,6 +42,35 @@ def test_club_requires_auth_and_signed_events(client, monkeypatch):
     assert client.post("/v1/integrations/club/order-event", content=b"{}").status_code == 401
 
 
+def test_transactions_paginate_stably_and_never_cross_accounts(client):
+    member_id, headers = register(client)
+    _, other = register(client)
+    timestamp = datetime.now(UTC)
+    with SessionLocal() as db:
+        for number in range(45):
+            db.add(ClubEntry(id=str(uuid4()), customer_id=member_id,
+                event_key=f"test:{uuid4()}", points=number - 20,
+                description=f"Entry {number}", remaining=0, created_at=timestamp))
+        db.commit()
+    assert client.get("/v1/club/transactions").status_code == 401
+    assert client.get("/v1/club/transactions?limit=51", headers=headers).status_code == 422
+    seen = []
+    cursor = None
+    while True:
+        response = client.get("/v1/club/transactions", headers=headers,
+            params={"before": cursor} if cursor else {})
+        assert response.status_code == 200
+        page = response.json()
+        seen.extend(row["id"] for row in page["data"])
+        cursor = page["next_cursor"]
+        if not cursor:
+            break
+    assert len(seen) == len(set(seen)) == 45
+    assert seen == sorted(seen, reverse=True)
+    assert client.get("/v1/club/transactions", headers=other).json()["data"] == []
+    assert client.get("/v1/club/transactions", headers=other, params={"before": seen[0]}).status_code == 404
+
+
 def test_awards_are_idempotent_and_refunds_reverse_only_once(client, monkeypatch):
     monkeypatch.setattr(get_settings(), "club_event_secret", "test-club-secret")
     member, headers = register(client)

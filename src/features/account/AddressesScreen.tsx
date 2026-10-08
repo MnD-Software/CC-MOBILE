@@ -17,11 +17,13 @@ import { Input } from "@/components/ui/Input";
 import { customerApi } from "@/features/commerce/api";
 import type { SavedAddress } from "@/features/commerce/contracts";
 import { useThemedStyles } from "@/theme/ThemeProvider";
+import { DeliveryLocationPicker } from "@/features/commerce/DeliveryLocationPicker";
 export function AddressesScreen() {
+  const { customer } = useAuth();
   return (
-    <Screen title="Your happy places." back>
+    <Screen title="My addresses" back>
       <AccountRequired>
-        <AddressList />
+        <AddressList key={customer?.id ?? "guest"} />
       </AccountRequired>
     </Screen>
   );
@@ -142,6 +144,27 @@ function AddressList() {
       {open ? (
         <View style={ui.panel}>
           <Section title={editing ? "Edit address" : "A new happy place"} />
+          <DeliveryLocationPicker
+            key={editing?.id ?? "new"}
+            address={form.line1}
+            area={form.area}
+            city={form.city}
+            recipientName={form.recipient_name}
+            recipientPhone={form.phone}
+            isGift={false}
+            canAutofill={false}
+            profileReady
+            allowSaving={false}
+            onChange={(value) =>
+              setForm((current) => ({
+                ...current,
+                line1: value.address,
+                area: value.area,
+                city: value.city,
+              }))
+            }
+            onRecipientChange={() => undefined}
+          />
           {(
             [
               ["label", "Label"],

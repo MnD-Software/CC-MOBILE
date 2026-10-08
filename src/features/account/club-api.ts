@@ -8,6 +8,12 @@ const coupon = z.object({
   status: z.enum(["pending", "issued"]),
   request_key: z.string(),
 });
+const transaction = z.object({
+  id: z.string(),
+  points: z.number().int(),
+  description: z.string(),
+  created_at: z.string(),
+});
 const club = z.object({
   member_id: z.string(),
   points: z.number().int().nonnegative(),
@@ -26,14 +32,7 @@ const club = z.object({
   redemption_available: z.boolean(),
   review_required: z.boolean().default(false),
   coupons: z.array(coupon),
-  activity: z.array(
-    z.object({
-      id: z.string(),
-      points: z.number().int(),
-      description: z.string(),
-      created_at: z.string(),
-    }),
-  ),
+  activity: z.array(transaction),
 });
 const celebration = z.object({
   id: z.string(),
@@ -45,6 +44,37 @@ const celebration = z.object({
 });
 export type Celebration = z.infer<typeof celebration>;
 export const clubApi = {
+  async transactions(before?: string, signal?: AbortSignal) {
+    const query = new URLSearchParams({ limit: "20" });
+    if (before) query.set("before", before);
+    try {
+      const page = z
+        .object({
+          data: z.array(transaction),
+          next_cursor: z.string().nullable(),
+        })
+        .parse(
+          await api.get(`/v1/club/transactions?${query}`, {
+            auth: true,
+            signal,
+            timeoutMs: 65_000,
+          }),
+        );
+      return { ...page, recent_only: false };
+    } catch (error) {
+      // Older deployments already expose genuine recent activity in Club.
+      // Do not reinterpret a missing cursor or an authentication failure.
+      if (!before && isApiError(error) && error.status === 404) {
+        const overview = await this.overview(signal);
+        return {
+          data: overview.activity,
+          next_cursor: null,
+          recent_only: true,
+        };
+      }
+      throw error;
+    }
+  },
   async overview(signal?: AbortSignal) {
     try {
       return club.parse(

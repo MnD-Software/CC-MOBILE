@@ -670,10 +670,10 @@ export const ProductTile = memo(function ProductTile({
         flex: horizontal || width ? undefined : 1,
         minWidth: 0,
         overflow: "hidden",
-        borderWidth: StyleSheet.hairlineWidth,
+        borderWidth: 1,
         borderColor: colors.border,
         backgroundColor: colors.surface,
-        borderRadius: compact ? 20 : 26,
+        borderRadius: compact ? 16 : 26,
         ...tokens.shadow.card,
       }}
     >
@@ -741,8 +741,8 @@ export const ProductTile = memo(function ProductTile({
             numberOfLines={1}
             style={{
               color: product.on_sale ? colors.brandStrong : colors.muted,
-              fontSize: 9,
-              lineHeight: 12,
+              fontSize: compact ? 10 : 9,
+              lineHeight: 14,
               fontWeight: "800",
               letterSpacing: 0.3,
               textTransform: "uppercase",
@@ -772,8 +772,8 @@ export const ProductTile = memo(function ProductTile({
             style={{
               color: colors.ink,
               fontWeight: "800",
-              fontSize: compact ? 14 : 16,
-              lineHeight: 19,
+              fontSize: compact ? 16 : 16,
+              lineHeight: 22,
               minHeight: 18,
               paddingRight: compact ? 0 : 42,
               marginTop: 3,
@@ -796,11 +796,11 @@ export const ProductTile = memo(function ProductTile({
           </Text>
           <Text
             style={{
-              fontSize: 9,
-              lineHeight: 13,
+              fontSize: compact ? 11 : 9,
+              lineHeight: 15,
               color: colors.muted,
               paddingRight: compact ? 0 : 44,
-              marginBottom: compact ? 40 : 0,
+              marginBottom: compact ? 48 : 0,
             }}
           >
             {!product.is_in_stock
@@ -817,8 +817,8 @@ export const ProductTile = memo(function ProductTile({
         <View
           style={{
             position: "absolute",
-            top: 13,
-            right: 13,
+            top: 8,
+            right: 8,
           }}
         >
           <FavouriteButton
@@ -837,11 +837,12 @@ export const ProductTile = memo(function ProductTile({
         style={({ pressed }) => [
           tileStyles.quickAdd,
           compact && {
-            left: 10,
-            right: 10,
-            width: undefined,
-            height: 36,
-            borderRadius: 12,
+            left: 9,
+            right: 9,
+            bottom: 10,
+            width: "auto",
+            height: 44,
+            borderRadius: 22,
             flexDirection: "row",
             gap: 5,
           },
@@ -849,18 +850,28 @@ export const ProductTile = memo(function ProductTile({
           pressed && tileStyles.quickAddPressed,
         ]}
       >
-        <Ionicons
-          name={quickAddAllowed ? "add" : "options-outline"}
-          size={20}
-          color="#FFFFFF"
-        />
+        {!(compact && width && width < 145) ? (
+          <Ionicons
+            name={quickAddAllowed ? "add" : "options-outline"}
+            size={20}
+            color="#FFFFFF"
+          />
+        ) : null}
         {compact ? (
-          <Text style={{ color: "#FFFFFF", fontSize: 11, fontWeight: "700" }}>
+          <Text
+            style={{
+              color: "#FFFFFF",
+              fontSize: 11,
+              fontWeight: "700",
+              flexShrink: 1,
+              textAlign: "center",
+            }}
+          >
             {!product.is_in_stock
               ? "Sold out"
               : quickAddAllowed
-                ? "Add"
-                : "Choose"}
+                ? "Add to bag"
+                : "Choose options"}
           </Text>
         ) : null}
       </Pressable>
@@ -877,7 +888,7 @@ const productTileStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 22,
-    backgroundColor: tokens.color.brand,
+    backgroundColor: tokens.color.brandStrong,
   },
   quickAddPressed: { opacity: 0.8, transform: [{ scale: 0.94 }] },
 });

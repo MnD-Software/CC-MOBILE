@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { Platform } from "react-native";
-import * as Notifications from "expo-notifications";
+import { getNativeNotifications } from "./notification-runtime";
 import { useAuth } from "@/auth/AuthProvider";
 import { celebrationReminderDate } from "@/features/account/reminder-date";
 
@@ -13,7 +13,8 @@ export function CelebrationReminderPrivacy() {
   useEffect(() => {
     if (restoring) return;
     activeOwner = customer?.id ?? null;
-    if (Platform.OS === "web") return;
+    const Notifications = getNativeNotifications();
+    if (!Notifications) return;
     void Notifications.getAllScheduledNotificationsAsync()
       .then(async (requests) => {
         for (const request of requests) {
@@ -37,7 +38,8 @@ export async function scheduleCelebrationReminder(
   owner: string,
   event: { id: string; month: number; day: number },
 ) {
-  if (Platform.OS === "web")
+  const Notifications = getNativeNotifications();
+  if (!Notifications)
     throw new Error("Reminders are available in the installed app.");
   if (activeOwner !== owner)
     throw new Error("Sign in again before setting a reminder.");
@@ -85,6 +87,7 @@ export async function scheduleCelebrationReminder(
 }
 
 export async function cancelCelebrationReminder(owner: string, id: string) {
-  if (Platform.OS !== "web")
+  const Notifications = getNativeNotifications();
+  if (Notifications)
     await Notifications.cancelScheduledNotificationAsync(identifier(owner, id));
 }

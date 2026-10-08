@@ -1,7 +1,31 @@
+export const shopSorts = [
+  {
+    id: "popular",
+    label: "Popular choices",
+    orderby: "popularity",
+    order: "desc",
+  },
+  {
+    id: "price-asc",
+    label: "Price: low to high",
+    orderby: "price",
+    order: "asc",
+  },
+  {
+    id: "price-desc",
+    label: "Price: high to low",
+    orderby: "price",
+    order: "desc",
+  },
+  { id: "newest", label: "Newest cakes", orderby: "date", order: "desc" },
+  { id: "name", label: "Name: A to Z", orderby: "title", order: "asc" },
+] as const;
+export type ShopSort = (typeof shopSorts)[number]["id"];
 export type ShopBrowseParams = {
   page?: number;
   perPage?: number;
   search?: string;
+  sort?: ShopSort;
   categories?: readonly number[];
   minimumKes?: number;
   maximumKes?: number;
@@ -40,11 +64,13 @@ export function shopBrowseQuery(params: ShopBrowseParams) {
     perPage > 100
   )
     throw new Error("Invalid catalogue page.");
+  const sort = shopSorts.find((item) => item.id === (params.sort ?? "popular"));
+  if (!sort) throw new Error("Invalid catalogue sort.");
   const query = new URLSearchParams({
     page: String(page),
     per_page: String(perPage),
-    orderby: "price",
-    order: "asc",
+    orderby: sort.orderby,
+    order: sort.order,
   });
   if (params.search?.trim())
     query.set("search", params.search.trim().slice(0, 120));

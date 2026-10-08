@@ -1,5 +1,5 @@
 import { Platform } from "react-native";
-import * as Notifications from "expo-notifications";
+import { getNativeNotifications } from "./notification-runtime";
 import { orderActivityState } from "./order-activity-state";
 import type { OrderActivitySnapshot } from "./order-activity-controller";
 
@@ -37,16 +37,23 @@ function prepare(snapshot: OrderActivitySnapshot): PreparedNotification | null {
 }
 
 async function ensureChannel() {
-  await Notifications.setNotificationChannelAsync(ANDROID_ORDER_TRACKING_CHANNEL, {
-    name: "Order tracking",
-    description: "Latest Cake City order status while you are tracking it",
-    importance: Notifications.AndroidImportance.LOW,
-    sound: null,
-    showBadge: false,
-  });
+  const Notifications = getNativeNotifications();
+  if (!Notifications) return;
+  await Notifications.setNotificationChannelAsync(
+    ANDROID_ORDER_TRACKING_CHANNEL,
+    {
+      name: "Order tracking",
+      description: "Latest Cake City order status while you are tracking it",
+      importance: Notifications.AndroidImportance.LOW,
+      sound: null,
+      showBadge: false,
+    },
+  );
 }
 
 async function ensurePermission() {
+  const Notifications = getNativeNotifications();
+  if (!Notifications) return;
   const current = await Notifications.getPermissionsAsync();
   const permission = current.granted
     ? current
@@ -59,6 +66,8 @@ async function ensurePermission() {
 }
 
 async function present({ identifier, snapshot }: PreparedNotification) {
+  const Notifications = getNativeNotifications();
+  if (!Notifications) return null;
   const state = orderActivityState(snapshot.status);
   if (!state) return null;
   await Notifications.scheduleNotificationAsync({
@@ -78,10 +87,12 @@ async function present({ identifier, snapshot }: PreparedNotification) {
 }
 
 export function androidOrderTrackingAvailable() {
-  return Platform.OS === "android";
+  return Platform.OS === "android" && !!getNativeNotifications();
 }
 
-export async function startAndroidOrderTracking(snapshot: OrderActivitySnapshot) {
+export async function startAndroidOrderTracking(
+  snapshot: OrderActivitySnapshot,
+) {
   if (!androidOrderTrackingAvailable()) return null;
   const notification = prepare(snapshot);
   if (!notification) return null;
@@ -108,5 +119,7 @@ export async function syncAndroidOrderTracking(
 
 export async function stopAndroidOrderTracking(identifier: string) {
   if (!androidOrderTrackingAvailable()) return;
+  const Notifications = getNativeNotifications();
+  if (!Notifications) return;
   await Notifications.dismissNotificationAsync(identifier);
 }

@@ -2,6 +2,10 @@ import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, type Href } from "expo-router";
+import { useQuery } from "@tanstack/react-query";
+import { clubApi } from "./club-api";
+import { membershipPalette } from "./member-card";
+import { customerApi } from "@/features/commerce/api";
 import { useState } from "react";
 import { Linking, Pressable, StyleSheet, View } from "react-native";
 import { Text } from "@/components/ui/Typography";
@@ -10,7 +14,6 @@ import { BrandLogo } from "@/components/BrandLogo";
 import { Disclosure } from "@/components/ui/Disclosure";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
 import {
-  BagButton,
   CommerceBrowseHeader,
   Feedback,
   Screen,
@@ -277,6 +280,25 @@ export function AccountScreen() {
   const { colors, isDark } = useTheme();
   const [editingProfile, setEditingProfile] = useState(false);
   const { customer, logout, restoring } = useAuth();
+  const membership = useQuery({
+    queryKey: ["club", customer?.id],
+    queryFn: ({ signal }) => clubApi.overview(signal),
+    enabled: !!customer,
+    staleTime: 60_000,
+    retry: false,
+  });
+  const clubPalette = membership.data
+    ? membershipPalette(membership.data.tier)
+    : null;
+  const addresses = useQuery({
+    queryKey: ["addresses", customer?.id],
+    queryFn: customerApi.addresses,
+    enabled: !!customer,
+    staleTime: 60_000,
+    retry: false,
+  });
+  const defaultAddress =
+    addresses.data?.find((value) => value.is_default) ?? addresses.data?.[0];
   const savedCount = usePreferences((state) => state.savedProductSlugs.length);
   const avatar = usePreferences((state) =>
     customer ? state.profileAvatars?.[customer.id] : undefined,
@@ -321,7 +343,6 @@ export function AccountScreen() {
         header={
           <CommerceBrowseHeader
             brand={<BrandLogo width={105} />}
-            right={<BagButton />}
             children={null}
           />
         }
@@ -337,7 +358,6 @@ export function AccountScreen() {
         header={
           <CommerceBrowseHeader
             brand={<BrandLogo width={105} />}
-            right={<BagButton />}
             children={null}
           />
         }
@@ -454,17 +474,12 @@ export function AccountScreen() {
       header={
         <CommerceBrowseHeader
           brand={<BrandLogo width={105} />}
-          right={<BagButton />}
           children={null}
         />
       }
     >
       <LinearGradient
-        colors={
-          isDark
-            ? ["#332030", "#211B24", "#172C38"]
-            : ["#FFFFFF", "#FFFFFF", "#FFFFFF"]
-        }
+        colors={["#B80068", "#8E0052", "#610A3E"]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.memberHero}
@@ -484,22 +499,105 @@ export function AccountScreen() {
           </View>
         </Pressable>
         <View style={styles.memberHeroCopy}>
-          <Text style={styles.heroEyebrow}>YOUR CAKE CITY</Text>
-          <Text style={styles.memberName} numberOfLines={1}>
+          <Text style={[styles.heroEyebrow, { color: "#FFFFFF" }]}>
+            YOUR CAKE CITY
+          </Text>
+          <Text
+            style={[styles.memberName, { color: "#FFFFFF" }]}
+            numberOfLines={2}
+          >
             {firstName} {customer.last_name?.trim()}
           </Text>
-          <Text style={styles.memberEmail} numberOfLines={1}>
+          <Text
+            style={[styles.memberEmail, { color: "#FFFFFF" }]}
+            numberOfLines={1}
+          >
             {customer.email}
           </Text>
-          <View style={styles.securePill}>
-            <Ionicons
-              name="shield-checkmark"
-              size={13}
-              color={colors.brandStrong}
-            />
-            <Text style={styles.securePillText}>Signed in securely</Text>
-          </View>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => setEditingProfile(!editingProfile)}
+            style={[
+              styles.securePill,
+              { minHeight: 38, paddingHorizontal: 10 },
+            ]}
+          >
+            <Ionicons name="create-outline" size={14} color="#FFFFFF" />
+            <Text style={[styles.securePillText, { color: "#FFFFFF" }]}>
+              Profile settings
+            </Text>
+          </Pressable>
         </View>
+      </LinearGradient>
+
+      <LinearGradient
+        colors={clubPalette?.gradient ?? [colors.brandLight, colors.brandLight]}
+        style={{
+          borderRadius: 23,
+          overflow: "hidden",
+          borderWidth: 1,
+          borderColor: clubPalette?.accent ?? colors.borderStrong,
+        }}
+      >
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Open Cake City Club${membership.data ? `, ${membership.data.tier} membership` : ""}`}
+          onPress={() => router.push("/(tabs)/loyalty")}
+          style={({ pressed }) => [
+            styles.clubPreview,
+            { backgroundColor: "transparent", borderWidth: 0 },
+            pressed && styles.pressed,
+          ]}
+        >
+          <View style={styles.clubPreviewIcon}>
+            <Ionicons
+              name="ribbon-outline"
+              size={23}
+              color={clubPalette?.accent ?? colors.brandStrong}
+            />
+          </View>
+          <View style={styles.clubPreviewCopy}>
+            <Text
+              style={[
+                styles.clubPreviewTitle,
+                { color: clubPalette?.ink ?? colors.ink },
+              ]}
+            >
+              Cake City Club
+            </Text>
+            <Text
+              style={[
+                styles.clubPreviewText,
+                { color: clubPalette?.muted ?? colors.muted },
+              ]}
+              numberOfLines={2}
+            >
+              {membership.data
+                ? `${membership.data.points.toLocaleString()} points / Your member benefits`
+                : "Your membership, rewards and celebrations"}
+            </Text>
+          </View>
+          <View
+            style={[
+              styles.clubStatus,
+              { backgroundColor: "rgba(255,255,255,0.20)" },
+            ]}
+          >
+            <Text
+              style={[
+                styles.clubStatusText,
+                { color: clubPalette?.ink ?? colors.brandStrong },
+              ]}
+            >
+              {membership.data?.tier ?? "Open Club"}
+            </Text>
+          </View>
+          <Ionicons
+            name="chevron-forward"
+            size={18}
+            color={clubPalette?.ink ?? colors.cocoa}
+          />
+        </Pressable>
       </LinearGradient>
 
       <View style={styles.shortcutRail}>
@@ -526,40 +624,6 @@ export function AccountScreen() {
         </Shortcut>
       </View>
 
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Open Cake City Club"
-        onPress={() => router.push("/(tabs)/loyalty")}
-        style={({ pressed }) => [styles.clubPreview, pressed && styles.pressed]}
-      >
-        <View style={styles.clubPreviewIcon}>
-          <Ionicons
-            name="ribbon-outline"
-            size={23}
-            color={colors.sunshineStrong}
-          />
-        </View>
-        <View style={styles.clubPreviewCopy}>
-          <Text style={styles.clubPreviewTitle}>Cake City Club</Text>
-          <Text style={styles.clubPreviewText} numberOfLines={2}>
-            Your membership, rewards and moments that matter.
-          </Text>
-        </View>
-        <View style={styles.clubStatus}>
-          <Text style={styles.clubStatusText}>Open Club</Text>
-        </View>
-        <Ionicons name="chevron-forward" size={18} color={colors.cocoa} />
-      </Pressable>
-
-      <Button
-        variant="outline"
-        label={
-          editingProfile
-            ? "Hide profile settings"
-            : "Profile and personalisation"
-        }
-        onPress={() => setEditingProfile(!editingProfile)}
-      />
       {editingProfile ? (
         <>
           <View style={styles.profileDetails}>
@@ -651,17 +715,73 @@ export function AccountScreen() {
           </View>
         </>
       ) : null}
+      <Section
+        title="My addresses"
+        action="Manage"
+        onPress={() => router.push("/addresses")}
+      />
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Manage your delivery addresses"
+        onPress={() => router.push("/addresses")}
+        style={{
+          borderRadius: 24,
+          borderWidth: 1,
+          borderColor: colors.border,
+          padding: 20,
+          gap: 10,
+          backgroundColor: colors.surface,
+        }}
+      >
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+          <View style={styles.shortcutIcon}>
+            <Ionicons
+              name="location-outline"
+              size={24}
+              color={colors.brandStrong}
+            />
+          </View>
+          <View style={{ flex: 1, gap: 5 }}>
+            <Text
+              style={{ color: colors.ink, fontSize: 16, fontWeight: "800" }}
+            >
+              {defaultAddress?.label ??
+                (addresses.isPending
+                  ? "Loading your addresses"
+                  : addresses.isError
+                    ? "Your address book"
+                    : "Where should we deliver?")}
+            </Text>
+            <Text style={{ color: colors.muted, fontSize: 13, lineHeight: 19 }}>
+              {defaultAddress
+                ? [
+                    defaultAddress.line1,
+                    defaultAddress.area,
+                    defaultAddress.city,
+                  ]
+                    .filter(Boolean)
+                    .join(", ")
+                : addresses.isError
+                  ? "Open to retry or add a delivery address."
+                  : "Save home, work or someone else's address for an easier checkout."}
+            </Text>
+          </View>
+          <Ionicons
+            name="chevron-forward"
+            size={18}
+            color={colors.brandStrong}
+          />
+        </View>
+        <Text
+          style={{ color: colors.brandStrong, fontSize: 13, fontWeight: "700" }}
+        >
+          {addresses.data?.length
+            ? `${addresses.data.length} saved / Manage addresses`
+            : "Add a new address"}
+        </Text>
+      </Pressable>
       <Section title="Your essentials" />
       <View style={styles.accountList}>
-        <AccountRow
-          link={{
-            id: "addresses",
-            title: "Saved addresses",
-            detail: "Make your next delivery easier",
-            icon: "location-outline",
-            href: "/addresses",
-          }}
-        />
         <AccountRow
           link={{
             id: "requests",
@@ -671,47 +791,26 @@ export function AccountScreen() {
             href: "/requests",
           }}
         />
-        {celebrationLinks.map((link) => (
-          <AccountRow
-            key={link.id}
-            link={link}
-            badge={
-              link.id === "saved"
-                ? savedCount
-                  ? `${savedCount} ${savedCount === 1 ? "cake" : "cakes"} saved on this device`
-                  : "Start a shortlist for your next celebration"
-                : link.id === "studio"
-                  ? designCount
-                    ? `${designCount} ${designCount === 1 ? "design" : "designs"} saved on this device`
-                    : "Create a custom cake from your ideas"
-                  : undefined
-            }
-          />
-        ))}
       </View>
 
       <Disclosure title="Appearance">
         <AppearanceSelector />
       </Disclosure>
       <Section title="Here to help" />
-      <View style={styles.serviceGrid}>
+      <View style={styles.accountList}>
         {supportLinks.map((link) => (
-          <ServiceTile
-            key={link.id}
-            title={link.title}
-            detail={link.detail}
-            icon={link.icon}
-            onPress={() => router.push(link.href)}
-          />
+          <AccountRow key={link.id} link={link} />
         ))}
-        <ServiceTile
-          title="Call support"
-          detail="0709 729 000"
-          icon="call-outline"
-          onPress={() => void callSupport()}
+        <AccountRow
+          link={{
+            id: "password",
+            title: "Reset password",
+            detail: "Keep your account secure",
+            icon: "lock-closed-outline",
+            href: "/forgot-password",
+          }}
         />
       </View>
-
       <Button
         variant="outline"
         label="Sign out"
@@ -871,19 +970,20 @@ const baseStyles = StyleSheet.create({
   shortcutRail: {
     flexDirection: "row",
     gap: 9,
-    padding: 8,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: tokens.color.border,
-    backgroundColor: tokens.color.surface,
-    ...tokens.shadow.card,
+    paddingVertical: 2,
   },
   shortcut: {
     flex: 1,
     alignItems: "center",
     gap: 5,
     minWidth: 0,
-    paddingVertical: 6,
+    paddingVertical: 18,
+    paddingHorizontal: 5,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: tokens.color.border,
+    backgroundColor: tokens.color.surface,
+    ...tokens.shadow.card,
   },
   shortcutIcon: {
     width: 38,
@@ -893,7 +993,7 @@ const baseStyles = StyleSheet.create({
     borderRadius: 13,
     backgroundColor: tokens.color.brandLight,
   },
-  shortcutLabel: { color: tokens.color.ink, fontSize: 10.5, fontWeight: "900" },
+  shortcutLabel: { color: tokens.color.ink, fontSize: 12, fontWeight: "900" },
   shortcutValue: {
     color: tokens.color.muted,
     fontSize: 9.5,

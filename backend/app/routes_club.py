@@ -6,9 +6,9 @@ from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
 import httpx
-from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 from pydantic import BaseModel, Field
-from sqlalchemy import select, update
+from sqlalchemy import and_, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -91,6 +91,22 @@ def overview(customer: Customer = Depends(member), db: Session = Depends(get_db)
             "status": c.status, "request_key": c.request_key} for c in coupons]}
     db.commit()
     return payload
+
+
+@router.get("/v1/club/transactions")
+def transactions(before: str | None = Query(default=None, max_length=36), limit: int = Query(default=20, ge=1, le=50), customer: Customer = Depends(member), db: Session = Depends(get_db)):
+    statement = select(ClubEntry).where(ClubEntry.customer_id == customer.id)
+    if before:
+        cursor = db.scalar(select(ClubEntry).where(ClubEntry.id == before, ClubEntry.customer_id == customer.id))
+        if not cursor:
+            raise HTTPException(404, "Transaction not found")
+        statement = statement.where(or_(ClubEntry.created_at < cursor.created_at,
+            and_(ClubEntry.created_at == cursor.created_at, ClubEntry.id < cursor.id)))
+    entries = db.scalars(statement.order_by(ClubEntry.created_at.desc(), ClubEntry.id.desc()).limit(limit + 1)).all()
+    page = entries[:limit]
+    return {"data": [{"id": e.id, "points": e.points, "description": e.description,
+        "created_at": e.created_at.isoformat()} for e in page],
+        "next_cursor": page[-1].id if len(entries) > limit else None}
 
 
 class BranchLookup(BaseModel):

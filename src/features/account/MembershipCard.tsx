@@ -34,7 +34,7 @@ export function MembershipCard({
   pointValue: number;
   rewards: number;
 }) {
-  const [faceHeight, setFaceHeight] = useState(220);
+  const [faceHeight, setFaceHeight] = useState(266);
   const shine = useRef(new Animated.Value(0)).current;
   const [back, setBack] = useState(false);
   const [barcodeWidth, setBarcodeWidth] = useState(0);
@@ -48,6 +48,10 @@ export function MembershipCard({
     1,
     Math.floor((barcodeWidth * scale) / modules.length),
   );
+  const moduleWidth =
+    barcodeWidth > 0
+      ? Math.min(modulePixels / scale, barcodeWidth / modules.length)
+      : 0;
   useEffect(() => {
     shine.setValue(0);
     if (reduced || back) return;
@@ -74,8 +78,7 @@ export function MembershipCard({
     return () => animation.stop();
   }, [back, reduced, shine]);
   const measureFace = (event: LayoutChangeEvent) => {
-    // Native synthetic events are released after the handler returns. Capture
-    // the primitive now; React may execute the state updater on a later render.
+    // Snapshot the height before React Native releases its synthetic event.
     const measuredHeight = event.nativeEvent.layout.height;
     setFaceHeight((height) => Math.max(height, Math.ceil(measuredHeight)));
   };
@@ -90,9 +93,9 @@ export function MembershipCard({
     }).start();
   };
   const face = {
-    borderRadius: 22,
-    padding: 18,
-    gap: 12,
+    borderRadius: 26,
+    padding: 20,
+    gap: 8,
     minHeight: faceHeight,
     overflow: "hidden",
     borderWidth: 1,
@@ -111,7 +114,7 @@ export function MembershipCard({
         accessibilityHint="Tap to turn your membership card"
         style={{
           minHeight: faceHeight,
-          borderRadius: 22,
+          borderRadius: 26,
           shadowColor: "#21131B",
           shadowOpacity: 0.2,
           shadowRadius: 16,
@@ -120,10 +123,18 @@ export function MembershipCard({
         }}
       >
         <Animated.View
+          renderToHardwareTextureAndroid
+          needsOffscreenAlphaCompositing
           accessibilityElementsHidden={back}
           importantForAccessibility={back ? "no-hide-descendants" : "auto"}
           style={{
             backfaceVisibility: "hidden",
+            // Explicitly hide the reverse face on every platform. Android's
+            // backfaceVisibility alone can leave native gradient children visible.
+            opacity: turn.interpolate({
+              inputRange: [0, 0.499, 0.5, 1],
+              outputRange: [1, 1, 0, 0],
+            }),
             transform: [
               { perspective: 1200 },
               {
@@ -145,64 +156,82 @@ export function MembershipCard({
             <View
               style={{
                 flexDirection: "row",
-                justifyContent: "space-between",
                 alignItems: "center",
-                gap: 12,
+                justifyContent: "space-between",
               }}
             >
               <Text
                 style={{
                   color: palette.ink,
-                  fontSize: 11,
-                  letterSpacing: 1,
-                  fontWeight: "800",
+                  fontSize: 12,
+                  letterSpacing: 1.5,
+                  fontWeight: "700",
                 }}
               >
                 CAKE CITY CLUB
               </Text>
+              <Ionicons
+                name="diamond-outline"
+                size={25}
+                color={palette.accent}
+              />
+            </View>
+            <Text
+              style={{ color: palette.ink, fontSize: 22, fontWeight: "700" }}
+            >
+              {tier} membership
+            </Text>
+            <Text
+              style={{
+                color: palette.ink,
+                fontSize: 32,
+                lineHeight: 39,
+                fontWeight: "800",
+              }}
+            >
+              {points.toLocaleString()}{" "}
+              <Text style={{ fontSize: 16 }}>points</Text>
+            </Text>
+            <Text style={{ color: palette.muted, fontSize: 12 }}>
+              {points >= 100
+                ? "Your next reward is ready to explore"
+                : `${100 - points} points to your next reward`}
+            </Text>
+            <View
+              accessibilityRole="progressbar"
+              accessibilityValue={{
+                min: 0,
+                max: 100,
+                now: Math.min(100, points),
+              }}
+              style={{
+                height: 6,
+                backgroundColor: "rgba(100,110,125,0.22)",
+                borderRadius: 4,
+                overflow: "hidden",
+              }}
+            >
               <View
                 style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 5,
-                  borderRadius: 99,
-                  borderWidth: 1,
-                  borderColor: palette.accent,
-                  paddingHorizontal: 10,
-                  paddingVertical: 5,
+                  width: `${Math.min(100, points)}%`,
+                  height: "100%",
+                  backgroundColor: palette.accent,
                 }}
-              >
-                <Ionicons
-                  name="diamond-outline"
-                  size={13}
-                  color={palette.accent}
-                />
-                <Text
-                  style={{
-                    color: palette.ink,
-                    fontSize: 11,
-                    fontWeight: "700",
-                  }}
-                >
-                  {tier}
-                </Text>
-              </View>
+              />
             </View>
-            <View style={{ flex: 1, justifyContent: "center", gap: 4 }}>
-              <Text
-                style={{
-                  color: palette.ink,
-                  fontSize: 30,
-                  lineHeight: 38,
-                  fontWeight: "800",
-                }}
-              >
-                {points.toLocaleString()}{" "}
-                <Text style={{ fontSize: 13 }}>points</Text>
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                gap: 12,
+                marginTop: 4,
+              }}
+            >
+              <Text style={{ color: palette.ink, fontSize: 12 }}>
+                Points value {money(points * pointValue)}
               </Text>
-              <Text style={{ color: palette.muted, fontSize: 11 }}>
-                Points value {money(points * pointValue)} ? {rewards} issued
-                rewards
+              <Text style={{ color: palette.ink, fontSize: 12 }}>
+                {rewards} issued rewards
               </Text>
             </View>
             <View
@@ -210,17 +239,12 @@ export function MembershipCard({
                 flexDirection: "row",
                 justifyContent: "space-between",
                 alignItems: "center",
-                gap: 8,
+                gap: 10,
               }}
             >
               <Text
                 numberOfLines={1}
-                style={{
-                  color: palette.ink,
-                  fontSize: 12,
-                  fontWeight: "700",
-                  flex: 1,
-                }}
+                style={{ color: palette.ink, fontWeight: "700", flex: 1 }}
               >
                 {name}
               </Text>
@@ -232,7 +256,7 @@ export function MembershipCard({
                 </Text>
                 <Ionicons
                   name="sync-outline"
-                  size={16}
+                  size={18}
                   color={palette.accent}
                 />
               </View>
@@ -286,6 +310,8 @@ export function MembershipCard({
           </LinearGradient>
         </Animated.View>
         <Animated.View
+          renderToHardwareTextureAndroid
+          needsOffscreenAlphaCompositing
           accessibilityElementsHidden={!back}
           importantForAccessibility={!back ? "no-hide-descendants" : "auto"}
           style={{
@@ -294,6 +320,10 @@ export function MembershipCard({
             left: 0,
             right: 0,
             backfaceVisibility: "hidden",
+            opacity: turn.interpolate({
+              inputRange: [0, 0.5, 0.501, 1],
+              outputRange: [0, 0, 1, 1],
+            }),
             transform: [
               { perspective: 1200 },
               {
@@ -308,10 +338,10 @@ export function MembershipCard({
           <LinearGradient
             colors={palette.gradient}
             onLayout={measureFace}
-            style={[face, { gap: 6, padding: 16 }]}
+            style={face}
           >
             <Text
-              style={{ color: palette.ink, fontSize: 17, fontWeight: "700" }}
+              style={{ color: palette.ink, fontSize: 20, fontWeight: "700" }}
             >
               Your Club pass
             </Text>
@@ -324,30 +354,30 @@ export function MembershipCard({
               }
               style={{
                 backgroundColor: "#FFFFFF",
-                paddingVertical: 10,
+                paddingVertical: 16,
                 alignItems: "center",
                 borderRadius: 12,
-                marginVertical: 2,
+                marginVertical: 8,
               }}
             >
               <View
                 accessible={false}
-                style={{ flexDirection: "row", height: 54 }}
+                style={{ flexDirection: "row", height: 78 }}
               >
-                {modulePixels > 0
+                {moduleWidth > 0
                   ? Array.from(modules, (bit, index) => (
                       <View
                         key={index}
                         style={{
-                          width: modulePixels / scale,
-                          height: 54,
+                          width: moduleWidth,
+                          height: 78,
                           backgroundColor: bit === "1" ? "#000000" : "#FFFFFF",
                         }}
                       />
                     ))
                   : null}
               </View>
-              <Text style={{ color: "#222222", fontSize: 10, marginTop: 5 }}>
+              <Text style={{ color: "#222222", fontSize: 10, marginTop: 8 }}>
                 {code}
               </Text>
             </View>

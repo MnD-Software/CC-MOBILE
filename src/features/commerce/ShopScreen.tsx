@@ -6,8 +6,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
-  KeyboardAvoidingView,
-  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -35,7 +33,8 @@ import { plainText, type StoreProduct } from "./contracts";
 import { CATALOGUE_GC_TIME_MS, CATALOGUE_STALE_TIME_MS, shopApi } from "./api";
 import { suggestedSearchTerm, browseSearchIdeas } from "./search-intelligence";
 import { usePreferences } from "./store";
-import { parseBudget } from "./shop-browse";
+import { shopSorts, type ShopSort, parseBudget } from "./shop-browse";
+import { ShopOptionsSheet, type ShopSheetMode } from "./ShopOptionsSheet";
 
 import { BrandLogo } from "@/components/BrandLogo";
 import {
@@ -72,13 +71,11 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
   const [subfilter, setSubfilter] = useState("all");
   const [paneWidth, setPaneWidth] = useState(0);
   const [category, setCategory] = useState<number | undefined>();
-  const [budgetOpen, setBudgetOpen] = useState(false);
-  const [minimum, setMinimum] = useState("");
-  const [maximum, setMaximum] = useState("");
+  const [sort, setSort] = useState<ShopSort>("popular");
+  const [sheet, setSheet] = useState<ShopSheetMode | null>(null);
   const [budget, setBudget] = useState<Partial<ReturnType<typeof parseBudget>>>(
     {},
   );
-  const [budgetError, setBudgetError] = useState("");
   const rememberSearch = usePreferences((s) => s.search);
   const recentSearches = usePreferences((s) => s.recentSearches);
 
@@ -109,7 +106,7 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
     queryKey: [
       "catalogue",
       "shop-browse",
-      { search: debounced, categories: selectedCategories, ...budget },
+      { search: debounced, categories: selectedCategories, sort, ...budget },
     ],
     initialPageParam: 1,
     queryFn: ({ pageParam, signal }) =>
@@ -119,6 +116,7 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
           perPage: 100,
           search: debounced,
           categories: selectedCategories,
+          sort,
           ...budget,
         },
         signal,
@@ -150,7 +148,7 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
   const suggestion = suggestedSearchTerm(debounced);
   useEffect(() => {
     listRef.current?.scrollToOffset({ offset: 0, animated: false });
-  }, [department, category, subfilter, debounced, budget]);
+  }, [department, category, subfilter, debounced, budget, sort]);
 
   const selectDepartment = (id: ShopDepartmentId) => {
     setDepartment(id);
@@ -163,17 +161,6 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
     setCategory(undefined);
     setDepartment("all");
     setSubfilter("all");
-  };
-  const applyBudget = () => {
-    try {
-      setBudget(parseBudget(minimum, maximum));
-      setBudgetError("");
-      setBudgetOpen(false);
-    } catch (error) {
-      setBudgetError(
-        error instanceof Error ? error.message : "Check your budget.",
-      );
-    }
   };
   return (
     <Screen
@@ -252,7 +239,7 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
                   >
                     <Image
                       source={{ uri: item.image }}
-                      contentFit="contain"
+                      contentFit="cover"
                       cachePolicy="memory-disk"
                       style={styles.categoryImage}
                       accessibilityLabel={item.name}
@@ -267,56 +254,119 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
                         },
                       ]}
                     >
-                      {item.name}
+                      {item.id === "cheesecakes" ? "Cheese cakes" : item.name}
                     </Text>
                   </Pressable>
                 );
               })}
             </ScrollView>
           ) : null}
-          <FlatList
-            stickyHeaderIndices={[0]}
-            ref={listRef}
+          <View
             style={styles.productPane}
             onLayout={(event) => setPaneWidth(event.nativeEvent.layout.width)}
-            data={rows}
-            numColumns={2}
-            columnWrapperStyle={{ gap: 8 }}
-            keyExtractor={(item) => String(item.id)}
-            renderItem={({ item }) => (
-              <ProductTile
-                product={item}
-                compact
-                width={Math.max(0, (paneWidth - 28) / 2)}
-              />
-            )}
-            contentContainerStyle={[
-              styles.content,
-              { paddingBottom: insets.bottom + 128 },
-            ]}
-            ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
-            keyboardShouldPersistTaps="handled"
-            keyboardDismissMode="on-drag"
-            showsVerticalScrollIndicator={false}
-            initialNumToRender={6}
-            maxToRenderPerBatch={6}
-            windowSize={5}
-            removeClippedSubviews={Platform.OS === "android"}
-            refreshing={products.isRefetching && !products.isFetchingNextPage}
-            onRefresh={() => {
-              void products.refetch();
-            }}
-            onEndReachedThreshold={0.5}
-            onEndReached={() => {
-              if (
-                products.hasNextPage &&
-                !products.isFetching &&
-                !products.isError
-              )
-                void products.fetchNextPage();
-            }}
-            ListHeaderComponent={
+          >
+            <View
+              testID="shop-options"
+              style={{ paddingHorizontal: 10, paddingTop: 10 }}
+            >
               <View style={styles.listHeader}>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ gap: 8, paddingVertical: 4 }}
+                >
+                  {(
+                    [
+                      {
+                        id: "filters",
+                        label: "Filters",
+                        icon: "options-outline",
+                        active: hasBudget,
+                      },
+                      {
+                        id: "categories",
+                        label: "Categories",
+                        icon: "grid-outline",
+                        active: department !== "all",
+                      },
+                      {
+                        id: "sort",
+                        label: "Sort",
+                        icon: "swap-vertical-outline",
+                        active: sort !== "popular",
+                      },
+                      {
+                        id: "offers",
+                        label: "Offers",
+                        icon: "pricetag-outline",
+                        active: department === "offers",
+                      },
+                    ] as const
+                  ).map((item) => (
+                    <Pressable
+                      key={item.id}
+                      accessibilityRole="button"
+                      accessibilityLabel={
+                        item.id === "filters"
+                          ? "Filter by budget"
+                          : item.id === "sort"
+                            ? "Sort cakes"
+                            : item.id === "categories"
+                              ? "Choose categories"
+                              : "Browse offers"
+                      }
+                      accessibilityState={{ selected: item.active }}
+                      onPress={() =>
+                        item.id === "offers"
+                          ? selectDepartment(
+                              department === "offers" ? "all" : "offers",
+                            )
+                          : setSheet(item.id)
+                      }
+                      style={{
+                        minHeight: 44,
+                        paddingHorizontal: 13,
+                        borderRadius: 12,
+                        borderWidth: 1,
+                        borderColor: item.active
+                          ? colors.brandStrong
+                          : colors.border,
+                        backgroundColor: item.active
+                          ? colors.brandLight
+                          : colors.surface,
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 7,
+                      }}
+                    >
+                      <Ionicons
+                        name={item.icon}
+                        size={16}
+                        color={item.active ? colors.brandStrong : colors.ink}
+                      />
+                      <Text
+                        style={{
+                          fontSize: 13,
+                          fontWeight: "700",
+                          color: item.active ? colors.brandStrong : colors.ink,
+                        }}
+                      >
+                        {item.label}
+                      </Text>
+                      {item.active ? (
+                        <View
+                          style={{
+                            width: 5,
+                            height: 5,
+                            borderRadius: 3,
+                            backgroundColor: colors.brandStrong,
+                          }}
+                        />
+                      ) : null}
+                    </Pressable>
+                  ))}
+                </ScrollView>
+
                 {!debounced ? (
                   <ScrollView
                     horizontal
@@ -388,45 +438,20 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
                     ))}
                   </ScrollView>
                 ) : null}
-                <View style={styles.filterRow}>
-                  <Text style={styles.sortLabel}>Price: low to high</Text>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel="Filter by budget"
-                    onPress={() => {
-                      setMinimum(
-                        budget.minimumKes === undefined
-                          ? ""
-                          : String(budget.minimumKes),
-                      );
-                      setMaximum(
-                        budget.maximumKes === undefined
-                          ? ""
-                          : String(budget.maximumKes),
-                      );
-                      setBudgetError("");
-                      setBudgetOpen(true);
-                    }}
-                    style={[
-                      styles.budgetButton,
-                      hasBudget && styles.budgetActive,
-                    ]}
-                  >
-                    <Ionicons
-                      name="options-outline"
-                      size={16}
-                      color={tokens.color.brandStrong}
-                    />
-                    <Text style={styles.budgetText}>{budgetLabel}</Text>
-                  </Pressable>
-                </View>
+                {sort !== "popular" ? (
+                  <Text style={styles.sortLabel}>
+                    {shopSorts.find((item) => item.id === sort)!.label}
+                  </Text>
+                ) : null}
                 {hasBudget ? (
                   <Pressable
                     accessibilityRole="button"
                     onPress={() => setBudget({})}
                     style={styles.clearBudget}
                   >
-                    <Text style={styles.budgetText}>Clear budget ×</Text>
+                    <Text style={styles.budgetText}>
+                      Clear {budgetLabel} budget ×
+                    </Text>
                   </Pressable>
                 ) : null}
                 {searchOnly && !debounced ? (
@@ -452,159 +477,123 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
                   </Pressable>
                 ) : null}
               </View>
-            }
-            ListEmptyComponent={
-              products.isPending ? (
-                <View style={{ gap: 12 }}>
-                  {[0, 1, 2].map((key) => (
-                    <Skeleton key={key} height={142} radius={18} />
-                  ))}
-                </View>
-              ) : products.isError ? (
-                <Feedback
-                  error={products.error}
-                  onRetry={() => void products.refetch()}
-                />
-              ) : (
-                <View style={styles.empty}>
-                  <Text style={styles.sectionTitle}>
-                    No cakes in this selection
-                  </Text>
-                  <Text style={styles.sortLabel}>
-                    {department === "cheesecakes" && subfilter !== "all"
-                      ? "No cakes have this preparation time listed yet. Browse All cheesecakes or contact us."
-                      : department === "cupcakes" && subfilter === "filled"
-                        ? "No filled cupcakes are currently listed. Try Plain or Frosted."
-                        : "Try a wider budget or another collection."}
-                  </Text>
-                  <Button
-                    label="Reset filters"
-                    variant="outline"
-                    onPress={() => {
-                      setBudget({});
-                      selectDepartment("all");
-                    }}
-                  />
-                </View>
-              )
-            }
-            ListFooterComponent={
-              products.isFetchingNextPage ? (
-                <ActivityIndicator
-                  style={{ padding: 20 }}
-                  color={tokens.color.brandStrong}
-                />
-              ) : products.isError && rows.length ? (
-                <Feedback
-                  error={products.error}
-                  onRetry={() =>
-                    void (products.isFetchNextPageError
-                      ? products.fetchNextPage()
-                      : products.refetch())
-                  }
-                />
-              ) : rows.length && !products.hasNextPage ? (
-                <Text style={styles.endNote}>
-                  You've seen this selection. Explore another collection.
-                </Text>
-              ) : null
-            }
-          />
-        </View>
-      </View>
-      <Modal
-        visible={budgetOpen}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setBudgetOpen(false)}
-      >
-        <KeyboardAvoidingView
-          style={styles.modalBackdrop}
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-        >
-          <Pressable
-            style={styles.dismissArea}
-            accessibilityLabel="Close budget filter"
-            accessibilityRole="button"
-            onPress={() => setBudgetOpen(false)}
-          />
-          <View
-            accessibilityViewIsModal
-            style={[
-              styles.sheet,
-              { paddingBottom: Math.max(24, insets.bottom + 16) },
-            ]}
-          >
-            <View style={styles.filterRow}>
-              <Text accessibilityRole="header" style={styles.title}>
-                Find your sweet spot
-              </Text>
-              <IconButton
-                name="close"
-                label="Close budget filter"
-                onPress={() => setBudgetOpen(false)}
-              />
             </View>
-            <Text style={styles.sortLabel}>
-              Set your cake budget in KSh. Final options and delivery are priced
-              at checkout.
-            </Text>
-            <View style={styles.budgetInputs}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.inputLabel}>Minimum</Text>
-                <TextInput
-                  accessibilityLabel="Minimum budget in KSh"
-                  value={minimum}
-                  onChangeText={setMinimum}
-                  placeholder="0"
-                  keyboardType="decimal-pad"
-                  maxLength={10}
-                  style={styles.budgetInput}
+            <FlatList
+              testID="shop-products"
+              ref={listRef}
+              style={{ flex: 1 }}
+              data={rows}
+              numColumns={2}
+              columnWrapperStyle={{ gap: 8 }}
+              keyExtractor={(item) => String(item.id)}
+              renderItem={({ item }) => (
+                <ProductTile
+                  product={item}
+                  compact
+                  width={Math.max(0, (paneWidth - 28) / 2)}
                 />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.inputLabel}>Maximum</Text>
-                <TextInput
-                  accessibilityLabel="Maximum budget in KSh"
-                  value={maximum}
-                  onChangeText={setMaximum}
-                  placeholder="No limit"
-                  keyboardType="decimal-pad"
-                  maxLength={10}
-                  style={styles.budgetInput}
-                />
-              </View>
-            </View>
-            <View style={styles.suggestions}>
-              {[2500, 4000, 6000].map((amount) => (
-                <Chip
-                  key={amount}
-                  label={`Under ${amount.toLocaleString()}`}
-                  selected={maximum === String(amount) && !minimum}
-                  onPress={() => {
-                    setMinimum("");
-                    setMaximum(String(amount));
-                  }}
-                />
-              ))}
-            </View>
-            {budgetError ? (
-              <Text accessibilityRole="alert" style={styles.error}>
-                {budgetError}
-              </Text>
-            ) : null}
-            <Button label="Show cakes in my budget" onPress={applyBudget} />
-            <Button
-              label="Clear budget"
-              variant="ghost"
-              onPress={() => {
-                setBudget({});
-                setBudgetOpen(false);
+              )}
+              contentContainerStyle={[
+                styles.content,
+                { paddingBottom: insets.bottom + 128 },
+              ]}
+              ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
+              showsVerticalScrollIndicator={false}
+              initialNumToRender={6}
+              maxToRenderPerBatch={6}
+              windowSize={5}
+              removeClippedSubviews={Platform.OS === "android"}
+              refreshing={products.isRefetching && !products.isFetchingNextPage}
+              onRefresh={() => {
+                void products.refetch();
               }}
+              onEndReachedThreshold={0.5}
+              onEndReached={() => {
+                if (
+                  products.hasNextPage &&
+                  !products.isFetching &&
+                  !products.isError
+                )
+                  void products.fetchNextPage();
+              }}
+              ListEmptyComponent={
+                products.isPending ? (
+                  <View style={{ gap: 12 }}>
+                    {[0, 1, 2].map((key) => (
+                      <Skeleton key={key} height={142} radius={18} />
+                    ))}
+                  </View>
+                ) : products.isError ? (
+                  <Feedback
+                    error={products.error}
+                    onRetry={() => void products.refetch()}
+                  />
+                ) : (
+                  <View style={styles.empty}>
+                    <Text style={styles.sectionTitle}>
+                      No cakes in this selection
+                    </Text>
+                    <Text style={styles.sortLabel}>
+                      {department === "cheesecakes" && subfilter !== "all"
+                        ? "No cakes have this preparation time listed yet. Browse All cheesecakes or contact us."
+                        : department === "cupcakes" && subfilter === "filled"
+                          ? "No filled cupcakes are currently listed. Try Plain or Frosted."
+                          : "Try a wider budget or another collection."}
+                    </Text>
+                    <Button
+                      label="Reset filters"
+                      variant="outline"
+                      onPress={() => {
+                        setBudget({});
+                        selectDepartment("all");
+                      }}
+                    />
+                  </View>
+                )
+              }
+              ListFooterComponent={
+                products.isFetchingNextPage ? (
+                  <ActivityIndicator
+                    style={{ padding: 20 }}
+                    color={tokens.color.brandStrong}
+                  />
+                ) : products.isError && rows.length ? (
+                  <Feedback
+                    error={products.error}
+                    onRetry={() =>
+                      void (products.isFetchNextPageError
+                        ? products.fetchNextPage()
+                        : products.refetch())
+                    }
+                  />
+                ) : rows.length && !products.hasNextPage ? (
+                  <Text style={styles.endNote}>
+                    You've seen this selection. Explore another collection.
+                  </Text>
+                ) : null
+              }
             />
           </View>
-        </KeyboardAvoidingView>
-      </Modal>
+        </View>
+      </View>
+      {sheet ? (
+        <ShopOptionsSheet
+          mode={sheet}
+          value={{ department, subfilter, sort, budget }}
+          onClose={() => setSheet(null)}
+          onApply={(value) => {
+            setSort(value.sort);
+            setBudget(value.budget);
+            if (sheet === "categories") {
+              selectDepartment(value.department);
+              setSubfilter(value.subfilter);
+            }
+            setSheet(null);
+          }}
+        />
+      ) : null}
     </Screen>
   );
 }
@@ -625,7 +614,8 @@ const baseStyles = StyleSheet.create({
     color: tokens.color.ink,
   },
   searchGlass: {
-    borderRadius: 16,
+    borderRadius: 999,
+    overflow: "hidden",
     borderWidth: 1,
     borderColor: tokens.color.border,
   },
@@ -635,7 +625,7 @@ const baseStyles = StyleSheet.create({
     paddingLeft: 13,
     minHeight: 48,
     gap: 9,
-    backgroundColor: "#F8F7F8",
+    backgroundColor: "#FFFFFF",
   },
   searchInput: {
     fontFamily: brandFontFamily,
@@ -655,14 +645,14 @@ const baseStyles = StyleSheet.create({
   sidebar: {
     width: 74,
     flexGrow: 0,
-    backgroundColor: "#F7F6F7",
+    backgroundColor: tokens.color.surface,
     borderRightWidth: StyleSheet.hairlineWidth,
-    borderRightColor: "#ECE8EB",
+    borderRightColor: tokens.color.border,
   },
   categoryImage: {
     width: 56,
     height: 56,
-    borderRadius: 16,
+    borderRadius: 28,
     backgroundColor: "#FFFFFF",
   },
   railItem: {
@@ -676,16 +666,16 @@ const baseStyles = StyleSheet.create({
     borderLeftColor: "transparent",
   },
   railSelected: {
-    backgroundColor: "#FFFFFF",
-    borderLeftColor: tokens.color.brand,
+    borderLeftColor: tokens.color.brandStrong,
+    backgroundColor: tokens.color.brandLight,
   },
   railText: {
-    fontSize: 10,
-    lineHeight: 13,
+    fontSize: 11,
+    lineHeight: 14,
     color: tokens.color.muted,
     textAlign: "center",
   },
-  productPane: { flex: 1, backgroundColor: "#F6F4F6" },
+  productPane: { flex: 1, backgroundColor: tokens.color.background },
   content: { padding: 10, flexGrow: 1 },
   listHeader: {
     gap: 10,

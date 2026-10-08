@@ -10,6 +10,7 @@ from .middleware import RequestTelemetry, SharedRateLimit
 from .db import Base, engine
 from .routes import router as platform_router
 from .routes_auth import router as auth_router
+from .routes_addresses import router as addresses_router
 from .routes_tracking import router as tracking_router
 from .routes_club import router as club_router
 from .routes_club_benefits import router as club_benefits_router
@@ -43,6 +44,7 @@ app.add_middleware(SharedRateLimit)
 app.add_middleware(RequestTelemetry)
 app.include_router(platform_router)
 app.include_router(auth_router)
+app.include_router(addresses_router)
 app.include_router(tracking_router)
 app.include_router(club_router)
 app.include_router(club_benefits_router)

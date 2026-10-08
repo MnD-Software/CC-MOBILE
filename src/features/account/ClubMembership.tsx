@@ -23,6 +23,8 @@ import {
 import { useTheme } from "@/theme/ThemeProvider";
 import { clubApi } from "./club-api";
 import { MembershipCard } from "./MembershipCard";
+import { ClubTransactions } from "./ClubTransactions";
+import { OccasionDateField } from "@/components/ui/OccasionDateField";
 
 export function ClubMembership({ walletScope }: { walletScope: string }) {
   const { customer } = useAuth();
@@ -33,6 +35,7 @@ export function ClubMembership({ walletScope }: { walletScope: string }) {
   if (identity.current.scope !== customer?.id)
     identity.current = { scope: customer?.id, key: randomUUID() };
   const [notice, setNotice] = useState("");
+  const [transactionsOpen, setTransactionsOpen] = useState(false);
   const [panel, setPanel] = useState<
     "rewards" | "perks" | "celebrations" | null
   >(null);
@@ -107,6 +110,48 @@ export function ClubMembership({ walletScope }: { walletScope: string }) {
               data.coupons.filter((coupon) => coupon.status === "issued").length
             }
           />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="View Club transactions"
+            onPress={() => setTransactionsOpen(true)}
+            style={{
+              minHeight: 48,
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 8,
+              borderRadius: 16,
+              borderWidth: 1,
+              borderColor: colors.border,
+              backgroundColor: colors.surface,
+            }}
+          >
+            <Ionicons
+              name="receipt-outline"
+              size={18}
+              color={colors.brandStrong}
+            />
+            <Text
+              style={{
+                color: colors.brandStrong,
+                fontSize: 14,
+                fontWeight: "700",
+              }}
+            >
+              View transactions
+            </Text>
+            <Ionicons
+              name="chevron-forward"
+              size={16}
+              color={colors.brandStrong}
+            />
+          </Pressable>
+          {transactionsOpen ? (
+            <ClubTransactions
+              key={customer.id}
+              onClose={() => setTransactionsOpen(false)}
+            />
+          ) : null}
           <View
             style={{
               padding: 16,
@@ -194,6 +239,7 @@ export function ClubMembership({ walletScope }: { walletScope: string }) {
               <Pressable
                 key={item.id}
                 accessibilityRole="button"
+                accessibilityLabel={item.title}
                 accessibilityState={{ expanded: panel === item.id }}
                 onPress={() => setPanel(panel === item.id ? null : item.id)}
                 style={{
@@ -343,26 +389,6 @@ export function ClubMembership({ walletScope }: { walletScope: string }) {
                 />
               ))}
           </Disclosure>
-          <Disclosure title="Points history">
-            {data.activity.length ? (
-              <Section title="Points activity" />
-            ) : (
-              <Text style={text}>
-                Your qualifying purchases and rewards will appear here.
-              </Text>
-            )}
-            {data.activity.map((entry) => (
-              <View key={entry.id}>
-                <Text style={text}>
-                  {entry.points > 0 ? "+" : ""}
-                  {entry.points} · {entry.description}
-                </Text>
-                <Text style={text}>
-                  {new Date(entry.created_at).toLocaleDateString()}
-                </Text>
-              </View>
-            ))}
-          </Disclosure>
         </>
       ) : null}
       {redeem.isError ? (
@@ -383,8 +409,7 @@ export function Celebrations() {
   const [reminderNotice, setReminderNotice] = useState("");
   const key = ["celebrations", customer?.id];
   const [name, setName] = useState("");
-  const [month, setMonth] = useState("");
-  const [day, setDay] = useState("");
+  const [date, setDate] = useState<Date | null>(null);
   const [occasion, setOccasion] = useState<
     "birthday" | "anniversary" | "other"
   >("birthday");
@@ -398,15 +423,14 @@ export function Celebrations() {
     mutationFn: () =>
       clubApi.saveCelebration({
         name: name.trim(),
-        month: Number(month),
-        day: Number(day),
+        month: date!.getMonth() + 1,
+        day: date!.getDate(),
         occasion,
         notes: "",
       }),
     onSuccess: async () => {
       setName("");
-      setMonth("");
-      setDay("");
+      setDate(null);
       await client.invalidateQueries({ queryKey: key });
     },
   });
@@ -499,24 +523,15 @@ export function Celebrations() {
           />
         ))}
       </View>
-      <Input
-        label="Month (1–12)"
-        value={month}
-        onChangeText={setMonth}
-        keyboardType="number-pad"
-        maxLength={2}
-      />
-      <Input
-        label="Day (1–31)"
-        value={day}
-        onChangeText={setDay}
-        keyboardType="number-pad"
-        maxLength={2}
+      <OccasionDateField
+        label="Celebration date"
+        value={date}
+        onChange={setDate}
       />
       <Button
         label="Save celebration"
         loading={save.isPending}
-        disabled={!name.trim() || !month || !day || save.isPending}
+        disabled={!name.trim() || !date || save.isPending}
         onPress={() => save.mutate()}
       />
       {save.isError ? (
@@ -624,8 +639,7 @@ function MembershipBenefits() {
   const client = useQueryClient();
   const key = ["club-benefits", customer?.id];
   const [code, setCode] = useState("");
-  const [month, setMonth] = useState("");
-  const [day, setDay] = useState("");
+  const [date, setDate] = useState<Date | null>(null);
   const [notice, setNotice] = useState("");
   const schema = z.object({
     referral_code: z.string(),
@@ -749,28 +763,19 @@ function MembershipBenefits() {
             </>
           ) : (
             <>
-              <Input
-                label="Birthday month (1 to 12)"
-                value={month}
-                onChangeText={setMonth}
-                keyboardType="number-pad"
-                maxLength={2}
-              />
-              <Input
-                label="Birthday day (1 to 31)"
-                value={day}
-                onChangeText={setDay}
-                keyboardType="number-pad"
-                maxLength={2}
+              <OccasionDateField
+                label="Your birthday"
+                value={date}
+                onChange={setDate}
               />
               <Button
                 label="Save my birthday"
-                disabled={!month || !day || change.isPending}
+                disabled={!date || change.isPending}
                 onPress={() =>
                   change.mutate({
                     path: "/v1/club/birthday",
                     method: "put",
-                    body: { month: Number(month), day: Number(day) },
+                    body: { month: date!.getMonth() + 1, day: date!.getDate() },
                   })
                 }
               />

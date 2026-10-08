@@ -1,5 +1,4 @@
 import { Ionicons } from "@expo/vector-icons";
-import * as Location from "expo-location";
 import { router } from "expo-router";
 import { useMutation } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
@@ -21,7 +20,7 @@ import { Input } from "@/components/ui/Input";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import { loadBillingProfile, saveBillingProfile } from "./billing-profile";
 import { money } from "./contracts";
-import { locationAddressSuggestion } from "./location-assistance";
+import { DeliveryLocationPicker } from "./DeliveryLocationPicker";
 import { useBag } from "./store";
 import { selectCouponCode, useCouponWallet } from "./coupon-wallet";
 import { cartHasRequestedCoupon, normalizeCouponCode } from "./website-cart";
@@ -106,8 +105,8 @@ function CheckoutForm() {
   const [recipientPhone, setRecipientPhone] = useState("");
   const [giftMessage, setGiftMessage] = useState("");
   const [busy, setBusy] = useState(false);
-  const [locationBusy, setLocationBusy] = useState(false);
-  const [locationNotice, setLocationNotice] = useState("");
+  const [profileReady, setProfileReady] = useState(false);
+  const deliveryEdited = useRef(false);
   const [error, setError] = useState("");
   const [couponDraft, setCouponDraft] = useState("");
   const [couponBusy, setCouponBusy] = useState(false);
@@ -232,6 +231,8 @@ function CheckoutForm() {
     setLastName(customer?.last_name ?? "");
     setEmail(customer?.email ?? "");
     setPhone(customer?.phone ?? "");
+    deliveryEdited.current = false;
+    setProfileReady(false);
     setAddress("");
     setArea("");
     setCity("Nairobi");
@@ -251,18 +252,29 @@ function CheckoutForm() {
   // completed a checkout handoff, restore their own encrypted, device-local
   // billing fields without replacing anything they are already editing.
   useEffect(() => {
-    if (!customer?.id) return;
     let active = true;
-    void loadBillingProfile(customer.id).then((profile) => {
-      if (!active || !profile) return;
-      setFirstName((current) => current || profile.firstName);
-      setLastName((current) => current || profile.lastName);
-      setEmail((current) => current || profile.email);
-      setPhone((current) => current || profile.phone);
-      setAddress((current) => current || profile.address);
-      setArea((current) => current || profile.area);
-      setCity((current) => current || profile.city);
-    });
+    setProfileReady(false);
+    if (!customer?.id) {
+      setProfileReady(true);
+      return;
+    }
+    void loadBillingProfile(customer.id)
+      .then((profile) => {
+        if (!active || !profile) return;
+        setFirstName((current) => current || profile.firstName);
+        setLastName((current) => current || profile.lastName);
+        setEmail((current) => current || profile.email);
+        setPhone((current) => current || profile.phone);
+        if (!deliveryEdited.current) {
+          setAddress((current) => current || profile.address);
+          setArea((current) => current || profile.area);
+          setCity(profile.city || "Nairobi");
+        }
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (active) setProfileReady(true);
+      });
     return () => {
       active = false;
     };
@@ -320,51 +332,6 @@ function CheckoutForm() {
     paymentAttemptRestored,
     started,
   ]);
-
-  async function useCurrentLocation() {
-    setLocationBusy(true);
-    setLocationNotice("");
-    try {
-      const permission = await Location.requestForegroundPermissionsAsync();
-      if (permission.status !== "granted") {
-        setLocationNotice(
-          "Location access was not granted. You can still enter your delivery address.",
-        );
-        return;
-      }
-      if (!(await Location.hasServicesEnabledAsync())) {
-        setLocationNotice(
-          "Location services are turned off. Turn them on, then try again, or enter your address manually.",
-        );
-        return;
-      }
-
-      const position = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
-      const [place] = await Location.reverseGeocodeAsync(position.coords);
-      const suggestion = locationAddressSuggestion(place);
-      if (!suggestion) {
-        setLocationNotice(
-          "We found your location but could not suggest an address. Please enter it manually.",
-        );
-        return;
-      }
-
-      setAddress((current) => current || suggestion.address);
-      setArea((current) => current || suggestion.area);
-      setCity((current) => current || suggestion.city || "Nairobi");
-      setLocationNotice(
-        "Current location added. Please confirm your building or apartment before payment.",
-      );
-    } catch {
-      setLocationNotice(
-        "We could not read your current location. Check location services or enter your address manually.",
-      );
-    } finally {
-      setLocationBusy(false);
-    }
-  }
 
   async function continueToPayment() {
     const validation = checkoutError(details);
@@ -597,7 +564,13 @@ function CheckoutForm() {
         <Switch
           accessibilityLabel="Send this order as a gift"
           value={isGift}
-          onValueChange={setIsGift}
+          onValueChange={(value) => {
+            setIsGift(value);
+            deliveryEdited.current = true;
+            setAddress("");
+            setArea("");
+            setCity("Nairobi");
+          }}
           trackColor={{ true: colors.brand }}
         />
       </View>
@@ -637,38 +610,59 @@ function CheckoutForm() {
         </>
       ) : null}
       <Section title="Delivery address" />
-      <Pressable
-        accessibilityRole="button"
-        disabled={locationBusy}
-        onPress={() => void useCurrentLocation()}
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          gap: 8,
-          minHeight: 44,
+      <DeliveryLocationPicker
+        key={wallet.scope}
+        address={address}
+        area={area}
+        city={city}
+        isGift={isGift}
+        profileReady={profileReady}
+        canAutofill={!deliveryEdited.current}
+        recipientName={
+          isGift
+            ? [recipientFirst, recipientLast].filter(Boolean).join(" ")
+            : [firstName, lastName].filter(Boolean).join(" ")
+        }
+        recipientPhone={isGift ? recipientPhone : phone}
+        onChange={(value) => {
+          deliveryEdited.current = true;
+          setAddress(value.address);
+          setArea(value.area);
+          setCity(value.city || "Nairobi");
         }}
-      >
-        <Ionicons name="locate-outline" size={18} color={colors.brandStrong} />
-        <Text style={{ color: colors.brandStrong, fontSize: 13 }}>
-          {locationBusy
-            ? "Finding your location..."
-            : "Use my current location"}
-        </Text>
-      </Pressable>
-      {locationNotice ? <Notice message={locationNotice} /> : null}
+        onRecipientChange={(name, recipientNumber) => {
+          const [first, ...rest] = name.split(/\s+/);
+          setRecipientFirst(first);
+          setRecipientLast(rest.join(" "));
+          setRecipientPhone(recipientNumber);
+        }}
+      />
       <Input
         autoComplete="street-address"
         label="Building, street and apartment"
         value={address}
-        onChangeText={setAddress}
+        onChangeText={(value) => {
+          deliveryEdited.current = true;
+          setAddress(value);
+        }}
       />
       <Input
         autoComplete="address-line2"
         label="Area"
         value={area}
-        onChangeText={setArea}
+        onChangeText={(value) => {
+          deliveryEdited.current = true;
+          setArea(value);
+        }}
       />
-      <Input label="City" value={city} onChangeText={setCity} />
+      <Input
+        label="City"
+        value={city}
+        onChangeText={(value) => {
+          deliveryEdited.current = true;
+          setCity(value);
+        }}
+      />
       <Disclosure title="Add a delivery note">
         <Input
           label="Order notes (optional)"

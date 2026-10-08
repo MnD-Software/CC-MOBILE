@@ -68,12 +68,9 @@ test("unconnected account routes fail honestly while checkout uses Cake City's s
     "UnavailableExperience.tsx",
   );
   const commerce = read("src", "components", "ui", "Commerce.tsx");
-  const routes = [
-    "addresses.tsx",
-    "branches.tsx",
-    "offers.tsx",
-    "notifications.tsx",
-  ].map((route) => read("app", route));
+  const routes = ["branches.tsx", "offers.tsx", "notifications.tsx"].map(
+    (route) => read("app", route),
+  );
 
   assert.match(unavailable, /Browse cakes/);
   assert.match(unavailable, /does not provide yet/);
@@ -84,6 +81,7 @@ test("unconnected account routes fail honestly while checkout uses Cake City's s
     assert.doesNotMatch(source, /api\.|customerApi|shopApi|useQuery/);
   }
 
+  assert.match(read("app", "addresses.tsx"), /AddressesScreen/);
   const cart = read("app", "cart.tsx");
   const checkout = read("app", "checkout.tsx");
   const checkoutScreen = read(
@@ -148,11 +146,11 @@ test("account hub uses authenticated and device-local data without invented acco
   assert.match(account, /state\.designs\[customer\?\.id \?\? "guest"\]/);
   assert.match(account, /tel:\+254709729000/);
   assert.match(account, /Cake City Club/);
-  assert.match(account, /<BagButton\s*\/>/);
-  assert.doesNotMatch(
-    account,
-    /accountCommerceApi|customerApi|useQuery|points_balance|redeem/,
-  );
+  assert.match(account, /clubApi.overview/);
+  assert.match(account, /membershipPalette\(membership.data.tier\)/);
+  assert.match(account, /customerApi.addresses/);
+  assert.match(account, /My addresses/);
+  assert.doesNotMatch(account, /accountCommerceApi|points_balance|redeem/);
 });
 
 test("catalogue browsing keeps search and bag controls outside the product scroll", () => {
@@ -272,8 +270,15 @@ test("search, account identity and checkout location stay customer-controlled", 
   assert.match(shop, /removeClippedSubviews=\{Platform\.OS === "android"\}/);
   assert.match(shop, /useSafeAreaInsets/);
   assert.match(shop, /paddingBottom: insets\.bottom \+ 128/);
-  assert.match(checkout, /Location\.requestForegroundPermissionsAsync/);
-  assert.match(checkout, /Location\.reverseGeocodeAsync/);
+  const locationPicker = read(
+    "src",
+    "features",
+    "commerce",
+    "DeliveryLocationPicker.tsx",
+  );
+  assert.match(checkout, /DeliveryLocationPicker/);
+  assert.match(locationPicker, /Location\.requestForegroundPermissionsAsync/);
+  assert.match(locationPicker, /Location\.reverseGeocodeAsync/);
   assert.match(checkout, /loadBillingProfile/);
   assert.match(checkout, /saveBillingProfile/);
   assert.match(billing, /getStorageItem/);
@@ -281,6 +286,10 @@ test("search, account identity and checkout location stay customer-controlled", 
   assert.match(billing, /PROFILE_PREFIX/);
   assert.doesNotMatch(checkout, /requestBackgroundPermissionsAsync/);
   assert.doesNotMatch(checkout, /startGeofencingAsync/);
+  assert.doesNotMatch(
+    locationPicker,
+    /requestBackgroundPermissionsAsync|startGeofencingAsync/,
+  );
   assert.doesNotMatch(appConfig, /BackgroundLocationEnabled/);
   assert.match(tabs, /import \{ Tabs \} from "expo-router"/);
   assert.match(

@@ -10,6 +10,7 @@ test("shop orders every page on the server and sends KES budget in minor units",
   for (const page of [1, 2, 10]) {
     const query = shopBrowseQuery({
       page,
+      sort: "price-asc",
       categories: [168],
       minimumKes: 1000,
       maximumKes: 3000.5,
@@ -46,4 +47,22 @@ test("menu is an explicit live category union and malformed ids cannot reach the
   assert.throws(() => shopBrowseQuery({ categories: [NaN] }));
   assert.throws(() => shopBrowseQuery({ page: 0 }));
   assert.throws(() => shopBrowseQuery({ maximumKes: Infinity }));
+});
+
+test("sorting stays server-wide across pages and rejects unsupported choices", () => {
+  const cases = [
+    ["popular", "popularity", "desc"],
+    ["price-asc", "price", "asc"],
+    ["price-desc", "price", "desc"],
+    ["newest", "date", "desc"],
+    ["name", "title", "asc"],
+  ];
+  for (const [sort, orderby, order] of cases)
+    for (const page of [1, 2]) {
+      const query = shopBrowseQuery({ sort, page });
+      assert.equal(query.get("orderby"), orderby);
+      assert.equal(query.get("order"), order);
+      assert.equal(query.get("page"), String(page));
+    }
+  assert.throws(() => shopBrowseQuery({ sort: "unknown" }));
 });
