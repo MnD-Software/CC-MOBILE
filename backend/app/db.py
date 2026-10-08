@@ -10,7 +10,11 @@ class Base(DeclarativeBase):
     pass
 
 
-engine = create_engine(get_settings().sqlalchemy_url, pool_pre_ping=True)
+settings = get_settings()
+options = {"pool_pre_ping": True}
+if not settings.sqlalchemy_url.startswith("sqlite"):
+    options.update(pool_size=settings.database_pool_size, max_overflow=settings.database_max_overflow, pool_timeout=10)
+engine = create_engine(settings.sqlalchemy_url, **options)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
 
 

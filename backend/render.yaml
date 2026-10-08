@@ -4,7 +4,7 @@ services:
     runtime: python
     rootDir: backend
     buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    startCommand: python -m app.start
     healthCheckPath: /health
     envVars:
       - key: DATABASE_URL
@@ -17,3 +17,13 @@ services:
         value: production
       - key: WOOCOMMERCE_STORE_URL
         value: https://cakecity.co.ke/wp-json/wc/store/v1
+      - key: REDIS_URL
+        sync: false
+      - key: CLUB_EVENT_SECRET
+        sync: false
+      - key: WOOCOMMERCE_CONSUMER_KEY
+        sync: false
+      - key: WOOCOMMERCE_CONSUMER_SECRET
+        sync: false
+      - key: WOOCOMMERCE_WEBHOOK_SECRET
+        sync: false

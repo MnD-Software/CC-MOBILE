@@ -26,7 +26,7 @@ Create a Web Service from the GitHub repository with root directory `backend`:
 
 - Runtime: Python
 - Build: `pip install -r requirements.txt`
-- Start: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+- Start: `python -m app.start`
 - Health check: `/health`
 
 Required environment variables:
@@ -38,4 +38,12 @@ Required environment variables:
 
 ## Scope
 
-This first deployable slice provides health checks, Neon persistence, customer registration/login/session rotation/logout, mobile capability config, and a WooCommerce catalogue proxy. Google identity, password email delivery, checkout quoting, delivery pricing, payment provider calls, orders, rewards, and push delivery remain disabled until their provider credentials and business rules are configured.
+The backend now includes Club membership and ledger APIs, verified WooCommerce order linking and webhook reconciliation, reward coupon issuing, birthday/referral benefits, cloud saved codes, celebration dates, and staff-managed support/custom/corporate quote requests. Public catalogue reads use bounded caching and reused upstream connections; Redis enables shared cache and rate limiting.
+
+Production startup runs schema validation/migration once before launching Uvicorn through `python -m app.start`. This also works on Render free services, which do not support a separate pre-deploy command. Default worker count is one; `WEB_CONCURRENCY` can override it. Use persistent PostgreSQL for customer data.
+
+After deployment, run `python verify_deployment.py https://cc-mobile-1.onrender.com` to check that Club routes and database readiness are available. See [the 8 October diagnosis](../docs/SHOP_CLUB_FIX_2026-10-08.md).
+
+These features require deployment and the applicable WooCommerce/Redis configuration. Google identity, password email delivery, authoritative delivery slots, quote deposits, remote push campaigns and native payment-provider calls are not implemented by this release. Website checkout remains the payment authority.
+
+See [the release checklist](../docs/ENHANCEMENT_RELEASE.md) for defaults, server environment variables, API operations, validation limits and unfinished roadmap work.

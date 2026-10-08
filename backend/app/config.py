@@ -1,5 +1,6 @@
 from functools import lru_cache
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -11,6 +12,17 @@ class Settings(BaseSettings):
     cors_origins: str = "*"
     woocommerce_store_url: str = "https://cakecity.co.ke/wp-json/wc/store/v1"
     environment: str = "development"
+    club_event_secret: str = ""
+    woocommerce_webhook_secret: str = ""
+    woocommerce_api_url: str = "https://cakecity.co.ke/wp-json/wc/v3"
+    woocommerce_consumer_key: str = ""
+    woocommerce_consumer_secret: str = ""
+    redis_url: str = ""
+    database_pool_size: int = Field(default=5, ge=1, le=50)
+    database_max_overflow: int = Field(default=5, ge=0, le=50)
+    club_earn_minor: int = Field(default=10000, gt=0)
+    club_point_value_minor: int = Field(default=100, gt=0)
+    club_expiry_days: int = Field(default=365, ge=1, le=3650)
 
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=False, extra="ignore")
 
