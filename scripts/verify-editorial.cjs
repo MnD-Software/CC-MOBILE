@@ -198,7 +198,7 @@ async function main() {
     }
     async function wait(expression, label) {
       for (let i = 0; i < 120; i++) {
-        if (await evaluate(`Boolean(${expression})`)) return;
+        if (await evaluate(`Boolean(document.body && (${expression}))`)) return;
         await pause(250);
       }
       throw new Error(
