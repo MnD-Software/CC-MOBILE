@@ -4,7 +4,7 @@ import {
 } from "@/native/celebration-reminders";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { randomUUID } from "expo-crypto";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Share, View, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "@/components/ui/Typography";
@@ -25,6 +25,8 @@ import { clubApi } from "./club-api";
 import { MembershipCard } from "./MembershipCard";
 import { ClubTransactions } from "./ClubTransactions";
 import { OccasionDateField } from "@/components/ui/OccasionDateField";
+import { CampaignStories } from "@/features/editorial/CampaignStories";
+import { AnimatedNumber, SuccessBurst } from "@/components/ui/Delight";
 
 export function ClubMembership({ walletScope }: { walletScope: string }) {
   const { customer } = useAuth();
@@ -35,6 +37,8 @@ export function ClubMembership({ walletScope }: { walletScope: string }) {
   if (identity.current.scope !== customer?.id)
     identity.current = { scope: customer?.id, key: randomUUID() };
   const [notice, setNotice] = useState("");
+  const [celebrationTrigger, setCelebrationTrigger] = useState(0);
+  const previousPoints = useRef<{ owner: string; points: number } | null>(null);
   const [transactionsOpen, setTransactionsOpen] = useState(false);
   const [panel, setPanel] = useState<
     "rewards" | "perks" | "celebrations" | null
@@ -57,6 +61,7 @@ export function ClubMembership({ walletScope }: { walletScope: string }) {
       // Never put another member's code into the current wallet after a switch.
       if (identity.current.scope !== customer?.id) return;
       if (result.code) await saveCouponCode(walletScope, result.code);
+      if (result.code) setCelebrationTrigger((value) => value + 1);
       setNotice(
         result.code
           ? "Reward saved to your coupon wallet. Checkout verifies eligibility."
@@ -67,6 +72,17 @@ export function ClubMembership({ walletScope }: { walletScope: string }) {
     },
   });
   const data = query.data;
+  useEffect(() => {
+    if (!customer || !data) return;
+    const previous = previousPoints.current;
+    if (previous?.owner === customer.id && data.points > previous.points) {
+      setCelebrationTrigger((value) => value + 1);
+      setNotice(
+        `You've earned ${data.points - previous.points} Club points. A little closer to your next treat!`,
+      );
+    }
+    previousPoints.current = { owner: customer.id, points: data.points };
+  }, [customer?.id, data?.points]);
   const text = { color: colors.ink, fontSize: 15, lineHeight: 22 };
   if (!customer)
     return (
@@ -110,6 +126,7 @@ export function ClubMembership({ walletScope }: { walletScope: string }) {
               data.coupons.filter((coupon) => coupon.status === "issued").length
             }
           />
+          <SuccessBurst trigger={celebrationTrigger} />
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="View Club transactions"
@@ -179,7 +196,7 @@ export function ClubMembership({ walletScope }: { walletScope: string }) {
                   style={{ color: colors.ink, fontSize: 13, fontWeight: "700" }}
                 >
                   {data.points >= data.rules.minimum_redemption
-                    ? "Your next reward is within reach"
+                    ? "You've reached your next reward"
                     : `${data.rules.minimum_redemption - data.points} points to your next reward`}
                 </Text>
                 <Text style={{ color: colors.muted, fontSize: 11 }}>
@@ -213,6 +230,11 @@ export function ClubMembership({ walletScope }: { walletScope: string }) {
               />
             </View>
           </View>
+          <Text style={{ color: colors.ink, fontSize: 15, fontWeight: "700" }}>
+            <AnimatedNumber value={data.points} /> points ·{" "}
+            {money(data.points * data.rules.point_value_kes)} reward value
+          </Text>
+          <CampaignStories members />
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
             {(
               [

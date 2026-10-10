@@ -4,6 +4,7 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 import { BackHandler, Platform, View } from "react-native";
 import { FloatingTabBar } from "@/components/storefront/FloatingTabBar";
+import { BrandEntrance } from "@/components/ui/BrandEntrance";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider } from "@/auth/AuthProvider";
 import { QueryProvider } from "@/providers/QueryProvider";
@@ -96,6 +97,7 @@ function AppShell() {
                     />
                   </Stack>
                   <FloatingTabBar />
+                  <BrandEntrance />
                 </View>
               </ToastProvider>
             </AuthProvider>

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, Integer, UniqueConstraint, CheckConstraint, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, Integer, UniqueConstraint, CheckConstraint, LargeBinary, JSON, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .db import Base
@@ -156,3 +156,21 @@ class ClubReferral(Base):
     order_id: Mapped[str | None] = mapped_column(String(80), nullable=True)
     status: Mapped[str] = mapped_column(String(20), default="pending")
     reward_year: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+
+class EditorialContent(Base):
+    __tablename__ = "editorial_content"
+    id: Mapped[str] = mapped_column(String(80), primary_key=True)
+    kind: Mapped[str] = mapped_column(String(20), index=True)
+    payload: Mapped[dict] = mapped_column(JSON)
+    revision: Mapped[int] = mapped_column(Integer, default=1)
+    updated_by: Mapped[str] = mapped_column(ForeignKey("customers.id"))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class EditorialAsset(Base):
+    __tablename__ = "editorial_assets"
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    mime: Mapped[str] = mapped_column(String(40))
+    data: Mapped[bytes] = mapped_column(LargeBinary)
+    uploaded_by: Mapped[str] = mapped_column(ForeignKey("customers.id"))

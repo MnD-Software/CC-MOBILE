@@ -13,7 +13,9 @@ def verify(base):
     paths = read("/openapi.json")["paths"]
     required = ["/v1/club", "/v1/club/benefits", "/v1/club/transactions",
         "/v1/account/addresses", "/v1/account/addresses/{address_id}",
-        "/v1/account/celebrations", "/v1/account/enquiries"]
+        "/v1/account/celebrations", "/v1/account/enquiries",
+        "/v1/content", "/v1/content/products/{product_id}",
+        "/v1/admin/content", "/v1/admin/content/campaigns", "/v1/admin/content/assets"]
     missing = [path for path in required if path not in paths]
     if missing:
         raise RuntimeError("Old/incomplete backend deployed; missing routes: " + ", ".join(missing))

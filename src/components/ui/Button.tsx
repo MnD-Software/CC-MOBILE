@@ -10,6 +10,7 @@ import { Text } from "@/components/ui/Typography";
 import { tokens } from "@/theme/tokens";
 import { selectionFeedback } from "@/native/haptics";
 import { useTheme } from "@/theme/ThemeProvider";
+import { getPressScale, useReducedMotion } from "@/design";
 
 type Variant = "primary" | "secondary" | "outline" | "ghost" | "danger";
 type Size = "sm" | "md" | "lg";
@@ -75,6 +76,7 @@ export function Button({
   ...rest
 }: Props) {
   const { colors } = useTheme();
+  const reduceMotion = useReducedMotion();
   const baseVariant = variantStyles[variant];
   const v =
     variant === "secondary"
@@ -119,6 +121,11 @@ export function Button({
         },
         isDisabled && styles.disabled,
         pressed && !isDisabled && styles.pressed,
+        {
+          transform: [
+            { scale: getPressScale(pressed && !isDisabled, reduceMotion) },
+          ],
+        },
         style,
       ]}
     >

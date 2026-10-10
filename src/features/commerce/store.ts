@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { z } from "zod";
+import { appendBagBundle } from "./bag-bundle";
 import {
   bagLineSchema,
   lineKey,
@@ -23,6 +24,7 @@ type BagState = {
   settled: string[];
   settle: (id: string, items: CheckoutInput["items"]) => Promise<void>;
   add: (line: BagLine) => void;
+  addBundle: (lines: BagLine[]) => boolean;
   quantity: (key: string, quantity: number) => void;
   remove: (key: string) => void;
   clear: () => void;
@@ -32,6 +34,15 @@ export const useBag = create<BagState>()(
     (set) => ({
       lines: [],
       settled: [],
+      addBundle: (lines) => {
+        let added = false;
+        set((state) => {
+          const next = appendBagBundle(state.lines, lines);
+          added = next !== null;
+          return next ? { lines: next } : state;
+        });
+        return added;
+      },
       settle: async (id, items) => {
         await set((s) => settleBag(s.lines, s.settled, id, items));
       },

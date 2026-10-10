@@ -8,6 +8,7 @@ import {
   shopApi,
 } from "@/features/commerce/api";
 import { usePreferences } from "@/features/commerce/store";
+import { CelebrationArtwork } from "@/components/ui/CelebrationArtwork";
 
 /**
  * Saved cakes are explicitly device-local until the account API publishes a
@@ -36,6 +37,11 @@ export default function Favourites() {
       }
       back
     >
+      {!saved.length ? (
+        <View style={{ alignItems: "center" }}>
+          <CelebrationArtwork kind="heart" size={140} />
+        </View>
+      ) : null}
       <Feedback
         loading={query.isPending && saved.length > 0}
         error={query.error}

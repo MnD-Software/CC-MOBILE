@@ -798,6 +798,17 @@ export function AccountScreen() {
       </Disclosure>
       <Section title="Here to help" />
       <View style={styles.accountList}>
+        {customer.role === "staff" || customer.role === "admin" ? (
+          <AccountRow
+            link={{
+              id: "campaign-studio",
+              title: "Campaign Studio",
+              detail: "Stories, offers and cake photography",
+              icon: "color-palette-outline",
+              href: "/campaign-studio",
+            }}
+          />
+        ) : null}
         {supportLinks.map((link) => (
           <AccountRow key={link.id} link={link} />
         ))}

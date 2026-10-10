@@ -18,6 +18,7 @@ from .routes_club_wallet import router as club_wallet_router
 from .routes_woo_club import router as woo_club_router
 from .routes_enquiries import router as enquiries_router
 from .routes_celebrations import router as celebrations_router
+from .routes_content import router as content_router
 
 
 @asynccontextmanager
@@ -52,6 +53,7 @@ app.include_router(club_wallet_router)
 app.include_router(woo_club_router)
 app.include_router(enquiries_router)
 app.include_router(celebrations_router)
+app.include_router(content_router)
 
 
 @app.get("/ready/db")

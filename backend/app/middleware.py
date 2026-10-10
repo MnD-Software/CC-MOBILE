@@ -18,7 +18,8 @@ class RequestTelemetry(BaseHTTPMiddleware):
         started = perf_counter()
         response = await call_next(request)
         response.headers["X-Request-ID"] = identity
-        if not request.url.path.startswith("/v1/catalogue/"):
+        public_read = request.method == "GET" and (request.url.path.startswith("/v1/catalogue/") or request.url.path == "/v1/content" or request.url.path.startswith("/v1/content/products/") or request.url.path.startswith("/v1/content/assets/"))
+        if not public_read or response.status_code != 200:
             response.headers["Cache-Control"] = "private, no-store"
         # Route templates exclude customer ids, order keys and query strings.
         route = getattr(request.scope.get("route"), "path", "unmatched")

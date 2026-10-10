@@ -5,6 +5,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   FlatList,
+  Modal,
   Pressable,
   ScrollView,
   Share,
@@ -38,6 +39,7 @@ import {
   variationLabel,
   type CakeSelection,
   type StoreProduct,
+  type BagLine,
 } from "./contracts";
 import { CATALOGUE_GC_TIME_MS, CATALOGUE_STALE_TIME_MS, shopApi } from "./api";
 import { fetchLiveVariations, liveVariationPrice } from "./store-variations";
@@ -49,6 +51,10 @@ import { z } from "zod";
 import { storeProductSchema } from "./contracts";
 import { rankPairings } from "./pairings";
 import { trackCommerceEvent } from "@/observability/commerce-events";
+import { contentApi, mediaSource } from "@/features/editorial/content";
+import { VideoClip } from "@/features/editorial/VideoClip";
+import { confirmedServings } from "@/features/celebrations/planning";
+import { Reveal } from "@/components/ui/Delight";
 
 function ProductSkeleton() {
   const styles = useThemedStyles(baseStyles);
@@ -110,9 +116,11 @@ export function ProductScreen() {
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const toast = useToast();
-  const addToBag = useBag((state) => state.add);
+  const addBundle = useBag((state) => state.addBundle);
   const remember = usePreferences((state) => state.view);
   const [activeImage, setActiveImage] = useState(0);
+  const [photoOpen, setPhotoOpen] = useState(false);
+  const [videoOpen, setVideoOpen] = useState(false);
   const [variationOpen, setVariationOpen] = useState(false);
   const [pairingsReady, setPairingsReady] = useState(false);
   const [selectedPairingIds, setSelectedPairingIds] = useState<number[]>([]);
@@ -135,6 +143,13 @@ export function ProductScreen() {
     refetchOnWindowFocus: false,
   });
   const cake = product.data;
+  const editorial = useQuery({
+    queryKey: ["product-editorial", cake?.id],
+    queryFn: ({ signal }) => contentApi.product(cake!.id, signal),
+    enabled: !!cake && pairingsReady,
+    staleTime: 60_000,
+    retry: false,
+  });
   const variations = cake ? selectableVariations(cake) : [];
   const variationIds = variations.map((variation) => variation.id);
   const liveVariations = useQuery({
@@ -164,6 +179,8 @@ export function ProductScreen() {
 
   useEffect(() => {
     setActiveImage(0);
+    setPhotoOpen(false);
+    setVideoOpen(false);
     setVariationOpen(false);
     setSelectedVariationId(null);
     setSelectedPairingIds([]);
@@ -213,7 +230,18 @@ export function ProductScreen() {
       .map((variation) => [variation.id, variation]),
   );
   const basePrice = productPrice(cake);
-  const images = cake.images;
+  const images = [
+    ...cake.images,
+    ...(editorial.data?.image_urls ?? [])
+      .filter(
+        (url) => !cake.images.some((image) => image.src === mediaSource(url)),
+      )
+      .map((url, index) => ({
+        id: -index - 1,
+        src: mediaSource(url),
+        alt: editorial.data?.photography_notes ?? "Cake City detail photograph",
+      })),
+  ];
   const description =
     plainText(cake.short_description || cake.description) ||
     "Cake City will share the latest details for this celebration.";
@@ -312,28 +340,30 @@ export function ProductScreen() {
 
   function addCake(openBag = false) {
     if (!canAddToBag || price === null) return;
-    addToBag({
-      key: "",
-      product_id: orderCake.id,
-      slug: orderCake.slug,
-      name: selectedVariationLabel
-        ? `${plainText(orderCake.name)} · ${selectedVariationLabel}`
-        : plainText(orderCake.name),
-      image: orderCake.images[0]?.src ?? null,
-      price,
-      quantity: 1,
-      selection: {
-        size,
-        message: "",
-        add_ons: [],
-        variation_id: selectedVariation?.id,
-        variation_attributes: selectedVariation
-          ? variationCartAttributes(orderCake, selectedVariation)
-          : undefined,
+    const bundle: BagLine[] = [
+      {
+        key: "",
+        product_id: orderCake.id,
+        slug: orderCake.slug,
+        name: selectedVariationLabel
+          ? `${plainText(orderCake.name)} · ${selectedVariationLabel}`
+          : plainText(orderCake.name),
+        image: orderCake.images[0]?.src ?? null,
+        price,
+        quantity: 1,
+        selection: {
+          size,
+          message: "",
+          add_ons: [],
+          variation_id: selectedVariation?.id,
+          variation_attributes: selectedVariation
+            ? variationCartAttributes(orderCake, selectedVariation)
+            : undefined,
+        },
       },
-    });
+    ];
     for (const pairing of selectedPairings) {
-      addToBag({
+      bundle.push({
         key: "",
         product_id: pairing.id,
         slug: pairing.slug,
@@ -343,6 +373,12 @@ export function ProductScreen() {
         quantity: 1,
         selection: { size: "1kg", message: "", add_ons: [] },
       });
+    }
+    if (!addBundle(bundle)) {
+      toast(
+        "Your bag is at its item limit. Remove an item or reduce its quantity, then add this cake and extras together.",
+      );
+      return;
     }
     void performHaptic("addToCart");
     toast(
@@ -383,6 +419,67 @@ export function ProductScreen() {
   return (
     <SafeAreaView edges={["top", "left", "right"]} style={styles.page}>
       <View style={styles.layout}>
+        <Modal
+          visible={photoOpen}
+          transparent={false}
+          animationType="fade"
+          onRequestClose={() => setPhotoOpen(false)}
+        >
+          <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+            <View
+              style={{
+                padding: 16,
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <Text style={{ color: colors.ink }}>
+                Photo {activeImage + 1} of {images.length}
+              </Text>
+              <IconButton
+                name="close"
+                label="Close photo"
+                onPress={() => setPhotoOpen(false)}
+              />
+            </View>
+            <Image
+              source={{ uri: images[activeImage]?.src }}
+              contentFit="contain"
+              cachePolicy="memory-disk"
+              style={{ flex: 1, width: "100%" }}
+            />
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                padding: 16,
+              }}
+            >
+              <IconButton
+                name="arrow-back"
+                label="Previous photo"
+                onPress={() =>
+                  setActiveImage(
+                    (index) => (index - 1 + images.length) % images.length,
+                  )
+                }
+              />
+              <Text
+                style={{ color: colors.muted, flex: 1, paddingHorizontal: 12 }}
+              >
+                {images[activeImage]?.alt}
+              </Text>
+              <IconButton
+                name="arrow-forward"
+                label="Next photo"
+                onPress={() =>
+                  setActiveImage((index) => (index + 1) % images.length)
+                }
+              />
+            </View>
+          </SafeAreaView>
+        </Modal>
         <ScrollView
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
@@ -410,18 +507,24 @@ export function ProductScreen() {
                 )
               }
               renderItem={({ item: image }) => (
-                <Image
-                  source={{ uri: image.src }}
-                  cachePolicy="memory-disk"
-                  contentFit="contain"
-                  contentPosition="center"
-                  recyclingKey={`${cake.id}:${image.id}:${image.src}`}
-                  transition={180}
-                  style={{
-                    width: viewportWidth,
-                    height: viewportWidth * 0.94,
-                  }}
-                />
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`View photo ${images.indexOf(image) + 1} of ${images.length}`}
+                  onPress={() => setPhotoOpen(true)}
+                >
+                  <Image
+                    source={{ uri: image.src }}
+                    cachePolicy="memory-disk"
+                    contentFit="contain"
+                    contentPosition="center"
+                    recyclingKey={`${cake.id}:${image.id}:${image.src}`}
+                    transition={180}
+                    style={{
+                      width: viewportWidth,
+                      height: viewportWidth * 0.94,
+                    }}
+                  />
+                </Pressable>
               )}
               ListEmptyComponent={
                 <View
@@ -479,6 +582,38 @@ export function ProductScreen() {
           </View>
 
           <View style={styles.details}>
+            {images.length > 1 ? (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ gap: 8, paddingVertical: 4 }}
+              >
+                {images.map((image, index) => (
+                  <Pressable
+                    key={image.id}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Enlarge photo ${index + 1}`}
+                    onPress={() => {
+                      setActiveImage(index);
+                      setPhotoOpen(true);
+                    }}
+                  >
+                    <Image
+                      source={{ uri: image.src }}
+                      cachePolicy="memory-disk"
+                      contentFit="contain"
+                      style={{
+                        width: 58,
+                        height: 58,
+                        borderRadius: 12,
+                        borderWidth: 1,
+                        borderColor: colors.border,
+                      }}
+                    />
+                  </Pressable>
+                ))}
+              </ScrollView>
+            ) : null}
             <View style={styles.topline}>
               <Text style={styles.kicker}>
                 {cake.on_sale ? "SPECIAL PRICE" : "MADE FOR YOUR MOMENT"}
@@ -490,7 +625,7 @@ export function ProductScreen() {
                     size={14}
                     color={colors.success}
                   />
-                  <Text style={styles.stockText}>Available today</Text>
+                  <Text style={styles.stockText}>In stock</Text>
                 </View>
               ) : null}
             </View>
@@ -498,6 +633,69 @@ export function ProductScreen() {
               {plainText(cake.name)}
             </Text>
             <Text style={styles.price}>{priceText}</Text>
+            {editorial.data?.flavour ||
+            editorial.data?.servings ||
+            confirmedServings(cake) ||
+            (editorial.data?.preparation_hours !== null &&
+              editorial.data?.preparation_hours !== undefined) ? (
+              <View
+                style={{
+                  backgroundColor: colors.surface,
+                  borderColor: colors.border,
+                  borderWidth: 1,
+                  padding: 14,
+                  borderRadius: 18,
+                  gap: 8,
+                }}
+              >
+                {editorial.data?.flavour ? (
+                  <Text style={{ color: colors.ink }}>
+                    Flavour · {editorial.data.flavour}
+                  </Text>
+                ) : null}
+                {editorial.data?.servings || confirmedServings(cake) ? (
+                  <Text style={{ color: colors.ink }}>
+                    Servings ·{" "}
+                    {editorial.data?.servings || confirmedServings(cake)}
+                  </Text>
+                ) : null}
+                {editorial.data?.preparation_hours !== null &&
+                editorial.data?.preparation_hours !== undefined ? (
+                  <Text style={{ color: colors.ink }}>
+                    {editorial.data.preparation_hours === 0
+                      ? "Ready to order · subject to branch availability"
+                      : `Allow ${editorial.data.preparation_hours} hours for preparation`}
+                  </Text>
+                ) : null}
+              </View>
+            ) : null}
+            {editorial.data?.video_url ? (
+              videoOpen ? (
+                <VideoClip url={editorial.data.video_url} />
+              ) : (
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => setVideoOpen(true)}
+                  style={{
+                    minHeight: 48,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 8,
+                  }}
+                >
+                  <Ionicons
+                    name="play-circle"
+                    color={colors.brandStrong}
+                    size={24}
+                  />
+                  <Text
+                    style={{ color: colors.brandStrong, fontWeight: "700" }}
+                  >
+                    A closer look at this cake
+                  </Text>
+                </Pressable>
+              )
+            ) : null}
             {variationRequired ? (
               <Text style={styles.priceNote}>
                 {selectedVariation
@@ -616,7 +814,7 @@ export function ProductScreen() {
                   </Pressable>
                 ) : null}
                 {variationOpen ? (
-                  <View style={styles.variationMenu}>
+                  <Reveal style={styles.variationMenu}>
                     {variations.map((variation) => {
                       const label = variationLabel(cake, variation);
                       const selected = variation.id === selectedVariationId;
@@ -685,7 +883,7 @@ export function ProductScreen() {
                         </Pressable>
                       );
                     })}
-                  </View>
+                  </Reveal>
                 ) : null}
               </View>
             ) : null}

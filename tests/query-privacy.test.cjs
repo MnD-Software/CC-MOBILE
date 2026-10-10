@@ -34,11 +34,18 @@ test("switching accounts removes all private queries and mutations, preserving o
     "catalogue",
     "product",
     "product-variations",
+    "editorial-campaigns",
+    "product-editorial",
+    "campaign-products",
+    "planner-cakes",
+    "planner-extras",
+    "planner-variants",
     "website-order",
     "website-order-history",
     "addresses",
     "studio-quote",
     "unknown-account-feature",
+    "staff-content",
   ]) {
     client.setQueryData([key], { value: true });
   }
@@ -49,7 +56,17 @@ test("switching accounts removes all private queries and mutations, preserving o
       .getAll()
       .map((q) => q.queryKey[0])
       .sort(),
-    ["catalogue", "product", "product-variations"],
+    [
+      "catalogue",
+      "product",
+      "product-variations",
+      "editorial-campaigns",
+      "product-editorial",
+      "campaign-products",
+      "planner-cakes",
+      "planner-extras",
+      "planner-variants",
+    ].sort(),
   );
   assert.equal(client.getMutationCache().getAll().length, 0);
   client.clear();

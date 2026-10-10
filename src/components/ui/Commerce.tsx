@@ -34,6 +34,7 @@ import { tokens } from "@/theme/tokens";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import { trackCommerceEvent } from "@/observability/commerce-events";
 import { performHaptic } from "@/design";
+import { useReducedMotion } from "@/design";
 import { GlassSurface } from "@/components/storefront/GlassSurface";
 import { Button } from "./Button";
 import {
@@ -140,6 +141,31 @@ export function IconButton({
 }) {
   const themed = useThemedStyles(ui);
   const { colors } = useTheme();
+  const reduceMotion = useReducedMotion();
+  const badgeScale = useRef(new Animated.Value(1)).current;
+  const previousBadge = useRef(badge);
+  useEffect(() => {
+    const increased = (badge ?? 0) > (previousBadge.current ?? 0);
+    previousBadge.current = badge;
+    if (!increased || reduceMotion) return;
+    const animation = Animated.sequence([
+      Animated.timing(badgeScale, {
+        toValue: 1.15,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(badgeScale, {
+        toValue: 1,
+        duration: 160,
+        useNativeDriver: true,
+      }),
+    ]);
+    animation.start();
+    return () => {
+      animation.stop();
+      badgeScale.setValue(1);
+    };
+  }, [badge, reduceMotion, badgeScale]);
   return (
     <Pressable
       accessibilityRole="button"
@@ -154,7 +180,7 @@ export function IconButton({
     >
       <Ionicons name={name} size={22} color={colors.ink} />
       {badge ? (
-        <View
+        <Animated.View
           style={{
             position: "absolute",
             right: -3,
@@ -165,12 +191,13 @@ export function IconButton({
             backgroundColor: tokens.color.brand,
             alignItems: "center",
             justifyContent: "center",
+            transform: [{ scale: badgeScale }],
           }}
         >
           <Text style={{ color: "white", fontSize: 10, fontWeight: "800" }}>
             {badge}
           </Text>
-        </View>
+        </Animated.View>
       ) : null}
     </Pressable>
   );
@@ -547,6 +574,9 @@ export function FavouriteButton({
   const saved = usePreferences((state) => state.savedProductSlugs);
   const toggle = usePreferences((state) => state.toggleSavedProduct);
   const selected = (saved ?? []).includes(product.slug);
+  const reduceMotion = useReducedMotion();
+  const heartScale = useRef(new Animated.Value(1)).current;
+  useEffect(() => () => heartScale.stopAnimation(), [heartScale]);
   return (
     <Pressable
       accessibilityRole="button"
@@ -564,6 +594,21 @@ export function FavouriteButton({
           saved: !selected,
         });
         toggle(product.slug);
+        if (!selected && !reduceMotion) {
+          heartScale.stopAnimation();
+          Animated.sequence([
+            Animated.timing(heartScale, {
+              toValue: 1.2,
+              duration: 100,
+              useNativeDriver: true,
+            }),
+            Animated.timing(heartScale, {
+              toValue: 1,
+              duration: 160,
+              useNativeDriver: true,
+            }),
+          ]).start();
+        }
         void performHaptic(selected ? "toggleOff" : "toggleOn");
         toast(
           selected
@@ -582,11 +627,13 @@ export function FavouriteButton({
         justifyContent: "center",
       }}
     >
-      <Ionicons
-        name={selected ? "heart" : "heart-outline"}
-        size={small ? 17 : 20}
-        color={selected ? colors.brandStrong : colors.cocoa}
-      />
+      <Animated.View style={{ transform: [{ scale: heartScale }] }}>
+        <Ionicons
+          name={selected ? "heart" : "heart-outline"}
+          size={small ? 17 : 20}
+          color={selected ? colors.brandStrong : colors.cocoa}
+        />
+      </Animated.View>
     </Pressable>
   );
 }

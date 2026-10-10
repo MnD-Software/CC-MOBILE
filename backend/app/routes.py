@@ -16,7 +16,7 @@ router = APIRouter(tags=["platform"])
 
 @router.get("/health")
 def health() -> dict[str, str]:
-    return {"status": "ok", "service": "cakecity-api", "release": "club-shop-2026-10-08"}
+    return {"status": "ok", "service": "cakecity-api", "release": "editorial-2026-10-10"}
 
 
 @router.get("/ready")

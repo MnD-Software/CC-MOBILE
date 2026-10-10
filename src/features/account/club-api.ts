@@ -38,8 +38,8 @@ const celebration = z.object({
   id: z.string(),
   name: z.string(),
   occasion: z.enum(["birthday", "anniversary", "other"]),
-  month: z.number().int(),
-  day: z.number().int(),
+  month: z.number().int().min(1).max(12),
+  day: z.number().int().min(1).max(31),
   notes: z.string(),
 });
 export type Celebration = z.infer<typeof celebration>;

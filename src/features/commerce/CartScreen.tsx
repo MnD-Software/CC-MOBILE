@@ -11,6 +11,8 @@ import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import { CheckoutProgress } from "@/components/storefront/CheckoutProgress";
 import { money } from "./contracts";
 import { useBag, usePreferences } from "./store";
+import { CelebrationArtwork } from "@/components/ui/CelebrationArtwork";
+import { AnimatedNumber } from "@/components/ui/Delight";
 
 export function CartScreen() {
   const styles = useThemedStyles(baseStyles);
@@ -54,7 +56,15 @@ export function CartScreen() {
     >
       {!bag.lines.length ? (
         <>
-          <Feedback empty="Your bag is waiting for something delicious." />
+          <View style={{ alignItems: "center", gap: 10 }}>
+            <CelebrationArtwork kind="bag" size={144} />
+            <Feedback empty="Your next happy moment starts with a cake." />
+            <Button
+              label="Find my celebration cake"
+              variant="outline"
+              onPress={() => router.push("/celebration-builder")}
+            />
+          </View>
           <Button
             label="Find your cake"
             onPress={() => router.replace("/(tabs)/shop")}
@@ -83,7 +93,9 @@ export function CartScreen() {
               <Text style={styles.summaryTitle}>
                 Your picks look delicious.
               </Text>
-              <Text style={styles.summaryPrice}>{money(subtotal)}</Text>
+              <Text style={styles.summaryPrice}>
+                <AnimatedNumber value={subtotal} format={money} />
+              </Text>
             </View>
           </LinearGradient>
 
