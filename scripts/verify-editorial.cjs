@@ -331,7 +331,7 @@ async function main() {
     await capture("06-combined-plan");
     await click("Add my celebration to bag");
     await wait(
-      `document.body.innerText.includes('Your bag')&&document.body.innerText.includes('Checkout')`,
+      `document.body.innerText.includes('Your bag')&&document.body.innerText.includes('Secure checkout for all items')`,
       "plan in bag",
     );
     await capture("07-bag");
