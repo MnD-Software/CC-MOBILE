@@ -76,7 +76,9 @@ export function FloatingTabBar(
               ? "orders"
               : pathname.startsWith("/loyalty")
                 ? "loyalty"
-                : pathname.split("/")[1]),
+                : pathname.startsWith("/campaign-studio")
+                  ? "account"
+                  : pathname.split("/")[1]),
   );
   const tabWidth = Math.max(
     0,

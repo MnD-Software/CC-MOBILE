@@ -1,6 +1,7 @@
 # Cake City: the celebration experience
 
-Implemented in mobile version 0.2.8. Products, variation prices, stock and cart
+Implemented in mobile version 0.2.8, with the simplified Campaign Studio in
+0.2.9. Products, variation prices, stock and cart
 totals remain connected to the existing WooCommerce checkout. Campaign content
 is curated in the app backend, rather than imported from social feeds.
 
@@ -55,15 +56,33 @@ server for every write; customers cannot grant themselves staff access.
 
 ## Publish a daily offer
 
-1. Create **New story**, choose a template and add a clear title and short copy.
-2. Upload actual artwork, or paste its HTTPS media URL. JPEG/PNG/WebP uploads
-   are bounded at 2 MB; MP4 clips at 10 MB. Native image selection exports JPEG.
-   Clips should be short; use a compressed MP4 rather than MOV/HEVC originals.
-3. Set start/end dates including the timezone, e.g. `2026-10-15T08:00:00+03:00`.
-4. Link WooCommerce product slugs, or a numeric category ID. Use confirmed branch
-   names and select member targeting only when applicable.
-5. Set **Published: on** and save. The app checks the schedule on each render.
-   A changed record revision protects other staff members from accidental overwrites.
+1. Open **Profile > Campaign Studio > Create a story**. In **Photo & words**,
+   choose a gallery photo, add a title and optional message, then choose the
+   offer, spotlight or celebration style. Photos are automatically resized to
+   fit the 2 MB upload limit; PNG artwork retains its transparency.
+2. In **Choose cakes**, search the live catalogue by name and select up to eight
+   cakes using their photos. Alternatively choose a collection by name. There
+   are no product slugs or numeric category IDs to enter.
+3. In **Preview**, review the customer-facing story, choose Tonight, Tomorrow
+   or 7 days, then **Publish story**. Exact date/time, Club targeting, branch
+   notes and video are optional disclosures. Dates use Nairobi time with native
+   date pickers on phones. A future start changes the action to **Schedule story**.
+
+Use **Save as draft** to finish later. Reopen a story from **My stories** to edit
+it; badges distinguish Live, Scheduled, Draft and Ended. Unpublishing an existing
+story is explicit. Revision checks protect another staff member's newer changes.
+The app hides unpublished/expired stories and caches public content briefly, so
+allow up to 30 seconds for another customer's refresh to show a change.
+
+**Cake details** also starts with a searchable photo picker. Choose a cake and
+add bakery-confirmed facts or extra photos, then publish or save as a draft.
+Optional clips remain limited to 10 MB MP4; MOV/HEVC is not automatically converted.
+An existing HTTPS image/video link is available as an optional advanced input.
+
+Version 0.2.9 adds the native image-manipulation module. Install its fresh Android
+APK rather than sending this source as an OTA update to 0.2.8. SDK 57 Expo Go
+includes the module for development. No additional Render environment variable
+or database migration is needed for the simplified Studio.
 
 Set commercial sale prices, stock, coupon eligibility and branch restrictions in
 WooCommerce/checkout. Story targeting is merchandising; it does not create or
@@ -75,11 +94,11 @@ is intentionally bounded per file and is not a substitute for a streaming CDN.
 
 ## Three reusable offer templates
 
-| Template | Visual direction | Copy and action |
-| --- | --- | --- |
-| Cake spotlight | White canvas, one large actual cake image, pink label | Cake name + one appetising detail → Choose options |
-| Celebration edit | Actual occasion photography, warm pink/cream framing | A birthday, graduation or family moment → Explore cakes |
-| Offer of the day | Actual offer artwork, bold short title, clear expiry | Confirmed offer and branch terms → Shop this story |
+| Template         | Visual direction                                      | Copy and action                                         |
+| ---------------- | ----------------------------------------------------- | ------------------------------------------------------- |
+| Cake spotlight   | White canvas, one large actual cake image, pink label | Cake name + one appetising detail → Choose options      |
+| Celebration edit | Actual occasion photography, warm pink/cream framing  | A birthday, graduation or family moment → Explore cakes |
+| Offer of the day | Actual offer artwork, bold short title, clear expiry  | Confirmed offer and branch terms → Shop this story      |
 
 The templates supply consistent framing and labels. Upload ready artwork; avoid
 embedding tiny price text or long legal text inside an image. Native titles and
