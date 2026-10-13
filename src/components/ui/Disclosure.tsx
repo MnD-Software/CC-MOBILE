@@ -22,7 +22,7 @@ export function Disclosure({
         borderWidth: 1,
         borderColor: colors.border,
         backgroundColor: colors.surface,
-        borderRadius: 20,
+        borderRadius: 18,
         overflow: "hidden",
       }}
     >
@@ -43,7 +43,7 @@ export function Disclosure({
         <Text
           style={{
             color: colors.ink,
-            fontWeight: "700",
+            fontWeight: "600",
             fontSize: 15,
             flex: 1,
           }}

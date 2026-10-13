@@ -9,7 +9,10 @@ const root = path.resolve(
   process.argv[2] || "artifacts/editorial-release/export-web",
 );
 const output = path.resolve(
-  studioOnly ? "artifacts/studio-release/qa" : "artifacts/editorial-release/qa",
+  process.env.CAKECITY_EDITORIAL_QA_OUTPUT ||
+    (studioOnly
+      ? "artifacts/studio-release/qa"
+      : "artifacts/editorial-release/qa"),
 );
 const debugPort = 9348,
   port = 8099;
@@ -495,7 +498,7 @@ async function main() {
         "staff fixture sign-in",
       );
       await evaluate(
-        `(()=>{const node=Array.from(document.querySelectorAll('[role="button"],[role="tab"],a')).find(n=>n.getAttribute('aria-label')==='Profile'||n.innerText?.trim()==='Profile');if(!node)throw Error('Profile control missing');node.click();return true})()`,
+        `(()=>{const node=Array.from(document.querySelectorAll('[role="button"],[role="tab"],a')).find(n=>n.getAttribute('aria-label')==='Account'||n.innerText?.trim()==='Account');if(!node)throw Error('Account control missing');node.click();return true})()`,
       );
       await wait(
         `document.body.innerText.includes('Campaign Studio')`,

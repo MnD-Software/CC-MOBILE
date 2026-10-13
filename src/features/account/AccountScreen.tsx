@@ -480,7 +480,7 @@ export function AccountScreen() {
       }
     >
       <LinearGradient
-        colors={["#B80068", "#8E0052", "#610A3E"]}
+        colors={[colors.surface, colors.surface, colors.surfaceTint]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.memberHero}
@@ -500,17 +500,17 @@ export function AccountScreen() {
           </View>
         </Pressable>
         <View style={styles.memberHeroCopy}>
-          <Text style={[styles.heroEyebrow, { color: "#FFFFFF" }]}>
+          <Text style={[styles.heroEyebrow, { color: colors.brandStrong }]}>
             YOUR CAKE CITY
           </Text>
           <Text
-            style={[styles.memberName, { color: "#FFFFFF" }]}
+            style={[styles.memberName, { color: colors.ink }]}
             numberOfLines={2}
           >
             {firstName} {customer.last_name?.trim()}
           </Text>
           <Text
-            style={[styles.memberEmail, { color: "#FFFFFF" }]}
+            style={[styles.memberEmail, { color: colors.muted }]}
             numberOfLines={1}
           >
             {customer.email}
@@ -523,8 +523,14 @@ export function AccountScreen() {
               { minHeight: 38, paddingHorizontal: 10 },
             ]}
           >
-            <Ionicons name="create-outline" size={14} color="#FFFFFF" />
-            <Text style={[styles.securePillText, { color: "#FFFFFF" }]}>
+            <Ionicons
+              name="create-outline"
+              size={14}
+              color={colors.brandStrong}
+            />
+            <Text
+              style={[styles.securePillText, { color: colors.brandStrong }]}
+            >
               Profile settings
             </Text>
           </Pressable>
@@ -877,6 +883,8 @@ const baseStyles = StyleSheet.create({
     padding: 21,
     borderRadius: 28,
     overflow: "hidden",
+    borderWidth: 1,
+    borderColor: tokens.color.border,
     ...tokens.shadow.floating,
   },
   guestIcon: {
@@ -892,14 +900,14 @@ const baseStyles = StyleSheet.create({
   heroEyebrow: {
     color: tokens.color.brandStrong,
     fontSize: 9.5,
-    fontWeight: "900",
+    fontWeight: "700",
     letterSpacing: 1.35,
   },
   guestTitle: {
     color: tokens.color.cocoa,
     fontSize: 25,
     lineHeight: 30,
-    fontWeight: "900",
+    fontWeight: "700",
   },
   guestCopy: { color: tokens.color.muted, fontSize: 13, lineHeight: 19 },
   guestActions: { flexDirection: "row", gap: 10, marginTop: 4 },
@@ -915,7 +923,7 @@ const baseStyles = StyleSheet.create({
     gap: 12,
     padding: 15,
     borderRadius: 20,
-    backgroundColor: tokens.color.accentLight,
+    backgroundColor: tokens.color.surfaceTint,
   },
   deviceCardIcon: {
     width: 42,
@@ -926,9 +934,9 @@ const baseStyles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
   },
   deviceCardCopy: { flex: 1, gap: 2 },
-  deviceCardTitle: { color: tokens.color.ink, fontSize: 14, fontWeight: "900" },
+  deviceCardTitle: { color: tokens.color.ink, fontSize: 14, fontWeight: "700" },
   deviceCardText: {
-    color: tokens.color.accentStrong,
+    color: tokens.color.muted,
     fontSize: 11.5,
     lineHeight: 17,
   },
@@ -961,7 +969,7 @@ const baseStyles = StyleSheet.create({
     color: tokens.color.cocoa,
     fontSize: 20,
     lineHeight: 24,
-    fontWeight: "900",
+    fontWeight: "700",
   },
   memberEmail: { color: tokens.color.muted, fontSize: 12.5 },
   securePill: {
@@ -1006,7 +1014,7 @@ const baseStyles = StyleSheet.create({
     borderRadius: 13,
     backgroundColor: tokens.color.brandLight,
   },
-  shortcutLabel: { color: tokens.color.ink, fontSize: 12, fontWeight: "900" },
+  shortcutLabel: { color: tokens.color.ink, fontSize: 12, fontWeight: "700" },
   shortcutValue: {
     color: tokens.color.muted,
     fontSize: 9.5,
@@ -1034,7 +1042,7 @@ const baseStyles = StyleSheet.create({
   clubPreviewTitle: {
     color: tokens.color.cocoa,
     fontSize: 14,
-    fontWeight: "900",
+    fontWeight: "700",
   },
   clubPreviewText: {
     color: tokens.color.brandStrong,
@@ -1050,7 +1058,7 @@ const baseStyles = StyleSheet.create({
   clubStatusText: {
     color: tokens.color.brandStrong,
     fontSize: 9.5,
-    fontWeight: "900",
+    fontWeight: "700",
   },
   profileDetails: {
     gap: 12,
@@ -1076,7 +1084,7 @@ const baseStyles = StyleSheet.create({
   profileDetailsTitle: {
     color: tokens.color.ink,
     fontSize: 14,
-    fontWeight: "900",
+    fontWeight: "700",
   },
   profileDetailsCopy: { color: tokens.color.muted, fontSize: 11 },
   profileDetailRow: {
@@ -1111,7 +1119,7 @@ const baseStyles = StyleSheet.create({
   avatarPanelTitle: {
     color: tokens.color.ink,
     fontSize: 14,
-    fontWeight: "900",
+    fontWeight: "700",
   },
   avatarPanelCopy: {
     color: tokens.color.muted,
@@ -1128,7 +1136,7 @@ const baseStyles = StyleSheet.create({
     borderRadius: 13,
     backgroundColor: tokens.color.cocoa,
   },
-  photoButtonText: { color: "#FFFFFF", fontSize: 11.5, fontWeight: "900" },
+  photoButtonText: { color: "#FFFFFF", fontSize: 11.5, fontWeight: "700" },
   avatarChoices: { flexDirection: "row", gap: 9 },
   avatarChoice: {
     width: 47,
@@ -1169,7 +1177,7 @@ const baseStyles = StyleSheet.create({
   accountRowTitle: {
     color: tokens.color.ink,
     fontSize: 13.5,
-    fontWeight: "900",
+    fontWeight: "700",
   },
   accountRowDetail: {
     color: tokens.color.muted,
@@ -1195,7 +1203,7 @@ const baseStyles = StyleSheet.create({
     borderRadius: 13,
     backgroundColor: tokens.color.violetLight,
   },
-  serviceTitle: { color: tokens.color.ink, fontSize: 12.5, fontWeight: "900" },
+  serviceTitle: { color: tokens.color.ink, fontSize: 12.5, fontWeight: "700" },
   serviceDetail: { color: tokens.color.muted, fontSize: 10.5, lineHeight: 15 },
   pressed: { opacity: 0.78, transform: [{ scale: 0.985 }] },
 });

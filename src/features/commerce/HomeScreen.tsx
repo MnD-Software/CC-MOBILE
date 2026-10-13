@@ -152,7 +152,7 @@ function HomeSkeleton({ cardWidth }: { cardWidth: number }) {
 
 export function HomeScreen() {
   const styles = useThemedStyles(baseStyles);
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const { customer } = useAuth();
   const ownerKey = customer?.id ? String(customer.id) : null;
   const recentSlugs = usePreferences((state) =>
@@ -337,12 +337,15 @@ export function HomeScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {!isDark ? (
-          <>
-            <View pointerEvents="none" style={styles.ambientPink} />
-            <View pointerEvents="none" style={styles.ambientBlue} />
-          </>
-        ) : null}
+        <View style={styles.editorial}>
+          <Text style={styles.editorialEyebrow}>THE CAKE CITY COLLECTION</Text>
+          <Text accessibilityRole="header" style={styles.editorialTitle}>
+            A little joy. Beautifully made.
+          </Text>
+          <Text style={styles.editorialCopy}>
+            Find something special for your next celebration.
+          </Text>
+        </View>
         {catalogue.isPending ? (
           <HomeSkeleton cardWidth={collectionCardWidth} />
         ) : catalogue.isError ? (
@@ -530,28 +533,22 @@ function DealSlide({
       {image ? (
         <Image
           cachePolicy="memory-disk"
-          contentFit="cover"
+          contentFit="contain"
           source={{ uri: image }}
           style={styles.heroImage}
           transition={120}
         />
       ) : null}
-      <LinearGradient
-        colors={["rgba(39,18,30,0.08)", "rgba(81,56,45,0.95)"]}
-        end={{ x: 0.5, y: 1 }}
-        start={{ x: 0.5, y: 0 }}
-        style={StyleSheet.absoluteFill}
-      />
       <View style={styles.dealCopy}>
         <View style={styles.dealPill}>
-          <Ionicons color="#FFFFFF" name="sparkles" size={12} />
+          <Ionicons color={colors.brandStrong} name="sparkles" size={12} />
           <Text style={styles.dealPillText}>
             {isDealsAndSteals(product)
               ? "DEALS & STEALS"
               : "THE SIGNATURE EDIT"}
           </Text>
         </View>
-        <Text numberOfLines={2} style={styles.dealTitle}>
+        <Text numberOfLines={3} style={styles.dealTitle}>
           {plainText(product.name)}
         </Text>
         <View style={styles.dealFooter}>
@@ -591,13 +588,11 @@ function EmptyDealSlide({
         pressed && styles.pressed,
       ]}
     >
-      <LinearGradient
-        colors={["#5A223E", "#B80068", "#EC008C"]}
-        end={{ x: 1, y: 1 }}
-        start={{ x: 0, y: 0 }}
-        style={StyleSheet.absoluteFill}
+      <Ionicons
+        name="sparkles-outline"
+        color={tokens.color.brandStrong}
+        size={32}
       />
-      <Ionicons name="sparkles" color="rgba(255,255,255,0.96)" size={62} />
       <Text style={styles.emptyKicker}>A SLICE OF SOMETHING SPECIAL</Text>
       <Text style={styles.emptyTitle}>Big moments. Little treats.</Text>
       <Text style={styles.emptyCopy}>
@@ -610,7 +605,7 @@ function EmptyDealSlide({
 
 function OccasionRail() {
   const styles = useThemedStyles(baseStyles);
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   return (
     <View style={styles.occasionSection}>
       <View style={styles.occasionHeadingRow}>
@@ -655,7 +650,7 @@ function OccasionRail() {
               style={[
                 styles.occasionArtwork,
                 {
-                  backgroundColor: isDark ? colors.surfaceTint : occasion.tint,
+                  backgroundColor: colors.surfaceTint,
                 },
               ]}
             >
@@ -681,7 +676,7 @@ function OccasionRail() {
 
 function CollectionGrid({ cardWidth }: { cardWidth: number }) {
   const styles = useThemedStyles(baseStyles);
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   return (
     <View style={styles.collectionSection}>
       <Text accessibilityRole="header" style={styles.collectionHeading}>
@@ -714,14 +709,14 @@ function CollectionGrid({ cardWidth }: { cardWidth: number }) {
               styles.collectionCard,
               {
                 width: cardWidth,
-                backgroundColor: isDark ? colors.surfaceTint : collection.tint,
+                backgroundColor: colors.surface,
               },
               pressed && styles.pressed,
             ]}
           >
             <Image
               cachePolicy="memory-disk"
-              contentFit="cover"
+              contentFit="contain"
               source={{ uri: collection.image }}
               style={styles.collectionImage}
               transition={140}
@@ -750,7 +745,7 @@ function CollectionGrid({ cardWidth }: { cardWidth: number }) {
 }
 
 const baseStyles = StyleSheet.create({
-  editorial: { gap: 6, paddingVertical: 2 },
+  editorial: { gap: 8, paddingTop: 12, paddingBottom: 4 },
   editorialEyebrow: {
     color: tokens.color.brandStrong,
     fontSize: 9,
@@ -758,11 +753,11 @@ const baseStyles = StyleSheet.create({
     letterSpacing: 1.7,
   },
   editorialTitle: {
-    color: tokens.color.cocoa,
-    fontSize: 32,
-    lineHeight: 36,
-    letterSpacing: -1.3,
-    fontWeight: "800",
+    color: tokens.color.ink,
+    fontSize: 34,
+    lineHeight: 39,
+    letterSpacing: -1.2,
+    fontWeight: "600",
   },
   editorialCopy: { color: tokens.color.muted, fontSize: 13, lineHeight: 20 },
   shortcuts: { flexDirection: "row", gap: 8 },
@@ -787,7 +782,14 @@ const baseStyles = StyleSheet.create({
   },
   shortcutTitle: { color: tokens.color.cocoa, fontWeight: "700", fontSize: 11 },
   shortcutDetail: { color: tokens.color.muted, fontSize: 9 },
-  heroImage: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
+  heroImage: {
+    position: "absolute",
+    top: 12,
+    right: 10,
+    bottom: 12,
+    width: "48%",
+    borderRadius: 20,
+  },
   content: {
     width: "100%",
     maxWidth: 600,
@@ -795,26 +797,8 @@ const baseStyles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 14,
     paddingBottom: 128,
-    gap: 22,
+    gap: 28,
     overflow: "hidden",
-  },
-  ambientPink: {
-    position: "absolute",
-    width: 260,
-    height: 260,
-    top: -110,
-    right: -120,
-    borderRadius: 130,
-    backgroundColor: "rgba(236,0,140,0.055)",
-  },
-  ambientBlue: {
-    position: "absolute",
-    width: 190,
-    height: 190,
-    top: 360,
-    left: -130,
-    borderRadius: 95,
-    backgroundColor: "rgba(0,174,239,0.045)",
   },
   brandBlock: {
     flexDirection: "row",
@@ -854,17 +838,20 @@ const baseStyles = StyleSheet.create({
   searchText: { flex: 1, color: tokens.color.muted, fontSize: 13.5 },
   carouselSection: { gap: 4 },
   dealHero: {
-    minHeight: 238,
-    justifyContent: "flex-end",
-    padding: 18,
+    minHeight: 224,
+    justifyContent: "center",
+    padding: 20,
     overflow: "hidden",
     borderRadius: 28,
-    backgroundColor: tokens.color.cocoa,
-    ...tokens.shadow.floating,
+    backgroundColor: tokens.color.surface,
+    borderWidth: 1,
+    borderColor: tokens.color.border,
+    ...tokens.shadow.card,
   },
   dealCopy: {
-    justifyContent: "flex-end",
-    gap: 7,
+    justifyContent: "center",
+    gap: 12,
+    width: "51%",
   },
   dealPill: {
     alignSelf: "flex-start",
@@ -874,20 +861,20 @@ const baseStyles = StyleSheet.create({
     paddingHorizontal: 9,
     paddingVertical: 5,
     borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.18)",
+    backgroundColor: tokens.color.brandLight,
   },
   dealPillText: {
-    color: "#FFFFFF",
+    color: tokens.color.brandStrong,
     fontSize: 8.5,
-    fontWeight: "900",
+    fontWeight: "700",
     letterSpacing: 0.85,
   },
   dealTitle: {
-    maxWidth: "84%",
-    color: "#FFFFFF",
-    fontSize: 22,
-    lineHeight: 26,
-    fontWeight: "900",
+    maxWidth: "100%",
+    color: tokens.color.ink,
+    fontSize: 18,
+    lineHeight: 23,
+    fontWeight: "600",
     letterSpacing: -0.45,
   },
   dealFooter: {
@@ -897,19 +884,19 @@ const baseStyles = StyleSheet.create({
     gap: 12,
   },
   dealLabel: {
-    color: "rgba(255,255,255,0.78)",
+    color: tokens.color.muted,
     fontSize: 8.5,
     fontWeight: "800",
     letterSpacing: 0.72,
   },
-  dealPrice: { color: "#FFFFFF", fontSize: 20, fontWeight: "900" },
+  dealPrice: { color: tokens.color.ink, fontSize: 18, fontWeight: "700" },
   dealArrow: {
     width: 39,
     height: 39,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 15,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: tokens.color.surfaceTint,
   },
   emptyHero: {
     minHeight: 238,
@@ -919,24 +906,27 @@ const baseStyles = StyleSheet.create({
     overflow: "hidden",
     padding: 22,
     borderRadius: 28,
-    ...tokens.shadow.floating,
+    backgroundColor: tokens.color.surface,
+    borderWidth: 1,
+    borderColor: tokens.color.border,
+    ...tokens.shadow.card,
   },
   emptyKicker: {
-    color: "rgba(255,255,255,0.82)",
+    color: tokens.color.brandStrong,
     fontSize: 9,
-    fontWeight: "900",
+    fontWeight: "700",
     letterSpacing: 1.05,
   },
   emptyTitle: {
     maxWidth: "82%",
-    color: "#FFFFFF",
+    color: tokens.color.ink,
     fontSize: 22,
     lineHeight: 27,
-    fontWeight: "900",
+    fontWeight: "700",
   },
   emptyCopy: {
     maxWidth: "88%",
-    color: "rgba(255,255,255,0.86)",
+    color: tokens.color.muted,
     fontSize: 12,
     lineHeight: 17,
   },
@@ -965,7 +955,7 @@ const baseStyles = StyleSheet.create({
     color: tokens.color.ink,
     fontSize: 16,
     lineHeight: 20,
-    fontWeight: "900",
+    fontWeight: "600",
     letterSpacing: -0.25,
   },
   occasionCopy: { color: tokens.color.muted, fontSize: 11, lineHeight: 15 },
@@ -981,7 +971,7 @@ const baseStyles = StyleSheet.create({
     overflow: "hidden",
     borderRadius: 31,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "rgba(81,56,45,0.14)",
+    borderColor: tokens.color.border,
     ...tokens.shadow.card,
   },
   occasionImage: { width: "100%", height: "100%" },
@@ -994,9 +984,9 @@ const baseStyles = StyleSheet.create({
   },
   collectionSection: { gap: 7 },
   collectionHeading: {
-    color: tokens.color.cocoa,
+    color: tokens.color.ink,
     fontSize: 19,
-    fontWeight: "800",
+    fontWeight: "600",
     letterSpacing: -0.5,
     textAlign: "left",
   },
@@ -1016,7 +1006,7 @@ const baseStyles = StyleSheet.create({
     overflow: "hidden",
     borderRadius: 22,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "rgba(81,56,45,0.12)",
+    borderColor: tokens.color.border,
     ...tokens.shadow.card,
   },
   collectionImage: { width: "100%", height: 126, backgroundColor: "#FFFFFF" },
@@ -1028,17 +1018,17 @@ const baseStyles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 11,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: tokens.color.borderStrong,
+    borderTopColor: tokens.color.border,
     backgroundColor: "rgba(255,255,255,0.96)",
   },
   collectionLabel: {
     flex: 1,
-    color: tokens.color.brandStrong,
-    fontSize: 11.5,
-    lineHeight: 14,
-    fontWeight: "900",
+    color: tokens.color.ink,
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: "600",
     letterSpacing: 0.18,
-    textTransform: "uppercase",
+    textTransform: "capitalize",
   },
   featured: { gap: 12, marginHorizontal: -16 },
   continueShopping: { gap: 12, marginHorizontal: -16 },

@@ -79,13 +79,13 @@ const baseStyles = StyleSheet.create({
   label: {
     fontSize: 13,
     lineHeight: 17,
-    fontWeight: "700",
+    fontWeight: "600",
     color: tokens.color.ink,
   },
   input: {
     width: "100%",
     minWidth: 0,
-    height: 50,
+    height: 52,
     borderWidth: 1,
     borderColor: tokens.color.border,
     borderRadius: tokens.radius.md,

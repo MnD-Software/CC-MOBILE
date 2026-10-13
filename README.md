@@ -47,7 +47,7 @@ npm.cmd run android:release
 
 The local build script stages source outside OneDrive, installs locked dependencies
 when needed, runs checks, regenerates Android configuration and verifies APK
-signing, identity, version and SHA256. It emits `dist/CakeCity-0.2.0-preview.apk`
+signing, identity, version and SHA256. It emits `dist/CakeCity-<app-version>-preview.apk`
 plus `dist/build-manifest.json`. The APK uses a test certificate and embeds its
 bundle, so it does not require Metro.
 
@@ -72,6 +72,9 @@ linked into a shipping widget target.
 
 ## Handoff
 
+- [Premium redesign specification and research](docs/PREMIUM_REDESIGN.md)
+- [Premium redesign checkpoints and evidence](docs/PREMIUM_CHECKPOINTS.md)
+- [Premium redesign screenshots and validation](docs/PREMIUM_REDESIGN_REVIEW.md)
 - [API contracts and backend work](docs/API_INTEGRATION.md)
 - [Build, environment and deployment instructions](docs/release-builds.md)
 - [Architecture, features and QA checklist](docs/REBUILD_STATUS.md)

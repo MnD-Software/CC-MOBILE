@@ -916,7 +916,11 @@ export function ProductScreen() {
             </View>
 
             <View style={styles.orderNotice}>
-              <Ionicons name="bag-check-outline" size={22} color="#FFFFFF" />
+              <Ionicons
+                name="bag-check-outline"
+                size={22}
+                color={colors.brandStrong}
+              />
               <View style={{ flex: 1 }}>
                 <Text style={styles.orderNoticeTitle}>Ready when you are</Text>
                 <Text style={styles.orderNoticeCopy}>
@@ -1129,11 +1133,11 @@ const baseStyles = StyleSheet.create({
     maxWidth: 600,
     alignSelf: "center",
     overflow: "hidden",
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: "rgba(255,255,255,0.96)",
-    backgroundColor: tokens.color.surfaceTint,
+    backgroundColor: tokens.color.surface,
   },
   galleryHeader: {
     position: "absolute",
@@ -1165,15 +1169,15 @@ const baseStyles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 4,
-    backgroundColor: "rgba(255, 255, 255, 0.66)",
+    backgroundColor: tokens.color.borderStrong,
   },
-  dotActive: { width: 20, backgroundColor: "#FFFFFF" },
+  dotActive: { width: 20, backgroundColor: tokens.color.brandStrong },
   details: {
     width: "100%",
     maxWidth: 600,
     alignSelf: "center",
-    marginTop: -20,
-    gap: 16,
+    marginTop: 0,
+    gap: 20,
     paddingHorizontal: 20,
     paddingTop: 24,
     paddingBottom: 26,
@@ -1190,7 +1194,7 @@ const baseStyles = StyleSheet.create({
   kicker: {
     color: tokens.color.brandStrong,
     fontSize: 10,
-    fontWeight: "900",
+    fontWeight: "600",
     letterSpacing: 1.15,
   },
   stock: {
@@ -1207,12 +1211,12 @@ const baseStyles = StyleSheet.create({
     color: tokens.color.ink,
     fontSize: 27,
     lineHeight: 33,
-    fontWeight: "800",
+    fontWeight: "600",
     letterSpacing: -0.55,
   },
   price: {
-    color: tokens.color.brandStrong,
-    fontSize: 21,
+    color: tokens.color.ink,
+    fontSize: 24,
     lineHeight: 27,
     fontWeight: "800",
   },
@@ -1379,17 +1383,17 @@ const baseStyles = StyleSheet.create({
     gap: 10,
     padding: 14,
     borderRadius: 18,
-    backgroundColor: tokens.color.cocoa,
+    backgroundColor: tokens.color.surfaceTint,
     ...tokens.shadow.card,
   },
   orderNoticeTitle: {
-    color: "#FFFFFF",
+    color: tokens.color.ink,
     fontSize: 13,
     fontWeight: "800",
   },
   orderNoticeCopy: {
     marginTop: 3,
-    color: "rgba(255,255,255,0.82)",
+    color: tokens.color.muted,
     fontSize: 12,
     lineHeight: 18,
   },

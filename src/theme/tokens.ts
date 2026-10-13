@@ -1,7 +1,7 @@
 /**
  * Shared visual primitives for the native Cake City experience.
  *
- * Design language: glossy warm-white surfaces with Cake City pink, blue and
+ * Design language: crisp glossy-white surfaces with Cake City pink, blue and
  * cocoa used as deliberate, high-contrast accents. Screens and reusable
  * components should consume these semantic values instead of introducing
  * one-off colours, spacing, or elevation rules.
@@ -12,27 +12,27 @@ export const tokens = {
     background: "#FFFFFF",
     surface: "#FFFFFF",
     surfaceRaised: "#FFFFFF",
-    surfaceTint: "#FFEAF4",
+    surfaceTint: "#F6F7F9",
     glass: "rgba(255, 255, 255, 0.82)",
     glassStrong: "rgba(255, 255, 255, 0.94)",
     white: "#FFFFFF",
 
     // Text
-    ink: "#21131B",
-    cocoa: "#49302E",
-    muted: "#62515C",
-    mutedSoft: "#715F6A",
+    ink: "#222329",
+    cocoa: "#51382D",
+    muted: "#62636C",
+    mutedSoft: "#70717B",
 
     // Lines
-    border: "#DCC8D2",
-    borderStrong: "#B888A1",
+    border: "#E7E8EC",
+    borderStrong: "#B9BBC4",
 
     // Brand
     brand: "#EC008C",
     brandStrong: "#B80068",
     brandPressed: "#930052",
     brandDark: "#51382D",
-    brandLight: "#FFF0F8",
+    brandLight: "#FFF5FA",
 
     // Supporting accents are used sparingly so the catalogue remains pink-led.
     violet: "#8A5B72",
@@ -88,18 +88,18 @@ export const tokens = {
   },
   shadow: {
     card: {
-      shadowColor: "#51382D",
+      shadowColor: "#182333",
       shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.12,
-      shadowRadius: 12,
-      elevation: 3,
+      shadowOpacity: 0.045,
+      shadowRadius: 14,
+      elevation: 1,
     },
     floating: {
-      shadowColor: "#51382D",
+      shadowColor: "#182333",
       shadowOffset: { width: 0, height: 10 },
-      shadowOpacity: 0.18,
-      shadowRadius: 22,
-      elevation: 8,
+      shadowOpacity: 0.08,
+      shadowRadius: 24,
+      elevation: 4,
     },
     /** Reserved for a single focused brand action, never a full screen. */
     glow: {

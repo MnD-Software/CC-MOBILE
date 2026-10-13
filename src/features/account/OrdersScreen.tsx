@@ -310,6 +310,7 @@ function RecoverOrder({
 
 export function OrdersScreen() {
   const styles = useThemedStyles(baseStyles);
+  const { colors } = useTheme();
   const cache = useQueryClient();
   const { customer } = useAuth();
   const ownerScope = websiteCheckoutOwnerScope(customer?.id);
@@ -350,7 +351,11 @@ export function OrdersScreen() {
         <>
           <View style={styles.trackingHero}>
             <View style={styles.trackingIcon}>
-              <Ionicons name="location" size={23} color="#FFFFFF" />
+              <Ionicons
+                name="location-outline"
+                size={23}
+                color={colors.brandStrong}
+              />
             </View>
             <View style={styles.trackingCopy}>
               <Text style={styles.trackingEyebrow}>YOUR ORDER UPDATES</Text>
@@ -637,8 +642,10 @@ const baseStyles = StyleSheet.create({
     gap: 15,
     padding: 19,
     borderRadius: 26,
-    backgroundColor: tokens.color.cocoa,
-    ...tokens.shadow.floating,
+    backgroundColor: tokens.color.surface,
+    borderWidth: 1,
+    borderColor: tokens.color.border,
+    ...tokens.shadow.card,
   },
   trackingIcon: {
     width: 50,
@@ -646,22 +653,22 @@ const baseStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 17,
-    backgroundColor: "rgba(255,255,255,0.14)",
+    backgroundColor: tokens.color.surfaceTint,
   },
   trackingCopy: { flex: 1, gap: 4 },
   trackingEyebrow: {
-    color: "#FBD8EB",
+    color: tokens.color.brandStrong,
     fontSize: 9,
     fontWeight: "900",
     letterSpacing: 1.3,
   },
   trackingTitle: {
-    color: "#FFFFFF",
+    color: tokens.color.ink,
     fontSize: 20,
     lineHeight: 24,
     fontWeight: "900",
   },
-  trackingText: { color: "#F6EDE9", fontSize: 11.5, lineHeight: 17 },
+  trackingText: { color: tokens.color.muted, fontSize: 13, lineHeight: 19 },
   orderList: { gap: 13 },
   orderCard: {
     gap: 13,
@@ -734,22 +741,24 @@ const baseStyles = StyleSheet.create({
     gap: 7,
     padding: 21,
     borderRadius: 26,
-    backgroundColor: tokens.color.brandStrong,
-    ...tokens.shadow.floating,
+    backgroundColor: tokens.color.surface,
+    borderWidth: 1,
+    borderColor: tokens.color.border,
+    ...tokens.shadow.card,
   },
   detailEyebrow: {
-    color: "#FFE1F2",
+    color: tokens.color.brandStrong,
     fontSize: 9.5,
     fontWeight: "900",
     letterSpacing: 1.3,
   },
   detailStatus: {
-    color: "#FFFFFF",
+    color: tokens.color.ink,
     fontSize: 26,
     lineHeight: 31,
     fontWeight: "900",
   },
-  detailMessage: { color: "#FFF0F8", fontSize: 12.5, lineHeight: 19 },
+  detailMessage: { color: tokens.color.muted, fontSize: 14, lineHeight: 21 },
   timeline: {
     padding: 17,
     borderRadius: 22,

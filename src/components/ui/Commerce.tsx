@@ -66,7 +66,7 @@ export const ui = StyleSheet.create({
   title: {
     fontSize: 28,
     lineHeight: 34,
-    fontWeight: "800",
+    fontWeight: "700",
     letterSpacing: -0.8,
     color: tokens.color.ink,
   },
@@ -89,15 +89,16 @@ export const ui = StyleSheet.create({
     lineHeight: 15,
     fontWeight: "800",
     letterSpacing: 1.8,
-    color: tokens.color.brandStrong,
+    color: tokens.color.muted,
   },
   panel: {
-    padding: 16,
+    padding: 20,
     gap: 12,
-    borderRadius: 18,
+    borderRadius: 22,
     backgroundColor: tokens.color.surface,
     borderWidth: 1,
     borderColor: tokens.color.border,
+    ...tokens.shadow.card,
   },
   line: { height: 1, backgroundColor: tokens.color.border },
   chip: {
@@ -256,12 +257,12 @@ const browseHeaderStyles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 8,
     paddingBottom: 12,
-    backgroundColor: "rgba(255,254,255,0.985)",
+    backgroundColor: "#FFFFFF",
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "rgba(236,0,140,0.12)",
+    borderBottomColor: tokens.color.border,
     shadowColor: "#51382D",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.04,
+    shadowOpacity: 0.025,
     shadowRadius: 10,
     elevation: 4,
     zIndex: 2,
@@ -464,15 +465,15 @@ export function Notice({
       style={[
         themed.panel,
         {
-          backgroundColor: error ? colors.errorLight : colors.accentLight,
-          borderWidth: 0,
+          backgroundColor: colors.surface,
+          borderWidth: 1,
+          borderColor: error ? colors.error : colors.border,
+          shadowOpacity: 0,
           padding: 14,
         },
       ]}
     >
-      <Text
-        style={[ui.body, { color: error ? colors.error : colors.accentStrong }]}
-      >
+      <Text style={[ui.body, { color: error ? colors.error : colors.muted }]}>
         {message}
       </Text>
     </View>
@@ -711,7 +712,7 @@ export const ProductTile = memo(function ProductTile({
   return (
     <GlassSurface
       intensity={28}
-      opaque={horizontal || compact}
+      opaque
       tintColor={colors.surface}
       style={{
         width,
@@ -721,7 +722,7 @@ export const ProductTile = memo(function ProductTile({
         borderWidth: 1,
         borderColor: colors.border,
         backgroundColor: colors.surface,
-        borderRadius: compact ? 16 : 26,
+        borderRadius: 20,
         ...tokens.shadow.card,
       }}
     >
@@ -743,7 +744,7 @@ export const ProductTile = memo(function ProductTile({
         <View
           style={{
             aspectRatio: 1,
-            width: horizontal ? 90 : undefined,
+            width: horizontal ? 112 : undefined,
             marginLeft: horizontal ? 10 : 0,
             borderRadius: horizontal ? 23 : 0,
             backgroundColor: PRODUCT_TILE_CANVAS,
@@ -791,9 +792,9 @@ export const ProductTile = memo(function ProductTile({
               color: product.on_sale ? colors.brandStrong : colors.muted,
               fontSize: compact ? 10 : 9,
               lineHeight: 14,
-              fontWeight: "800",
+              fontWeight: "600",
               letterSpacing: 0.3,
-              textTransform: "uppercase",
+              textTransform: "none",
             }}
           >
             {product.on_sale ? "Special price" : category}
@@ -804,8 +805,8 @@ export const ProductTile = memo(function ProductTile({
               color: colors.ink,
               fontWeight: "700",
               minHeight: compact ? 36 : 40,
-              fontSize: horizontal ? 13 : compact ? 13 : 14,
-              lineHeight: horizontal ? 18 : compact ? 18 : 20,
+              fontSize: horizontal ? 15 : compact ? 14 : 15,
+              lineHeight: horizontal ? 21 : compact ? 20 : 21,
               letterSpacing: -0.15,
             }}
           >
@@ -819,7 +820,7 @@ export const ProductTile = memo(function ProductTile({
           <Text
             style={{
               color: colors.ink,
-              fontWeight: "800",
+              fontWeight: "700",
               fontSize: compact ? 16 : 16,
               lineHeight: 22,
               minHeight: 18,

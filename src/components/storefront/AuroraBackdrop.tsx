@@ -10,7 +10,7 @@ type AuroraBackdropProps = PropsWithChildren<{
   style?: StyleProp<ViewStyle>;
 }>;
 
-/** Quiet blush canvas that keeps products and the Cake City logo in focus. */
+/** White canvas; depth belongs to surfaces, not coloured page washes. */
 export function AuroraBackdrop({
   variant = "app",
   children,
@@ -28,7 +28,6 @@ export function AuroraBackdrop({
         style={StyleSheet.absoluteFill}
       />
       <View pointerEvents="none" style={styles.warmWash} />
-      <View pointerEvents="none" style={styles.blushBand} />
       {children}
     </View>
   );
@@ -41,7 +40,7 @@ const styles = StyleSheet.create({
     backgroundColor: tokens.color.background,
   },
   authCanvas: {
-    backgroundColor: "#FFF6FA",
+    backgroundColor: "#FFFFFF",
   },
   warmWash: {
     position: "absolute",
@@ -50,14 +49,5 @@ const styles = StyleSheet.create({
     top: 0,
     height: "46%",
     backgroundColor: "rgba(255, 255, 255, 0.55)",
-  },
-  blushBand: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    top: "28%",
-    height: "26%",
-    backgroundColor: "#F7B9D3",
-    opacity: 0.18,
   },
 });

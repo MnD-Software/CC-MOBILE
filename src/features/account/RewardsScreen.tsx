@@ -73,8 +73,8 @@ export function RewardsScreen() {
       <LinearGradient
         colors={
           isDark
-            ? ["#301B28", "#73203E", "#B80068"]
-            : ["#51382D", "#8F285D", "#C90078"]
+            ? [colors.surface, colors.surface, colors.background]
+            : ["#FFFFFF", "#FFFFFF", "#F6F7F9"]
         }
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -82,7 +82,11 @@ export function RewardsScreen() {
       >
         <View style={styles.heroRow}>
           <View style={styles.heroMark}>
-            <Ionicons name="ribbon" size={23} color="#FFFFFF" />
+            <Ionicons
+              name="ribbon-outline"
+              size={23}
+              color={colors.brandStrong}
+            />
           </View>
           <Text style={styles.heroEyebrow}>CAKE CITY CLUB</Text>
         </View>
@@ -265,6 +269,8 @@ const baseStyles = StyleSheet.create({
     gap: 8,
     padding: 18,
     borderRadius: 30,
+    borderWidth: 1,
+    borderColor: tokens.color.border,
     overflow: "hidden",
     ...tokens.shadow.floating,
   },
@@ -280,20 +286,20 @@ const baseStyles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.30)",
   },
   heroEyebrow: {
-    color: "#FFF8E5",
+    color: tokens.color.brandStrong,
     fontSize: 9,
     lineHeight: 15,
-    fontWeight: "900",
+    fontWeight: "700",
     letterSpacing: 1,
     flex: 1,
   },
   heroTitle: {
-    color: "#FFFFFF",
+    color: tokens.color.ink,
     fontSize: 23,
     lineHeight: 29,
-    fontWeight: "900",
+    fontWeight: "700",
   },
-  heroCopy: { color: "#FFF7E7", fontSize: 13, lineHeight: 20 },
+  heroCopy: { color: tokens.color.muted, fontSize: 14, lineHeight: 21 },
   walletPanel: {
     gap: 14,
     padding: 19,
@@ -337,7 +343,7 @@ const baseStyles = StyleSheet.create({
   couponCode: {
     color: tokens.color.ink,
     fontSize: 17,
-    fontWeight: "900",
+    fontWeight: "700",
     letterSpacing: 1,
   },
   remove: {

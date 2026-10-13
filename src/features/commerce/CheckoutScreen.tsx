@@ -19,7 +19,12 @@ import { CheckoutProgress } from "@/components/storefront/CheckoutProgress";
 import { Input } from "@/components/ui/Input";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import { loadBillingProfile, saveBillingProfile } from "./billing-profile";
-import { money, type CheckoutInput, type BagLine } from "./contracts";
+import {
+  money,
+  plainText,
+  type CheckoutInput,
+  type BagLine,
+} from "./contracts";
 import { DeliveryLocationPicker } from "./DeliveryLocationPicker";
 import { useBag } from "./store";
 import { selectCouponCode, useCouponWallet } from "./coupon-wallet";
@@ -558,169 +563,181 @@ function CheckoutForm() {
     <View style={{ gap: 22 }}>
       <CheckoutProgress current={1} />
 
-      <Section title="Contact details" />
-      {customer ? (
-        <View style={ui.row}>
-          <Ionicons name="person-circle-outline" size={17} color="#EC008C" />
-          <Text style={ui.body}>
-            We filled the contact details available in your account.
-          </Text>
-        </View>
-      ) : null}
-      <Input
-        autoComplete="given-name"
-        label="First name"
-        value={firstName}
-        onChangeText={setFirstName}
-      />
-      <Input
-        autoComplete="family-name"
-        label="Last name"
-        value={lastName}
-        onChangeText={setLastName}
-      />
-      <Input
-        autoComplete="email"
-        label="Email address"
-        value={email}
-        onChangeText={setEmail}
-        keyboardType="email-address"
-        autoCapitalize="none"
-      />
-      <Input
-        label="Phone number"
-        value={phone}
-        onChangeText={setPhone}
-        keyboardType="phone-pad"
-        autoComplete="tel"
-      />
-
-      <View style={ui.spread}>
-        <View style={{ flex: 1, gap: 3 }}>
-          <Text style={ui.heading}>Send as a gift</Text>
-          <Text style={ui.body}>Deliver to someone special</Text>
-        </View>
-        <Switch
-          accessibilityLabel="Send this order as a gift"
-          value={isGift}
-          onValueChange={(value) => {
-            setIsGift(value);
-            deliveryEdited.current = true;
-            setAddress("");
-            setArea("");
-            setCity("Nairobi");
-          }}
-          trackColor={{ true: colors.brand }}
+      <View style={[ui.panel, { gap: 16 }]}>
+        <Section title="Contact details" />
+        {customer ? (
+          <View style={ui.row}>
+            <Ionicons name="person-circle-outline" size={17} color="#EC008C" />
+            <Text style={ui.body}>
+              We filled the contact details available in your account.
+            </Text>
+          </View>
+        ) : null}
+        <Input
+          autoComplete="given-name"
+          label="First name"
+          value={firstName}
+          onChangeText={setFirstName}
+        />
+        <Input
+          autoComplete="family-name"
+          label="Last name"
+          value={lastName}
+          onChangeText={setLastName}
+        />
+        <Input
+          autoComplete="email"
+          label="Email address"
+          value={email}
+          onChangeText={setEmail}
+          keyboardType="email-address"
+          autoCapitalize="none"
+        />
+        <Input
+          label="Phone number"
+          value={phone}
+          onChangeText={setPhone}
+          keyboardType="phone-pad"
+          autoComplete="tel"
         />
       </View>
-      {isGift ? (
-        <>
-          <Input
-            label="Recipient first name"
-            value={recipientFirst}
-            onChangeText={setRecipientFirst}
-            maxLength={80}
-          />
-          <Input
-            label="Recipient last name"
-            value={recipientLast}
-            onChangeText={setRecipientLast}
-            maxLength={80}
-          />
-          <Input
-            label="Recipient phone"
-            value={recipientPhone}
-            onChangeText={setRecipientPhone}
-            keyboardType="phone-pad"
-            maxLength={20}
-          />
-          <Input
-            label="Gift message (optional)"
-            value={giftMessage}
-            onChangeText={setGiftMessage}
-            multiline
-            maxLength={300}
-          />
-          <Text style={ui.body}>
-            Enter the recipient's delivery address below. Payment and order
-            emails stay with you. Gift messages are sent as order notes; printed
-            cards depend on the store.
-          </Text>
-        </>
-      ) : null}
-      <Section title="Delivery address" />
-      <DeliveryLocationPicker
-        key={wallet.scope}
-        address={address}
-        area={area}
-        city={city}
-        isGift={isGift}
-        profileReady={profileReady}
-        canAutofill={!deliveryEdited.current}
-        recipientName={
-          isGift
-            ? [recipientFirst, recipientLast].filter(Boolean).join(" ")
-            : [firstName, lastName].filter(Boolean).join(" ")
-        }
-        recipientPhone={isGift ? recipientPhone : phone}
-        onChange={(value) => {
-          deliveryEdited.current = true;
-          setAddress(value.address);
-          setArea(value.area);
-          setCity(value.city || "Nairobi");
-        }}
-        onRecipientChange={(name, recipientNumber) => {
-          const [first, ...rest] = name.split(/\s+/);
-          setRecipientFirst(first);
-          setRecipientLast(rest.join(" "));
-          setRecipientPhone(recipientNumber);
-        }}
-      />
-      <Input
-        autoComplete="street-address"
-        label="Building, street and apartment"
-        value={address}
-        onChangeText={(value) => {
-          deliveryEdited.current = true;
-          setAddress(value);
-        }}
-      />
-      <Input
-        autoComplete="address-line2"
-        label="Area"
-        value={area}
-        onChangeText={(value) => {
-          deliveryEdited.current = true;
-          setArea(value);
-        }}
-      />
-      <Input
-        label="City"
-        value={city}
-        onChangeText={(value) => {
-          deliveryEdited.current = true;
-          setCity(value);
-        }}
-      />
-      <Disclosure title="Add a delivery note">
-        <Input
-          label="Order notes (optional)"
-          value={notes}
-          onChangeText={setNotes}
-          maxLength={500}
-        />
-      </Disclosure>
 
-      <Section title="Order summary" />
-      {cart.cart.items.map((item) => (
-        <View key={item.id} style={ui.spread}>
-          <Text style={[ui.body, { flex: 1 }]}>
-            {item.quantity} × {item.name}
-          </Text>
+      <View style={[ui.panel, { gap: 16 }]}>
+        <View style={ui.spread}>
+          <View style={{ flex: 1, gap: 3 }}>
+            <Text style={ui.heading}>Send as a gift</Text>
+            <Text style={ui.body}>Deliver to someone special</Text>
+          </View>
+          <Switch
+            accessibilityLabel="Send this order as a gift"
+            value={isGift}
+            onValueChange={(value) => {
+              setIsGift(value);
+              deliveryEdited.current = true;
+              setAddress("");
+              setArea("");
+              setCity("Nairobi");
+            }}
+            trackColor={{ true: colors.brand }}
+          />
         </View>
-      ))}
+        {isGift ? (
+          <>
+            <Input
+              label="Recipient first name"
+              value={recipientFirst}
+              onChangeText={setRecipientFirst}
+              maxLength={80}
+            />
+            <Input
+              label="Recipient last name"
+              value={recipientLast}
+              onChangeText={setRecipientLast}
+              maxLength={80}
+            />
+            <Input
+              label="Recipient phone"
+              value={recipientPhone}
+              onChangeText={setRecipientPhone}
+              keyboardType="phone-pad"
+              maxLength={20}
+            />
+            <Input
+              label="Gift message (optional)"
+              value={giftMessage}
+              onChangeText={setGiftMessage}
+              multiline
+              maxLength={300}
+            />
+            <Text style={ui.body}>
+              Enter the recipient's delivery address below. Payment and order
+              emails stay with you. Gift messages are sent as order notes;
+              printed cards depend on the store.
+            </Text>
+          </>
+        ) : null}
+      </View>
+      <View style={[ui.panel, { gap: 16 }]}>
+        <Section title="Delivery address" />
+        <DeliveryLocationPicker
+          key={wallet.scope}
+          address={address}
+          area={area}
+          city={city}
+          isGift={isGift}
+          profileReady={profileReady}
+          canAutofill={!deliveryEdited.current}
+          recipientName={
+            isGift
+              ? [recipientFirst, recipientLast].filter(Boolean).join(" ")
+              : [firstName, lastName].filter(Boolean).join(" ")
+          }
+          recipientPhone={isGift ? recipientPhone : phone}
+          onChange={(value) => {
+            deliveryEdited.current = true;
+            setAddress(value.address);
+            setArea(value.area);
+            setCity(value.city || "Nairobi");
+          }}
+          onRecipientChange={(name, recipientNumber) => {
+            const [first, ...rest] = name.split(/\s+/);
+            setRecipientFirst(first);
+            setRecipientLast(rest.join(" "));
+            setRecipientPhone(recipientNumber);
+          }}
+        />
+        <Input
+          autoComplete="street-address"
+          label="Building, street and apartment"
+          value={address}
+          onChangeText={(value) => {
+            deliveryEdited.current = true;
+            setAddress(value);
+          }}
+        />
+        <Input
+          autoComplete="address-line2"
+          label="Area"
+          value={area}
+          onChangeText={(value) => {
+            deliveryEdited.current = true;
+            setArea(value);
+          }}
+        />
+        <Input
+          label="City"
+          value={city}
+          onChangeText={(value) => {
+            deliveryEdited.current = true;
+            setCity(value);
+          }}
+        />
+        <Disclosure title="Add a delivery note">
+          <Input
+            label="Order notes (optional)"
+            value={notes}
+            onChangeText={setNotes}
+            maxLength={500}
+          />
+        </Disclosure>
+      </View>
+
+      <View style={[ui.panel, { gap: 16 }]}>
+        <Section title="Order summary" />
+        {cart.cart.items.map((item) => (
+          <View key={item.id} style={ui.spread}>
+            <Text style={[ui.body, { flex: 1 }]}>
+              {item.quantity} × {plainText(item.name)}
+            </Text>
+          </View>
+        ))}
+      </View>
       <Disclosure
-        title={couponConfirmed ? "Promo code applied" : "Add a promo code"}
+        title={
+          wallet.selected && couponConfirmed
+            ? "Promo code applied"
+            : "Add a promo code"
+        }
         defaultOpen={!!wallet.selected}
       >
         <Input

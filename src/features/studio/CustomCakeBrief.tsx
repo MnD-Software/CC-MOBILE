@@ -314,7 +314,7 @@ const baseStyles = StyleSheet.create({
     borderStyle: "dashed",
     borderColor: "rgba(0,110,149,0.34)",
     borderRadius: 17,
-    backgroundColor: "#F8FDFF",
+    backgroundColor: tokens.color.surface,
   },
   pickText: {
     color: tokens.color.accentStrong,

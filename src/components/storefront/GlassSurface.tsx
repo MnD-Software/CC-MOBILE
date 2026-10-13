@@ -12,7 +12,13 @@ import {
   type PropsWithChildren,
   type RefObject,
 } from "react";
-import { AccessibilityInfo, ActivityIndicator, Platform, StyleSheet, View } from "react-native";
+import {
+  AccessibilityInfo,
+  ActivityIndicator,
+  Platform,
+  StyleSheet,
+  View,
+} from "react-native";
 import { Text } from "@/components/ui/Typography";
 import type { StyleProp, ViewStyle } from "react-native";
 
@@ -142,7 +148,7 @@ export function GlassSurface({
         {
           backgroundColor:
             resolvedTint ??
-            (isDark ? "rgba(33,27,36,0.62)" : "rgba(255,255,255,0.38)"),
+            (isDark ? "rgba(33,27,36,0.88)" : "rgba(255,255,255,0.94)"),
         },
         style,
       ]}
