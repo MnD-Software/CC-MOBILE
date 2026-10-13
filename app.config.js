@@ -59,7 +59,10 @@ module.exports = ({ config }) => {
   return {
     ...config,
     plugins,
-    extra: { ...config.extra, ...(projectId ? { eas: { projectId } } : {}) },
+    extra: {
+      ...config.extra,
+      ...(projectId ? { eas: { ...config.extra?.eas, projectId } } : {}),
+    },
     android: {
       ...config.android,
       ...(process.env.GOOGLE_SERVICES_JSON

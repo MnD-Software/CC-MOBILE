@@ -151,7 +151,7 @@ export function OrdersPanel({ authenticated, content, onSignIn, onShop, onRetry,
     <View style={styles.container}>
       <View style={styles.segmented}>
         {(['upcoming', 'past'] as const).map(item => (
-          <Pressable key={item} accessibilityRole="tab" accessibilityState={{ selected: view === item }} style={[styles.segment, view === item && styles.segmentActive]} onPress={() => setView(item)}>
+          <Pressable key={item} accessibilityRole="tab" accessibilityState={{ selected: view === item }} aria-selected={view === item} style={[styles.segment, view === item && styles.segmentActive]} onPress={() => setView(item)}>
             <Text style={[styles.segmentText, view === item && styles.segmentTextActive]}>{item === 'upcoming' ? 'Upcoming' : 'Past Orders'}</Text>
           </Pressable>
         ))}

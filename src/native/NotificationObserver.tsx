@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { router } from "expo-router";
 import type * as NotificationTypes from "expo-notifications";
 import { getNativeNotifications } from "./notification-runtime";
@@ -26,16 +26,23 @@ if (Notifications) {
 
 export function NotificationObserver() {
   const { customer, restoring } = useAuth();
+  const handledResponse = useRef<string | null>(null);
   useEffect(() => {
     const Notifications = getNativeNotifications();
     if (!Notifications || restoring || !customer) return;
     let active = true;
     const handle = (response: NotificationTypes.NotificationResponse) => {
+      if (!active) return;
+      const identity = `${response.notification.request.identifier}:${response.notification.date}:${response.actionIdentifier}`;
+      if (handledResponse.current === identity) return;
+      handledResponse.current = identity;
       const path = notificationRoute(
         response.notification.request.content.data ?? {},
       );
-      if (active && path) router.push(path);
-      void Notifications.clearLastNotificationResponseAsync();
+      if (path) router.push(path);
+      void Notifications.clearLastNotificationResponseAsync().catch(
+        () => undefined,
+      );
     };
     void Notifications.getLastNotificationResponseAsync()
       .then((r) => {

@@ -343,10 +343,10 @@ async function publicStoreRead(path: string, signal?: AbortSignal) {
       },
     );
     if (!response.ok)
-      throw new ApiError(
-        "The shop could not be loaded. Please try again.",
-        { code: "STORE_BROWSE_HTTP", status: response.status },
-      );
+      throw new ApiError("The shop could not be loaded. Please try again.", {
+        code: "STORE_BROWSE_HTTP",
+        status: response.status,
+      });
     // Consume the body inside the timeout boundary too.
     return {
       body: await response.json(),

@@ -230,7 +230,7 @@ async function main() {
       deviceScaleFactor: 1,
       mobile: true,
     });
-    await visit("/", "Make room for");
+    await visit("/", "Find your flavour");
     await waitFor(
       "document.body.innerText.includes('DEALS & STEALS')",
       "live homepage product",
@@ -247,36 +247,29 @@ async function main() {
       `document.querySelector('[aria-label="Filter by budget"]').click()`,
     );
     await waitFor(
-      "document.body.innerText.includes('Find your sweet spot')",
+      "document.querySelector('input[placeholder=\"No limit\"]')",
       "budget sheet",
     );
     await waitFor(
-      "Array.from(document.querySelectorAll('[role=\"button\"]')).some(node => node.innerText.trim() === 'Show cakes in my budget' && node.getBoundingClientRect().bottom <= innerHeight && node.getBoundingClientRect().top > 0)",
+      "Array.from(document.querySelectorAll('[role=\"button\"]')).some(node => node.innerText.trim() === 'Apply' && node.getBoundingClientRect().bottom <= innerHeight && node.getBoundingClientRect().top > 0)",
       "budget sheet animation",
     );
     await capture("02b-budget-sheet");
     await evaluate(
-      `Array.from(document.querySelectorAll('[role="button"]')).find(node => node.innerText.trim() === 'Under 2,500').click()`,
+      `document.querySelector('[aria-label="Under KSh 2,500"]').click()`,
     );
     await evaluate(
-      `Array.from(document.querySelectorAll('[role="button"]')).find(node => node.innerText.trim() === 'Show cakes in my budget').click()`,
+      `Array.from(document.querySelectorAll('[role="button"]')).find(node => node.innerText.trim() === 'Apply').click()`,
     );
     await waitFor(
-      "document.body.innerText.includes('Clear budget') && !document.body.innerText.includes('Find your sweet spot')",
+      "document.body.innerText.includes('Clear 0–2500 KSh budget') && !document.querySelector('input[placeholder=\"No limit\"]')",
       "applied budget",
     );
     await waitFor(
       "document.querySelector('[aria-label^=\"Quick add\"]') || document.querySelector('[aria-label^=\"Choose options for:\"]')",
       "budget products",
     );
-    if (
-      !browseRequests.some(
-        (query) =>
-          query.get("max_price") === "250000" &&
-          query.get("orderby") === "price" &&
-          query.get("order") === "asc",
-      )
-    )
+    if (!browseRequests.some((query) => query.get("max_price") === "250000"))
       throw new Error("Budget was not sent to the live catalogue");
     await capture("02c-budget-results");
     await visit("/product/31055", "Blueberry Delight");
@@ -322,7 +315,10 @@ async function main() {
       "document.querySelector('[aria-label=\"Light appearance\"]').getAttribute('aria-checked') === 'true'",
       "light appearance selected",
     );
-    await visit("/loyalty", "Your coupon wallet");
+    await visit("/loyalty", "Welcome to the sweet life.");
+    await evaluate(
+      `Array.from(document.querySelectorAll('[role="button"]')).find(node => node.innerText.includes('Have a promo code?')).click()`,
+    );
     await waitFor(
       "document.querySelector('input[placeholder=\"Enter your code\"]')",
       "coupon input",

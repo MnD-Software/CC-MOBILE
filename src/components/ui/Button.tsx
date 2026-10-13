@@ -90,7 +90,10 @@ export function Button({
         : baseVariant;
   const s = sizeStyles[size];
   const isDisabled = Boolean(
-    disabled || loading || accessibilityState?.disabled,
+    disabled ||
+      loading ||
+      accessibilityState?.disabled ||
+      rest["aria-disabled"],
   );
 
   return (
@@ -107,6 +110,11 @@ export function Button({
         disabled: isDisabled,
         busy: loading || accessibilityState?.busy,
       }}
+      aria-disabled={isDisabled}
+      aria-busy={loading || rest["aria-busy"] || accessibilityState?.busy}
+      aria-checked={rest["aria-checked"] ?? accessibilityState?.checked}
+      aria-selected={rest["aria-selected"] ?? accessibilityState?.selected}
+      aria-expanded={rest["aria-expanded"] ?? accessibilityState?.expanded}
       disabled={isDisabled}
       hitSlop={hitSlop ?? (size === "sm" ? 4 : undefined)}
       style={({ pressed }) => [

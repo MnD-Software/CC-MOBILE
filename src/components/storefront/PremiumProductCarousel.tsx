@@ -1,6 +1,13 @@
 import { Image } from "expo-image";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AccessibilityInfo, FlatList, Pressable, StyleSheet, useWindowDimensions, View } from "react-native";
+import {
+  AccessibilityInfo,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { Text } from "@/components/ui/Typography";
 import type {
   LayoutChangeEvent,
@@ -331,6 +338,7 @@ export function PremiumProductCarousel<
                             : undefined
                         }
                         accessibilityState={{ disabled: !canAdd }}
+                        aria-disabled={!canAdd}
                         disabled={!canAdd}
                         onPress={() => onAddToBag(item)}
                         style={({ pressed }) => [
@@ -372,6 +380,7 @@ export function PremiumProductCarousel<
                   accessibilityRole="button"
                   accessibilityLabel={`Show ${productName(product)}, ${index + 1} of ${products.length}`}
                   accessibilityState={{ selected }}
+                  aria-selected={selected}
                   hitSlop={4}
                   onPress={() => goToIndex(index)}
                   style={styles.dotTarget}

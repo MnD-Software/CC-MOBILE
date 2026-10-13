@@ -94,6 +94,7 @@ export function ShopOptionsSheet({
               key={item.id}
               accessibilityRole="radio"
               accessibilityState={{ checked: draft.department === item.id }}
+              aria-checked={draft.department === item.id}
               accessibilityLabel={item.name}
               onPress={() =>
                 setDraft((current) => ({
@@ -170,6 +171,7 @@ export function ShopOptionsSheet({
                   accessibilityRole="radio"
                   accessibilityLabel={item.label}
                   accessibilityState={{ checked: draft.subfilter === item.id }}
+                  aria-checked={draft.subfilter === item.id}
                   onPress={() =>
                     setDraft((current) => ({ ...current, subfilter: item.id }))
                   }
@@ -215,6 +217,7 @@ export function ShopOptionsSheet({
             accessibilityRole="radio"
             accessibilityLabel={item.label}
             accessibilityState={{ checked: draft.sort === item.id }}
+            aria-checked={draft.sort === item.id}
             onPress={() =>
               setDraft((current) => ({ ...current, sort: item.id }))
             }
@@ -281,6 +284,7 @@ export function ShopOptionsSheet({
                 accessibilityState={{
                   checked: maximum === String(amount) && !minimum,
                 }}
+                aria-checked={maximum === String(amount) && !minimum}
                 onPress={() => {
                   setMinimum("");
                   setMaximum(String(amount));

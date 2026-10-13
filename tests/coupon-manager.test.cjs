@@ -27,10 +27,12 @@ require.cache[networkPath] = {
 const {
   normalizeCouponCode,
   cartHasRequestedCoupon,
+  websiteCartSchema,
 } = require("../src/features/commerce/website-cart.ts");
 const {
   setWebsiteCartCoupon,
   submitWebsiteCheckout,
+  websitePaymentRedirect,
 } = require("../src/features/commerce/website-checkout.ts");
 const {
   couponWalletScope,
@@ -42,10 +44,122 @@ const {
 } = require("../src/features/commerce/coupon-wallet.ts");
 const {
   loadWebsiteCheckoutSession,
+  saveWebsiteCheckoutSession,
+  saveWebsitePaymentAttempt,
+  loadWebsitePaymentAttempt,
 } = require("../src/features/commerce/website-checkout-session.ts");
 const originalFetch = global.fetch;
+
+test("payment recovery never opens unsafe redirects and retains official order access", () => {
+  for (const redirect_url of [
+    "javascript:alert(1)",
+    "http://example.com/pay",
+    "https://user:password@example.com/pay",
+    "invalid",
+  ]) {
+    assert.equal(
+      websitePaymentRedirect({ payment_result: { redirect_url } }),
+      null,
+    );
+  }
+  assert.equal(
+    websitePaymentRedirect({
+      payment_result: { redirect_url: "https://cakecity.co.ke/pay" },
+    }),
+    "https://cakecity.co.ke/pay",
+  );
+});
 afterEach(() => {
   global.fetch = originalFetch;
+});
+
+test("same-price changes to products or quantities cannot authorize payment", async () => {
+  for (const items of [
+    [{ id: 999, quantity: 1, name: "Other cake" }],
+    [{ id: 123, quantity: 2, name: "Test cake" }],
+    [],
+  ]) {
+    const calls = transport([{ body: { ...cart(), items } }]);
+    await assert.rejects(submitWebsiteCheckout(session(), {}), /changed/);
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].method, "GET");
+  }
+});
+
+test("concurrent payment taps create only one WooCommerce order", async () => {
+  let releaseCart;
+  let posts = 0;
+  const order = {
+    order_id: 456,
+    order_key: "test-order-key",
+    order_number: "456",
+    status: "pending",
+    payment_result: { payment_status: "pending" },
+  };
+  global.fetch = async (_url, options) => {
+    if (options.method === "POST") {
+      posts++;
+      return Response.json(order);
+    }
+    await new Promise((resolve) => {
+      releaseCart = resolve;
+    });
+    return Response.json(cart());
+  };
+  const details = {
+    firstName: "Cake",
+    lastName: "Buyer",
+    email: "test@example.com",
+    phone: "0700000000",
+    address: "Test road",
+    area: "Test area",
+    city: "Nairobi",
+  };
+  const first = submitWebsiteCheckout(session(), details);
+  const second = submitWebsiteCheckout(session(), details);
+  assert.equal(first, second);
+  releaseCart();
+  const results = await Promise.all([first, second]);
+  assert.deepEqual(results, [order, order]);
+  assert.equal(posts, 1);
+});
+
+test("checkout rejects wrong currencies, fractional quantities and unsafe totals", () => {
+  for (const invalid of [
+    { ...cart(), items: [{ id: 123, name: "Cake", quantity: 1.5 }] },
+    { ...cart(), totals: { ...cart().totals, currency_code: "USD" } },
+    { ...cart(), totals: { ...cart().totals, currency_minor_unit: 0 } },
+    {
+      ...cart(),
+      totals: { ...cart().totals, total_price: "999999999999999999999" },
+    },
+  ])
+    assert.equal(websiteCartSchema.safeParse(invalid).success, false);
+});
+
+test("future-dated cart and payment recovery records cannot be reused", async () => {
+  const fingerprint = "cc-cart-v1:abcdef12";
+  const owner = "customer:future-test";
+  await saveWebsiteCheckoutSession(fingerprint, session(), owner);
+  await saveWebsitePaymentAttempt(
+    fingerprint,
+    {
+      order_id: 456,
+      order_key: "test-order-key",
+      order_number: "456",
+      status: "pending",
+      payment_result: { payment_status: "pending" },
+    },
+    owner,
+  );
+  for (const [key, raw] of storage) {
+    if (!key.includes("website-")) continue;
+    const value = JSON.parse(raw);
+    value.createdAt = new Date(Date.now() + 86400000).toISOString();
+    storage.set(key, JSON.stringify(value));
+  }
+  assert.equal(await loadWebsiteCheckoutSession(fingerprint, owner), null);
+  assert.equal(await loadWebsitePaymentAttempt(fingerprint, owner), null);
 });
 const cart = (coupons = [], total = "100000") => ({
   items: [{ id: 123, quantity: 1, name: "Test cake" }],

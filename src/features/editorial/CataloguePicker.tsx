@@ -85,6 +85,8 @@ export function CataloguePicker({
             key={cake.id}
             accessibilityRole="checkbox"
             accessibilityState={{ checked: active, disabled }}
+            aria-checked={active}
+            aria-disabled={disabled}
             accessibilityLabel={`Select ${plainText(cake.name)}`}
             disabled={disabled}
             onPress={() => {

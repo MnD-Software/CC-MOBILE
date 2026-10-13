@@ -45,21 +45,33 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [session, setSession] = useState<MobileSession | null>(null);
   const [restoring, setRestoring] = useState(true);
   const generation = useRef(0);
+  const signInAttempt = useRef(0);
   const expiry = useRef(0);
   const flight = useRef<Promise<void> | null>(null);
+  const storageFlight = useRef<Promise<unknown>>(Promise.resolve());
+  const sessionOwner = useRef<string | null>(null);
+  const withStorage = useCallback(<T,>(operation: () => Promise<T>) => {
+    const next = storageFlight.current.catch(() => undefined).then(operation);
+    storageFlight.current = next;
+    return next;
+  }, []);
   const accept = useCallback(
     async (next: MobileSession, expected = generation.current) => {
-      if (expected !== generation.current) return;
-      await setStorageItem(REFRESH_KEY, next.refresh_token);
-      if (expected !== generation.current) {
-        await deleteStorageItem(REFRESH_KEY);
-        return;
-      }
-      setAccessToken(next.access_token);
-      expiry.current = Date.now() + next.expires_in * 1000;
-      setSession(next);
+      await withStorage(async () => {
+        if (expected !== generation.current) return;
+        await setStorageItem(REFRESH_KEY, next.refresh_token);
+        if (expected !== generation.current) {
+          await deleteStorageItem(REFRESH_KEY);
+          return;
+        }
+        if (sessionOwner.current !== next.customer.id) clearAccessToken();
+        sessionOwner.current = next.customer.id;
+        setAccessToken(next.access_token);
+        expiry.current = Date.now() + next.expires_in * 1000;
+        setSession(next);
+      });
     },
-    [],
+    [withStorage],
   );
   const refresh = useCallback(() => {
     if (flight.current) return flight.current;
@@ -80,10 +92,15 @@ export function AuthProvider({ children }: PropsWithChildren) {
           [401, 403].includes(error.status ?? 0) &&
           expected === generation.current
         ) {
-          await deleteStorageItem(REFRESH_KEY);
           clearAccessToken();
+          sessionOwner.current = null;
+          expiry.current = 0;
           setSession(null);
           clearPrivateQueryCache(cache);
+          await withStorage(async () => {
+            if (expected === generation.current)
+              await deleteStorageItem(REFRESH_KEY);
+          });
         }
         throw error;
       }
@@ -91,7 +108,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       flight.current = null;
     });
     return flight.current;
-  }, [accept, cache]);
+  }, [accept, cache, withStorage]);
   useEffect(() => {
     setSessionRefresher(refresh);
     void refresh()
@@ -113,9 +130,17 @@ export function AuthProvider({ children }: PropsWithChildren) {
   }, [refresh]);
   const signIn = useCallback(
     async (operation: () => Promise<MobileSession>) => {
-      const expected = ++generation.current;
+      const attempt = ++signInAttempt.current;
+      const beforeRefresh = generation.current;
       if (flight.current) await flight.current.catch(() => undefined);
+      if (
+        attempt !== signInAttempt.current ||
+        beforeRefresh !== generation.current
+      )
+        return;
+      const expected = ++generation.current;
       const next = await operation();
+      if (expected !== generation.current) return;
       clearPrivateQueryCache(cache);
       await accept(next, expected);
     },
@@ -132,22 +157,27 @@ export function AuthProvider({ children }: PropsWithChildren) {
       completeGoogle: (token) => signIn(() => authApi.google(token)),
       continueAsGuest: () => undefined,
       logout: async () => {
+        ++signInAttempt.current;
         ++generation.current;
-        const token = await getStorageItem(REFRESH_KEY);
         clearAccessToken();
+        sessionOwner.current = null;
         setSession(null);
         expiry.current = 0;
         clearPrivateQueryCache(cache);
-        await Promise.all([
-          deleteStorageItem(REFRESH_KEY),
-          clearWebsiteCheckoutSession(),
-          clearWebsitePaymentAttempt(),
-          clearLegacyWebsiteOrderHistory(),
-        ]);
+        const token = await withStorage(async () => {
+          const stored = await getStorageItem(REFRESH_KEY).catch(() => null);
+          await Promise.all([
+            deleteStorageItem(REFRESH_KEY),
+            clearWebsiteCheckoutSession(),
+            clearWebsitePaymentAttempt(),
+            clearLegacyWebsiteOrderHistory(),
+          ]);
+          return stored;
+        });
         if (token) await authApi.logout(token).catch(() => undefined);
       },
     }),
-    [restoring, session, signIn, cache],
+    [restoring, session, signIn, cache, withStorage],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

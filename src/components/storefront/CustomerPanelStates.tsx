@@ -72,7 +72,7 @@ export function CustomerPanelLoading({ label }: { label: string }) {
       accessible
       accessibilityRole="progressbar"
       accessibilityLabel={label}
-      accessibilityState={{ busy: true }}
+      accessibilityState={{ busy: true }} aria-busy={true}
       style={styles.loadingList}
     >
       {[0, 1, 2].map((row) => (

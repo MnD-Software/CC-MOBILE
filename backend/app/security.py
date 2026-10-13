@@ -5,6 +5,7 @@ from datetime import UTC, datetime, timedelta
 
 import jwt
 from fastapi import HTTPException, status
+from sqlalchemy import update
 from sqlalchemy.orm import Session
 
 from .config import get_settings
@@ -89,14 +90,21 @@ def customer_from_access_token(db: Session, authorization: str | None) -> Custom
 
 
 def rotate_refresh_token(db: Session, raw_refresh: str) -> dict:
-    record = db.get(RefreshToken, token_hash(raw_refresh))
     now = datetime.now(UTC)
-    expires_at = record.expires_at if record else None
-    if expires_at and expires_at.tzinfo is None:
-        expires_at = expires_at.replace(tzinfo=UTC)
-    if not record or record.revoked or expires_at <= now:
+    # Claim the token in the database. Two requests may have already loaded
+    # the same unrevoked row into independent ORM identity maps.
+    customer_id = db.scalar(update(RefreshToken).where(
+        RefreshToken.token_hash == token_hash(raw_refresh),
+        RefreshToken.revoked.is_(False),
+        RefreshToken.expires_at > now,
+    ).values(revoked=True).returning(RefreshToken.customer_id)
+        .execution_options(synchronize_session=False))
+    if not customer_id:
+        db.rollback()
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
-    customer = db.get(Customer, record.customer_id)
-    record.revoked = True
-    db.commit()
+    customer = db.get(Customer, customer_id)
+    if not customer:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Customer not found")
+    # Revocation and replacement are committed together by create_session.
     return create_session(db, customer)

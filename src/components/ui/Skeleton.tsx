@@ -114,6 +114,7 @@ export function ProductGridSkeleton({ count = 4 }: { count?: number }) {
       accessibilityRole="progressbar"
       accessibilityLabel="Loading products"
       accessibilityState={{ busy: true }}
+      aria-busy={true}
       style={styles.grid}
     >
       {Array.from({ length: count }).map((_, index) => (
@@ -138,6 +139,7 @@ export function ListSkeleton({ rows = 5 }: { rows?: number }) {
       accessibilityRole="progressbar"
       accessibilityLabel="Loading content"
       accessibilityState={{ busy: true }}
+      aria-busy={true}
       style={styles.list}
     >
       {Array.from({ length: rows }).map((_, index) => (

@@ -71,7 +71,8 @@ export function websiteCheckoutOwnerScope(
 
 function isFresh(isoDate: string, maxAgeMs: number) {
   const timestamp = Date.parse(isoDate);
-  return Number.isFinite(timestamp) && Date.now() - timestamp < maxAgeMs;
+  const age = Date.now() - timestamp;
+  return Number.isFinite(timestamp) && age >= 0 && age < maxAgeMs;
 }
 
 async function readStored<T>(

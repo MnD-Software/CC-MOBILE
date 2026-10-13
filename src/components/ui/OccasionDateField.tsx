@@ -55,6 +55,7 @@ export function OccasionDateField({
                 key={index}
                 accessibilityRole="radio"
                 accessibilityState={{ selected: month === index }}
+                aria-selected={month === index}
                 onPress={() =>
                   setDraft(
                     new Date(
@@ -98,6 +99,7 @@ export function OccasionDateField({
                 accessibilityRole="radio"
                 accessibilityLabel={`Day ${day}`}
                 accessibilityState={{ selected: draft.getDate() === day }}
+                aria-selected={draft.getDate() === day}
                 onPress={() => setDraft(new Date(2000, month, day, 12))}
                 style={{
                   width: "14.28%",

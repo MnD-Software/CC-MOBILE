@@ -307,6 +307,7 @@ export function FloatingTabBar(
                     isClub ? "Cake City Club" : destination.label
                   }
                   accessibilityState={{ selected: focused }}
+                  aria-selected={focused}
                   onPress={() => navigateTo(destinations.indexOf(destination))}
                   onLongPress={() =>
                     navigation &&

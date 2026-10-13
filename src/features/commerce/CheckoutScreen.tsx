@@ -19,7 +19,7 @@ import { CheckoutProgress } from "@/components/storefront/CheckoutProgress";
 import { Input } from "@/components/ui/Input";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import { loadBillingProfile, saveBillingProfile } from "./billing-profile";
-import { money } from "./contracts";
+import { money, type CheckoutInput, type BagLine } from "./contracts";
 import { DeliveryLocationPicker } from "./DeliveryLocationPicker";
 import { useBag } from "./store";
 import { selectCouponCode, useCouponWallet } from "./coupon-wallet";
@@ -31,6 +31,7 @@ import {
   websiteCartTotal,
   type WebsiteCheckoutSession,
   websiteOrderUrl,
+  websitePaymentRedirect,
   type WebsiteCheckoutDetails,
   type WebsiteCheckoutResult,
 } from "./website-checkout";
@@ -47,7 +48,15 @@ import { saveWebsiteOrder } from "./website-order-history";
 type StartedCheckout = {
   order: WebsiteCheckoutResult;
   paymentUrl: string | null;
+  items: CheckoutInput["items"];
 };
+
+const purchasedItems = (lines: BagLine[]): CheckoutInput["items"] =>
+  lines.map((line) => ({
+    product_slug: line.slug,
+    quantity: line.quantity,
+    ...line.selection,
+  }));
 
 function checkoutError(details: WebsiteCheckoutDetails) {
   if (!details.firstName.trim() || !details.lastName.trim())
@@ -72,13 +81,14 @@ function checkoutError(details: WebsiteCheckoutDetails) {
 }
 
 export function CheckoutScreen() {
+  const { customer } = useAuth();
   return (
     <Screen
       title="Secure checkout"
       subtitle="One payment for your full bag."
       back
     >
-      <CheckoutForm />
+      <CheckoutForm key={customer?.id ?? "guest"} />
     </Screen>
   );
 }
@@ -90,7 +100,7 @@ function CheckoutForm() {
   const themedUi = ui;
   const wallet = useCouponWallet(customer?.id);
   const lines = useBag((state) => state.lines);
-  const clearBag = useBag((state) => state.clear);
+  const settleBag = useBag((state) => state.settle);
   const [firstName, setFirstName] = useState(customer?.first_name ?? "");
   const [lastName, setLastName] = useState(customer?.last_name ?? "");
   const [email, setEmail] = useState(customer?.email ?? "");
@@ -116,6 +126,14 @@ function CheckoutForm() {
     session: WebsiteCheckoutSession;
   } | null>(null);
   const couponFlight = useRef(false);
+  const paymentFlight = useRef(false);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   const [started, setStarted] = useState<StartedCheckout | null>(null);
   const [paymentAttemptRestored, setPaymentAttemptRestored] = useState(false);
   const autoPreparedFingerprint = useRef<string | null>(null);
@@ -292,7 +310,8 @@ function CheckoutForm() {
         if (!active || !order) return;
         setStarted({
           order,
-          paymentUrl: order.payment_result.redirect_url ?? null,
+          paymentUrl: websitePaymentRedirect(order),
+          items: purchasedItems(lines),
         });
       })
       .catch(() => {
@@ -334,6 +353,7 @@ function CheckoutForm() {
   ]);
 
   async function continueToPayment() {
+    if (paymentFlight.current || started) return;
     const validation = checkoutError(details);
     if (validation) {
       setError(validation);
@@ -350,6 +370,7 @@ function CheckoutForm() {
       return;
     }
 
+    paymentFlight.current = true;
     setBusy(true);
     setError("");
     trackCommerceEvent("checkout_started", { line_count: lines.length });
@@ -359,6 +380,14 @@ function CheckoutForm() {
     });
     try {
       const order = await submitWebsiteCheckout(cart, details, wallet.selected);
+      if (!mounted.current || currentFingerprint.current !== fingerprint) {
+        // The order exists even if navigation or an account change made this
+        // form stale. Retain its receipt under the captured account only.
+        void saveWebsiteOrder(order, details.email, ownerScope).catch(
+          () => undefined,
+        );
+        return;
+      }
       if (customer) {
         void saveBillingProfile(customer.id, {
           firstName,
@@ -370,10 +399,12 @@ function CheckoutForm() {
           city,
         }).catch(() => undefined);
       }
-      const paymentUrl = order.payment_result.redirect_url ?? null;
-      if (paymentUrl && new URL(paymentUrl).protocol !== "https:")
-        throw new Error("Cake City's payment link could not be verified.");
-      setStarted({ order, paymentUrl });
+      const paymentUrl = websitePaymentRedirect(order);
+      if (order.payment_result.redirect_url && !paymentUrl)
+        setError(
+          "Your order has started, but its payment link could not be verified. Use the official order update below.",
+        );
+      setStarted({ order, paymentUrl, items: purchasedItems(lines) });
       if (order.payment_result.payment_status === "success") {
         trackCommerceEvent("payment_success", { method: "pesapal" });
         trackCommerceEvent("order_completed", { method: "pesapal" });
@@ -392,6 +423,8 @@ function CheckoutForm() {
         );
       }
       if (paymentUrl) {
+        if (!mounted.current || currentFingerprint.current !== fingerprint)
+          return;
         try {
           await Linking.openURL(paymentUrl);
         } catch {
@@ -401,6 +434,8 @@ function CheckoutForm() {
         }
       }
     } catch (reason) {
+      if (!mounted.current || currentFingerprint.current !== fingerprint)
+        return;
       trackCommerceEvent("payment_failed", { method: "pesapal" });
       setError(
         reason instanceof Error
@@ -408,7 +443,8 @@ function CheckoutForm() {
           : "Cake City could not begin payment. Please try again.",
       );
     } finally {
-      setBusy(false);
+      paymentFlight.current = false;
+      if (mounted.current) setBusy(false);
     }
   }
 
@@ -499,8 +535,11 @@ function CheckoutForm() {
               alignItems: "center",
             }}
             onPress={() => {
-              void clearWebsitePaymentAttempt();
-              clearBag();
+              void clearWebsitePaymentAttempt().catch(() => undefined);
+              void settleBag(
+                `website-${started.order.order_id}`,
+                started.items,
+              );
               router.replace("/(tabs)");
             }}
           >

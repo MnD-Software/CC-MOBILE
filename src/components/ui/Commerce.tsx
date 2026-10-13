@@ -586,6 +586,7 @@ export function FavouriteButton({
         (selected ? " from favourites" : " to favourites")
       }
       accessibilityState={{ selected }}
+      aria-selected={selected}
       hitSlop={6}
       onPress={(event) => {
         event.stopPropagation();
@@ -879,6 +880,7 @@ export const ProductTile = memo(function ProductTile({
         accessibilityLabel={`${!product.is_in_stock ? "Out of stock:" : quickAddAllowed ? "Quick add to bag:" : "Choose options for:"} ${plainText(product.name)}`}
         accessibilityRole="button"
         accessibilityState={{ disabled: !product.is_in_stock }}
+        aria-disabled={!product.is_in_stock}
         disabled={!product.is_in_stock}
         onPress={quickAddAllowed ? quickAdd : openProduct}
         style={({ pressed }) => [

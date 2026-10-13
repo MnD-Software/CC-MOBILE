@@ -255,6 +255,48 @@ test("failed payment transport is not automatically retried", async () => {
   );
   assert.equal(calls, 1);
 });
+
+test("an old account's mutation is never replayed using the next account's token", async () => {
+  api.setAccessToken("first-account");
+  let respond;
+  let calls = 0;
+  global.fetch = () => {
+    calls++;
+    return new Promise((resolve) => {
+      respond = resolve;
+    });
+  };
+  const request = api.post(
+    "/private-mutation",
+    { quantity: 2 },
+    { auth: true },
+  );
+  api.clearAccessToken();
+  api.setAccessToken("second-account");
+  setSessionRefresher(async () => api.setAccessToken("second-refreshed"));
+  respond(new Response("{}", { status: 401 }));
+  await assert.rejects(
+    request,
+    (error) => error.code === "AUTH_SESSION_CHANGED",
+  );
+  assert.equal(calls, 1);
+});
+
+test("an old private response is discarded after logout even if the server succeeded", async () => {
+  api.setAccessToken("first-account");
+  let respond;
+  global.fetch = () =>
+    new Promise((resolve) => {
+      respond = resolve;
+    });
+  const request = api.get("/private-profile", { auth: true });
+  api.clearAccessToken();
+  respond(Response.json({ email: "private@example.com" }));
+  await assert.rejects(
+    request,
+    (error) => error.code === "AUTH_SESSION_CHANGED",
+  );
+});
 test("payment handoff preserves existing providers, exact checkout and idempotency", async () => {
   api.setAccessToken("token");
   const payload = {

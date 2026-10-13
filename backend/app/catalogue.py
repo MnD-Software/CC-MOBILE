@@ -14,8 +14,12 @@ PRODUCT_FIELDS = {"id", "name", "slug", "type", "description", "short_descriptio
 
 
 def mobile_product(value):
+    if not isinstance(value, dict):
+        raise ValueError("Invalid catalogue product")
     result = {key: item for key, item in value.items() if key in PRODUCT_FIELDS}
     if "images" in result:
+        if not isinstance(result["images"], list) or any(not isinstance(image, dict) for image in result["images"]):
+            raise ValueError("Invalid catalogue images")
         result["images"] = [{key: item for key, item in image.items() if key in ("id", "src", "alt")} for image in result["images"]]
     return result
 

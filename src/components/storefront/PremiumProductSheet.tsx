@@ -358,7 +358,7 @@ export function PremiumProductSheet<
                       <Pressable
                         key={value}
                         accessibilityRole="button"
-                        accessibilityState={{ selected }}
+                        accessibilityState={{ selected }} aria-selected={selected}
                         style={[styles.optionChip, selected && styles.optionChipActive]}
                         onPress={() => setSelectedOptions(current => ({ ...current, [option.name]: value }))}
                       >
@@ -472,7 +472,7 @@ export function PremiumProductSheet<
               ? `${addLabel}: ${name}, ${priceLabel}`
               : `${name} ${unavailableLabel.toLocaleLowerCase()}`}
             accessibilityHint={canAdd ? 'Adds this product to the shopping bag' : undefined}
-            accessibilityState={{ disabled: !canAdd }}
+            accessibilityState={{ disabled: !canAdd }} aria-disabled={!canAdd}
             disabled={!canAdd}
             onPress={() => onAddToBag(product, {
               quantity,

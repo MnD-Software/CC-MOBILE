@@ -30,7 +30,7 @@ export function notificationRoute(data: Record<string, unknown>): Href | null {
     "/offers": "/offers",
     "/checkout": "/cart",
   };
-  return routes[url] ?? null;
+  return Object.hasOwn(routes, url) ? routes[url] : null;
 }
 export async function registerNotifications() {
   if (Platform.OS === "web" || isRunningInExpoGo())

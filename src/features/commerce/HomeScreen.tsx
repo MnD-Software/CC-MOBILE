@@ -402,6 +402,7 @@ export function HomeScreen() {
                     key={item.id}
                     accessibilityRole="tab"
                     accessibilityState={{ selected: index === activeSlide }}
+                    aria-selected={index === activeSlide}
                     style={[
                       styles.carouselDot,
                       index === activeSlide && styles.carouselDotActive,

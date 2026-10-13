@@ -8,6 +8,7 @@ import type { BagLine } from "./contracts";
 import {
   cartHasRequestedCoupon,
   normalizeCouponCode,
+  websiteCartItemsMatch,
   websiteCartSchema as cartSchema,
 } from "./website-cart";
 import {
@@ -42,6 +43,20 @@ export type WebsiteCheckoutSession = {
   cart: WebsiteCart;
   cartToken: string;
 };
+
+/** Payment recovery can retain an order even when its redirect is unusable. */
+export function websitePaymentRedirect(order: WebsiteCheckoutResult) {
+  const value = order.payment_result.redirect_url;
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && !url.username && !url.password
+      ? url.toString()
+      : null;
+  } catch {
+    return null;
+  }
+}
 
 export type WebsiteCheckoutDetails = {
   firstName: string;
@@ -186,6 +201,18 @@ export async function createWebsiteCart(
       throw new Error("Cake City could not verify every item in your bag.");
   }
 
+  if (
+    !websiteCartItemsMatch(
+      cart.data,
+      lines.map((line) => ({
+        id: lineProductId(line)!,
+        quantity: line.quantity,
+      })),
+    )
+  )
+    throw new WebsiteCheckoutError(
+      "Your secure cart does not match your bag. Return to your bag and try again.",
+    );
   return { cart: cart.data, cartToken };
 }
 
@@ -264,6 +291,18 @@ export async function prepareWebsiteCheckoutCart(
     if (saved) {
       try {
         const restored = await refreshWebsiteCart(saved.cartToken);
+        if (
+          !websiteCartItemsMatch(
+            restored.cart,
+            lines.map((line) => ({
+              id: lineProductId(line)!,
+              quantity: line.quantity,
+            })),
+          )
+        )
+          throw new WebsiteCheckoutError(
+            "Your secure cart has changed. Return to your bag and review it before payment.",
+          );
         rememberPreparedSession(fingerprint, restored);
         await saveWebsiteCheckoutSession(
           fingerprint,
@@ -358,7 +397,25 @@ function address(details: WebsiteCheckoutDetails) {
   };
 }
 
-export async function submitWebsiteCheckout(
+const paymentFlights = new Map<string, Promise<WebsiteCheckoutResult>>();
+
+export function submitWebsiteCheckout(
+  session: WebsiteCheckoutSession,
+  details: WebsiteCheckoutDetails,
+  requestedCoupon: string | null = null,
+): Promise<WebsiteCheckoutResult> {
+  const pending = paymentFlights.get(session.cartToken);
+  if (pending) return pending;
+  const payment = submitVerifiedWebsiteCheckout(
+    session,
+    details,
+    requestedCoupon,
+  ).finally(() => paymentFlights.delete(session.cartToken));
+  paymentFlights.set(session.cartToken, payment);
+  return payment;
+}
+
+async function submitVerifiedWebsiteCheckout(
   session: WebsiteCheckoutSession,
   details: WebsiteCheckoutDetails,
   requestedCoupon: string | null = null,
@@ -375,6 +432,7 @@ export async function submitWebsiteCheckout(
       "Your coupon is not confirmed. Review or remove it before payment.",
     );
   if (
+    !websiteCartItemsMatch(verified.cart, session.cart.items) ||
     verified.cart.totals.total_price !== session.cart.totals.total_price ||
     verified.cart.totals.currency_code !== session.cart.totals.currency_code ||
     verified.cart.totals.currency_minor_unit !==

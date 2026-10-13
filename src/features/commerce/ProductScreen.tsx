@@ -763,6 +763,7 @@ export function ProductScreen() {
                 <Pressable
                   accessibilityRole="button"
                   accessibilityState={{ expanded: variationOpen }}
+                  aria-expanded={variationOpen}
                   accessibilityLabel="Choose a cake variation"
                   onPress={() => setVariationOpen((open) => !open)}
                   style={({ pressed }) => [
@@ -841,6 +842,8 @@ export function ProductScreen() {
                             selected,
                             disabled: unavailable,
                           }}
+                          aria-selected={selected}
+                          aria-disabled={unavailable}
                           accessibilityLabel={`${label}. ${priceCopy}`}
                           disabled={unavailable}
                           onPress={() => {
@@ -977,6 +980,7 @@ export function ProductScreen() {
                             : "Opens this item to choose its options"
                         }
                         accessibilityState={{ selected }}
+                        aria-selected={selected}
                         accessibilityLabel={`${plainText(pairing.name)}. ${
                           pairingPrice === null
                             ? "Price on request"

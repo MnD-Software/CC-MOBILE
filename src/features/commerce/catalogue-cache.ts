@@ -24,6 +24,11 @@ let inMemoryCache: CachedCatalogue | null = null;
 let writeFlight: Promise<void> | null = null;
 let writeQueued = false;
 
+function isFresh(cache: CachedCatalogue) {
+  const age = Date.now() - cache.savedAt;
+  return age >= 0 && age < MAX_CACHE_AGE_MS;
+}
+
 function normalise(value: string) {
   return value
     .toLocaleLowerCase()
@@ -44,10 +49,11 @@ function mergeProducts(
 }
 
 async function readCache() {
-  if (inMemoryCache) {
+  if (inMemoryCache && isFresh(inMemoryCache)) {
     recordPerformanceMetric("cache_hit", 1, { source: "catalogue_memory" });
     return inMemoryCache;
   }
+  inMemoryCache = null;
   try {
     const raw = await AsyncStorage.getItem(CATALOGUE_CACHE_KEY);
     if (!raw) {
@@ -55,10 +61,7 @@ async function readCache() {
       return null;
     }
     const parsed = cacheSchema.safeParse(JSON.parse(raw));
-    if (
-      !parsed.success ||
-      Date.now() - parsed.data.savedAt > MAX_CACHE_AGE_MS
-    ) {
+    if (!parsed.success || !isFresh(parsed.data)) {
       await AsyncStorage.removeItem(CATALOGUE_CACHE_KEY);
       recordPerformanceMetric("cache_miss", 1, { source: "catalogue_expired" });
       return null;

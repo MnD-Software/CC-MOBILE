@@ -38,3 +38,11 @@ def test_receipt_tracking_requires_app_sign_in():
     with TestClient(app) as client:
         response = client.post("/v1/orders/track", json={"order_id": 123, "order_key": "wc_order_private123", "billing_email": "buyer@example.com"})
     assert response.status_code == 401
+
+
+@pytest.mark.parametrize('billing', [None, [], 'invalid'])
+def test_malformed_upstream_billing_returns_recoverable_error(tracking, billing):
+    client, order = tracking
+    order['billing'] = billing
+    response = client.post('/v1/orders/track', json={'order_id': 123, 'order_key': 'wc_order_private123', 'billing_email': 'buyer@example.com'})
+    assert response.status_code == 502

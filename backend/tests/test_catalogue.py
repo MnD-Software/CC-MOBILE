@@ -1,8 +1,23 @@
 import asyncio
 
 import httpx
+import pytest
 
 from app.catalogue import Catalogue
+
+
+@pytest.mark.parametrize('payload', [[None], [{'images': None}], [{'images': [None]}]])
+def test_malformed_upstream_products_are_rejected_and_not_cached(payload):
+    async def scenario():
+        class Upstream:
+            async def get(self, url, params):
+                return httpx.Response(200, json=payload, request=httpx.Request('GET', url))
+        store = Catalogue()
+        store.client = Upstream()
+        with pytest.raises(ValueError):
+            await store.products({'page': 1})
+        assert not store.cache and not store.flights
+    asyncio.run(scenario())
 
 
 def test_concurrent_public_reads_share_one_upstream_request_and_failures_can_retry():

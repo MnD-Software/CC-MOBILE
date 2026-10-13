@@ -223,6 +223,7 @@ export function CampaignEditor({
                   key={template}
                   accessibilityRole="radio"
                   accessibilityState={{ selected: form.template === template }}
+                  aria-selected={form.template === template}
                   onPress={() => change({ template })}
                   style={{
                     paddingHorizontal: 14,
@@ -425,6 +426,7 @@ export function CampaignEditor({
                     key={choice}
                     accessibilityRole="radio"
                     accessibilityState={{ selected: active }}
+                    aria-selected={active}
                     onPress={() => change({ ends_at: expiry })}
                     style={{
                       borderWidth: 1,

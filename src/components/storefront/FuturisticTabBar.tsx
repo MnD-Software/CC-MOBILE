@@ -48,7 +48,7 @@ export function FuturisticTabBar<T extends string>({
               <Pressable
                 key={item.id}
                 accessibilityRole="tab"
-                accessibilityState={{ selected: active }}
+                accessibilityState={{ selected: active }} aria-selected={active}
                 accessibilityLabel={`${item.label} tab`}
                 style={styles.tab}
                 onPress={() => {

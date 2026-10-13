@@ -236,6 +236,7 @@ function AppearanceSelector() {
             accessibilityRole="radio"
             accessibilityLabel={`${option.label} appearance`}
             accessibilityState={{ checked: preference === option.value }}
+            aria-checked={preference === option.value}
             onPress={() => setPreference(option.value)}
             style={[
               styles.appearanceOption,
@@ -689,6 +690,7 @@ export function AccountScreen() {
                     accessibilityRole="button"
                     accessibilityLabel={`Use ${choice.label} avatar`}
                     accessibilityState={{ selected }}
+                    aria-selected={selected}
                     onPress={() => {
                       setAvatar(customer.id, {
                         kind: "preset",

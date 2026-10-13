@@ -43,7 +43,7 @@ export function Chip({
   const content = <Text numberOfLines={1} style={[styles.chipText, selected && styles.chipTextSelected]}>{label}</Text>;
 
   if (!onPress) {
-    return <View accessible accessibilityLabel={label} accessibilityState={{ selected }} style={[styles.chip, selected && styles.chipSelected, style]}>{content}</View>;
+    return <View accessible accessibilityLabel={label} accessibilityState={{ selected }} aria-selected={selected} style={[styles.chip, selected && styles.chipSelected, style]}>{content}</View>;
   }
 
   return (
@@ -51,7 +51,7 @@ export function Chip({
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityHint={selected ? 'Selected filter' : 'Applies this filter'}
-      accessibilityState={{ selected }}
+      accessibilityState={{ selected }} aria-selected={selected}
       hitSlop={4}
       onPress={onPress}
       style={({ pressed }) => [styles.chip, selected && styles.chipSelected, pressed && styles.chipPressed, style]}

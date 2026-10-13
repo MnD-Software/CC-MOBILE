@@ -51,6 +51,7 @@ export function isApiError(error: unknown): error is ApiError {
 }
 
 let accessToken: string | null = null;
+let sessionGeneration = 0;
 let refreshSession: (() => Promise<void>) | null = null;
 let refreshFlight: Promise<void> | null = null;
 export function setSessionRefresher(refresh: (() => Promise<void>) | null) {
@@ -74,6 +75,7 @@ export function setAccessToken(token: string): void {
 /** Clears the in-memory bearer token on logout, guest mode, or failed restoration. */
 export function clearAccessToken(): void {
   accessToken = null;
+  sessionGeneration += 1;
 }
 
 function assertApiPath(path: string): void {
@@ -192,6 +194,7 @@ async function request<T>(
   body: unknown,
   options: ApiRequestOptions = {},
   retried = false,
+  expectedSession = sessionGeneration,
 ): Promise<T> {
   assertApiPath(path);
   if (!env.apiUrl)
@@ -208,6 +211,11 @@ async function request<T>(
   }
 
   if (options.auth) {
+    if (expectedSession !== sessionGeneration)
+      throw new ApiError("Your account changed. Please try again.", {
+        code: "AUTH_SESSION_CHANGED",
+        status: 401,
+      });
     if (!accessToken) {
       throw new ApiError("Please sign in to continue.", {
         code: "AUTH_REQUIRED",
@@ -254,6 +262,12 @@ async function request<T>(
     const parsed = await parseResponse(response);
     const requestId = getRequestId(response);
 
+    if (options.auth && expectedSession !== sessionGeneration)
+      throw new ApiError("Your account changed. Please try again.", {
+        code: "AUTH_SESSION_CHANGED",
+        status: 401,
+      });
+
     if (response.status === 401 && options.auth && !retried && refreshSession) {
       if (headers.Authorization === `Bearer ${accessToken}`) {
         refreshFlight ??= refreshSession().finally(() => {
@@ -261,7 +275,7 @@ async function request<T>(
         });
         await refreshFlight;
       }
-      return request<T>(method, path, body, options, true);
+      return request<T>(method, path, body, options, true, expectedSession);
     }
 
     if (!response.ok) {

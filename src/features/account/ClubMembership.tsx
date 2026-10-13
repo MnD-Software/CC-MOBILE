@@ -263,6 +263,7 @@ export function ClubMembership({ walletScope }: { walletScope: string }) {
                 accessibilityRole="button"
                 accessibilityLabel={item.title}
                 accessibilityState={{ expanded: panel === item.id }}
+                aria-expanded={panel === item.id}
                 onPress={() => setPanel(panel === item.id ? null : item.id)}
                 style={{
                   flexGrow: 1,

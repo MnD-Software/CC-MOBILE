@@ -40,8 +40,11 @@ async def track_order(data: ReceiptAccess, customer: Customer = Depends(member))
     try:
         if not isinstance(order, dict) or order.get("id") != data.order_id:
             raise ValueError("Invalid order response")
+        billing = order.get("billing")
+        if not isinstance(billing, dict):
+            raise ValueError("Invalid billing response")
         # Both proofs are required. Never return billing, shipping or payment data.
-        if not hmac.compare_digest(str(order.get("order_key", "")), data.order_key) or str(order.get("billing", {}).get("email", "")).strip().casefold() != str(data.billing_email).casefold():
+        if not hmac.compare_digest(str(order.get("order_key", "")), data.order_key) or str(billing.get("email", "")).strip().casefold() != str(data.billing_email).casefold():
             raise HTTPException(403, "Check your receipt link and billing email.")
         # WooCommerce currency amounts are decimal major units, not floats.
         currency = str(order["currency"])

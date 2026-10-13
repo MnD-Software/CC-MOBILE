@@ -234,6 +234,7 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
                     accessibilityRole="button"
                     accessibilityLabel={item.name}
                     accessibilityState={{ selected }}
+                    aria-selected={selected}
                     onPress={() => selectDepartment(item.id)}
                     style={[styles.railItem, selected && styles.railSelected]}
                   >
@@ -316,6 +317,7 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
                               : "Browse offers"
                       }
                       accessibilityState={{ selected: item.active }}
+                      aria-selected={item.active}
                       onPress={() =>
                         item.id === "offers"
                           ? selectDepartment(
@@ -382,6 +384,7 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
                         key={item.id}
                         accessibilityRole="button"
                         accessibilityState={{ selected: subfilter === item.id }}
+                        aria-selected={subfilter === item.id}
                         accessibilityLabel={
                           item.label + ("note" in item ? `. ${item.note}` : "")
                         }

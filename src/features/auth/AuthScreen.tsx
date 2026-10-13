@@ -97,10 +97,7 @@ export function AuthScreen({
       title=""
       back
       right={
-        <Link
-          href="/home"
-          style={{ color: colors.brandStrong, padding: 12 }}
-        >
+        <Link href="/home" style={{ color: colors.brandStrong, padding: 12 }}>
           Explore cakes
         </Link>
       }

@@ -209,6 +209,7 @@ export default function CelebrationBuilder() {
             label={item}
             variant={item === value ? "primary" : "secondary"}
             accessibilityState={{ selected: item === value }}
+            aria-selected={item === value}
             onPress={() => {
               edited.current = true;
               change(item);
