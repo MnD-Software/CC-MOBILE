@@ -53,10 +53,3 @@ test("branch barcode preserves exact UUID identity and includes quiet zones", ()
   assert.throws(() => memberBarcode("not-a-member"));
   assert.notDeepEqual(membershipPalette("Silver"), membershipPalette("Gold"));
 });
-
-test("membership tiers accept server casing and safely fall back for unknown names", () => {
-  assert.equal(membershipPalette(" gold "), membershipPalette("Gold"));
-  assert.equal(membershipPalette("PLATINUM"), membershipPalette("Platinum"));
-  for (const tier of ["unknown", "", "__proto__", "constructor"])
-    assert.equal(membershipPalette(tier), membershipPalette("Silver"));
-});

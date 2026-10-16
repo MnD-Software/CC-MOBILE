@@ -196,7 +196,7 @@ export function ClubMembership({ walletScope }: { walletScope: string }) {
                   style={{ color: colors.ink, fontSize: 13, fontWeight: "700" }}
                 >
                   {data.points >= data.rules.minimum_redemption
-                    ? "Minimum reward balance reached"
+                    ? "You've reached your next reward"
                     : `${data.rules.minimum_redemption - data.points} points to your next reward`}
                 </Text>
                 <Text style={{ color: colors.muted, fontSize: 11 }}>

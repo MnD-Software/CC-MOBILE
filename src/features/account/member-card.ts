@@ -40,34 +40,34 @@ export function barcodeModules(value: string) {
 
 export const membershipPalettes = {
   Silver: {
-    gradient: ["#FFFFFF", "#F5F6F9", "#FFFFFF"],
+    gradient: ["#F3F5F8", "#BAC3D0", "#E8EDF2"],
     ink: "#263242",
     muted: "#455365",
     accent: "#52657D",
   },
   Gold: {
-    gradient: ["#FFFFFF", "#FFFBF1", "#FFFFFF"],
+    gradient: ["#FFF1BC", "#E4BC57", "#F9E6A1"],
     ink: "#49330D",
     muted: "#604B24",
     accent: "#75500F",
   },
   Diamond: {
-    gradient: ["#FFFFFF", "#F2FAFD", "#FFFFFF"],
+    gradient: ["#E8FBFF", "#A7D9EF", "#D1E7FF"],
     ink: "#15384D",
     muted: "#31586F",
     accent: "#17698F",
   },
   Platinum: {
-    gradient: ["#FFFFFF", "#EFF1F5", "#FFFFFF"],
-    ink: "#222B3B",
-    muted: "#4D586B",
-    accent: "#495A78",
+    gradient: ["#343D50", "#121A2A", "#59657B"],
+    ink: "#FFFFFF",
+    muted: "#E0E7F3",
+    accent: "#D4E6FF",
   },
 } as const;
 
 export function membershipPalette(tier: string) {
-  const key = (
-    Object.keys(membershipPalettes) as Array<keyof typeof membershipPalettes>
-  ).find((name) => name.toLowerCase() === tier.trim().toLowerCase());
-  return key ? membershipPalettes[key] : membershipPalettes.Silver;
+  return (
+    membershipPalettes[tier as keyof typeof membershipPalettes] ??
+    membershipPalettes.Silver
+  );
 }

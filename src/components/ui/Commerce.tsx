@@ -66,7 +66,7 @@ export const ui = StyleSheet.create({
   title: {
     fontSize: 28,
     lineHeight: 34,
-    fontWeight: "700",
+    fontWeight: "800",
     letterSpacing: -0.8,
     color: tokens.color.ink,
   },
@@ -89,16 +89,15 @@ export const ui = StyleSheet.create({
     lineHeight: 15,
     fontWeight: "800",
     letterSpacing: 1.8,
-    color: tokens.color.muted,
+    color: tokens.color.brandStrong,
   },
   panel: {
-    padding: 20,
+    padding: 16,
     gap: 12,
-    borderRadius: 22,
+    borderRadius: 18,
     backgroundColor: tokens.color.surface,
     borderWidth: 1,
     borderColor: tokens.color.border,
-    ...tokens.shadow.card,
   },
   line: { height: 1, backgroundColor: tokens.color.border },
   chip: {
@@ -257,12 +256,12 @@ const browseHeaderStyles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 8,
     paddingBottom: 12,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "rgba(255,254,255,0.985)",
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: tokens.color.border,
+    borderBottomColor: "rgba(236,0,140,0.12)",
     shadowColor: "#51382D",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.025,
+    shadowOpacity: 0.04,
     shadowRadius: 10,
     elevation: 4,
     zIndex: 2,
@@ -465,15 +464,15 @@ export function Notice({
       style={[
         themed.panel,
         {
-          backgroundColor: colors.surface,
-          borderWidth: 1,
-          borderColor: error ? colors.error : colors.border,
-          shadowOpacity: 0,
+          backgroundColor: error ? colors.errorLight : colors.accentLight,
+          borderWidth: 0,
           padding: 14,
         },
       ]}
     >
-      <Text style={[ui.body, { color: error ? colors.error : colors.muted }]}>
+      <Text
+        style={[ui.body, { color: error ? colors.error : colors.accentStrong }]}
+      >
         {message}
       </Text>
     </View>
@@ -722,7 +721,7 @@ export const ProductTile = memo(function ProductTile({
         borderWidth: 1,
         borderColor: colors.border,
         backgroundColor: colors.surface,
-        borderRadius: 20,
+        borderRadius: compact ? 16 : 26,
         ...tokens.shadow.card,
       }}
     >
@@ -744,7 +743,7 @@ export const ProductTile = memo(function ProductTile({
         <View
           style={{
             aspectRatio: 1,
-            width: horizontal ? 112 : undefined,
+            width: horizontal ? 90 : undefined,
             marginLeft: horizontal ? 10 : 0,
             borderRadius: horizontal ? 23 : 0,
             backgroundColor: PRODUCT_TILE_CANVAS,
@@ -778,7 +777,7 @@ export const ProductTile = memo(function ProductTile({
             backgroundColor: colors.surface,
             paddingHorizontal: compact ? 9 : 14,
             paddingTop: compact ? 9 : 12,
-            paddingBottom: 14,
+            paddingBottom: compact ? 62 : 14,
             paddingRight: horizontal ? 10 : compact ? 9 : 14,
             paddingLeft: horizontal ? 9 : compact ? 9 : 14,
             flex: horizontal ? 1 : undefined,
@@ -792,9 +791,9 @@ export const ProductTile = memo(function ProductTile({
               color: product.on_sale ? colors.brandStrong : colors.muted,
               fontSize: compact ? 10 : 9,
               lineHeight: 14,
-              fontWeight: "600",
+              fontWeight: "800",
               letterSpacing: 0.3,
-              textTransform: "none",
+              textTransform: "uppercase",
             }}
           >
             {product.on_sale ? "Special price" : category}
@@ -805,8 +804,8 @@ export const ProductTile = memo(function ProductTile({
               color: colors.ink,
               fontWeight: "700",
               minHeight: compact ? 36 : 40,
-              fontSize: horizontal ? 15 : compact ? 14 : 15,
-              lineHeight: horizontal ? 21 : compact ? 20 : 21,
+              fontSize: horizontal ? 13 : compact ? 13 : 14,
+              lineHeight: horizontal ? 18 : compact ? 18 : 20,
               letterSpacing: -0.15,
             }}
           >
@@ -820,7 +819,7 @@ export const ProductTile = memo(function ProductTile({
           <Text
             style={{
               color: colors.ink,
-              fontWeight: "700",
+              fontWeight: "800",
               fontSize: compact ? 16 : 16,
               lineHeight: 22,
               minHeight: 18,
@@ -843,23 +842,25 @@ export const ProductTile = memo(function ProductTile({
               </>
             )}
           </Text>
-          <Text
-            style={{
-              fontSize: compact ? 11 : 9,
-              lineHeight: 15,
-              color: colors.muted,
-              paddingRight: compact ? 0 : 44,
-              marginBottom: compact ? 48 : 0,
-            }}
-          >
-            {!product.is_in_stock
-              ? "Out of stock"
-              : !product.is_purchasable || price === null
-                ? "View details"
-                : quickAddAllowed
-                  ? "Ready to add"
-                  : "Choose size & options"}
-          </Text>
+          {!product.is_in_stock ||
+          !product.is_purchasable ||
+          price === null ||
+          quickAddAllowed ? (
+            <Text
+              style={{
+                fontSize: compact ? 11 : 9,
+                lineHeight: 15,
+                color: colors.muted,
+                paddingRight: compact ? 0 : 44,
+              }}
+            >
+              {!product.is_in_stock
+                ? "Out of stock"
+                : !product.is_purchasable || price === null
+                  ? "View details"
+                  : "Ready to add"}
+            </Text>
+          ) : null}
         </View>
       </Pressable>
       {!horizontal ? (

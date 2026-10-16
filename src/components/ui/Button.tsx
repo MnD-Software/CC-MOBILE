@@ -166,7 +166,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   label: {
-    fontWeight: "600",
+    fontWeight: "800",
     flexShrink: 1,
     textAlign: "center",
   },

@@ -222,10 +222,9 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
         <View style={styles.body}>
           {!searchOnly && !debounced ? (
             <ScrollView
-              horizontal
               style={styles.sidebar}
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.departmentContent}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: insets.bottom + 112 }}
             >
               {shopDepartments.map((item) => {
                 const selected = item.id === department;
@@ -269,7 +268,7 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
           >
             <View
               testID="shop-options"
-              style={{ paddingHorizontal: 16, paddingTop: 12 }}
+              style={{ paddingHorizontal: 10, paddingTop: 10 }}
             >
               <View style={styles.listHeader}>
                 <ScrollView
@@ -393,7 +392,7 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
                         style={{
                           paddingHorizontal: 19,
                           paddingVertical: 10,
-                          minHeight: 44,
+                          minHeight: 56,
                           maxWidth: 155,
                           justifyContent: "center",
                           alignItems: "center",
@@ -409,7 +408,7 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
                               ? colors.brandLight
                               : colors.surface,
                           shadowColor: colors.brand,
-                          shadowOpacity: 0,
+                          shadowOpacity: subfilter === item.id ? 0.15 : 0,
                           shadowRadius: 9,
                           shadowOffset: { width: 0, height: 3 },
                           elevation: subfilter === item.id ? 2 : 0,
@@ -488,20 +487,20 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
               style={{ flex: 1 }}
               data={rows}
               numColumns={2}
-              columnWrapperStyle={{ gap: 12 }}
+              columnWrapperStyle={{ gap: 8 }}
               keyExtractor={(item) => String(item.id)}
               renderItem={({ item }) => (
                 <ProductTile
                   product={item}
                   compact
-                  width={Math.max(0, (paneWidth - 44) / 2)}
+                  width={Math.max(0, (paneWidth - 28) / 2)}
                 />
               )}
               contentContainerStyle={[
                 styles.content,
                 { paddingBottom: insets.bottom + 128 },
               ]}
-              ItemSeparatorComponent={() => <View style={{ height: 16 }} />}
+              ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
               keyboardShouldPersistTaps="handled"
               keyboardDismissMode="on-drag"
               showsVerticalScrollIndicator={false}
@@ -645,35 +644,33 @@ const baseStyles = StyleSheet.create({
     borderBottomColor: tokens.color.border,
   },
   departmentContent: { paddingHorizontal: 12, gap: 8 },
-  body: { flex: 1 },
+  body: { flex: 1, flexDirection: "row" },
   sidebar: {
-    maxHeight: 100,
+    width: 74,
     flexGrow: 0,
-    flexShrink: 0,
     backgroundColor: tokens.color.surface,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: tokens.color.border,
+    borderRightWidth: StyleSheet.hairlineWidth,
+    borderRightColor: tokens.color.border,
   },
   categoryImage: {
-    width: 40,
-    height: 40,
-    borderRadius: 14,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: "#FFFFFF",
   },
   railItem: {
-    minHeight: 82,
-    width: 80,
-    paddingVertical: 8,
-    paddingHorizontal: 6,
+    minHeight: 86,
+    paddingVertical: 10,
+    paddingHorizontal: 5,
     gap: 7,
     alignItems: "center",
     justifyContent: "center",
-    borderBottomWidth: 2,
-    borderBottomColor: "transparent",
+    borderLeftWidth: 3,
+    borderLeftColor: "transparent",
   },
   railSelected: {
-    borderBottomColor: tokens.color.brandStrong,
-    backgroundColor: tokens.color.surface,
+    borderLeftColor: tokens.color.brandStrong,
+    backgroundColor: tokens.color.brandLight,
   },
   railText: {
     fontSize: 11,
@@ -682,7 +679,7 @@ const baseStyles = StyleSheet.create({
     textAlign: "center",
   },
   productPane: { flex: 1, backgroundColor: tokens.color.background },
-  content: { padding: 16, flexGrow: 1 },
+  content: { padding: 10, flexGrow: 1 },
   listHeader: {
     gap: 10,
     paddingTop: 0,

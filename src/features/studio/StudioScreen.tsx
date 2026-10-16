@@ -140,7 +140,12 @@ export function StudioScreen() {
   }
   return (
     <Screen title="The Cake Studio." subtitle="Imagine it. Make it theirs.">
-      <View style={ui.panel}>
+      <View
+        style={[
+          ui.panel,
+          { backgroundColor: colors.accentLight, borderWidth: 0 },
+        ]}
+      >
         <Text style={ui.eyebrow}>A LITTLE CREATIVITY. A LOT OF CAKE.</Text>
         <Text style={ui.heading}>Every detail has a story.</Text>
         <Text style={ui.body}>
@@ -165,7 +170,7 @@ export function StudioScreen() {
             }
             style={{
               aspectRatio: 1,
-              backgroundColor: colors.surfaceTint,
+              backgroundColor: "#F5EFEB",
               borderRadius: 24,
               overflow: "hidden",
             }}

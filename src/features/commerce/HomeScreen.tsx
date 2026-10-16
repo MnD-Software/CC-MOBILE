@@ -337,15 +337,6 @@ export function HomeScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.editorial}>
-          <Text style={styles.editorialEyebrow}>THE CAKE CITY COLLECTION</Text>
-          <Text accessibilityRole="header" style={styles.editorialTitle}>
-            A little joy. Beautifully made.
-          </Text>
-          <Text style={styles.editorialCopy}>
-            Find something special for your next celebration.
-          </Text>
-        </View>
         {catalogue.isPending ? (
           <HomeSkeleton cardWidth={collectionCardWidth} />
         ) : catalogue.isError ? (
@@ -533,22 +524,28 @@ function DealSlide({
       {image ? (
         <Image
           cachePolicy="memory-disk"
-          contentFit="contain"
+          contentFit="cover"
           source={{ uri: image }}
           style={styles.heroImage}
           transition={120}
         />
       ) : null}
+      <LinearGradient
+        colors={["rgba(39,18,30,0.08)", "rgba(81,56,45,0.95)"]}
+        end={{ x: 0.5, y: 1 }}
+        start={{ x: 0.5, y: 0 }}
+        style={StyleSheet.absoluteFill}
+      />
       <View style={styles.dealCopy}>
         <View style={styles.dealPill}>
-          <Ionicons color={colors.brandStrong} name="sparkles" size={12} />
+          <Ionicons color="#FFFFFF" name="sparkles" size={12} />
           <Text style={styles.dealPillText}>
             {isDealsAndSteals(product)
               ? "DEALS & STEALS"
               : "THE SIGNATURE EDIT"}
           </Text>
         </View>
-        <Text numberOfLines={3} style={styles.dealTitle}>
+        <Text numberOfLines={2} style={styles.dealTitle}>
           {plainText(product.name)}
         </Text>
         <View style={styles.dealFooter}>
@@ -588,11 +585,13 @@ function EmptyDealSlide({
         pressed && styles.pressed,
       ]}
     >
-      <Ionicons
-        name="sparkles-outline"
-        color={tokens.color.brandStrong}
-        size={32}
+      <LinearGradient
+        colors={["#5A223E", "#B80068", "#EC008C"]}
+        end={{ x: 1, y: 1 }}
+        start={{ x: 0, y: 0 }}
+        style={StyleSheet.absoluteFill}
       />
+      <Ionicons name="sparkles" color="rgba(255,255,255,0.96)" size={62} />
       <Text style={styles.emptyKicker}>A SLICE OF SOMETHING SPECIAL</Text>
       <Text style={styles.emptyTitle}>Big moments. Little treats.</Text>
       <Text style={styles.emptyCopy}>
@@ -605,7 +604,7 @@ function EmptyDealSlide({
 
 function OccasionRail() {
   const styles = useThemedStyles(baseStyles);
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   return (
     <View style={styles.occasionSection}>
       <View style={styles.occasionHeadingRow}>
@@ -650,7 +649,7 @@ function OccasionRail() {
               style={[
                 styles.occasionArtwork,
                 {
-                  backgroundColor: colors.surfaceTint,
+                  backgroundColor: isDark ? colors.surfaceTint : occasion.tint,
                 },
               ]}
             >
@@ -676,7 +675,7 @@ function OccasionRail() {
 
 function CollectionGrid({ cardWidth }: { cardWidth: number }) {
   const styles = useThemedStyles(baseStyles);
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   return (
     <View style={styles.collectionSection}>
       <Text accessibilityRole="header" style={styles.collectionHeading}>
@@ -709,14 +708,14 @@ function CollectionGrid({ cardWidth }: { cardWidth: number }) {
               styles.collectionCard,
               {
                 width: cardWidth,
-                backgroundColor: colors.surface,
+                backgroundColor: isDark ? colors.surfaceTint : collection.tint,
               },
               pressed && styles.pressed,
             ]}
           >
             <Image
               cachePolicy="memory-disk"
-              contentFit="contain"
+              contentFit="cover"
               source={{ uri: collection.image }}
               style={styles.collectionImage}
               transition={140}
@@ -745,7 +744,7 @@ function CollectionGrid({ cardWidth }: { cardWidth: number }) {
 }
 
 const baseStyles = StyleSheet.create({
-  editorial: { gap: 8, paddingTop: 12, paddingBottom: 4 },
+  editorial: { gap: 6, paddingVertical: 2 },
   editorialEyebrow: {
     color: tokens.color.brandStrong,
     fontSize: 9,
@@ -753,11 +752,11 @@ const baseStyles = StyleSheet.create({
     letterSpacing: 1.7,
   },
   editorialTitle: {
-    color: tokens.color.ink,
-    fontSize: 34,
-    lineHeight: 39,
-    letterSpacing: -1.2,
-    fontWeight: "600",
+    color: tokens.color.cocoa,
+    fontSize: 32,
+    lineHeight: 36,
+    letterSpacing: -1.3,
+    fontWeight: "800",
   },
   editorialCopy: { color: tokens.color.muted, fontSize: 13, lineHeight: 20 },
   shortcuts: { flexDirection: "row", gap: 8 },
@@ -782,14 +781,7 @@ const baseStyles = StyleSheet.create({
   },
   shortcutTitle: { color: tokens.color.cocoa, fontWeight: "700", fontSize: 11 },
   shortcutDetail: { color: tokens.color.muted, fontSize: 9 },
-  heroImage: {
-    position: "absolute",
-    top: 12,
-    right: 10,
-    bottom: 12,
-    width: "48%",
-    borderRadius: 20,
-  },
+  heroImage: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
   content: {
     width: "100%",
     maxWidth: 600,
@@ -797,7 +789,7 @@ const baseStyles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 14,
     paddingBottom: 128,
-    gap: 28,
+    gap: 22,
     overflow: "hidden",
   },
   brandBlock: {
@@ -838,20 +830,17 @@ const baseStyles = StyleSheet.create({
   searchText: { flex: 1, color: tokens.color.muted, fontSize: 13.5 },
   carouselSection: { gap: 4 },
   dealHero: {
-    minHeight: 224,
-    justifyContent: "center",
-    padding: 20,
+    minHeight: 238,
+    justifyContent: "flex-end",
+    padding: 18,
     overflow: "hidden",
     borderRadius: 28,
-    backgroundColor: tokens.color.surface,
-    borderWidth: 1,
-    borderColor: tokens.color.border,
-    ...tokens.shadow.card,
+    backgroundColor: tokens.color.cocoa,
+    ...tokens.shadow.floating,
   },
   dealCopy: {
-    justifyContent: "center",
-    gap: 12,
-    width: "51%",
+    justifyContent: "flex-end",
+    gap: 7,
   },
   dealPill: {
     alignSelf: "flex-start",
@@ -861,20 +850,20 @@ const baseStyles = StyleSheet.create({
     paddingHorizontal: 9,
     paddingVertical: 5,
     borderRadius: 999,
-    backgroundColor: tokens.color.brandLight,
+    backgroundColor: "rgba(255,255,255,0.18)",
   },
   dealPillText: {
-    color: tokens.color.brandStrong,
+    color: "#FFFFFF",
     fontSize: 8.5,
-    fontWeight: "700",
+    fontWeight: "900",
     letterSpacing: 0.85,
   },
   dealTitle: {
-    maxWidth: "100%",
-    color: tokens.color.ink,
-    fontSize: 18,
-    lineHeight: 23,
-    fontWeight: "600",
+    maxWidth: "84%",
+    color: "#FFFFFF",
+    fontSize: 22,
+    lineHeight: 26,
+    fontWeight: "900",
     letterSpacing: -0.45,
   },
   dealFooter: {
@@ -884,19 +873,19 @@ const baseStyles = StyleSheet.create({
     gap: 12,
   },
   dealLabel: {
-    color: tokens.color.muted,
+    color: "rgba(255,255,255,0.78)",
     fontSize: 8.5,
     fontWeight: "800",
     letterSpacing: 0.72,
   },
-  dealPrice: { color: tokens.color.ink, fontSize: 18, fontWeight: "700" },
+  dealPrice: { color: "#FFFFFF", fontSize: 20, fontWeight: "900" },
   dealArrow: {
     width: 39,
     height: 39,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 15,
-    backgroundColor: tokens.color.surfaceTint,
+    backgroundColor: "#FFFFFF",
   },
   emptyHero: {
     minHeight: 238,
@@ -906,27 +895,24 @@ const baseStyles = StyleSheet.create({
     overflow: "hidden",
     padding: 22,
     borderRadius: 28,
-    backgroundColor: tokens.color.surface,
-    borderWidth: 1,
-    borderColor: tokens.color.border,
-    ...tokens.shadow.card,
+    ...tokens.shadow.floating,
   },
   emptyKicker: {
-    color: tokens.color.brandStrong,
+    color: "rgba(255,255,255,0.82)",
     fontSize: 9,
-    fontWeight: "700",
+    fontWeight: "900",
     letterSpacing: 1.05,
   },
   emptyTitle: {
     maxWidth: "82%",
-    color: tokens.color.ink,
+    color: "#FFFFFF",
     fontSize: 22,
     lineHeight: 27,
-    fontWeight: "700",
+    fontWeight: "900",
   },
   emptyCopy: {
     maxWidth: "88%",
-    color: tokens.color.muted,
+    color: "rgba(255,255,255,0.86)",
     fontSize: 12,
     lineHeight: 17,
   },
@@ -955,7 +941,7 @@ const baseStyles = StyleSheet.create({
     color: tokens.color.ink,
     fontSize: 16,
     lineHeight: 20,
-    fontWeight: "600",
+    fontWeight: "900",
     letterSpacing: -0.25,
   },
   occasionCopy: { color: tokens.color.muted, fontSize: 11, lineHeight: 15 },
@@ -971,7 +957,7 @@ const baseStyles = StyleSheet.create({
     overflow: "hidden",
     borderRadius: 31,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: tokens.color.border,
+    borderColor: "rgba(81,56,45,0.14)",
     ...tokens.shadow.card,
   },
   occasionImage: { width: "100%", height: "100%" },
@@ -984,9 +970,9 @@ const baseStyles = StyleSheet.create({
   },
   collectionSection: { gap: 7 },
   collectionHeading: {
-    color: tokens.color.ink,
+    color: tokens.color.cocoa,
     fontSize: 19,
-    fontWeight: "600",
+    fontWeight: "800",
     letterSpacing: -0.5,
     textAlign: "left",
   },
@@ -1006,7 +992,7 @@ const baseStyles = StyleSheet.create({
     overflow: "hidden",
     borderRadius: 22,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: tokens.color.border,
+    borderColor: "rgba(81,56,45,0.12)",
     ...tokens.shadow.card,
   },
   collectionImage: { width: "100%", height: 126, backgroundColor: "#FFFFFF" },
@@ -1018,17 +1004,17 @@ const baseStyles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 11,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: tokens.color.border,
+    borderTopColor: tokens.color.borderStrong,
     backgroundColor: "rgba(255,255,255,0.96)",
   },
   collectionLabel: {
     flex: 1,
-    color: tokens.color.ink,
-    fontSize: 12,
-    lineHeight: 17,
-    fontWeight: "600",
+    color: tokens.color.brandStrong,
+    fontSize: 11.5,
+    lineHeight: 14,
+    fontWeight: "900",
     letterSpacing: 0.18,
-    textTransform: "capitalize",
+    textTransform: "uppercase",
   },
   featured: { gap: 12, marginHorizontal: -16 },
   continueShopping: { gap: 12, marginHorizontal: -16 },

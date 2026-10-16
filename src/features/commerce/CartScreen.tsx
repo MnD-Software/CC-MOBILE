@@ -5,8 +5,7 @@ import { router } from "expo-router";
 import { Linking, Pressable, StyleSheet, View } from "react-native";
 import { Text } from "@/components/ui/Typography";
 import { Button } from "@/components/ui/Button";
-import { Disclosure } from "@/components/ui/Disclosure";
-import { Feedback, Screen, useToast } from "@/components/ui/Commerce";
+import { Screen, useToast } from "@/components/ui/Commerce";
 import { tokens } from "@/theme/tokens";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import { CheckoutProgress } from "@/components/storefront/CheckoutProgress";
@@ -14,6 +13,7 @@ import { money } from "./contracts";
 import { useBag, usePreferences } from "./store";
 import { CelebrationArtwork } from "@/components/ui/CelebrationArtwork";
 import { AnimatedNumber } from "@/components/ui/Delight";
+import { CartSuggestions } from "./CartSuggestions";
 
 export function CartScreen() {
   const styles = useThemedStyles(baseStyles);
@@ -58,8 +58,23 @@ export function CartScreen() {
       {!bag.lines.length ? (
         <>
           <View style={{ alignItems: "center", gap: 10 }}>
-            <CelebrationArtwork kind="bag" size={144} />
-            <Feedback empty="Your next happy moment starts with a cake." />
+            <CelebrationArtwork kind="bag" size={80} />
+            <Text
+              style={{
+                color: colors.ink,
+                fontSize: 20,
+                fontWeight: "800",
+                textAlign: "center",
+              }}
+            >
+              Your bag is waiting for something delicious.
+            </Text>
+            <Text style={{ color: colors.muted, textAlign: "center" }}>
+              Start with an offer or discover a popular pick.
+            </Text>
+          </View>
+          <CartSuggestions lines={bag.lines} />
+          <View style={{ gap: 10 }}>
             <Button
               label="Find my celebration cake"
               variant="outline"
@@ -75,7 +90,7 @@ export function CartScreen() {
         <>
           <CheckoutProgress current={0} />
           <LinearGradient
-            colors={isDark ? ["#211B24", "#2C2430"] : ["#FFFFFF", "#F6F7F9"]}
+            colors={isDark ? ["#211B24", "#362030"] : ["#FFFFFF", "#FFF1F8"]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.summary}
@@ -202,6 +217,7 @@ export function CartScreen() {
             ))}
           </View>
 
+          <CartSuggestions lines={bag.lines} />
           <View style={styles.totalCard}>
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>Bag total</Text>
@@ -217,20 +233,18 @@ export function CartScreen() {
             label="Secure checkout for all items"
             onPress={() => router.push("/checkout")}
           />
-          <Disclosure title="Coupons and ordering help">
-            <Button
-              variant="outline"
-              label="Manage coupons in Cake City Club"
-              onPress={() => router.push("/(tabs)/loyalty")}
-            />
-            <Button
-              variant="outline"
-              label="Order everything on WhatsApp"
-              onPress={() => void orderBagOnWhatsApp()}
-            />
-          </Disclosure>
           <Button
-            variant="ghost"
+            variant="outline"
+            label="Manage coupons in Cake City Club"
+            onPress={() => router.push("/(tabs)/loyalty")}
+          />
+          <Button
+            variant="outline"
+            label="Order everything on WhatsApp"
+            onPress={() => void orderBagOnWhatsApp()}
+          />
+          <Button
+            variant="outline"
             label="Keep shopping"
             onPress={() => router.push("/(tabs)/shop")}
           />
@@ -247,10 +261,8 @@ const baseStyles = StyleSheet.create({
     alignItems: "center",
     gap: 15,
     padding: 20,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: tokens.color.border,
-    ...tokens.shadow.card,
+    borderRadius: 26,
+    ...tokens.shadow.floating,
   },
   summaryIcon: {
     width: 52,
@@ -264,16 +276,16 @@ const baseStyles = StyleSheet.create({
   summaryEyebrow: {
     color: tokens.color.brandStrong,
     fontSize: 9.5,
-    fontWeight: "600",
+    fontWeight: "900",
     letterSpacing: 1.2,
   },
   summaryTitle: {
-    color: tokens.color.ink,
+    color: tokens.color.cocoa,
     fontSize: 20,
     lineHeight: 25,
-    fontWeight: "600",
+    fontWeight: "900",
   },
-  summaryPrice: { color: tokens.color.ink, fontSize: 17, fontWeight: "600" },
+  summaryPrice: { color: tokens.color.cocoa, fontSize: 17, fontWeight: "800" },
   list: { gap: 14 },
   lineCard: {
     gap: 13,
@@ -300,13 +312,13 @@ const baseStyles = StyleSheet.create({
     color: tokens.color.ink,
     fontSize: 14,
     lineHeight: 19,
-    fontWeight: "600",
+    fontWeight: "800",
   },
   lineMeta: { color: tokens.color.muted, fontSize: 11.5 },
   linePrice: {
-    color: tokens.color.ink,
+    color: tokens.color.brandStrong,
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: "900",
   },
   removeButton: {
     minWidth: 44,
@@ -349,7 +361,7 @@ const baseStyles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
     paddingHorizontal: 6,
-    minHeight: 44,
+    paddingVertical: 4,
   },
   saveButtonText: {
     color: tokens.color.brandStrong,
@@ -360,20 +372,18 @@ const baseStyles = StyleSheet.create({
     gap: 7,
     padding: 17,
     borderRadius: 20,
-    backgroundColor: tokens.color.surface,
-    borderWidth: 1,
-    borderColor: tokens.color.border,
+    backgroundColor: tokens.color.brandLight,
   },
   totalRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
-  totalLabel: { color: tokens.color.ink, fontSize: 14, fontWeight: "600" },
+  totalLabel: { color: tokens.color.cocoa, fontSize: 13, fontWeight: "700" },
   totalValue: {
-    color: tokens.color.ink,
+    color: tokens.color.brandStrong,
     fontSize: 18,
-    fontWeight: "700",
+    fontWeight: "900",
   },
   totalNote: { color: tokens.color.muted, fontSize: 11.5, lineHeight: 17 },
   disabled: { opacity: 0.35 },

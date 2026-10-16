@@ -36,7 +36,7 @@ const destinations = [
   },
   {
     name: "account",
-    label: "Account",
+    label: "Profile",
     icon: "person-outline",
     active: "person",
   },
@@ -231,7 +231,7 @@ export function FloatingTabBar(
   return (
     <View
       pointerEvents="box-none"
-      style={[styles.position, { bottom: insets.bottom + 8 }]}
+      style={[styles.position, { bottom: insets.bottom + 10 }]}
     >
       <View
         style={[
@@ -319,13 +319,25 @@ export function FloatingTabBar(
                     pressed && !reduceMotion && styles.pressed,
                   ]}
                 >
-                  <View style={styles.tabContent}>
+                  <View style={[styles.tabContent, isClub && styles.clubFace]}>
                     <Ionicons
                       name={focused ? destination.active : destination.icon}
-                      size={22}
-                      color={focused ? colors.brandStrong : colors.muted}
+                      size={isClub ? 23 : 22}
+                      color={
+                        isClub
+                          ? "#FFFFFF"
+                          : focused
+                            ? colors.brand
+                            : colors.cocoa
+                      }
                     />
-                    <Text style={[styles.label, focused && styles.activeLabel]}>
+                    <Text
+                      style={[
+                        styles.label,
+                        focused && styles.activeLabel,
+                        isClub && styles.clubLabel,
+                      ]}
+                    >
                       {destination.label}
                     </Text>
                   </View>
@@ -343,13 +355,13 @@ const baseStyles = StyleSheet.create({
   position: { position: "absolute", left: 0, right: 0, alignItems: "center" },
   shadow: {
     borderRadius: 34,
-    shadowColor: "#182333",
-    shadowOpacity: 0.1,
+    shadowColor: "#51382D",
+    shadowOpacity: 0.14,
     shadowOffset: { width: 0, height: 8 },
     shadowRadius: 20,
     elevation: 8,
   },
-  dock: { padding: 6, borderRadius: 28, borderColor: tokens.color.border },
+  dock: { padding: 6, borderRadius: 34 },
   rail: { flexDirection: "row", gap: 2 },
   highlight: {
     position: "absolute",
@@ -386,7 +398,7 @@ const baseStyles = StyleSheet.create({
   tab: {
     flex: 1,
     minWidth: 44,
-    minHeight: 54,
+    minHeight: 58,
     borderRadius: 28,
     alignItems: "center",
     justifyContent: "center",
@@ -398,7 +410,13 @@ const baseStyles = StyleSheet.create({
     justifyContent: "center",
     gap: 4,
   },
+  clubFace: {
+    marginHorizontal: 4,
+    borderRadius: 25,
+    backgroundColor: tokens.color.brand,
+  },
   pressed: { transform: [{ scale: 0.96 }] },
   label: { fontSize: 11, fontWeight: "600", color: tokens.color.cocoa },
   activeLabel: { fontWeight: "800", color: tokens.color.brandStrong },
+  clubLabel: { color: "#FFFFFF", fontWeight: "800" },
 });

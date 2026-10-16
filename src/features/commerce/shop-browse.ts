@@ -26,6 +26,7 @@ export type ShopBrowseParams = {
   perPage?: number;
   search?: string;
   sort?: ShopSort;
+  onSale?: boolean;
   categories?: readonly number[];
   minimumKes?: number;
   maximumKes?: number;
@@ -74,6 +75,7 @@ export function shopBrowseQuery(params: ShopBrowseParams) {
   });
   if (params.search?.trim())
     query.set("search", params.search.trim().slice(0, 120));
+  if (params.onSale) query.set("on_sale", "true");
   if (params.categories?.length) {
     if (params.categories.some((id) => !Number.isSafeInteger(id) || id < 1))
       throw new Error("Invalid category.");

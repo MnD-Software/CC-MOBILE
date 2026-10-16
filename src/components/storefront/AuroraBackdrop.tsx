@@ -10,7 +10,7 @@ type AuroraBackdropProps = PropsWithChildren<{
   style?: StyleProp<ViewStyle>;
 }>;
 
-/** White canvas; depth belongs to surfaces, not coloured page washes. */
+/** Plain white canvas that keeps products and the Cake City logo in focus. */
 export function AuroraBackdrop({
   variant = "app",
   children,

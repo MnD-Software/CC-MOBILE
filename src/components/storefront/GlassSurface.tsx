@@ -148,7 +148,7 @@ export function GlassSurface({
         {
           backgroundColor:
             resolvedTint ??
-            (isDark ? "rgba(33,27,36,0.88)" : "rgba(255,255,255,0.94)"),
+            (isDark ? "rgba(33,27,36,0.62)" : "rgba(255,255,255,0.38)"),
         },
         style,
       ]}

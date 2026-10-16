@@ -1,12 +1,14 @@
 import { plainText, productPrice, type StoreProduct } from "./contracts";
 
-function context(product: StoreProduct) {
+type PairingSource = Pick<StoreProduct, "id" | "name" | "categories">;
+
+function context(product: PairingSource) {
   return plainText(
     [product.name, ...product.categories.map((c) => c.name)].join(" "),
   ).toLowerCase();
 }
 
-function kind(product: StoreProduct) {
+function kind(product: PairingSource) {
   const text = context(product);
   if (/\bcandles?\b|\btoppers?\b/.test(text)) return "accessory";
   if (
@@ -21,7 +23,7 @@ function kind(product: StoreProduct) {
 
 /** Rank real catalogue records only. Checkout still verifies all availability. */
 export function rankPairings(
-  product: StoreProduct,
+  product: PairingSource,
   candidates: StoreProduct[],
   limit = 6,
   curatedIds: number[] = [],

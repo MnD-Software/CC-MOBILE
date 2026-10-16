@@ -12,7 +12,6 @@ import {
 } from "react-native";
 import { Text } from "@/components/ui/Typography";
 import { useReducedMotion } from "@/design/useReducedMotion";
-import { tokens } from "@/theme/tokens";
 import { money } from "@/features/commerce/contracts";
 import {
   memberBarcode,
@@ -35,7 +34,7 @@ export function MembershipCard({
   pointValue: number;
   rewards: number;
 }) {
-  const [faceHeight, setFaceHeight] = useState(238);
+  const [faceHeight, setFaceHeight] = useState(266);
   const shine = useRef(new Animated.Value(0)).current;
   const [back, setBack] = useState(false);
   const [barcodeWidth, setBarcodeWidth] = useState(0);
@@ -100,7 +99,7 @@ export function MembershipCard({
     minHeight: faceHeight,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: tokens.color.border,
+    borderColor: "rgba(255,255,255,0.65)",
   } as const;
   return (
     <View style={{ gap: 8 }}>
@@ -116,7 +115,11 @@ export function MembershipCard({
         style={{
           minHeight: faceHeight,
           borderRadius: 26,
-          ...tokens.shadow.floating,
+          shadowColor: "#21131B",
+          shadowOpacity: 0.2,
+          shadowRadius: 16,
+          shadowOffset: { width: 0, height: 9 },
+          elevation: 6,
         }}
       >
         <Animated.View
@@ -174,12 +177,7 @@ export function MembershipCard({
               />
             </View>
             <Text
-              style={{
-                color: palette.ink,
-                fontSize: 22,
-                fontWeight: "700",
-                textTransform: "capitalize",
-              }}
+              style={{ color: palette.ink, fontSize: 22, fontWeight: "700" }}
             >
               {tier} membership
             </Text>
@@ -195,8 +193,32 @@ export function MembershipCard({
               <Text style={{ fontSize: 16 }}>points</Text>
             </Text>
             <Text style={{ color: palette.muted, fontSize: 12 }}>
-              Your Club balance. Explore available rewards below.
+              {points >= 100
+                ? "Your next reward is ready to explore"
+                : `${100 - points} points to your next reward`}
             </Text>
+            <View
+              accessibilityRole="progressbar"
+              accessibilityValue={{
+                min: 0,
+                max: 100,
+                now: Math.min(100, points),
+              }}
+              style={{
+                height: 6,
+                backgroundColor: "rgba(100,110,125,0.22)",
+                borderRadius: 4,
+                overflow: "hidden",
+              }}
+            >
+              <View
+                style={{
+                  width: `${Math.min(100, points)}%`,
+                  height: "100%",
+                  backgroundColor: palette.accent,
+                }}
+              />
+            </View>
             <View
               style={{
                 flexDirection: "row",
