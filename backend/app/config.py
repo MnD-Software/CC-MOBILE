@@ -1,4 +1,5 @@
 from functools import lru_cache
+from urllib.parse import urlsplit
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -42,3 +43,20 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
+
+def validate_production_settings(settings: Settings) -> None:
+    """Apply on every launch path; errors name keys, never their values."""
+    if settings.environment.casefold() != "production":
+        return
+    if not settings.sqlalchemy_url.startswith("postgresql"):
+        raise RuntimeError("Set a persistent PostgreSQL DATABASE_URL before starting production.")
+    secret = settings.jwt_secret.strip()
+    if len(secret) < 32 or any(word in secret.casefold() for word in ("change-me", "replace-with", "development-only", "test-secret")):
+        raise RuntimeError("Set a unique random JWT_SECRET of at least 32 characters before starting production.")
+    for origin in settings.cors_origin_list:
+        parsed = urlsplit(origin)
+        if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password or parsed.path or parsed.query or parsed.fragment or "*" in origin:
+            raise RuntimeError("CORS_ORIGINS must contain explicit HTTPS origins, or be empty for native-only access.")
+    if not settings.redis_url:
+        raise RuntimeError("Set REDIS_URL to enable shared production authentication and mutation rate limits.")

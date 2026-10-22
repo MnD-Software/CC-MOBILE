@@ -31,6 +31,7 @@ const {
 } = require("../src/features/commerce/website-cart.ts");
 const {
   setWebsiteCartCoupon,
+  createWebsiteCart,
   submitWebsiteCheckout,
   websitePaymentRedirect,
 } = require("../src/features/commerce/website-checkout.ts");
@@ -71,6 +72,30 @@ test("payment recovery never opens unsafe redirects and retains official order a
 });
 afterEach(() => {
   global.fetch = originalFetch;
+});
+
+test("local review blocks all website checkout network calls without changing production defaults", async () => {
+  const previous = process.env.EXPO_PUBLIC_LOCAL_REVIEW;
+  let requests = 0;
+  global.fetch = async () => {
+    requests++;
+    throw new Error("Unexpected network call");
+  };
+  process.env.EXPO_PUBLIC_LOCAL_REVIEW = "1";
+  try {
+    await assert.rejects(
+      createWebsiteCart([{ product_id: 123, quantity: 1, selection: {} }]),
+      /disabled in this local review/,
+    );
+    await assert.rejects(
+      submitWebsiteCheckout(session(), {}),
+      /disabled in this local review/,
+    );
+    assert.equal(requests, 0);
+  } finally {
+    if (previous === undefined) delete process.env.EXPO_PUBLIC_LOCAL_REVIEW;
+    else process.env.EXPO_PUBLIC_LOCAL_REVIEW = previous;
+  }
 });
 
 test("same-price changes to products or quantities cannot authorize payment", async () => {

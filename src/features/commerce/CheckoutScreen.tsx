@@ -88,7 +88,11 @@ export function CheckoutScreen() {
       subtitle="One payment for your full bag."
       back
     >
-      <CheckoutForm key={customer?.id ?? "guest"} />
+      {process.env.EXPO_PUBLIC_LOCAL_REVIEW === "1" ? (
+        <Notice message="Local review: website checkout is disabled. No live order or payment will be created. Corporate quotations can be tested with your local review accounts." />
+      ) : (
+        <CheckoutForm key={customer?.id ?? "guest"} />
+      )}
     </Screen>
   );
 }

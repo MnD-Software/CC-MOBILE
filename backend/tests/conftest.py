@@ -1,10 +1,11 @@
 import os
+import secrets
 import tempfile
 from pathlib import Path
 
 _test_database = tempfile.TemporaryDirectory(prefix="cakecity-tests-")
 os.environ["DATABASE_URL"] = "sqlite:///" + (Path(_test_database.name) / "test.db").as_posix()
-os.environ["JWT_SECRET"] = "test-secret"
+os.environ["JWT_SECRET"] = secrets.token_urlsafe(48)
 os.environ["ENVIRONMENT"] = "test"
 
 

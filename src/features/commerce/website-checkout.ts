@@ -102,6 +102,10 @@ async function storeRequest(
   options: RequestInit = {},
   cartToken?: string,
 ) {
+  if (process.env.EXPO_PUBLIC_LOCAL_REVIEW === "1")
+    throw new WebsiteCheckoutError(
+      "Website checkout is disabled in this local review. No live order or payment will be created.",
+    );
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {

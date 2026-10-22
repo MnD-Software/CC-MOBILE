@@ -4,11 +4,12 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, model_validator
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from .db import get_db
-from .models import Customer, Enquiry
+from .models import Customer, Enquiry, OrganizationEnquiry, OrganizationMember
+from .permissions import require, audit
 from .routes_club import account, member
 
 router = APIRouter(tags=["enquiries"])
@@ -69,12 +70,12 @@ class StaffReply(BaseModel):
 
 
 @router.get("/v1/admin/enquiries")
-def queue(_: Customer = Depends(staff), db: Session = Depends(get_db)):
+def queue(_: Customer = Depends(require("enquiries.read")), db: Session = Depends(get_db)):
     return [dict(output(record), customer_id=record.customer_id) for record in db.scalars(select(Enquiry).order_by(Enquiry.created_at.desc()).limit(100))]
 
 
 @router.patch("/v1/admin/enquiries/{identity}")
-def reply(identity: str, data: StaffReply, _: Customer = Depends(staff), db: Session = Depends(get_db)):
+def reply(identity: str, data: StaffReply, actor: Customer = Depends(require("enquiries.write")), db: Session = Depends(get_db)):
     record = db.scalar(select(Enquiry).where(Enquiry.id == identity).with_for_update())
     if not record:
         raise HTTPException(404, "Request not found")
@@ -83,12 +84,19 @@ def reply(identity: str, data: StaffReply, _: Customer = Depends(staff), db: Ses
     if data.status == "quoted":
         if record.kind == "support" or data.quote_minor is None or not data.quote_expires_at or data.quote_expires_at.tzinfo is None or data.quote_expires_at <= datetime.now(UTC):
             raise HTTPException(422, "A future, timezone-aware quote expiry and amount are required")
-    record.status = data.status
-    record.staff_response = data.response.strip()
-    record.quote_minor = data.quote_minor if data.status == "quoted" else None
-    record.quote_expires_at = data.quote_expires_at if data.status == "quoted" else None
-    record.revision += 1
+    if len(data.response.strip()) < 3:
+        raise HTTPException(422, "A meaningful response is required")
+    changed = db.execute(update(Enquiry).where(Enquiry.id == identity, Enquiry.revision == data.revision,
+                         Enquiry.status.notin_(("accepted", "resolved", "declined"))).values(
+                         status=data.status, staff_response=data.response.strip(), revision=Enquiry.revision + 1,
+                         quote_minor=data.quote_minor if data.status == "quoted" else None,
+                         quote_expires_at=data.quote_expires_at if data.status == "quoted" else None
+                         ).execution_options(synchronize_session=False))
+    if changed.rowcount != 1:
+        raise HTTPException(409, "Request changed. Reload before replying.")
+    audit(db, actor.id, "enquiry.replied", identity, status=data.status, revision=data.revision + 1)
     db.commit()
+    db.refresh(record)
     return output(record)
 
 
@@ -98,6 +106,12 @@ class AcceptQuote(BaseModel):
 
 @router.post("/v1/account/enquiries/{identity}/accept")
 def accept(identity: str, data: AcceptQuote, customer: Customer = Depends(member), db: Session = Depends(get_db)):
+    corporate = db.get(OrganizationEnquiry, identity)
+    if corporate:
+        membership = db.get(OrganizationMember, (corporate.organization_id, customer.id))
+        if not membership or membership.role not in ("owner", "approver"):
+            raise HTTPException(403, "An organization approver must accept this quotation")
+        raise HTTPException(409, "Accept corporate quotations through the organization's approval endpoint")
     account(db, customer.id)
     record = db.scalar(select(Enquiry).where(Enquiry.id == identity, Enquiry.customer_id == customer.id).with_for_update())
     if not record:

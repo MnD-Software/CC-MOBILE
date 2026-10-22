@@ -174,3 +174,60 @@ class EditorialAsset(Base):
     mime: Mapped[str] = mapped_column(String(40))
     data: Mapped[bytes] = mapped_column(LargeBinary)
     uploaded_by: Mapped[str] = mapped_column(ForeignKey("customers.id"))
+
+
+class Organization(Base):
+    __tablename__ = "organizations"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    owner_id: Mapped[str] = mapped_column(ForeignKey("customers.id"), index=True)
+    request_key: Mapped[str] = mapped_column(String(80))
+    name: Mapped[str] = mapped_column(String(160))
+    billing_address: Mapped[str] = mapped_column(String(500))
+    industry: Mapped[str] = mapped_column(String(100), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    __table_args__ = (UniqueConstraint("owner_id", "request_key"),)
+
+
+class OrganizationMember(Base):
+    __tablename__ = "organization_members"
+    organization_id: Mapped[str] = mapped_column(ForeignKey("organizations.id"), primary_key=True)
+    customer_id: Mapped[str] = mapped_column(ForeignKey("customers.id"), primary_key=True)
+    role: Mapped[str] = mapped_column(String(20))
+    department: Mapped[str] = mapped_column(String(100), default="")
+    __table_args__ = (CheckConstraint("role IN ('owner','approver','buyer','viewer')"),)
+
+
+class OrganizationInvitation(Base):
+    __tablename__ = "organization_invitations"
+    token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    organization_id: Mapped[str] = mapped_column(ForeignKey("organizations.id"), index=True)
+    email: Mapped[str] = mapped_column(String(320))
+    role: Mapped[str] = mapped_column(String(20))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    accepted: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class OrganizationEnquiry(Base):
+    __tablename__ = "organization_enquiries"
+    enquiry_id: Mapped[str] = mapped_column(ForeignKey("enquiries.id"), primary_key=True)
+    organization_id: Mapped[str] = mapped_column(ForeignKey("organizations.id"), index=True)
+
+
+class AdministrativeEvent(Base):
+    __tablename__ = "administrative_events"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    actor_id: Mapped[str] = mapped_column(ForeignKey("customers.id"), index=True)
+    action: Mapped[str] = mapped_column(String(80))
+    resource_id: Mapped[str] = mapped_column(String(80), index=True)
+    scope_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+    details: Mapped[dict] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class EditorialRevision(Base):
+    __tablename__ = "editorial_revisions"
+    content_id: Mapped[str] = mapped_column(String(80), primary_key=True)
+    revision: Mapped[int] = mapped_column(Integer, primary_key=True)
+    payload: Mapped[dict] = mapped_column(JSON)
+    actor_id: Mapped[str] = mapped_column(ForeignKey("customers.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

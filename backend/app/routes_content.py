@@ -9,12 +9,15 @@ from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel, Field, field_validator, model_validator
-from sqlalchemy import select
+from sqlalchemy import select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from .db import get_db
-from .models import Customer, EditorialAsset, EditorialContent
-from .routes_enquiries import staff
+from .models import Customer, EditorialAsset, EditorialContent, EditorialRevision
+from .permissions import require, audit
+
+staff = require("content.write")
 
 router = APIRouter(tags=["editorial"])
 
@@ -117,7 +120,7 @@ def product_content(product_id: int, response: Response, db: Session = Depends(g
 
 
 @router.get("/v1/admin/content")
-def queue(_: Customer = Depends(staff), db: Session = Depends(get_db)):
+def queue(_: Customer = Depends(require("content.read")), db: Session = Depends(get_db)):
     return [dict(output(row), kind=row.kind) for row in db.scalars(select(EditorialContent).order_by(EditorialContent.updated_at.desc()).limit(150))]
 
 
@@ -126,15 +129,30 @@ def save(db, identity, kind, payload, customer):
     if row:
         if row.kind != kind or row.revision != payload.revision:
             raise HTTPException(409, "Content changed. Reload before saving.")
-        row.revision += 1
-        row.payload = payload.model_dump(mode="json", exclude={"revision"})
-        row.updated_by = customer.id
+        previous = row.payload
+        previous_actor = row.updated_by
+        changed = db.execute(update(EditorialContent).where(EditorialContent.id == identity,
+                             EditorialContent.revision == payload.revision).values(
+                             revision=EditorialContent.revision + 1,
+                             payload=payload.model_dump(mode="json", exclude={"revision"}), updated_by=customer.id)
+                             .execution_options(synchronize_session=False))
+        if changed.rowcount != 1:
+            raise HTTPException(409, "Content changed. Reload before saving.")
+        if not db.get(EditorialRevision, (identity, payload.revision)):
+            db.add(EditorialRevision(content_id=identity, revision=payload.revision, payload=previous, actor_id=previous_actor))
+        db.refresh(row)
     else:
         if payload.revision != 0:
             raise HTTPException(409, "Content no longer exists")
         row = EditorialContent(id=identity, kind=kind, payload=payload.model_dump(mode="json", exclude={"revision"}), revision=1, updated_by=customer.id)
         db.add(row)
-    db.commit()
+    db.add(EditorialRevision(content_id=identity, revision=row.revision, payload=row.payload, actor_id=customer.id))
+    audit(db, customer.id, "content.saved", identity, revision=row.revision, published=row.payload.get("published", False))
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(409, "Content changed. Reload before saving.") from None
     return output(row)
 
 
@@ -160,6 +178,32 @@ def edit_product(product_id: int, payload: ProductEditorialInput, customer: Cust
 class AssetInput(BaseModel):
     mime: Literal["image/jpeg", "image/png", "image/webp", "video/mp4"]
     data: str = Field(min_length=4, max_length=14_000_000)
+
+
+class RestoreContent(BaseModel):
+    revision: int = Field(ge=1)
+    restore_revision: int = Field(ge=1)
+
+
+@router.get("/v1/admin/content/{identity}/history")
+def history(identity: str, _: Customer = Depends(require("content.read")), db: Session = Depends(get_db)):
+    if not db.get(EditorialContent, identity):
+        raise HTTPException(404, "Content not found")
+    return [{"revision": row.revision, "payload": row.payload, "created_at": row.created_at}
+            for row in db.scalars(select(EditorialRevision).where(EditorialRevision.content_id == identity)
+                                  .order_by(EditorialRevision.revision.desc()).limit(100))]
+
+
+@router.post("/v1/admin/content/{identity}/restore")
+def restore(identity: str, data: RestoreContent, actor: Customer = Depends(staff), db: Session = Depends(get_db)):
+    row = db.get(EditorialContent, identity)
+    version = db.get(EditorialRevision, (identity, data.restore_revision))
+    if not row or not version:
+        raise HTTPException(404, "Content revision not found")
+    schema = CampaignInput if row.kind == "campaign" else ProductEditorialInput
+    # Restore as draft: an old version must not republish itself silently.
+    payload = schema.model_validate({**version.payload, "revision": data.revision, "published": False})
+    return {**save(db, identity, row.kind, payload, actor), "kind": row.kind}
 
 
 @router.post("/v1/admin/content/assets", status_code=201)

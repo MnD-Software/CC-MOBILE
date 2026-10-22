@@ -1,7 +1,4 @@
-import os
 from uuid import uuid4
-
-os.environ["JWT_SECRET"] = "test-secret"
 
 import pytest
 from fastapi.testclient import TestClient

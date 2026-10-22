@@ -182,6 +182,16 @@ test("release profiles reject insecure or missing production configuration", () 
     [],
   );
   assert.deepEqual(releaseProblems({}, "preview"), []);
+  assert.ok(
+    releaseProblems(
+      {
+        ...base,
+        EXPO_PUBLIC_API_URL: "https://api.cakecity.co.ke",
+        EXPO_PUBLIC_LOCAL_REVIEW: "1",
+      },
+      "production",
+    ).some((problem) => problem.includes("local-only")),
+  );
 });
 test("WooCommerce wildcard attributes do not break browsing or become ambiguous order choices", () => {
   const product = storeProductSchema.parse({

@@ -1,11 +1,8 @@
 import hashlib
 import hmac
 import json
-import os
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
-
-os.environ["JWT_SECRET"] = "test-secret"
 
 import pytest
 from fastapi.testclient import TestClient

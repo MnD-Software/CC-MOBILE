@@ -92,6 +92,13 @@ const celebrationLinks: AccountLink[] = [
 
 const supportLinks: AccountLink[] = [
   {
+    id: "corporate",
+    title: "Cake City for business",
+    detail: "Company teams and celebration quotations",
+    icon: "business-outline",
+    href: "/corporate",
+  },
+  {
     id: "help",
     title: "Help and contact",
     detail: "Answers from Cake City",
@@ -459,7 +466,9 @@ export function AccountScreen() {
               href: "/branches",
             }}
           />
-          <AccountRow link={supportLinks[1]} />
+          <AccountRow
+            link={supportLinks.find((link) => link.id === "privacy")!}
+          />
         </View>
       </Screen>
     );
@@ -808,6 +817,17 @@ export function AccountScreen() {
               detail: "Stories, offers and cake photography",
               icon: "color-palette-outline",
               href: "/campaign-studio",
+            }}
+          />
+        ) : null}
+        {customer.role !== "customer" ? (
+          <AccountRow
+            link={{
+              id: "command-center",
+              title: "Command Center",
+              detail: "Team requests, quotations and audit",
+              icon: "grid-outline",
+              href: "/command-center",
             }}
           />
         ) : null}

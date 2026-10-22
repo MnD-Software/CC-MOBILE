@@ -74,3 +74,32 @@ def test_product_details_are_opt_in_and_uploads_persist(client):
     assert media.content == image
     assert media.headers["content-type"] == "image/png"
     assert "immutable" in media.headers["cache-control"]
+
+
+def test_revision_history_and_restore_keep_versions_and_require_permission(client):
+    editor=session(client,staff=True)
+    record=client.post('/v1/admin/content/campaigns',headers=editor,json=campaign()).json()
+    identity=record['id']
+    updated=client.put('/v1/admin/content/campaigns/'+identity,headers=editor,json=campaign(revision=1,title='Updated campaign')).json()
+    assert updated['revision']==2
+    versions=client.get('/v1/admin/content/'+identity+'/history',headers=editor).json()
+    assert [row['revision'] for row in versions]==[2,1]
+    restored=client.post('/v1/admin/content/'+identity+'/restore',headers=editor,json={'revision':2,'restore_revision':1})
+    assert restored.status_code==200
+    assert restored.json()['revision']==3
+    assert restored.json()['title']=='Cake spotlight'
+    assert restored.json()['published'] is False
+    assert client.post('/v1/admin/content/'+identity+'/restore',headers=editor,json={'revision':2,'restore_revision':1}).status_code==409
+    assert client.get('/v1/admin/content/'+identity+'/history',headers=session(client)).status_code==403
+
+
+def test_content_roles_cannot_cross_into_customer_operations(client):
+    editor=session(client)
+    token=editor['Authorization'][7:]
+    from app.security import customer_from_access_token
+    with SessionLocal() as db:
+        user=customer_from_access_token(db,'Bearer '+token)
+        user.role='content_manager'
+        db.commit()
+    assert client.post('/v1/admin/content/campaigns',headers=editor,json=campaign()).status_code==201
+    assert client.get('/v1/admin/enquiries',headers=editor).status_code==403

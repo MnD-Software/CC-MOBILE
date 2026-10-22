@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
-from .config import get_settings
+from .config import get_settings, validate_production_settings
 from .catalogue import catalogue
 from .middleware import RequestTelemetry, SharedRateLimit
 from .db import Base, engine
@@ -19,11 +19,14 @@ from .routes_woo_club import router as woo_club_router
 from .routes_enquiries import router as enquiries_router
 from .routes_celebrations import router as celebrations_router
 from .routes_content import router as content_router
+from .routes_corporate import router as corporate_router
+from .routes_workspace import router as workspace_router
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    if get_settings().environment != "production":
+    validate_production_settings(get_settings())
+    if get_settings().environment.casefold() != "production":
         Base.metadata.create_all(bind=engine)
     await catalogue.start()
     try:
@@ -54,6 +57,8 @@ app.include_router(woo_club_router)
 app.include_router(enquiries_router)
 app.include_router(celebrations_router)
 app.include_router(content_router)
+app.include_router(corporate_router)
+app.include_router(workspace_router)
 
 
 @app.get("/ready/db")

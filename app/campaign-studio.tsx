@@ -60,7 +60,15 @@ export default function CampaignStudio() {
   identity.current = customer?.id;
   const client = useQueryClient();
   const { colors } = useTheme();
-  const isStaff = customer?.role === "staff" || customer?.role === "admin";
+  const isStaff =
+    !!customer &&
+    [
+      "staff",
+      "admin",
+      "content_manager",
+      "marketing_manager",
+      "ecommerce_manager",
+    ].includes(customer.role);
   const [form, setForm] = useState(newCampaign);
   const [mode, setMode] = useState<"campaign" | "product">("campaign");
   const [editing, setEditing] = useState(false);
