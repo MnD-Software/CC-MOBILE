@@ -1,15 +1,15 @@
 # Independent app payments and commerce
 
-The app now owns its catalogue, stock allocation, price validation, delivery rules, orders, payment records, receipts and customer information pages. Runtime checkout does not call WooCommerce, WordPress, or Cake City's website. The previous WordPress bridge is retired and must not be installed for this implementation.
+The app now owns its catalogue, made-to-order availability, price validation, delivery rules, orders, payment records, receipts and customer information pages. Runtime checkout does not call WooCommerce, WordPress, or Cake City's website. The previous WordPress bridge is retired and must not be installed for this implementation.
 
 ## Customer flow
 
 1. Products, categories, variation prices and copied images are served from the app backend/database.
-2. A signed-in customer reviews their bag and contact/delivery details. Render validates the app's prices, enabled products, allocated stock, coupon, delivery area and tax policy. It returns a short-lived server quote; the customer confirms its total.
-3. The app persists an idempotency key before creating an app order. The backend atomically reserves app stock/coupon use and assigns a distinct reference, for example `APP-20261103-7C91A30081C246AE`.
+2. A signed-in customer reviews their bag and contact/delivery details. Render validates the app's prices, enabled products, ordering mode, coupon, delivery area and tax policy. It returns a short-lived server quote; the customer confirms its total.
+3. The app persists an idempotency key before creating an app order. The backend atomically validates the product revision and reserves coupon use (physical stock is reserved only for explicitly stocked items) and assigns a distinct reference, for example `APP-20261103-7C91A30081C246AE`.
 4. Render submits the order directly to Pesapal. The returned payment page loads inside a native WebView; no browser or Cake City website checkout opens. A web build uses an embedded iframe. Unknown non-HTTPS navigation and Cake City website navigation are blocked in native payment. Bank authentication support still needs real Android/iPhone verification.
 5. The return URL only closes the payment view and requests verification. Render independently queries Pesapal and verifies the app reference, merchant profile, amount, currency and tracking ID. A URL parameter cannot mark an order paid.
-6. Confirmed payments update the app's order, stock, Club ledger and channel-sales record. Receipts and order support remain in the app. The receipt is a payment receipt, not an eTIMS fiscal invoice.
+6. Confirmed payments update the app's order, Club ledger and channel-sales record. Receipts and order support remain in the app. The receipt is a payment receipt, not an eTIMS fiscal invoice.
 
 Order recovery uses the account's backend order history and the persisted original request key. It never recreates a lost payment automatically. A provider timeout leaves an uncertain payment for IPN/verification or staff reconciliation. Pending payments retain reservations until verified; they are not automatically released while money may be in flight. An unstarted order can be cancelled through the app order API. A success received after stock was released is recorded as paid but requires staff review before fulfilment. Reversals preserve traceability and require staff review; no automatic refund claim is made.
 
@@ -53,13 +53,13 @@ python -m app.migrate
 python -m app.import_store import /absolute/path/to/export
 ```
 
-The import is an explicit operator action, never part of customer requests or server startup. Re-running it adds missing records without overwriting app-managed product prices/stock. Imported products initially have zero allocation and ordering disabled. Parent variable products and each sellable variation must be enabled explicitly. The app serves the copied images from `/v1/app-media/`; it never falls back to loading the original website image.
+The import is an explicit operator action, never part of customer requests or server startup. Re-running it adds missing records without overwriting app-managed product prices/stock. Valid priced, source-purchasable products and variations are imported as made to order. They do not require finished stock or an allocation. Checkout still requires confirmed pricing and fulfilment rules. Explicit operator-disabled products stay disabled when reimported. The app serves the copied images from `/v1/app-media/`; it never falls back to loading the original website image.
 
 Export results: 1,677 product/variation records, 368 image URL mappings, and five pages: Terms and Conditions, About Us, Shipping, Locations/Branches and Return/Exchange Policy. The public WordPress pages endpoint returned invalid JSON. Direct source requests recovered those five pages. Privacy Policy, Contact Us and an initial guessed branches URL returned 404; the actual Locations/Branches URL was subsequently found and exported. Customer contact is implemented through in-app Requests & support. The missing privacy text must be supplied/published by Cake City through `PUT /v1/admin/app-pages/privacy-policy`; an invented policy was not inserted. Imported website policies are source copies and require owner review for the independent app before release.
 
 84 image URLs remained unavailable after a second attempt using original-size/origin URLs. `catalogue.json` records every failed source in `media_failures`. Replace those images through app-owned assets before rollout. Missing assets return an app-local 404, not a website request. The archive does not claim a complete media migration.
 
-## Stock, delivery and tax setup
+## Made-to-order, delivery and tax setup
 
 ### Automated catalogue copy
 
@@ -97,8 +97,7 @@ catalogue aborts the import. No website credentials are required.
 
 This is a deployment/operator task, not a customer or startup dependency. Afterwards the
 app reads its own database even when the website is unavailable. The command
-does not enable new products, invent stock/delivery/tax settings, grant an admin
-role or attempt a payment. Those are separate configuration decisions.
+does not invent stock, delivery fees or tax settings, grant an admin role, enable checkout or attempt a payment. Valid priced products use made-to-order availability; checkout settings remain separate decisions.
 
 Render Free has no service shell, SSH or paid pre-deploy step, and its web service
 can sleep after inactivity. Neon stores the app records and copied image bytes
@@ -108,9 +107,9 @@ across Render restarts. This does not remove Render cold-start delays. Source:
 An existing extracted export can also be imported in one command with
 `python -m app.setup_store --from-directory /absolute/path/to/export`.
 
-The implementation uses a separate app stock/production allocation so the website can be unavailable without stopping app orders. No allocation was invented. Cake City must reserve that capacity for the app and prevent the website from selling those same units. A truly shared real-time inventory pool would require an independent inventory service used by both channels; it is not claimed here.
+Cake City cakes are **made upon order**. Products with `order_mode=made_to_order` do not require a stock quantity, do not reserve or deduct finished goods, and are not sold out merely because allocation is zero. Staff control whether a cake is offered through its enabled setting and confirmed price. Paid quantities remain in the immutable app order snapshot, order events and sales ledger. There is no invented production capacity or promised preparation time. Scheduling and date-specific capacity limits require confirmed business rules before implementation. Explicitly stocked items can still use `order_mode=stocked` and retain the existing stock reservation protections.
 
-Authorized roles can open Account > App commerce & sales. This screen manages app product prices/allocations, delivery zones, checkout rules, the app fulfilment queue, channel sales and issue status. Product updates reject stale revisions and allocations below existing reservations plus sold units. It supports 5,000 catalogue entries (the export contains 1,677).
+Authorized roles can open Account > App commerce & sales. This screen manages app product prices/availability, delivery zones, checkout rules, the app fulfilment queue, channel sales and issue status. Product updates reject stale revisions. Existing physical-stock reservations are preserved; their allocations cannot be reduced below reserved plus sold units. It supports 5,000 catalogue entries (the export contains 1,677).
 
 Before enabling ordering, confirm and save the tax/pickup rules in Account > App commerce & sales. The corresponding operator API is `PUT /v1/admin/app-policy`:
 

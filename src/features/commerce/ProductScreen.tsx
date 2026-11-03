@@ -625,7 +625,11 @@ export function ProductScreen() {
                     size={14}
                     color={colors.success}
                   />
-                  <Text style={styles.stockText}>In stock</Text>
+                  <Text style={styles.stockText}>
+                    {cake.order_mode === "made_to_order"
+                      ? "Made to order"
+                      : "In stock"}
+                  </Text>
                 </View>
               ) : null}
             </View>

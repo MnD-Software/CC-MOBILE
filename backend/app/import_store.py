@@ -171,6 +171,7 @@ def load(directory):
     with SessionLocal() as db:
         for payload in bundle["products"]:
             payload = dict(payload)
+            payload["order_mode"] = "made_to_order"
             identity = int(payload["id"])
             if identity in parents:
                 parent_payload = next(p for p in bundle["products"] if p["id"] == parents[identity])
@@ -182,7 +183,7 @@ def load(directory):
             row = db.get(AppProduct, identity)
             if row is None:
                 db.add(AppProduct(id=identity, slug=(payload["slug"] + "--v" + str(identity)) if (parents.get(identity) or payload.get("parent")) else payload["slug"], parent_id=parents.get(identity) or payload.get("parent") or None,
-                                  payload=payload, price_minor=amount, enabled=False, allocation=0))
+                                  payload=payload, price_minor=amount, enabled=bool(amount and amount > 0 and payload.get("is_purchasable", True)), allocation=0))
             # Reimport never overwrites app prices, stock allocations or editorial changes.
         for image in bundle["media"]:
             data = (directory / "media" / image["id"]).read_bytes()
@@ -198,7 +199,7 @@ def load(directory):
                 db.add(AppPage(slug=page["slug"], title=plain(page.get("title", {}).get("rendered", "")), body=plain(html),
                                source_url=page.get("link", ""), revision=hashlib.sha256(html.encode()).hexdigest()))
         db.commit()
-    print("App catalogue, pages and media imported. Stock allocation and delivery policies require operator configuration.")
+    print("App catalogue, pages and media imported as made to order. Pricing and fulfilment policies require confirmation.")
 
 
 if __name__ == "__main__":

@@ -36,11 +36,13 @@ def product_view(row):
     if row.parent_id is not None:
         value["parent"] = row.parent_id
     # Imported product availability is not permission to spend shared website stock.
-    available = row.enabled and row.allocation - row.reserved - row.sold > 0
+    made_to_order = row.payload.get("order_mode") == "made_to_order"
+    available = row.enabled and (made_to_order or row.allocation - row.reserved - row.sold > 0)
     if value.get("type") == "variable":
         # Variations carry their own allocations; the selector resolves them locally.
         available = row.enabled
     value["is_in_stock"] = available
+    value["order_mode"] = "made_to_order" if made_to_order else "stocked"
     value["is_purchasable"] = row.enabled and (value.get("type") == "variable" or row.price_minor is not None)
     if row.price_minor is not None:
         value.setdefault("prices", {}).update(price=str(row.price_minor), currency_code="KES", currency_minor_unit=2)

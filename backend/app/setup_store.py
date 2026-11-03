@@ -35,7 +35,7 @@ def import_directory(directory: Path):
               "source_page_errors": len(bundle.get("page_errors", []))}
     print(json.dumps(report), flush=True)
     print("Catalogue copy complete. Existing app edits and stock allocations were preserved.", flush=True)
-    print("New products remain disabled until app stock and checkout rules are confirmed. No payment was attempted.", flush=True)
+    print("Valid priced products use made-to-order purchasing. Checkout still requires confirmed fulfilment rules. No payment was attempted.", flush=True)
     print("Manage the imported catalogue at your app backend's /admin address.", flush=True)
     return report
 

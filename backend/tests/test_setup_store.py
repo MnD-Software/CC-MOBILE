@@ -42,7 +42,8 @@ def test_one_command_import_is_idempotent_and_does_not_enable_products(tmp_path)
     assert first["status"] == "imported" and first["source_image_failures"] == 1
     with SessionLocal() as db:
         row = db.get(AppProduct, 912345)
-        assert row.price_minor == 250000 and not row.enabled and row.allocation == 0
+        assert row.price_minor == 250000 and row.enabled and row.allocation == 0
+        assert row.payload["order_mode"] == "made_to_order"
         assert row.parent_id is None
         assert [c["id"] for c in row.payload["categories"]] == [206,98]
         assert db.get(AppPage, "setup-test-page").body == "Public test information"

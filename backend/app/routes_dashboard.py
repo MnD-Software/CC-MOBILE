@@ -2,6 +2,7 @@
 from datetime import UTC, datetime
 from pathlib import Path
 from secrets import randbelow
+from typing import Literal
 from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -38,7 +39,8 @@ def dashboard_asset(name: str):
 def product_view(row):
     return {"id": row.id, "slug": row.slug, "parent_id": row.parent_id, "payload": row.payload,
             "price_minor": row.price_minor, "allocation": row.allocation, "reserved": row.reserved,
-            "sold": row.sold, "enabled": row.enabled, "revision": row.revision}
+            "sold": row.sold, "enabled": row.enabled, "revision": row.revision,
+            "order_mode": row.payload.get("order_mode", "stocked")}
 
 
 @router.get("/v1/admin/dashboard/products")
@@ -77,6 +79,7 @@ class ProductInput(BaseModel):
     price_minor: int = Field(ge=1, le=1000000000)
     allocation: int = Field(ge=0, le=1000000)
     enabled: bool = False
+    order_mode: Literal["made_to_order", "stocked"] = "made_to_order"
     image_urls: list[str] = Field(default_factory=list, max_length=12)
     categories: list[CategoryInput] = Field(default_factory=list, max_length=20)
     parent_id: int | None = Field(default=None, gt=0)
@@ -109,7 +112,7 @@ def save_product(identity, data, actor, db):
             raise HTTPException(422, "Select an existing variable parent product")
     payload = dict(row.payload) if row else {"type": "variation" if data.parent_id else "simple", "attributes": [], "variation_attributes": []}
     identity = identity or 1_000_000_000 + randbelow(1_000_000_000)
-    payload.update(id=identity, slug=data.slug, name=data.name, description=data.description,
+    payload.update(id=identity, slug=data.slug, name=data.name, description=data.description, order_mode=data.order_mode,
                    short_description=data.short_description, categories=[c.model_dump() for c in data.categories],
                    images=[{"id": i+1, "src": u, "name": data.name, "alt": data.name, "thumbnail": u} for i, u in enumerate(data.image_urls)])
     payload["prices"] = {**payload.get("prices", {}), "price": str(data.price_minor),

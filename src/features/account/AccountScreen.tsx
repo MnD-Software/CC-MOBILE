@@ -831,7 +831,7 @@ export function AccountScreen() {
             link={{
               id: "app-commerce",
               title: "App commerce & sales",
-              detail: "App stock, orders and channel reporting",
+              detail: "Product availability, orders and channel reporting",
               icon: "stats-chart-outline",
               href: "/commerce-operations",
             }}

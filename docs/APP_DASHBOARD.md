@@ -42,9 +42,9 @@ The session refreshes while working, and Sign out revokes its refresh token.
 
 - Products: search the entire imported catalogue by name, slug or ID; filter
   enabled/disabled products and variations; create simple products; edit names,
-  descriptions, slugs, categories, images, app prices and allocations. Existing
+  descriptions, slugs, categories, images, app prices and made-to-order availability. Existing
   variation configurations are preserved. Enable or disable ordering without
-  deleting sales history. Allocation cannot fall below reserved plus sold units.
+  deleting sales history. Made-to-order cakes require no stock quantity. A stocked-item mode remains available for actual physical inventory; its allocation cannot fall below reserved plus sold units. Existing paid orders remain in order history in either mode.
 - Images: upload JPG, PNG or WebP up to 2 MB to the app backend. Existing copied
   catalogue images remain on the app media archive. Save the form after uploading.
 - Campaigns: create and edit campaign stories, artwork, video URLs, product links,

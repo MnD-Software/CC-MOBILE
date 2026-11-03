@@ -63,7 +63,7 @@ class PlaceOrder(BaseModel):
 def calculate(db, customer_id, data):
     policy = db.get(AppPolicy, "checkout")
     if not policy or not policy.payload.get("enabled") or not policy.payload.get("pricing_confirmed"):
-        raise HTTPException(503, "App ordering is awaiting Cake City's stock and pricing setup. Your bag has been kept.")
+        raise HTTPException(503, "App ordering is awaiting Cake City's pricing and fulfilment setup. Your bag has been kept.")
     policy = policy.payload
     if data.fulfilment == "pickup" and not policy.get("pickup_enabled"):
         raise HTTPException(409, "Pickup is not currently enabled in the app.")
@@ -94,11 +94,13 @@ def calculate(db, customer_id, data):
                 (canonical(a.get("attribute", "")), a.get("value", "").casefold()) not in known for a in item.variation_attributes):
             raise HTTPException(409, "Your variation details changed. Reopen this product before paying.")
         quantities[product.id] = quantities.get(product.id, 0) + item.quantity
-        if quantities[product.id] > product.allocation - product.reserved - product.sold:
+        made_to_order = product.payload.get("order_mode") == "made_to_order"
+        if not made_to_order and quantities[product.id] > product.allocation - product.reserved - product.sold:
             raise HTTPException(409, "The app's available stock or production capacity has changed. Review your bag.")
         lines.append({"product_id": parent.id, "sku_id": product.id, "name": parent.payload.get("name", parent.slug),
                       "slug": parent.slug, "quantity": item.quantity, "unit_minor": product.price_minor,
                       "line_minor": product.price_minor*item.quantity, "revision": product.revision,
+                      "order_mode": "made_to_order" if made_to_order else "stocked",
                       "selection": item.model_dump(exclude={"product_id", "quantity"})})
     subtotal = sum(line["line_minor"] for line in lines)
     fee, zone_revision, zone_name = 0, None, None
@@ -166,9 +168,15 @@ def place(db, customer_id, quote_id, request_key, account_id, environment):
     try:
         for identity, quantity in sorted(current["quantities"].items(), key=lambda item: int(item[0])):
             expected = next(line for line in current["lines"] if line["sku_id"] == int(identity))
-            result = db.execute(update(AppProduct).where(AppProduct.id == int(identity), AppProduct.enabled.is_(True),
-                AppProduct.revision == expected["revision"], AppProduct.price_minor == expected["unit_minor"],
-                AppProduct.allocation-AppProduct.reserved-AppProduct.sold >= quantity).values(reserved=AppProduct.reserved+quantity))
+            condition = update(AppProduct).where(AppProduct.id == int(identity), AppProduct.enabled.is_(True),
+                AppProduct.revision == expected["revision"], AppProduct.price_minor == expected["unit_minor"])
+            if expected["order_mode"] == "made_to_order":
+                # Claim the unchanged catalogue revision without reserving physical stock.
+                result = db.execute(condition.where(AppProduct.payload["order_mode"].as_string() == "made_to_order")
+                    .values(revision=AppProduct.revision))
+            else:
+                result = db.execute(condition.where(AppProduct.allocation-AppProduct.reserved-AppProduct.sold >= quantity)
+                    .values(reserved=AppProduct.reserved+quantity))
             if result.rowcount != 1:
                 raise HTTPException(409, "Available app stock changed. Please review your bag.")
         if current["coupon_code"]:
@@ -203,6 +211,9 @@ def inventory_transition(db, order, paid=False):
     if order.inventory_state != "reserved":
         return
     for identity, quantity in sorted(order.snapshot["quantities"].items(), key=lambda item: int(item[0])):
+        line = next(line for line in order.snapshot["lines"] if line["sku_id"] == int(identity))
+        if line.get("order_mode") == "made_to_order":
+            continue
         result = db.execute(update(AppProduct).where(AppProduct.id == int(identity), AppProduct.reserved >= quantity).values(
             reserved=AppProduct.reserved-quantity, sold=AppProduct.sold+(quantity if paid else 0)))
         if result.rowcount != 1:

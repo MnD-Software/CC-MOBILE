@@ -845,7 +845,8 @@ export const ProductTile = memo(function ProductTile({
               </>
             )}
           </Text>
-          {!product.is_in_stock ||
+          {product.order_mode === "made_to_order" ||
+          !product.is_in_stock ||
           !product.is_purchasable ||
           price === null ||
           quickAddAllowed ? (
@@ -858,10 +859,14 @@ export const ProductTile = memo(function ProductTile({
               }}
             >
               {!product.is_in_stock
-                ? "Out of stock"
+                ? product.order_mode === "made_to_order"
+                  ? "Ordering unavailable"
+                  : "Out of stock"
                 : !product.is_purchasable || price === null
                   ? "View details"
-                  : "Ready to add"}
+                  : product.order_mode === "made_to_order"
+                    ? "Made to order"
+                    : "Ready to add"}
             </Text>
           ) : null}
         </View>
@@ -882,7 +887,7 @@ export const ProductTile = memo(function ProductTile({
         </View>
       ) : null}
       <Pressable
-        accessibilityLabel={`${!product.is_in_stock ? "Out of stock:" : quickAddAllowed ? "Quick add to bag:" : "Choose options for:"} ${plainText(product.name)}`}
+        accessibilityLabel={`${!product.is_in_stock ? (product.order_mode === "made_to_order" ? "Ordering unavailable:" : "Out of stock:") : quickAddAllowed ? "Quick add to bag:" : "Choose options for:"} ${plainText(product.name)}`}
         accessibilityRole="button"
         accessibilityState={{ disabled: !product.is_in_stock }}
         aria-disabled={!product.is_in_stock}
@@ -922,7 +927,9 @@ export const ProductTile = memo(function ProductTile({
             }}
           >
             {!product.is_in_stock
-              ? "Sold out"
+              ? product.order_mode === "made_to_order"
+                ? "Unavailable"
+                : "Sold out"
               : quickAddAllowed
                 ? "Add to bag"
                 : "Choose options"}

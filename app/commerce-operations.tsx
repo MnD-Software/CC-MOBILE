@@ -20,6 +20,7 @@ const stockSchema = z.array(
     price_minor: z.number().nullable(),
     enabled: z.boolean(),
     revision: z.number(),
+    order_mode: z.enum(["made_to_order", "stocked"]).default("stocked"),
   }),
 );
 export default function CommerceOperations() {
@@ -178,7 +179,7 @@ function Operations({ role }: { role: string }) {
         },
         { auth: true },
       );
-      setNotice("App stock and price saved.");
+      setNotice("App product availability and price saved.");
       await stock.refetch();
     } catch (e) {
       setNotice(e instanceof Error ? e.message : "Save failed");
@@ -201,7 +202,7 @@ function Operations({ role }: { role: string }) {
       {notice ? <Notice message={notice} /> : null}
       {canEdit ? (
         <>
-          <Text>App stock allocation and prices</Text>
+          <Text>Made-to-order availability and prices</Text>
           <Input
             label="Find a product"
             value={filter}
@@ -219,7 +220,7 @@ function Operations({ role }: { role: string }) {
               <Button
                 key={r.id}
                 variant="outline"
-                label={`${r.id} ${r.name} · ${r.allocation - r.reserved - r.sold} available`}
+                label={`${r.id} ${r.name} · ${r.order_mode === "made_to_order" ? "Made to order" : `${r.allocation - r.reserved - r.sold} available`}`}
                 onPress={() => {
                   setSku(String(r.id));
                   setPrice(String((r.price_minor || 0) / 100));
@@ -238,12 +239,17 @@ function Operations({ role }: { role: string }) {
             onChangeText={setPrice}
             keyboardType="decimal-pad"
           />
-          <Input
-            label="Total allocated units (includes sold and reserved)"
-            value={allocation}
-            onChangeText={setAllocation}
-            keyboardType="number-pad"
-          />
+          {stock.data?.find((r) => r.id === Number(sku))?.order_mode !==
+          "made_to_order" ? (
+            <Input
+              label="Total allocated units (includes sold and reserved)"
+              value={allocation}
+              onChangeText={setAllocation}
+              keyboardType="number-pad"
+            />
+          ) : (
+            <Notice message="Made to order. No stock quantity is required or deducted." />
+          )}
           <Button
             label="Save and enable for app orders"
             onPress={() => void saveStock(true)}
@@ -284,7 +290,7 @@ function Operations({ role }: { role: string }) {
             }
           />
           <Text>App checkout rules</Text>
-          <Notice message="Only enable ordering after confirming app stock allocations, delivery charges and the actual tax treatment." />
+          <Notice message="Confirm prices, fulfilment instructions, delivery charges and the actual tax treatment before enabling checkout. Made-to-order cakes do not require stock allocations." />
           <Input
             label="Tax rate (%)"
             value={taxPercent}

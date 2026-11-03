@@ -27,6 +27,7 @@ export const storeProductSchema = z.object({
   description: z.string().default(""),
   short_description: z.string().default(""),
   is_in_stock: z.boolean(),
+  order_mode: z.enum(["made_to_order", "stocked"]).default("stocked"),
   is_purchasable: z.boolean().default(false),
   on_sale: z.boolean().default(false),
   prices: z.object({

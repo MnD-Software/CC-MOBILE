@@ -166,7 +166,7 @@ const sections = {
   products: [
     "▦",
     "Products",
-    "Edit your catalogue, app prices and available production capacity.",
+    "Edit your catalogue, app prices and made-to-order availability.",
   ],
   campaigns: [
     "◇",
@@ -268,7 +268,7 @@ const views = {
         Date.parse(c.ends_at) > Date.now(),
     );
     const app = (sales?.channels || []).find((c) => c.channel === "app");
-    return `<div class="stats">${catalogue ? stat("Catalogue records", catalogue.total, "Includes products and variations") : ""}${content ? stat("Live campaigns", live.length, "Published and within schedule") : ""}${codes ? stat("Available promotion codes", codes.filter((c) => !c.customer_id && c.enabled && (!c.expires_at || Date.parse(c.expires_at) > Date.now()) && c.uses + c.reserved < c.usage_limit).length, "General app discount codes") : ""}${sales ? stat("App net sales", money(app?.net_minor), "Verified live payments") : ""}</div><div class="split"><section class="panel"><h2>Your app, ready for the next occasion</h2><p>Keep your range current, tell your story and give customers a reason to celebrate.</p>${canOperate() ? `<div class="action-row"><div><strong>Manage your range</strong><p>Products, variations, images, prices and app stock.</p></div><button data-nav="products">Open catalogue →</button></div>` : ""}${readerRoles.includes(session.customer.role) ? `<div class="action-row"><div><strong>Plan your next campaign</strong><p>Artwork, linked cakes, schedules and publishing.</p></div><button data-nav="campaigns">View campaigns →</button></div>` : ""}${canOperate() ? `<div class="action-row"><div><strong>Create an app promotion</strong><p>Discount value, minimum spend and redemption limits.</p></div><button data-nav="promotions">Manage codes →</button></div>` : ""}</section><section class="panel"><span class="eyebrow">INDEPENDENT COMMERCE</span><h2>One brand. Clear accountability.</h2><p>This workspace manages the app’s own catalogue, campaigns and checkout discounts. Changes persist in the app backend.</p><div class="action-row"><div><strong>App order references</strong><p>APP-prefixed orders stay traceable to the app.</p></div>${pill("App channel", true)}</div><div class="action-row"><div><strong>Website reporting</strong><p>Website totals appear only when imported by the separate reporting integration.</p></div></div><small>Campaign stories promote an offer. Create its discount code under Promotions so checkout can apply it.</small></section></div>`;
+    return `<div class="stats">${catalogue ? stat("Catalogue records", catalogue.total, "Includes products and variations") : ""}${content ? stat("Live campaigns", live.length, "Published and within schedule") : ""}${codes ? stat("Available promotion codes", codes.filter((c) => !c.customer_id && c.enabled && (!c.expires_at || Date.parse(c.expires_at) > Date.now()) && c.uses + c.reserved < c.usage_limit).length, "General app discount codes") : ""}${sales ? stat("App net sales", money(app?.net_minor), "Verified live payments") : ""}</div><div class="split"><section class="panel"><h2>Your app, ready for the next occasion</h2><p>Keep your range current, tell your story and give customers a reason to celebrate.</p>${canOperate() ? `<div class="action-row"><div><strong>Manage your range</strong><p>Products, variations, images, prices and made-to-order availability.</p></div><button data-nav="products">Open catalogue →</button></div>` : ""}${readerRoles.includes(session.customer.role) ? `<div class="action-row"><div><strong>Plan your next campaign</strong><p>Artwork, linked cakes, schedules and publishing.</p></div><button data-nav="campaigns">View campaigns →</button></div>` : ""}${canOperate() ? `<div class="action-row"><div><strong>Create an app promotion</strong><p>Discount value, minimum spend and redemption limits.</p></div><button data-nav="promotions">Manage codes →</button></div>` : ""}</section><section class="panel"><span class="eyebrow">INDEPENDENT COMMERCE</span><h2>One brand. Clear accountability.</h2><p>This workspace manages the app’s own catalogue, campaigns and checkout discounts. Changes persist in the app backend.</p><div class="action-row"><div><strong>App order references</strong><p>APP-prefixed orders stay traceable to the app.</p></div>${pill("App channel", true)}</div><div class="action-row"><div><strong>Website reporting</strong><p>Website totals appear only when imported by the separate reporting integration.</p></div></div><small>Campaign stories promote an offer. Create its discount code under Promotions so checkout can apply it.</small></section></div>`;
   },
   async products() {
     const result = await request(
@@ -281,8 +281,8 @@ const views = {
             [
               "Product",
               "App price",
-              "Available",
-              "Reserved / sold",
+              "Ordering",
+              "Stock activity",
               "Status",
               "",
             ],
@@ -290,7 +290,7 @@ const views = {
               let image = p.payload.images?.[0]?.src || "";
               if (/cakecity\.co\.ke|i[012]\.wp\.com/.test(image))
                 image = "/v1/app-media/source?url=" + encodeURIComponent(image);
-              return `<tr><td><div class="product-name">${image ? `<img src="${esc(image)}" alt="" loading="lazy">` : '<span class="image-fallback">◇</span>'}<div><strong>${esc(p.payload.name)}</strong><small>#${p.id} · ${esc(p.parent_id ? `Variation of #${p.parent_id}` : p.payload.type || "simple")}</small></div></div></td><td>${money(p.price_minor)}</td><td>${p.allocation - p.reserved - p.sold}</td><td>${p.reserved} / ${p.sold}</td><td>${pill(p.enabled ? "Enabled" : "Disabled", p.enabled)}</td><td><button data-product="${p.id}">Edit product</button></td></tr>`;
+              return `<tr><td><div class="product-name">${image ? `<img src="${esc(image)}" alt="" loading="lazy">` : '<span class="image-fallback">◇</span>'}<div><strong>${esc(p.payload.name)}</strong><small>#${p.id} · ${esc(p.parent_id ? `Variation of #${p.parent_id}` : p.payload.type || "simple")}</small></div></div></td><td>${money(p.price_minor)}</td><td>${p.order_mode === "made_to_order" ? "Made to order" : p.allocation - p.reserved - p.sold}</td><td>${p.order_mode === "made_to_order" ? "See order history" : `${p.reserved} / ${p.sold}`}</td><td>${pill(p.enabled ? "Enabled" : "Disabled", p.enabled)}</td><td><button data-product="${p.id}">Edit product</button></td></tr>`;
             }),
           )
         : empty(
@@ -423,7 +423,7 @@ function productEditor(p) {
   const payload = p?.payload || {};
   openEditor(
     p ? `Edit ${payload.name}` : "Add product",
-    `<div class="form-grid">${input("name", "Product name", payload.name || "", "text", "required maxlength=240")}${input("slug", "Product slug", p?.slug || "", "text", 'required pattern="[a-z0-9]+(-[a-z0-9]+)*"')}${input("price", "App price (KES)", (p?.price_minor || 0) / 100, "number", "required min=0.01 step=0.01 max=10000000")}${input("allocation", "Total app allocation", p?.allocation || 0, "number", `required min=${(p?.reserved || 0) + (p?.sold || 0)} max=1000000 step=1`)}<p class="help full">Allocation includes reserved and sold units. Current reserved: ${p?.reserved || 0}; sold: ${p?.sold || 0}. Disable a product to remove it from app ordering.</p>${input("parent_id", "Parent product ID (variation only)", p?.parent_id || "", "number", "readonly")}${check("enabled", "Enable for app orders", p?.enabled)}${area("short_description", "Short description", payload.short_description)}${area("description", "Full description", payload.description)}${area(
+    `<div class="form-grid">${input("name", "Product name", payload.name || "", "text", "required maxlength=240")}${input("slug", "Product slug", p?.slug || "", "text", 'required pattern="[a-z0-9]+(-[a-z0-9]+)*"')}${input("price", "App price (KES)", (p?.price_minor || 0) / 100, "number", "required min=0.01 step=0.01 max=10000000")}<label>Ordering mode<select name="order_mode"><option value="made_to_order" ${(p?.order_mode || "made_to_order") === "made_to_order" ? "selected" : ""}>Made to order</option><option value="stocked" ${p?.order_mode === "stocked" ? "selected" : ""}>Stocked item</option></select></label>${input("allocation", "Stock quantity (stocked items only)", p?.allocation || 0, "number", `required min=${(p?.reserved || 0) + (p?.sold || 0)} max=1000000 step=1`)}<p class="help full">Made-to-order cakes require no stock quantity. Stocked item allocation includes reserved and sold units. Current reserved: ${p?.reserved || 0}; sold: ${p?.sold || 0}. Disable a product to remove it from app ordering.</p>${input("parent_id", "Parent product ID (variation only)", p?.parent_id || "", "number", "readonly")}${check("enabled", "Enable for app orders", p?.enabled)}${area("short_description", "Short description", payload.short_description)}${area("description", "Full description", payload.description)}${area(
       "images",
       "Image URLs (one per line)",
       (payload.images || [])
@@ -457,6 +457,7 @@ function productEditor(p) {
           short_description: f.get("short_description"),
           price_minor: Math.round(Number(f.get("price")) * 100),
           allocation: Number(f.get("allocation")),
+          order_mode: f.get("order_mode"),
           enabled: f.has("enabled"),
           parent_id: f.get("parent_id") ? Number(f.get("parent_id")) : null,
           image_urls: list(f.get("images")),
@@ -465,6 +466,13 @@ function productEditor(p) {
       );
     },
   );
+
+  const mode = $("fields").querySelector('[name="order_mode"]');
+  const allocationField = $("fields").querySelector('[name="allocation"]');
+  mode.onchange = () => {
+    allocationField.closest("label").hidden = mode.value === "made_to_order";
+  };
+  mode.onchange();
 }
 function campaignEditor(c) {
   const now = new Date();

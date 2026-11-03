@@ -20,7 +20,7 @@ export const shopDepartments = [
     ),
     filters: [
       { id: "all", label: "All vanilla cakes" },
-      { id: "sponge", label: "Vanilla sponge", note: "Ready now" },
+      { id: "sponge", label: "Vanilla sponge", note: "Made to order" },
       { id: "pound", label: "Vanilla pound cake", note: "Order 1 day ahead" },
     ],
   },
@@ -48,7 +48,7 @@ export const shopDepartments = [
     filters: [
       { id: "all", label: "All chocolate cakes" },
       { id: "pound", label: "Chocolate pound cake", note: "Order 1 day ahead" },
-      { id: "sponge", label: "Chocolate sponge", note: "Ready now" },
+      { id: "sponge", label: "Chocolate sponge", note: "Made to order" },
     ],
   },
   {

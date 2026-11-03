@@ -42,7 +42,8 @@ class StockInput(BaseModel):
 @router.get("/v1/admin/app-products")
 def products(_: Customer = Depends(operator), db: Session = Depends(get_db)):
     return [{"id": r.id, "name": r.payload.get("name", r.slug), "parent_id": r.parent_id, "price_minor": r.price_minor,
-             "allocation": r.allocation, "reserved": r.reserved, "sold": r.sold, "enabled": r.enabled, "revision": r.revision}
+             "allocation": r.allocation, "reserved": r.reserved, "sold": r.sold, "enabled": r.enabled, "revision": r.revision,
+             "order_mode": r.payload.get("order_mode", "stocked")}
             for r in db.scalars(select(AppProduct).order_by(AppProduct.id).limit(5000))]
 
 
