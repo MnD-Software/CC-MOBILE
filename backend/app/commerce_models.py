@@ -77,6 +77,14 @@ class AppPolicy(Base):
     payload: Mapped[dict] = mapped_column(JSON)
 
 
+class AppDeliveryQuote(Base):
+    __tablename__ = "app_delivery_quotes"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    customer_id: Mapped[str] = mapped_column(ForeignKey("customers.id"), index=True)
+    snapshot: Mapped[dict] = mapped_column(JSON)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
 class AppOrder(Base):
     __tablename__ = "app_orders"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)

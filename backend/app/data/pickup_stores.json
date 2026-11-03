@@ -1,0 +1,97 @@
+{
+  "source": "https://cakecity.co.ke/locations-branches/",
+  "copied_on": "2026-11-03",
+  "stores": [
+    {
+      "id": "avenue-house-cbd",
+      "name": "Avenue House, CBD",
+      "address": "Cake City, Avenue House, CBD, Kenyatta Avenue, Ground Floor Avenue House, Nairobi, Kenya",
+      "latitude": null,
+      "longitude": null
+    },
+    {
+      "id": "gallant-mall-westlands",
+      "name": "Gallant Mall, Westlands",
+      "address": "Cake City, Gallant Mall, Westlands, Ground Floor Gallant Mall, Parklands Road, Opposite Mayfair Suites, Westlands Rd, Nairobi, Kenya",
+      "latitude": null,
+      "longitude": null
+    },
+    {
+      "id": "karen-westwood-park-ngong-rd",
+      "name": "Karen, Westwood Park, Ngong Rd",
+      "address": "Cake City, Karen, Westwood Park, Ngong Rd, Westwood Park Road, Ngong Rd, Nairobi, Kenya",
+      "latitude": null,
+      "longitude": null
+    },
+    {
+      "id": "53-box-park-ring-rd-kilimani",
+      "name": "53 Box Park, Ring Rd, Kilimani",
+      "address": "Cake City, 53 Box Park, Ring Rd, Kilimani, Ring Rd Kilimani, Nairobi, Kenya",
+      "latitude": null,
+      "longitude": null
+    },
+    {
+      "id": "magharibi-place-langata",
+      "name": "Magharibi place, Langata",
+      "address": "Cake City, Magharibi place, Langata, Mai Mahiu Rd, Nairobi, Kenya",
+      "latitude": null,
+      "longitude": null
+    },
+    {
+      "id": "karen-c",
+      "name": "Karen C",
+      "address": "Cake City, Karen C, Kenya",
+      "latitude": null,
+      "longitude": null
+    },
+    {
+      "id": "imaara-mall-embakasi",
+      "name": "Imaara Mall, Embakasi",
+      "address": "Cake City, Imaara Mall, Embakasi, Airport North Road Eastern Bypass, Kenya",
+      "latitude": null,
+      "longitude": null
+    },
+    {
+      "id": "arcadia-mall-athi-river",
+      "name": "Arcadia Mall, Athi River",
+      "address": "Cake City, Arcadia Mall, Athi River, Mombasa Road, Athi River, Kenya",
+      "latitude": null,
+      "longitude": null
+    },
+    {
+      "id": "1st-floor-shop-14e-trm",
+      "name": "1st floor shop 14E, TRM",
+      "address": "Cake City, 1st floor shop 14E, TRM, Kenya",
+      "latitude": -1.2188769,
+      "longitude": 36.8876524
+    },
+    {
+      "id": "fourways-shell-kiambu-rd",
+      "name": "Fourways Shell, Kiambu Rd.",
+      "address": "Cake City, Fourways Shell, Kiambu Rd., Kiambu Rd, Kenya",
+      "latitude": null,
+      "longitude": null
+    },
+    {
+      "id": "ruaka-shopping-mall",
+      "name": "Ruaka Shopping Mall",
+      "address": "Cake City, Ruaka Shopping Mall, Kenya",
+      "latitude": -1.2098116,
+      "longitude": 36.7882957
+    },
+    {
+      "id": "luqmaan-mall-lavington",
+      "name": "Luqmaan Mall, Lavington",
+      "address": "Cake City, Luqmaan Mall, Lavington, Kenya",
+      "latitude": null,
+      "longitude": null
+    },
+    {
+      "id": "nord-mall-ruiru",
+      "name": "Nord Mall, Ruiru.",
+      "address": "Cake City, Nord Mall, Ruiru., Nord Mall, 1st floor, Next to Samsung Shop, Ruiru, Kenya",
+      "latitude": null,
+      "longitude": null
+    }
+  ]
+}

@@ -124,7 +124,7 @@ Before enabling ordering, confirm and save the tax/pickup rules in Account > App
 }
 ```
 
-The values above illustrate the API shape; zero tax is not a tax recommendation or a live configuration. Use Cake City's approved actual tax treatment and pickup location. Configure delivery zones and their actual fees in the operations screen or `PUT /v1/admin/app-delivery-zones/{id}`. The customer must choose a configured zone. Lead-time/cutoff rules, dispatch provider integration and eTIMS remain separate release work; operators must only allocate production capacity they can fulfil.
+The values above illustrate the API shape; zero tax is not a tax recommendation or a live configuration. Use Cake City's approved actual tax treatment and pickup location. The web dashboard now provides **Checkout & delivery** to confirm these values. The HQ distance rate described below replaces flat zones when enabled. Legacy configured flat zones are used only while the HQ distance policy is disabled. Lead-time/cutoff rules, dispatch provider integration and eTIMS remain separate release work; operators must only accept orders they can fulfil.
 
 ## Sales accountability and issue separation
 
@@ -185,3 +185,5 @@ Staff open **Orders** in `/admin`, select **View details and tracking** for cust
 Confetti runs only after a backend-confirmed completed payment with a paid timestamp; it respects Reduce Motion. Successful checkout settles purchased bag items and keeps the order and receipt available in the app.
 
 Live checkout still requires confirmed pickup/delivery and tax/pricing policy. A successful mocked-provider test is not proof of a live payment or native-device payment completion.
+
+HQ distance delivery and branch pickup setup: see [HQ_DELIVERY.md](HQ_DELIVERY.md). The rate card comes from the owner?s fulfilment presentation; branch pickup is selected before payment and its HQ-to-branch transfer is quoted at 50% of the applicable delivery charge.

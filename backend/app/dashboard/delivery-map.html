@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Choose delivery location</title>
+    <style>
+      html,
+      body,
+      #map {
+        height: 100%;
+        margin: 0;
+        font-family: Arial, sans-serif;
+      }
+      .pin {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -100%);
+        width: 30px;
+        height: 40px;
+        color: #b80068;
+        pointer-events: none;
+        text-shadow: 0 1px 3px white;
+      }
+      .bar {
+        position: absolute;
+        bottom: 20px;
+        left: 20px;
+        right: 20px;
+        padding: 16px;
+        border-radius: 18px;
+        background: white;
+        box-shadow: 0 3px 18px #0003;
+      }
+      .bar p {
+        margin: 0 0 12px;
+        color: #444;
+        font-size: 14px;
+      }
+      button {
+        border: 0;
+        border-radius: 12px;
+        background: #b80068;
+        color: white;
+        padding: 16px;
+        width: 100%;
+        font-weight: bold;
+        font-size: 16px;
+      }
+      #error {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        right: 10px;
+        background: white;
+        padding: 20px;
+        color: #b80068;
+      }
+      #error:empty {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="map"></div>
+    <div class="pin" aria-hidden="true">
+      <svg viewBox="0 0 30 40" width="30" height="40">
+        <path
+          fill="#b80068"
+          stroke="white"
+          d="M15 39C12 34 1 24 1 15a14 14 0 1 1 28 0c0 9-11 19-14 24Z"
+        />
+        <circle cx="15" cy="15" r="5" fill="white" />
+      </svg>
+    </div>
+    <div class="bar">
+      <p>
+        Move the map to put the pin at your delivery entrance. The shaded circle
+        is the HQ delivery area.
+      </p>
+      <button id="choose" disabled>Confirm this delivery pin</button>
+    </div>
+    <p id="error" role="alert"></p>
+    <script>
+      const config = __CONFIG__;
+      let map;
+      function fail() {
+        document.getElementById("error").textContent =
+          "Maps could not load. Close this view and use location search or your current location.";
+      }
+      window.gm_authFailure = fail;
+      window.initMap = async () => {
+        try {
+          map = new google.maps.Map(document.getElementById("map"), {
+            center: (() => {
+              const p = location.hash.slice(1).split(",").map(Number);
+              return p.length === 2 &&
+                p.every(Number.isFinite) &&
+                Math.abs(p[0]) <= 90 &&
+                Math.abs(p[1]) <= 180
+                ? { lat: p[0], lng: p[1] }
+                : { lat: config.origin.latitude, lng: config.origin.longitude };
+            })(),
+            zoom: 14,
+            streetViewControl: false,
+            mapTypeControl: false,
+            fullscreenControl: false,
+          });
+          if (config.radius_km)
+            new google.maps.Circle({
+              map,
+              center: {
+                lat: config.origin.latitude,
+                lng: config.origin.longitude,
+              },
+              radius: config.radius_km * 1000,
+              fillColor: "#b80068",
+              fillOpacity: 0.08,
+              strokeColor: "#b80068",
+              strokeWeight: 1,
+            });
+          document.getElementById("choose").disabled = false;
+        } catch (e) {
+          fail();
+        }
+      };
+      document.getElementById("choose").onclick = () => {
+        if (!map) return;
+        const center = map.getCenter();
+        const message = {
+          type: "cakecity-delivery-pin",
+          latitude: center.lat(),
+          longitude: center.lng(),
+        };
+        if (window.ReactNativeWebView)
+          window.ReactNativeWebView.postMessage(JSON.stringify(message));
+        else window.parent.postMessage(message, "*");
+      };
+    </script>
+    <script
+      async
+      src="https://maps.googleapis.com/maps/api/js?key=__MAP_KEY__&loading=async&callback=initMap"
+      onerror="fail()"
+    ></script>
+  </body>
+</html>

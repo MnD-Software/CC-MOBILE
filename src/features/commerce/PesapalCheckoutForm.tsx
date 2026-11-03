@@ -7,7 +7,7 @@ import { router } from "expo-router";
 import { randomUUID } from "expo-crypto";
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
-import { api } from "@/api/client";
+import { api, ApiError } from "@/api/client";
 import { useAuth } from "@/auth/AuthProvider";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -28,6 +28,8 @@ import { InAppPayment } from "./InAppPayment";
 import { loadBillingProfile, validateBillingProfile } from "./billing-profile";
 import { useBag } from "./store";
 import { money, type CheckoutInput } from "./contracts";
+import { distanceOptionsSchema, type DeliveryRouteQuote } from "./app-delivery";
+import { HqDeliveryPicker } from "./HqDeliveryPicker";
 
 const quoteSchema = z.object({
   id: z.string(),
@@ -38,6 +40,7 @@ const quoteSchema = z.object({
   tax_minor: z.number(),
 });
 const optionsSchema = z.object({
+  distance_delivery: distanceOptionsSchema.optional(),
   pickup_enabled: z.boolean(),
   pickup_instructions: z.string().default(""),
   delivery_zones: z.array(
@@ -79,6 +82,9 @@ function AppCheckout({ owner }: { owner: string }) {
     "delivery",
   );
   const [zone, setZone] = useState("");
+  const [deliveryQuote, setDeliveryQuote] = useState<DeliveryRouteQuote | null>(
+    null,
+  );
   const [coupon, setCoupon] = useState("");
   const [notes, setNotes] = useState("");
   const [recipient, setRecipient] = useState("");
@@ -101,6 +107,7 @@ function AppCheckout({ owner }: { owner: string }) {
     fingerprint: string;
   } | null>(null);
   const [restored, setRestored] = useState(false);
+  const [unresolvedCreation, setUnresolvedCreation] = useState(false);
   const recoveryFailed = useRef(false);
   const key = `cakecity.app-checkout.${owner}`;
   const fingerprint = JSON.stringify({
@@ -108,6 +115,7 @@ function AppCheckout({ owner }: { owner: string }) {
     billing,
     fulfilment,
     zone,
+    deliveryQuote,
     coupon,
     notes,
     recipient,
@@ -119,7 +127,11 @@ function AppCheckout({ owner }: { owner: string }) {
       optionsSchema.parse(await api.get("/v1/app-checkout/options")),
   });
   useEffect(() => {
-    if (options.data?.pickup_enabled && !options.data.delivery_zones.length)
+    if (
+      options.data?.pickup_enabled &&
+      !options.data.delivery_zones.length &&
+      !options.data.distance_delivery?.enabled
+    )
       setFulfilment("pickup");
   }, [options.data]);
   useEffect(() => {
@@ -158,14 +170,29 @@ function AppCheckout({ owner }: { owner: string }) {
     void getStorageItem(key)
       .then(async (saved) => {
         if (!saved) return;
-        const value = JSON.parse(saved);
+        const value = z
+          .object({
+            owner: z.string(),
+            attempt: z.object({
+              quote_id: z.string().uuid(),
+              key: z.string().min(16).max(80),
+              fingerprint: z.string(),
+            }),
+            reference: z.string().regex(/^APP-/).optional(),
+          })
+          .parse(JSON.parse(saved));
         if (value.owner !== owner)
           throw new Error("Checkout recovery belongs to another account.");
         attempt.current = value.attempt;
+        if (alive.current) setUnresolvedCreation(true);
         if (value.reference) {
           const recovered = await appOrders.detail(value.reference);
-          if (alive.current) setOrder(recovered);
+          if (alive.current) {
+            setOrder(recovered);
+            setUnresolvedCreation(false);
+          }
         } else if (value.attempt?.key) {
+          if (alive.current) setUnresolvedCreation(true);
           const recovery = z
             .object({ order: appOrderSchema.nullable() })
             .parse(
@@ -174,8 +201,10 @@ function AppCheckout({ owner }: { owner: string }) {
                 { auth: true },
               ),
             );
-          if (alive.current && recovery.order) setOrder(recovery.order);
-          else if (!recovery.order) {
+          if (alive.current && recovery.order) {
+            setOrder(recovery.order);
+            setUnresolvedCreation(false);
+          } else if (!recovery.order) {
             recoveryFailed.current = true;
             if (alive.current)
               setError(
@@ -224,6 +253,12 @@ function AppCheckout({ owner }: { owner: string }) {
   }
   async function review() {
     if (flight.current || !restored) return;
+    if (unresolvedCreation) {
+      setError(
+        "Recover the existing order request before reviewing another checkout.",
+      );
+      return;
+    }
     flight.current = true;
     setBusy(true);
     setError("");
@@ -244,6 +279,7 @@ function AppCheckout({ owner }: { owner: string }) {
             })),
             fulfilment,
             delivery_zone_id: fulfilment === "delivery" ? zone : null,
+            delivery_quote_id: deliveryQuote?.id || null,
             coupon_code: coupon.trim() || null,
             billing: {
               first_name: valid.firstName,
@@ -275,6 +311,74 @@ function AppCheckout({ owner }: { owner: string }) {
       if (alive.current) setBusy(false);
     }
   }
+  async function resumeCreation() {
+    if (flight.current || !attempt.current) return;
+    flight.current = true;
+    setBusy(true);
+    setError("");
+    try {
+      const current = appOrderSchema.parse(
+        await api.post(
+          "/v1/app-orders",
+          { quote_id: attempt.current.quote_id },
+          { auth: true, headers: { "Idempotency-Key": attempt.current.key } },
+        ),
+      );
+      if (!alive.current) return;
+      setOrder(current);
+      setUnresolvedCreation(false);
+      setRestored(true);
+      recoveryFailed.current = false;
+      await setStorageItem(
+        key,
+        JSON.stringify({
+          owner,
+          attempt: attempt.current,
+          reference: current.reference,
+        }),
+      );
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 409 && attempt.current) {
+        try {
+          const recovered = z
+            .object({ order: appOrderSchema.nullable() })
+            .parse(
+              await api.get(
+                `/v1/app-checkout/recovery?request_key=${encodeURIComponent(attempt.current.key)}`,
+                { auth: true },
+              ),
+            );
+          if (recovered.order) {
+            if (alive.current) {
+              setOrder(recovered.order);
+              setUnresolvedCreation(false);
+              setRestored(true);
+            }
+          } else {
+            await deleteStorageItem(key);
+            attempt.current = null;
+            if (alive.current) {
+              setQuote(null);
+              setUnresolvedCreation(false);
+              setRestored(true);
+              recoveryFailed.current = false;
+            }
+          }
+        } catch {
+          /* Keep the original recovery record when its outcome is unknown. */
+        }
+      }
+      if (alive.current)
+        setError(
+          e instanceof Error
+            ? e.message
+            : "The existing order could not be recovered. Try recovery again before another payment.",
+        );
+    } finally {
+      flight.current = false;
+      if (alive.current) setBusy(false);
+    }
+  }
   async function pay() {
     if (flight.current || !restored) return;
     flight.current = true;
@@ -294,6 +398,7 @@ function AppCheckout({ owner }: { owner: string }) {
           key,
           JSON.stringify({ owner, attempt: attempt.current }),
         );
+        setUnresolvedCreation(true);
         current = appOrderSchema.parse(
           await api.post(
             "/v1/app-orders",
@@ -301,6 +406,10 @@ function AppCheckout({ owner }: { owner: string }) {
             { auth: true, headers: { "Idempotency-Key": attempt.current.key } },
           ),
         );
+        if (alive.current) {
+          setOrder(current);
+          setUnresolvedCreation(false);
+        }
         await setStorageItem(
           key,
           JSON.stringify({
@@ -309,7 +418,6 @@ function AppCheckout({ owner }: { owner: string }) {
             reference: current.reference,
           }),
         );
-        if (alive.current) setOrder(current);
       }
       const result = await appOrders.start(current.reference);
       if (!alive.current) return;
@@ -479,6 +587,24 @@ function AppCheckout({ owner }: { owner: string }) {
         ) : null}
       </View>
     );
+  if (unresolvedCreation)
+    return (
+      <View style={{ gap: 16 }}>
+        <Notice message="Your order request has been saved. Recover that same request before starting another checkout." />
+        {error ? <Notice error message={error} /> : null}
+        <Button
+          label="Recover existing order request"
+          disabled={busy}
+          loading={busy}
+          onPress={() => void resumeCreation()}
+        />
+        <Button
+          variant="outline"
+          label="View app orders"
+          onPress={() => router.push("/orders")}
+        />
+      </View>
+    );
   return (
     <View style={{ gap: 18 }}>
       <LinearGradient
@@ -585,13 +711,17 @@ function AppCheckout({ owner }: { owner: string }) {
             label={
               fulfilment === "pickup" ? "Pickup selected" : "Choose pickup"
             }
-            onPress={() => setFulfilment("pickup")}
+            onPress={() => {
+              setDeliveryQuote(null);
+              setFulfilment("pickup");
+            }}
           />
         ) : null}
         {fulfilment === "pickup" && options.data?.pickup_instructions ? (
           <Notice message={options.data.pickup_instructions} />
         ) : null}
-        {options.data?.delivery_zones.length ? (
+        {options.data?.delivery_zones.length ||
+        options.data?.distance_delivery?.enabled ? (
           <Button
             variant="outline"
             label={
@@ -599,10 +729,23 @@ function AppCheckout({ owner }: { owner: string }) {
                 ? "Delivery selected"
                 : "Choose delivery"
             }
-            onPress={() => setFulfilment("delivery")}
+            onPress={() => {
+              setDeliveryQuote(null);
+              setFulfilment("delivery");
+            }}
           />
         ) : null}
-        {fulfilment === "delivery"
+        {options.data?.distance_delivery?.enabled ? (
+          <HqDeliveryPicker
+            options={options.data.distance_delivery}
+            fulfilment={fulfilment}
+            onChange={setDeliveryQuote}
+            onAddressSelect={(address) =>
+              setBilling((previous) => ({ ...previous, address }))
+            }
+          />
+        ) : null}
+        {fulfilment === "delivery" && !options.data?.distance_delivery?.enabled
           ? options.data?.delivery_zones.map((z) => (
               <Button
                 key={z.id}
@@ -620,6 +763,7 @@ function AppCheckout({ owner }: { owner: string }) {
         ) : null}
         {options.data &&
         !options.data.pickup_enabled &&
+        !options.data.distance_delivery?.enabled &&
         !options.data.delivery_zones.length ? (
           <Notice message="Pickup and delivery are not configured yet. Your bag is saved; payment will be available once Cake City confirms these options." />
         ) : null}
@@ -654,8 +798,10 @@ function AppCheckout({ owner }: { owner: string }) {
             !lines.length ||
             options.isPending ||
             options.isError ||
+            (options.data?.distance_delivery?.enabled && !deliveryQuote) ||
             !(
               options.data?.pickup_enabled ||
+              options.data?.distance_delivery?.enabled ||
               options.data?.delivery_zones.length
             )
           }

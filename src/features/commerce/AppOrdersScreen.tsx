@@ -189,6 +189,22 @@ export function AppOrderScreen() {
               Made to order. Progress updates appear here as our team prepares
               your celebration.
             </Text>
+            {value.snapshot?.route ? (
+              <>
+                <Text>Prepared at {value.snapshot.route.origin_name}</Text>
+                <Text>
+                  {value.snapshot.route.destination_name}
+                  {value.snapshot.route.destination_address
+                    ? `: ${value.snapshot.route.destination_address}`
+                    : `: ${value.snapshot.route.destination.latitude.toFixed(5)}, ${value.snapshot.route.destination.longitude.toFixed(5)}`}
+                </Text>
+                <Text>
+                  {value.snapshot.route.distance_meters / 1000} km by road.{" "}
+                  {value.snapshot.route.rate}. Transport:{" "}
+                  {money(value.snapshot.route.fee_minor / 100)}.
+                </Text>
+              </>
+            ) : null}
             {orderTracking(value).map((step) => (
               <View key={step.label} style={{ gap: 4 }}>
                 <Text>

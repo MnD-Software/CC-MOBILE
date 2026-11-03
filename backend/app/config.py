@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     pesapal_public_url: str = ""
     render_external_url: str = ""
     redis_url: str = ""
+    google_maps_api_key: str = ""
+    google_maps_browser_key: str = ""
     database_pool_size: int = Field(default=5, ge=1, le=50)
     database_max_overflow: int = Field(default=5, ge=0, le=50)
     club_earn_minor: int = Field(default=10000, gt=0)

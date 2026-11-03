@@ -26,6 +26,7 @@ from .routes_pesapal import router as pesapal_router
 from .app_catalogue import router as app_catalogue_router
 from .routes_app_admin import router as app_admin_router
 from .routes_dashboard import router as dashboard_router
+from .routes_app_delivery import router as delivery_router
 
 
 @asynccontextmanager
@@ -68,6 +69,7 @@ app.include_router(pesapal_router)
 app.include_router(app_catalogue_router)
 app.include_router(app_admin_router)
 app.include_router(dashboard_router)
+app.include_router(delivery_router)
 
 
 @app.get("/ready/db")

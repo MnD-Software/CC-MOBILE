@@ -40,7 +40,15 @@ def configuration(db: Session = Depends(get_db)):
 @router.get("/v1/app-checkout/options")
 def options(db: Session = Depends(get_db)):
     policy = db.get(AppPolicy, "checkout")
+    from . import app_delivery
+    delivery = app_delivery.policy(db)
     return {"pickup_enabled": bool(policy and policy.payload.get("pickup_enabled")),
+            "distance_delivery": {"enabled": delivery.enabled, "maps_ready": bool(get_settings().google_maps_api_key),
+                "map_picker_ready": bool(get_settings().google_maps_browser_key),
+                "origin_name": delivery.origin_name, "origin_address": delivery.origin_address,
+                "origin": delivery.origin.model_dump() if delivery.origin else None, "radius_km": delivery.radius_km,
+                "base_minor": 10000, "per_km_minor": 3000, "transfer_percent": 50,
+                "pickup_stores": [s.model_dump() for s in delivery.pickup_stores]},
             "pickup_instructions": policy.payload.get("pickup_instructions", "") if policy else "",
             "delivery_zones": [{"id": z.id, "name": z.name, "fee_minor": z.fee_minor}
                                for z in db.scalars(select(AppDeliveryZone).where(AppDeliveryZone.enabled.is_(True)))]}

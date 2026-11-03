@@ -48,6 +48,7 @@ class CheckoutData(BaseModel):
     items: list[Selection] = Field(min_length=1, max_length=30)
     fulfilment: str = Field(pattern="^(pickup|delivery)$")
     delivery_zone_id: str | None = Field(default=None, max_length=80)
+    delivery_quote_id: str | None = Field(default=None, max_length=36)
     coupon_code: str | None = Field(default=None, max_length=100)
     billing: Billing
     recipient_name: str = Field(default="", max_length=160)
@@ -104,7 +105,14 @@ def calculate(db, customer_id, data):
                       "selection": item.model_dump(exclude={"product_id", "quantity"})})
     subtotal = sum(line["line_minor"] for line in lines)
     fee, zone_revision, zone_name = 0, None, None
-    if data.fulfilment == "delivery":
+    from . import app_delivery
+    delivery_config = app_delivery.policy(db)
+    route_snapshot = None
+    if delivery_config.enabled:
+        route_snapshot = app_delivery.checked_quote(db, customer_id, data.delivery_quote_id, data.fulfilment)
+        fee = route_snapshot["fee_minor"]
+        zone_name = route_snapshot["destination_name"]
+    elif data.fulfilment == "delivery":
         zone = db.get(AppDeliveryZone, data.delivery_zone_id)
         if not zone or not zone.enabled:
             raise HTTPException(409, "Select a delivery area configured in the app.")
@@ -125,10 +133,13 @@ def calculate(db, customer_id, data):
     total = base if included else base + tax
     if not 0 < total <= 1_000_000_000:
         raise HTTPException(409, "This order total needs staff assistance.")
+    pickup_instructions = policy.get("pickup_instructions", "") if data.fulfilment == "pickup" else ""
+    if route_snapshot and data.fulfilment == "pickup" and route_snapshot.get("pickup_location_id") != "hq":
+        pickup_instructions = f"Collect from {route_snapshot['destination_name']}, {route_snapshot['destination_address']}, after your order is marked ready. Present your APP order reference."
     return {"lines": lines, "quantities": {str(k): v for k, v in quantities.items()}, "subtotal_minor": subtotal,
             "delivery_minor": fee, "discount_minor": discount, "tax_minor": tax, "prices_include_tax": included,
             "total_minor": total, "currency": "KES", "coupon_code": coupon_code, "zone_revision": zone_revision,
-            "zone_name": zone_name, "policy_digest": digest(policy), "checkout": data.model_dump(mode="json"), "pickup_instructions": policy.get("pickup_instructions", "") if data.fulfilment == "pickup" else ""}
+            "zone_name": zone_name, "route": route_snapshot, "policy_digest": digest(policy), "checkout": data.model_dump(mode="json"), "pickup_instructions": pickup_instructions}
 
 
 def quote(db, customer_id, data):

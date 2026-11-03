@@ -53,6 +53,8 @@ let session = null,
   products = [],
   campaigns = [],
   promotions = [],
+  deliverySettings = null,
+  checkoutSettings = null,
   editorSave = null,
   generation = 0;
 const operatorRoles = ["admin", "staff", "ecommerce_manager"],
@@ -162,6 +164,11 @@ $("signout").onclick = async () => {
   }
 };
 const sections = {
+  delivery: [
+    "↗",
+    "Checkout & delivery",
+    "HQ dispatch, delivery boundaries and payment readiness.",
+  ],
   overview: ["◈", "Overview", "A clear view of your app store."],
   products: [
     "▦",
@@ -195,7 +202,7 @@ function navigation() {
     "overview",
     ...(canOperate() ? ["products"] : []),
     ...(readerRoles.includes(session.customer.role) ? ["campaigns"] : []),
-    ...(canOperate() ? ["promotions", "orders"] : []),
+    ...(canOperate() ? ["promotions", "orders", "delivery"] : []),
     ...(canReport() ? ["sales", "issues"] : []),
   ];
   document.querySelector("nav").innerHTML = allowed
@@ -250,6 +257,15 @@ async function show(next = tab) {
 const stat = (label, value, note) =>
   `<div class="stat"><small>${esc(label)}</small><strong>${esc(value)}</strong><span>${esc(note)}</span></div>`;
 const views = {
+  async delivery() {
+    [deliverySettings, checkoutSettings] = await Promise.all([
+      request("/v1/admin/app-delivery"),
+      request("/v1/admin/app-policy"),
+    ]);
+    const d = deliverySettings,
+      p = checkoutSettings || {};
+    return `<section class="panel"><h2>App payments and HQ fulfilment</h2><p>All app orders are produced and dispatched from HQ. Confirm the HQ pin, delivery boundary and price/tax treatment before accepting payments.</p><div class="stats">${stat("Route service", d.maps_ready ? "Configured" : "Key needed", "GOOGLE_MAPS_API_KEY on Render")}${stat("Map picker", d.map_picker_ready ? "Configured" : "Key needed", "GOOGLE_MAPS_BROWSER_KEY on Render")}${stat("Checkout", p.enabled && p.pricing_confirmed ? "Enabled" : "Awaiting confirmation", "Live payment also requires the Pesapal merchant account")}</div><button data-payment-check="true">Check Pesapal account and callback setup</button><h3>Confirmed rate card</h3><p>Doorstep: KES 100 + KES 30/km by road from HQ. Same-store HQ collection: free. Transfers to another pickup store: 50% of the applicable delivery fee.</p><small>${esc(d.source)}</small><h3>${esc(d.origin_name)}</h3><p>${esc(d.origin_address)}</p><p>${d.origin ? `${esc(d.origin.latitude)}, ${esc(d.origin.longitude)}` : "HQ pin not confirmed"}. Boundary: ${d.radius_km ? `${esc(d.radius_km)} km radius` : "not confirmed"}.</p><button data-delivery-config="hq">Configure HQ and delivery area</button><button data-checkout-config="true">Configure checkout and tax</button><h3>Additional pickup stores</h3><p>HQ collection is free. Additional stores require a quoted transfer from HQ.</p>${(d.pickup_stores || []).map((s) => `<p>${esc(s.name)} - ${esc(s.address)} <button data-edit-pickup="${esc(s.id)}">Edit branch</button><button data-remove-pickup="${esc(s.id)}">Remove store</button></p>`).join("")}<button data-delivery-config="store">Add pickup store</button></section>`;
+  },
   async overview() {
     const results = await Promise.all([
       canOperate() ? request("/v1/admin/dashboard/products?per_page=1") : null,
@@ -421,6 +437,92 @@ function openEditor(title, fields, save, readOnly = false) {
     .forEach((i) => (i.disabled = readOnly));
   editorSave = save;
   $("editor").showModal();
+}
+function deliveryPayload(overrides = {}) {
+  const {
+    enabled,
+    origin_name,
+    origin_address,
+    origin,
+    radius_km,
+    pickup_stores,
+  } = deliverySettings;
+  return {
+    enabled,
+    origin_name,
+    origin_address,
+    origin,
+    radius_km,
+    pickup_stores,
+    ...overrides,
+  };
+}
+function deliveryEditor(kind) {
+  const d = deliverySettings;
+  if (kind === "hq") {
+    openEditor(
+      "HQ production and delivery boundary",
+      `<div class="form-grid">${input("origin_name", "Production / dispatch name", d.origin_name, "text", "required")}${input("origin_address", "HQ address", d.origin_address, "text", "required")}<button type="button" data-find-hq="true">Find HQ pin from this address</button><div id="hq-results" class="full"></div>${input("latitude", "Confirmed HQ latitude", d.origin?.latitude ?? "", "number", "required min=-90 max=90 step=any")}${input("longitude", "Confirmed HQ longitude", d.origin?.longitude ?? "", "number", "required min=-180 max=180 step=any")}${input("radius_km", "Delivery radius from HQ (km)", d.radius_km ?? "", "number", "required min=0.1 max=500 step=0.1")}${check("enabled", "Enable HQ distance delivery and transfers", d.enabled)}<p class="help full">Select the correct HQ result before saving. The circle controls eligibility; Google road distance determines the delivery charge.</p></div>`,
+      async (f) => {
+        await request(
+          "/v1/admin/app-delivery",
+          "PUT",
+          deliveryPayload({
+            enabled: f.has("enabled"),
+            origin_name: f.get("origin_name").trim(),
+            origin_address: f.get("origin_address").trim(),
+            origin: {
+              latitude: Number(f.get("latitude")),
+              longitude: Number(f.get("longitude")),
+            },
+            radius_km: Number(f.get("radius_km")),
+          }),
+        );
+      },
+    );
+  } else {
+    const store = d.pickup_stores.find((s) => s.id === kind);
+    openEditor(
+      store ? "Edit pickup store" : "Add a pickup store",
+      `<div class="form-grid">${input("id", "Store ID", store?.id || "", "text", `required pattern="[a-z0-9-]{1,60}" ${store ? "readonly" : ""}`)}${input("name", "Store name", store?.name || "", "text", "required")}${input("address", "Store address", store?.address || "", "text", "required")}${input("latitude", "Store latitude (optional)", store?.latitude ?? "", "number", "min=-90 max=90 step=any")}${input("longitude", "Store longitude (optional)", store?.longitude ?? "", "number", "min=-180 max=180 step=any")}<p class="help full">The app quotes 50% of the applicable HQ-to-store delivery fee for this transfer. Set the exact branch pin here if its address lookup needs confirmation.</p></div>`,
+      async (f) => {
+        await request(
+          "/v1/admin/app-delivery",
+          "PUT",
+          deliveryPayload({
+            pickup_stores: [
+              ...d.pickup_stores.filter((s) => s.id !== store?.id),
+              {
+                id: f.get("id"),
+                name: f.get("name"),
+                address: f.get("address"),
+                latitude: f.get("latitude") ? Number(f.get("latitude")) : null,
+                longitude: f.get("longitude")
+                  ? Number(f.get("longitude"))
+                  : null,
+              },
+            ],
+          }),
+        );
+      },
+    );
+  }
+}
+function checkoutEditor() {
+  const p = checkoutSettings || {};
+  openEditor(
+    "Checkout activation and price / tax confirmation",
+    `<div class="form-grid">${check("enabled", "Enable app checkout", p.enabled)}${check("pricing_confirmed", "I confirm the app prices and tax treatment below", p.pricing_confirmed)}${check("pickup_enabled", "Offer customer pickup", p.pickup_enabled)}${check("prices_include_tax", "Listed prices already include applicable tax", p.prices_include_tax)}${input("tax_bps", "Applicable tax rate in basis points (100 = 1%)", p.tax_bps ?? "", "number", "required min=0 max=10000 step=1")}${area("pickup_instructions", "Customer pickup instructions", p.pickup_instructions || "Collect your app order at Cake City HQ, Soliton Academy, Wambugu Road, after it is marked ready. Present your APP order reference.")}<p class="help full">Use Cake City's approved tax rate. Enabling checkout allows real payment using the configured Pesapal account. This does not issue an eTIMS invoice.</p></div>`,
+    async (f) =>
+      request("/v1/admin/app-policy", "PUT", {
+        enabled: f.has("enabled"),
+        pricing_confirmed: f.has("pricing_confirmed"),
+        pickup_enabled: f.has("pickup_enabled"),
+        prices_include_tax: f.has("prices_include_tax"),
+        tax_bps: Number(f.get("tax_bps")),
+        pickup_instructions: f.get("pickup_instructions").trim(),
+      }),
+  );
 }
 function uploadField() {
   return '<div class="upload full"><label>Upload artwork to the app<input id="upload" type="file" accept="image/jpeg,image/png,image/webp"></label><small>JPG, PNG or WebP, up to 2 MB. Uploads are saved to the app backend.</small><p id="upload-status" role="status"></p></div>';
@@ -619,6 +721,71 @@ document.addEventListener("click", async (e) => {
   if (d.promotion)
     promotionEditor(promotions.find((c) => c.code === d.promotion));
   if (d.action === "retry") await show();
+  if (d.paymentCheck) {
+    b.disabled = true;
+    try {
+      const result = await request(
+        "/v1/admin/app-delivery/payment-check",
+        "POST",
+        {},
+      );
+      notice(
+        `Pesapal ${result.environment} account connected; payment notifications registered. No money charged.`,
+      );
+    } catch (error) {
+      notice(error.message, true);
+    } finally {
+      b.disabled = false;
+    }
+  }
+  if (d.deliveryConfig) deliveryEditor(d.deliveryConfig);
+  if (d.editPickup) deliveryEditor(d.editPickup);
+  if (d.checkoutConfig) checkoutEditor();
+  if (d.findHq) {
+    b.disabled = true;
+    try {
+      const address = $("fields").querySelector(
+        '[name="origin_address"]',
+      ).value;
+      const data = await request("/v1/app-delivery/search", "POST", {
+        address,
+      });
+      $("hq-results").innerHTML =
+        data.results
+          .map(
+            (r) =>
+              `<button type="button" data-hq-lat="${esc(r.latitude)}" data-hq-lng="${esc(r.longitude)}">${esc(r.address)}</button>`,
+          )
+          .join("") ||
+        "No matching HQ address found. Check the address and try again.";
+    } catch (error) {
+      $("editor-error").textContent = error.message;
+    } finally {
+      b.disabled = false;
+    }
+  }
+  if (d.hqLat) {
+    $("fields").querySelector('[name="latitude"]').value = d.hqLat;
+    $("fields").querySelector('[name="longitude"]').value = d.hqLng;
+    $("hq-results").textContent =
+      "HQ pin selected. Confirm this is the correct production location before saving.";
+  }
+  if (d.removePickup) {
+    try {
+      await request(
+        "/v1/admin/app-delivery",
+        "PUT",
+        deliveryPayload({
+          pickup_stores: deliverySettings.pickup_stores.filter(
+            (s) => s.id !== d.removePickup,
+          ),
+        }),
+      );
+      await show();
+    } catch (error) {
+      notice(error.message, true);
+    }
+  }
   if (d.orderDetails) {
     try {
       const o = await request(
@@ -633,7 +800,7 @@ document.addEventListener("click", async (e) => {
           .join("");
       openEditor(
         o.reference,
-        `<div class="full"><h3>${esc(o.status.replaceAll("_", " "))} - ${money(o.total_minor)}</h3><p>Payment: ${esc(o.payment_state)} / ${esc(o.environment)}</p><h3>Customer and fulfilment</h3>${entries(o.snapshot?.checkout || {})}<h3>Products and variations</h3>${(o.snapshot?.lines || []).map((l) => `<section class="panel"><strong>${esc(l.quantity)} x ${esc(l.name)}</strong><p>Product ${esc(l.product_id)} / SKU ${esc(l.sku_id)} / ${money(l.line_minor)}</p>${entries(l.selection || {})}</section>`).join("")}<h3>Tracking history</h3><p>Order received / ${esc(date(o.created_at))}</p>${(o.events || []).map((e) => `<p>${esc(e.kind.replaceAll("_", " "))} / ${esc(date(e.created_at))}</p>`).join("")}</div>`,
+        `<div class="full"><h3>${esc(o.status.replaceAll("_", " "))} - ${money(o.total_minor)}</h3><p>Payment: ${esc(o.payment_state)} / ${esc(o.environment)}</p><h3>Customer and fulfilment</h3>${entries(o.snapshot?.checkout || {})}<h3>Products and variations</h3>${(o.snapshot?.lines || []).map((l) => `<section class="panel"><strong>${esc(l.quantity)} x ${esc(l.name)}</strong><p>Product ${esc(l.product_id)} / SKU ${esc(l.sku_id)} / ${money(l.line_minor)}</p>${entries(l.selection || {})}</section>`).join("")}<h3>Delivery route and charge</h3>${entries(o.snapshot?.route || {})}<h3>Tracking history</h3><p>Order received / ${esc(date(o.created_at))}</p>${(o.events || []).map((e) => `<p>${esc(e.kind.replaceAll("_", " "))} / ${esc(date(e.created_at))}</p>`).join("")}</div>`,
         null,
         true,
       );

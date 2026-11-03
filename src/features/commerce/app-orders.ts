@@ -36,6 +36,22 @@ export const appOrderSchema = z.object({
       discount_minor: z.number(),
       tax_minor: z.number(),
       pickup_instructions: z.string().optional(),
+      route: z
+        .object({
+          origin_name: z.string(),
+          origin_address: z.string(),
+          destination_name: z.string(),
+          destination_address: z.string(),
+          destination: z.object({
+            latitude: z.number(),
+            longitude: z.number(),
+          }),
+          distance_meters: z.number(),
+          fee_minor: z.number(),
+          rate: z.string(),
+        })
+        .nullable()
+        .optional(),
       checkout: z.record(z.string(), z.unknown()),
     })
     .optional(),
