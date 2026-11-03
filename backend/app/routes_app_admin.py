@@ -131,6 +131,14 @@ def orders(_: Customer = Depends(operator), db: Session = Depends(get_db)):
     return [commerce.order_view(r) for r in db.scalars(select(AppOrder).order_by(AppOrder.id.desc()).limit(200))]
 
 
+@router.get("/v1/admin/app-orders/{reference}")
+def order_detail(reference: str, _: Customer = Depends(operator), db: Session = Depends(get_db)):
+    row = db.scalar(select(AppOrder).where(AppOrder.reference == reference))
+    if not row:
+        raise HTTPException(404, "App order not found.")
+    return commerce.tracked_order_view(db, row)
+
+
 class FulfilmentInput(BaseModel):
     status: str = Field(pattern="^(preparing|ready|out_for_delivery|completed)$")
 
@@ -141,6 +149,8 @@ def fulfil(reference: str, data: FulfilmentInput, actor: Customer = Depends(oper
     transitions = {"paid": {"preparing"}, "preparing": {"ready"}, "ready": {"out_for_delivery", "completed"}, "out_for_delivery": {"completed"}}
     if not row or row.payment_state != "completed" or data.status not in transitions.get(row.state, set()):
         raise HTTPException(409, "This fulfilment transition is not available.")
+    if data.status == "out_for_delivery" and row.snapshot.get("checkout", {}).get("fulfilment") != "delivery":
+        raise HTTPException(409, "Pickup orders cannot be dispatched for delivery.")
     row.state = data.status
     commerce.record_event(db, row, "fulfilment_" + data.status, actor_id=actor.id)
     audit(db, actor.id, "app_order_fulfilment", reference, status=data.status)

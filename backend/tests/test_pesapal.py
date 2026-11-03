@@ -276,3 +276,47 @@ def test_website_reporting_failure_is_recorded_in_website_channel_and_does_not_b
         assert result["status"]=="delayed"
         record=db.scalar(select(CommerceIssue));assert record.channel=="website"
     assert place(s).status_code==200
+
+
+def test_staff_fulfilment_is_visible_in_customer_tracking_and_private(system):
+    s = system
+    start(s)
+    assert ipn(s).status_code == 200
+    ref = s["reference"]
+    client = s["client"]
+    assert client.get(f"/v1/admin/app-orders/{ref}").status_code == 403
+    app.dependency_overrides[member] = lambda: SimpleNamespace(id="buyer", role="staff")
+    assert any(o["reference"] == ref for o in client.get("/v1/admin/app-orders").json())
+    detail = client.get(f"/v1/admin/app-orders/{ref}")
+    assert detail.status_code == 200
+    assert detail.json()["snapshot"]["lines"][0]["sku_id"] == 12
+    for status in ("preparing", "ready"):
+        assert client.patch(f"/v1/admin/app-orders/{ref}", json={"status": status}).status_code == 200
+    assert client.patch(f"/v1/admin/app-orders/{ref}", json={"status": "out_for_delivery"}).status_code == 409
+    assert client.patch(f"/v1/admin/app-orders/{ref}", json={"status": "completed"}).status_code == 200
+    app.dependency_overrides[member] = lambda: SimpleNamespace(id="buyer", role="customer")
+    tracked = client.get(f"/v1/app-orders/{ref}").json()
+    assert tracked["status"] == "completed"
+    assert [e["kind"] for e in tracked["events"]] == ["payment_completed", "fulfilment_preparing", "fulfilment_ready", "fulfilment_completed"]
+    assert all(set(e) == {"kind", "created_at"} for e in tracked["events"])
+    app.dependency_overrides[member] = lambda: SimpleNamespace(id="other", role="customer")
+    assert client.get(f"/v1/app-orders/{ref}").status_code == 404
+
+
+def test_unpaid_orders_cannot_advance_in_dashboard(system):
+    s = system
+    ref = place(s).json()["reference"]
+    app.dependency_overrides[member] = lambda: SimpleNamespace(id="buyer", role="staff")
+    assert s["client"].patch(f"/v1/admin/app-orders/{ref}", json={"status": "preparing"}).status_code == 409
+
+
+def test_delivery_tracking_includes_dispatch(system):
+    s = system
+    s["payload"].update(fulfilment="delivery", delivery_zone_id="zone")
+    s["amount"] = 2800
+    start(s)
+    assert ipn(s).status_code == 200
+    app.dependency_overrides[member] = lambda: SimpleNamespace(id="buyer", role="staff")
+    for status in ("preparing", "ready", "out_for_delivery", "completed"):
+        assert s["client"].patch(f"/v1/admin/app-orders/{s['reference']}", json={"status": status}).status_code == 200
+    assert "fulfilment_out_for_delivery" in [e["kind"] for e in s["client"].get(f"/v1/app-orders/{s['reference']}").json()["events"]]

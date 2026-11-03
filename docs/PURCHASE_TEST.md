@@ -4,7 +4,7 @@ The project uses **Expo SDK 58**. On the iPhone, Expo Go's App info must list **
 
 Run `npm run preview:purchase` on the development computer. This starts a separate payment simulator on port 8011 and an Expo Go preview on port 8083. Keep the terminal running and connect the iPhone to the same Wi-Fi. Sign into Expo Go using the same Expo account as the computer.
 
-`npm run start:go` also starts the connected simulator and uses Expo Go's usual port 8081. Use one of these commands at a time; each owns the test service on port 8011. This prevents starting a generic Expo session without its test-payment connection. The generated QR and `RUNNING.json` always identify the current preview. Scan the current QR after restarting or changing networks.
+`npm run start:go` opens the normal app checkout with the configured backend. It does not start a simulator or require a payment access code. Use `npm run preview:purchase` only for the isolated simulation.
 
 The terminal shows startup stages, a scannable QR code and Metro's bundle logs. Opening the QR on the iPhone requests the JavaScript bundle; leaving the preview waiting before a device connects is normal. This command runs an Expo Go preview rather than creating an installable app binary. Logs and the QR image are also saved under `artifacts/purchase-test/`.
 
@@ -25,7 +25,7 @@ The isolated server prices the **reward cupcake** at **KES 100**. Every successf
 | 5                    | 125         | Diamond         |
 | 6                    | 150         | Platinum        |
 
-These short purchase milestones apply only to this isolated preview. Diamond is one purchase after Gold, and Platinum is the next purchase. The live Club's spend-based thresholds are unchanged. Existing preview purchases count toward the new milestones; saved receipts keep their original membership snapshot. After changing backend rules, stop the current runner with Ctrl+C and run `npm run start:go` again, then reload Expo Go. The existing database and pairing code are retained.
+These short purchase milestones apply only to this isolated preview. Diamond is one purchase after Gold, and Platinum is the next purchase. The live Club's spend-based thresholds are unchanged. Existing preview purchases count toward the new milestones; saved receipts keep their original membership snapshot. After changing backend rules, stop the current runner with Ctrl+C and run `npm run preview:purchase` again, then reload Expo Go. The existing database and pairing code are retained.
 
 The card and Club progress bars animate toward the final milestone, Platinum at six purchases, while the text names the next challenge. Bronze, Silver, Gold, Diamond and Platinum each have a distinct card palette. A newly achieved tier triggers confetti from both sides of the screen and a dismissible **View new card** prompt above the navigation. The prompt takes the member directly to the front of their updated card. The celebration follows navigation, does not repeat on refresh or ordinary purchases, and respects Reduce Motion by showing the prompt without confetti. Existing members establish their current tier as the baseline when the app opens.
 
@@ -52,7 +52,7 @@ The legacy migration form retains saved billing restoration and preserves curren
 - Paired tokens last 24 hours and authorize only that synthetic member's records. They cannot call the operator's generic simulator routes. Live app tokens, WooCommerce, real Club points and production data are not used by this test client.
 - The client requires an explicit development LAN URL and a simulated-service response marker. EAS/release checks reject the test URL and local-review flag.
 - No funds, stock allocation, dispatch, real revenue, Enquest points, fiscal invoice or email delivery is created.
-- `node scripts/verify-purchase-test.cjs` runs the real UI/API flow: six purchases through Platinum in checkout, receipts, normal Club, transaction receipt links and Orders; milestone prompts, side confetti, card reveals, progress toward Platinum and Reduce Motion; the original receipt after later purchases; failed outcomes with zero Club points/transactions; and PDF export. It needs only `start:go` or `preview:purchase`. External browser writes are blocked. Billing profile validation/save/restore has separate unit coverage.
+- `node scripts/verify-purchase-test.cjs` runs the real UI/API flow: six purchases through Platinum in checkout, receipts, normal Club, transaction receipt links and Orders; milestone prompts, side confetti, card reveals, progress toward Platinum and Reduce Motion; the original receipt after later purchases; failed outcomes with zero Club points/transactions; and PDF export. It needs only `preview:purchase`. External browser writes are blocked. Billing profile validation/save/restore has separate unit coverage.
 - Native iPhone printing/share-sheet behavior still requires tapping the controls on an actual device; browser PDF output does not establish native verification.
 
 The full corporate/Command Center/CRM/BI/AI brief remains tracked in `SUPER_APP_IMPLEMENTATION.md`. This increment completes the local payment-and-loyalty review path and explicit device-local billing save; it does not complete those remaining modules or activate live providers.

@@ -14,6 +14,9 @@ export const appOrderSchema = z.object({
   paid_at: z.string().nullable(),
   payment_url: z.string().nullable().optional(),
   tracking_id: z.string().nullable().optional(),
+  events: z
+    .array(z.object({ kind: z.string(), created_at: z.string() }))
+    .optional(),
   snapshot: z
     .object({
       lines: z.array(
@@ -32,6 +35,7 @@ export const appOrderSchema = z.object({
       delivery_minor: z.number(),
       discount_minor: z.number(),
       tax_minor: z.number(),
+      pickup_instructions: z.string().optional(),
       checkout: z.record(z.string(), z.unknown()),
     })
     .optional(),

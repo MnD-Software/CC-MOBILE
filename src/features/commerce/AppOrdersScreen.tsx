@@ -1,11 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { View } from "react-native";
 import { useAuth } from "@/auth/AuthProvider";
 import { Button } from "@/components/ui/Button";
 import { Feedback, Notice, Screen } from "@/components/ui/Commerce";
 import { Text } from "@/components/ui/Typography";
+import { usePaymentSuccess } from "./usePaymentSuccess";
+import { PaymentConfetti } from "./PaymentConfetti";
+import { isVerifiedPayment } from "./checkout-success";
+import { orderTracking } from "./order-tracking";
 import { appOrders } from "./app-orders";
 import { InAppPayment } from "./InAppPayment";
 import { money } from "./contracts";
@@ -20,6 +24,7 @@ export function AppOrdersScreen() {
   const orders = useQuery({
     queryKey: ["app-orders", customer?.id],
     queryFn: appOrders.list,
+    refetchInterval: 30_000,
     enabled: !!customer,
   });
   return (
@@ -73,8 +78,22 @@ export function AppOrderScreen() {
   const order = useQuery({
     queryKey: ["app-order", customer?.id, reference],
     queryFn: () => appOrders.detail(reference),
+    refetchInterval: (query) =>
+      ["completed", "cancelled", "failed", "reversed"].includes(
+        query.state.data?.status || "",
+      )
+        ? false
+        : 15_000,
     enabled: !!customer && reference?.startsWith("APP-"),
   });
+  const { celebrate, endCelebration } = usePaymentSuccess(
+    order.data,
+    customer?.id || "",
+    setError,
+  );
+  useEffect(() => {
+    if (order.data && isVerifiedPayment(order.data)) setPayment(null);
+  }, [order.data?.payment_state, order.data?.paid_at]);
   async function verify() {
     setBusy(true);
     setError("");
@@ -156,9 +175,56 @@ export function AppOrderScreen() {
             {money(value.total_minor / 100)} ·{" "}
             {value.environment === "sandbox" ? "Sandbox" : "App sale"}
           </Text>
+          <View
+            style={{
+              padding: 20,
+              gap: 14,
+              borderRadius: 20,
+              borderWidth: 1,
+              borderColor: "#ddd",
+            }}
+          >
+            <Text>Track your order</Text>
+            <Text>
+              Made to order. Progress updates appear here as our team prepares
+              your celebration.
+            </Text>
+            {orderTracking(value).map((step) => (
+              <View key={step.label} style={{ gap: 4 }}>
+                <Text>
+                  {step.at ? "Done:" : "Next:"} {step.label}
+                </Text>
+                {step.at ? (
+                  <Text>{new Date(step.at).toLocaleString()}</Text>
+                ) : null}
+              </View>
+            ))}
+            {value.payment_state !== "completed" ? (
+              <Notice
+                message={`Payment status: ${value.payment_state.replaceAll("_", " ")}. Preparation starts after verified payment.`}
+              />
+            ) : null}
+            {value.snapshot?.checkout.fulfilment === "pickup" &&
+            typeof value.snapshot.pickup_instructions === "string" ? (
+              <Text>{value.snapshot.pickup_instructions}</Text>
+            ) : null}
+            <Button
+              variant="outline"
+              label="Refresh tracking"
+              onPress={() => void order.refetch()}
+            />
+          </View>
           {value.snapshot?.lines.map((line, i) => (
             <Text key={i}>
               {line.quantity} × {line.name} — {money(line.line_minor / 100)}
+              {Array.isArray(line.selection.variation_attributes)
+                ? line.selection.variation_attributes
+                    .map(
+                      (a: { attribute: string; value: string }) =>
+                        ` / ${a.attribute}: ${a.value}`,
+                    )
+                    .join("")
+                : ""}
             </Text>
           ))}
           {value.paid_at ? (
@@ -195,6 +261,7 @@ export function AppOrderScreen() {
           />
         </>
       ) : null}
+      {celebrate ? <PaymentConfetti onComplete={endCelebration} /> : null}
       {payment ? (
         <InAppPayment
           url={payment}

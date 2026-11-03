@@ -80,10 +80,13 @@ function renderCheckout(
   );
 }
 
-test("main checkout renders the independent simulation when explicitly configured", () => {
-  const html = renderCheckout(true);
-  assert.match(html, /Independent simulated checkout/);
-  assert.doesNotMatch(html, /website|Pesapal|href=/i);
+test("normal checkout ignores stale simulator configuration", () => {
+  const html = renderCheckout(true, {
+    data: { available: true, environment: "live" },
+  });
+  assert.match(html, /Real provider checkout form/);
+  assert.doesNotMatch(html, /Independent simulated checkout|access code/i);
+  assert.doesNotMatch(html, /website|href=/i);
 });
 
 test("unconfigured in-app payments preserve the bag and expose no website fallback", () => {

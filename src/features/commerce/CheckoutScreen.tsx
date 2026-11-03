@@ -2,8 +2,6 @@ import { router } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/Button";
 import { Feedback, Notice, Screen } from "@/components/ui/Commerce";
-import { PurchaseTestScreen } from "@/features/purchase-test/PurchaseTestScreen";
-import { purchaseTestOrigin } from "@/features/purchase-test/client";
 import { PesapalCheckoutForm } from "./PesapalCheckoutForm";
 import { loadPesapalConfiguration } from "./pesapal-checkout";
 
@@ -13,7 +11,6 @@ function LiveCheckout() {
     queryFn: loadPesapalConfiguration,
     retry: false,
     staleTime: 30_000,
-    enabled: process.env.EXPO_PUBLIC_LOCAL_REVIEW !== "1",
   });
   return (
     <Screen title="Checkout" subtitle="Secure payment with Pesapal." back>
@@ -45,8 +42,7 @@ function LiveCheckout() {
   );
 }
 
-/** Explicit local simulation stays isolated from the real provider. */
+/** Normal checkout always uses the real app backend. Test tools have their own route. */
 export function CheckoutScreen() {
-  if (purchaseTestOrigin()) return <PurchaseTestScreen fromCheckout />;
   return <LiveCheckout />;
 }

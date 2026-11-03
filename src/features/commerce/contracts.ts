@@ -148,7 +148,7 @@ export function variationCartAttributes(
   });
 }
 export type CakeSelection = {
-  size: "1kg" | "1.5kg" | "2kg";
+  size: string;
   message: string;
   add_ons: string[];
   variation_id?: number;
@@ -156,7 +156,10 @@ export type CakeSelection = {
   studio_quote_id?: string;
 };
 export const selectionSchema = z.object({
-  size: z.enum(["1kg", "1.5kg", "2kg"]),
+  size: z
+    .string()
+    .max(24)
+    .regex(/^[1-9]\d*(?:\.\d+)?kg$|^0\.\d*[1-9]\d*kg$/),
   message: z.string().max(32),
   add_ons: z.array(z.string()),
   variation_id: z.number().int().positive().optional(),

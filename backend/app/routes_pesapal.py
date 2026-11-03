@@ -80,7 +80,7 @@ def recovery(request_key: str = Query(min_length=16, max_length=80), customer: C
 
 @router.get("/v1/app-orders/{reference}")
 def order_detail(reference: str, customer: Customer = Depends(member), db: Session = Depends(get_db)):
-    return commerce.order_view(owned(db, reference, customer.id))
+    return commerce.tracked_order_view(db, owned(db, reference, customer.id))
 
 
 @router.post("/v1/app-orders/{reference}/cancel")

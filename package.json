@@ -61,7 +61,7 @@
     "preview:purchase": "node scripts/purchase-test.cjs",
     "preview:local": "node scripts/local-preview.cjs",
     "start": "node scripts/expo.cjs start",
-    "start:go": "node scripts/purchase-test.cjs --port 8081",
+    "start:go": "node scripts/start-go.cjs",
     "start:usb": "node scripts/expo.cjs start --dev-client --lan",
     "android": "expo run:android",
     "android:device": "expo run:android --device",

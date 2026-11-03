@@ -349,24 +349,30 @@ const views = {
   },
   async orders() {
     const rows = await request("/v1/admin/app-orders");
-    return rows.length
-      ? table(
-          ["App order", "Total", "Payment", "Fulfilment", ""],
-          rows.map((o) => {
-            const next =
-              {
-                paid: ["preparing"],
-                preparing: ["ready"],
-                ready: ["out_for_delivery", "completed"],
-                out_for_delivery: ["completed"],
-              }[o.status] || [];
-            return `<tr><td><strong>${esc(o.reference)}</strong><small>${esc(date(o.created_at))}</small></td><td>${money(o.total_minor)}</td><td>${pill(o.payment_state, o.payment_state === "completed")}</td><td>${pill(o.status)}</td><td>${o.payment_state === "completed" ? next.map((s) => `<button data-order="${esc(o.reference)}" data-status="${s}">Mark ${s.replaceAll("_", " ")}</button>`).join(" ") : "Awaiting verified payment"}</td></tr>`;
-          }),
-        )
-      : empty(
-          "No app orders yet",
-          "Orders will appear here when customers check out in the app.",
-        );
+    return (
+      `<button data-action="retry">Refresh orders</button><p>Latest 200 app orders. Open an order for its customer details and selected variations.</p>` +
+      (rows.length
+        ? table(
+            ["App order", "Total", "Payment", "Fulfilment", ""],
+            rows.map((o) => {
+              const next =
+                {
+                  paid: ["preparing"],
+                  preparing: ["ready"],
+                  ready:
+                    o.snapshot?.checkout?.fulfilment === "delivery"
+                      ? ["out_for_delivery"]
+                      : ["completed"],
+                  out_for_delivery: ["completed"],
+                }[o.status] || [];
+              return `<tr><td><strong>${esc(o.reference)}</strong><button data-order-details="${esc(o.reference)}">View details and tracking</button><small>${esc(date(o.created_at))}</small></td><td>${money(o.total_minor)}</td><td>${pill(o.payment_state, o.payment_state === "completed")}</td><td>${pill(o.status)}</td><td>${o.payment_state === "completed" ? next.map((s) => `<button data-order="${esc(o.reference)}" data-status="${s}">Mark ${s.replaceAll("_", " ")}</button>`).join(" ") : "Awaiting verified payment"}</td></tr>`;
+            }),
+          )
+        : empty(
+            "No app orders yet",
+            "Orders will appear here when customers check out in the app.",
+          ))
+    );
   },
   async sales() {
     const data = await request("/v1/admin/channel-sales");
@@ -613,6 +619,28 @@ document.addEventListener("click", async (e) => {
   if (d.promotion)
     promotionEditor(promotions.find((c) => c.code === d.promotion));
   if (d.action === "retry") await show();
+  if (d.orderDetails) {
+    try {
+      const o = await request(
+        `/v1/admin/app-orders/${encodeURIComponent(d.orderDetails)}`,
+      );
+      const entries = (obj) =>
+        Object.entries(obj)
+          .map(
+            ([key, value]) =>
+              `<p><strong>${esc(key.replaceAll("_", " "))}:</strong> ${value !== null && typeof value === "object" ? `<div class="panel">${entries(value)}</div>` : esc(value)}</p>`,
+          )
+          .join("");
+      openEditor(
+        o.reference,
+        `<div class="full"><h3>${esc(o.status.replaceAll("_", " "))} - ${money(o.total_minor)}</h3><p>Payment: ${esc(o.payment_state)} / ${esc(o.environment)}</p><h3>Customer and fulfilment</h3>${entries(o.snapshot?.checkout || {})}<h3>Products and variations</h3>${(o.snapshot?.lines || []).map((l) => `<section class="panel"><strong>${esc(l.quantity)} x ${esc(l.name)}</strong><p>Product ${esc(l.product_id)} / SKU ${esc(l.sku_id)} / ${money(l.line_minor)}</p>${entries(l.selection || {})}</section>`).join("")}<h3>Tracking history</h3><p>Order received / ${esc(date(o.created_at))}</p>${(o.events || []).map((e) => `<p>${esc(e.kind.replaceAll("_", " "))} / ${esc(date(e.created_at))}</p>`).join("")}</div>`,
+        null,
+        true,
+      );
+    } catch (error) {
+      notice(error.message, true);
+    }
+  }
   if (d.order || d.issue) {
     b.disabled = true;
     try {

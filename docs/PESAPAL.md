@@ -172,3 +172,16 @@ the development app or installing an updated production app build.
 The independent backend includes the staff web dashboard at `/admin` for products,
 campaigns, promotion codes, app orders and channel reporting. See
 [APP_DASHBOARD.md](APP_DASHBOARD.md) for owner access and deployment instructions.
+
+
+### Customer tracking and staff fulfilment
+
+Normal checkout and `npm run start:go` use the real app backend, without the isolated purchase-preview access code. Variable products retain the chosen SKU, attributes, and weight. The dedicated `preview:purchase` simulator remains separate.
+
+Customers open **Your app orders**, then an APP order to see payment verification, preparation, ready for pickup/dispatch, delivery (delivery orders only), and collection/completion. Active order details refresh every 15 seconds. These are staff progress updates, not live courier GPS. The timeline includes recorded timestamps only; it does not invent arrival times.
+
+Staff open **Orders** in `/admin`, select **View details and tracking** for customer, billing, recipient, fulfilment, products and selected variations, and advance paid orders with the status buttons. Unverified orders cannot enter preparation. Pickup orders cannot be marked out for delivery. Customer history excludes internal actor IDs and provider diagnostics.
+
+Confetti runs only after a backend-confirmed completed payment with a paid timestamp; it respects Reduce Motion. Successful checkout settles purchased bag items and keeps the order and receipt available in the app.
+
+Live checkout still requires confirmed pickup/delivery and tax/pricing policy. A successful mocked-provider test is not proof of a live payment or native-device payment completion.

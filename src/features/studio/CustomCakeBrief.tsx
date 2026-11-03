@@ -4,7 +4,7 @@ import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import * as Sharing from "expo-sharing";
 import { useEffect, useState } from "react";
-import { Linking, Pressable, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { Text } from "@/components/ui/Typography";
 import { Button } from "@/components/ui/Button";
 import { Chip, ui as baseUi, useToast } from "@/components/ui/Commerce";
@@ -18,7 +18,6 @@ type Inspiration = Pick<
 >;
 
 const occasions = ["Birthday", "Wedding", "Anniversary", "Just because"];
-const CAKE_CITY_WHATSAPP = "254709729000";
 
 function assetFromResult(
   result:

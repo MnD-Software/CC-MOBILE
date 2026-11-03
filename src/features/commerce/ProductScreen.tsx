@@ -50,6 +50,7 @@ import { api } from "@/api/client";
 import { z } from "zod";
 import { storeProductSchema } from "./contracts";
 import { rankPairings } from "./pairings";
+import { selectionWeight } from "./checkout-success";
 import { trackCommerceEvent } from "@/observability/commerce-events";
 import { contentApi, mediaSource } from "@/features/editorial/content";
 import { VideoClip } from "@/features/editorial/VideoClip";
@@ -313,13 +314,9 @@ export function ProductScreen() {
     cake.is_in_stock &&
     cake.is_purchasable &&
     price !== null;
-  const size: CakeSelection["size"] = /(?:^|\D)2(?:\.0)?\s*kg/i.test(
+  const size: CakeSelection["size"] = selectionWeight(
     selectedVariationLabel ?? plainText(cake.name),
-  )
-    ? "2kg"
-    : /1[.\s-]*5\s*kg/i.test(selectedVariationLabel ?? plainText(cake.name))
-      ? "1.5kg"
-      : "1kg";
+  );
   const orderCake = cake;
   const canChooseVariation = variationRequired && variations.length > 0;
   const actionDisabled = !canAddToBag && !canChooseVariation;

@@ -128,7 +128,7 @@ def calculate(db, customer_id, data):
     return {"lines": lines, "quantities": {str(k): v for k, v in quantities.items()}, "subtotal_minor": subtotal,
             "delivery_minor": fee, "discount_minor": discount, "tax_minor": tax, "prices_include_tax": included,
             "total_minor": total, "currency": "KES", "coupon_code": coupon_code, "zone_revision": zone_revision,
-            "zone_name": zone_name, "policy_digest": digest(policy), "checkout": data.model_dump(mode="json")}
+            "zone_name": zone_name, "policy_digest": digest(policy), "checkout": data.model_dump(mode="json"), "pickup_instructions": policy.get("pickup_instructions", "") if data.fulfilment == "pickup" else ""}
 
 
 def quote(db, customer_id, data):
@@ -246,4 +246,17 @@ def order_view(order, private=True):
     if private:
         result.update(snapshot=order.snapshot, payment_url=order.payment_url if order.payment_state == "pending" else None,
                       tracking_id=order.tracking_id, receipt_label="Payment receipt — not an eTIMS tax invoice")
+    return result
+
+
+def tracked_order_view(db, order):
+    """Customer-safe progress history; never expose internal event details."""
+    result = order_view(order)
+    visible = ["payment_completed", "fulfilment_preparing", "fulfilment_ready",
+               "fulfilment_out_for_delivery", "fulfilment_completed"]
+    result["events"] = [{"kind": event.kind, "created_at": utc(event.created_at).isoformat()}
+                        for event in db.scalars(select(AppOrderEvent).where(AppOrderEvent.order_id == order.id)
+                                                .order_by(AppOrderEvent.created_at, AppOrderEvent.id))
+                        if event.kind in visible]
+    result["events"].sort(key=lambda event: (event["created_at"], visible.index(event["kind"])))
     return result
