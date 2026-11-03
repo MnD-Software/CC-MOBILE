@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -51,6 +51,10 @@ const knownIds: Record<string, number> = {
   "pound cakes": 170,
   "cheese cakes": 171,
   "deals and steals": 206,
+  "custom cakes": 123,
+  cupcakes: 110,
+  "tea cakes": 112,
+  "party accessories": 109,
 };
 
 export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
@@ -79,11 +83,24 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
   );
   const rememberSearch = usePreferences((s) => s.search);
   const recentSearches = usePreferences((s) => s.recentSearches);
+  const categoryList = useQuery({
+    queryKey: ["catalogue", "categories"],
+    queryFn: ({ signal }) => shopApi.categories(signal),
+    staleTime: CATALOGUE_STALE_TIME_MS,
+    gcTime: CATALOGUE_GC_TIME_MS,
+  });
+  const categoryName = plainText(params.categoryName ?? "").toLowerCase();
+  const matchedCategory = categoryList.data?.find(
+    (item) =>
+      plainText(item.name).toLowerCase() === categoryName ||
+      item.slug === categoryName.replace(/\s+/g, "-"),
+  );
+  const routeCategory = params.category
+    ? Number(params.category)
+    : (matchedCategory?.id ?? knownIds[categoryName]);
 
   useEffect(() => {
-    const selected = params.category
-      ? Number(params.category)
-      : knownIds[plainText(params.categoryName ?? "").toLowerCase()];
+    const selected = routeCategory;
     setCategory(
       Number.isSafeInteger(selected) && selected > 0 ? selected : undefined,
     );
@@ -91,7 +108,7 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
     setDepartment(next);
     setSubfilter(shopDepartments.find((d) => d.id === next)!.filters[0].id);
     setSearch(params.search ?? "");
-  }, [params.category, params.categoryName, params.search]);
+  }, [routeCategory, params.categoryName, params.search]);
   useEffect(() => {
     const timer = setTimeout(() => setDebounced(search.trim()), 250);
     return () => clearTimeout(timer);
@@ -100,7 +117,7 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
   const selection = shopDepartments.find((item) => item.id === department)!;
   const selectedCategories = debounced
     ? undefined
-    : category && department === "all"
+    : category
       ? [category]
       : selection.categories;
   const products = useInfiniteQuery({
@@ -585,7 +602,8 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
       {sheet ? (
         <ShopOptionsSheet
           mode={sheet}
-          value={{ department, subfilter, sort, budget }}
+          value={{ department, subfilter, sort, budget, category }}
+          categories={categoryList.data ?? []}
           onClose={() => setSheet(null)}
           onApply={(value) => {
             setSort(value.sort);
@@ -593,6 +611,7 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
             if (sheet === "categories") {
               selectDepartment(value.department);
               setSubfilter(value.subfilter);
+              setCategory(value.category);
             }
             setSheet(null);
           }}

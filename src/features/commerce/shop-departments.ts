@@ -5,7 +5,7 @@ export const shopDepartments = [
   {
     id: "all",
     name: "All",
-    categories: [229, 168, 169, 170, 171, 72, 110, 112, 206, 98],
+    categories: [],
     image: appMedia(
       "https://cakecity.co.ke/wp-content/uploads/2025/08/Straw-gateau-Photoroom-2.avif",
     ),
@@ -19,6 +19,7 @@ export const shopDepartments = [
       "https://cakecity.co.ke/wp-content/uploads/2025/08/Lotus-biscoff-Photoroom.avif",
     ),
     filters: [
+      { id: "all", label: "All vanilla cakes" },
       { id: "sponge", label: "Vanilla sponge", note: "Ready now" },
       { id: "pound", label: "Vanilla pound cake", note: "Order 1 day ahead" },
     ],
@@ -31,6 +32,7 @@ export const shopDepartments = [
       "https://cakecity.co.ke/wp-content/uploads/2025/08/Straw-gateau-Photoroom-2.avif",
     ),
     filters: [
+      { id: "all", label: "All signature cakes" },
       { id: "vanilla", label: "Vanilla sponge" },
       { id: "chocolate", label: "Chocolate sponge" },
       { id: "pound", label: "Pound cake", note: "Order 1 day ahead" },
@@ -44,6 +46,7 @@ export const shopDepartments = [
       "https://cakecity.co.ke/wp-content/uploads/2025/08/Black-forest-Photoroom.avif",
     ),
     filters: [
+      { id: "all", label: "All chocolate cakes" },
       { id: "pound", label: "Chocolate pound cake", note: "Order 1 day ahead" },
       { id: "sponge", label: "Chocolate sponge", note: "Ready now" },
     ],
@@ -76,6 +79,33 @@ export const shopDepartments = [
     ],
   },
   {
+    id: "pound",
+    name: "Pound Cakes",
+    categories: [170],
+    image: appMedia(
+      "https://i0.wp.com/cakecity.co.ke/wp-content/uploads/2024/08/Rainbow-Magic-Photoroom-4.webp?fit=640%2C640&ssl=1",
+    ),
+    filters: [{ id: "all", label: "All pound cakes" }],
+  },
+  {
+    id: "custom",
+    name: "Custom Cakes",
+    categories: [123],
+    image: appMedia(
+      "https://cakecity.co.ke/wp-content/uploads/2025/08/GRAD-4.avif",
+    ),
+    filters: [{ id: "all", label: "All custom cakes" }],
+  },
+  {
+    id: "deals",
+    name: "Deals & Steals",
+    categories: [206],
+    image: appMedia(
+      "https://i0.wp.com/cakecity.co.ke/wp-content/uploads/2026/10/WhatsApp-Image-2026-10-06-at-13.24.30.webp?fit=1254%2C1254&ssl=1",
+    ),
+    filters: [{ id: "all", label: "All deals & steals" }],
+  },
+  {
     id: "offers",
     name: "Offers",
     categories: [206, 98],
@@ -94,10 +124,11 @@ export function departmentForCategory(id?: number): ShopDepartmentId {
         169: "vanilla",
         168: "chocolate",
         229: "signature",
-        170: "all",
+        170: "pound",
+        123: "custom",
         171: "cheesecakes",
         110: "cupcakes",
-        206: "offers",
+        206: "deals",
         98: "offers",
       } as Record<number, ShopDepartmentId>
     )[id ?? 0] ?? "all"
@@ -119,13 +150,22 @@ export function matchesShopSelection(
   const details =
     `${name} ${plainText(product.description)} ${plainText(product.short_description)} ${product.categories.map((c) => plainText(c.name)).join(" ")} ${attributes}`.toLowerCase();
   if (department === "vanilla")
-    return filter === "pound" ? has(170) && /vanilla/.test(name) : has(169);
+    return filter === "all"
+      ? has(169) || (has(170) && /vanilla/.test(name))
+      : filter === "pound"
+        ? has(170) && /vanilla/.test(name)
+        : has(169);
   if (department === "chocolate")
-    return filter === "pound" ? has(170) && /choco/.test(name) : has(168);
+    return filter === "all"
+      ? has(168) || (has(170) && /choco/.test(name))
+      : filter === "pound"
+        ? has(170) && /choco/.test(name)
+        : has(168);
   if (department === "signature")
     return (
       has(229) &&
-      has(filter === "vanilla" ? 169 : filter === "chocolate" ? 168 : 170)
+      (filter === "all" ||
+        has(filter === "vanilla" ? 169 : filter === "chocolate" ? 168 : 170))
     );
   if (department === "cheesecakes")
     return (
@@ -139,5 +179,8 @@ export function matchesShopSelection(
       (filter === "all" || new RegExp(`\\b${filter}\\b`, "i").test(details))
     );
   if (department === "offers") return has(206) || has(98);
+  if (department === "deals") return has(206);
+  if (department === "custom") return has(123);
+  if (department === "pound") return has(170);
   return true;
 }

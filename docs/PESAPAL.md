@@ -154,6 +154,20 @@ The owner will perform the live payment. Test both Android and iPhone: confirm t
 Local checks include `npm test`, `npm run typecheck`, backend `python -m pytest tests -q`, migration import validation and Android JS bundle export. These do not certify a native-device payment, the live merchant, settlement, eTIMS, hosted deployment, website reporting synchronization or all store-specific fulfilment policies.
 
 Provider references: [Pesapal order submission](https://developer.pesapal.com/how-to-integrate/e-commerce/api-30-json/submitorderrequest), [transaction verification](https://developer.pesapal.com/how-to-integrate/e-commerce/api-30-json/gettransactionstatus), [Expo WebView](https://docs.expo.dev/versions/v58.0.0/sdk/webview/).
+## Catalogue category repair
+
+Source products with `parent: 0` are main products, not variations. The importer
+stores that value as SQL `NULL` so category browsing includes them. Startup
+migration also repairs the earlier zero-parent records without changing prices,
+stock, reservations or orders. Reimporting the full catalogue is unnecessary.
+
+The app's All selection browses the full catalogue, category links retain their
+exact category IDs, and the category picker includes the imported category list.
+The home carousel contains only Deals & Steals products; it does not substitute
+Signature products. A deal can be browsed while ordering is disabled, with its
+ordering status shown explicitly. These are app UI changes and require reloading
+the development app or installing an updated production app build.
+
 ## Web management dashboard
 
 The independent backend includes the staff web dashboard at `/admin` for products,

@@ -37,6 +37,7 @@ import { CATALOGUE_GC_TIME_MS, CATALOGUE_STALE_TIME_MS, shopApi } from "./api";
 import { homeCollections } from "./collection-artwork";
 import { money, plainText, productPrice, type StoreProduct } from "./contracts";
 import { usePreferences } from "./store";
+import { dealCarouselProducts, isDealsAndSteals } from "./home-catalogue";
 
 // Zustand requires a stable snapshot when there is no account history.
 const EMPTY_RECENT_SLUGS: readonly string[] = [];
@@ -58,20 +59,6 @@ type OccasionIdea = {
    */
   department?: string;
 };
-
-function isDealsAndSteals(product: StoreProduct) {
-  return (
-    product.is_in_stock &&
-    product.is_purchasable &&
-    productPrice(product) !== null &&
-    product.categories.some(
-      (category) =>
-        category.id === 206 ||
-        category.slug === "deals-and-steals" ||
-        plainText(category.name).toLocaleLowerCase() === "deals and steals",
-    )
-  );
-}
 
 /**
  * Compact navigation imagery sourced from Cake City media. These are not
@@ -205,22 +192,17 @@ export function HomeScreen() {
 
   const products = catalogue.data ?? [];
   const dealsAndSteals = useMemo(
-    () => products.filter(isDealsAndSteals),
+    () => dealCarouselProducts(products),
     [products],
   );
   const carouselItems = useMemo<CarouselItem[]>(
     () =>
-      (dealsAndSteals.length
-        ? dealsAndSteals
-        : (signatures.data ?? [])
-            .filter((product) => product.is_in_stock && product.is_purchasable)
-            .slice(0, 3)
-      ).map((product) => ({
+      dealsAndSteals.map((product) => ({
         id: `deal-${product.id}`,
         kind: "deal" as const,
         product,
       })),
-    [dealsAndSteals, signatures.data],
+    [dealsAndSteals],
   );
   // FlatList measures its paging cells once. Re-key it when an orientation,
   // safe-area, or live-deal change alters their width/order, so it cannot hold
@@ -564,6 +546,11 @@ function DealSlide({
             <Text style={styles.dealPrice}>
               {price !== null ? money(price) : "View offer"}
             </Text>
+            {!product.is_in_stock || !product.is_purchasable ? (
+              <Text style={styles.dealLabel}>
+                Ordering currently unavailable
+              </Text>
+            ) : null}
           </View>
           <View style={styles.dealArrow}>
             <Ionicons color={colors.cocoa} name="arrow-forward" size={17} />
@@ -600,11 +587,11 @@ function EmptyDealSlide({
         style={StyleSheet.absoluteFill}
       />
       <Ionicons name="sparkles" color="rgba(255,255,255,0.96)" size={62} />
-      <Text style={styles.emptyKicker}>A SLICE OF SOMETHING SPECIAL</Text>
-      <Text style={styles.emptyTitle}>Big moments. Little treats.</Text>
+      <Text style={styles.emptyKicker}>DEALS & STEALS</Text>
+      <Text style={styles.emptyTitle}>Explore Cake City offers</Text>
       <Text style={styles.emptyCopy}>
-        Find a cake that makes it yours. Explore flavours, designs and
-        celebrations.
+        No Deals & Steals products are loaded right now. Tap to explore the
+        catalogue, or refresh to check again.
       </Text>
     </Pressable>
   );

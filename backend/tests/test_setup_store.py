@@ -25,7 +25,9 @@ def export_fixture(directory):
     identity = hashlib.sha256(data).hexdigest()
     (directory / "media").mkdir()
     (directory / "media" / identity).write_bytes(data)
-    bundle = {"version": 1, "products": [{"id": 912345, "slug": "setup-test-cake", "name": "Setup test cake",
+    bundle = {"version": 1, "products": [{"id": 912345, "slug": "setup-test-cake", "name": "Setup test cake", "parent": 0,
+               "categories": [{"id":206,"name":"Deals And Steals","slug":"deals-and-steals"},
+                              {"id":98,"name":"Offers","slug":"offers"}],
                "prices": {"price": "250000", "currency_code": "KES", "currency_minor_unit": 2}}],
               "media": [{"id": identity, "source_url": "https://cakecity.co.ke/setup-test.jpg", "mime": "image/jpeg"}],
               "pages": [{"slug": "setup-test-page", "title": {"rendered": "Test page"},
@@ -41,6 +43,8 @@ def test_one_command_import_is_idempotent_and_does_not_enable_products(tmp_path)
     with SessionLocal() as db:
         row = db.get(AppProduct, 912345)
         assert row.price_minor == 250000 and not row.enabled and row.allocation == 0
+        assert row.parent_id is None
+        assert [c["id"] for c in row.payload["categories"]] == [206,98]
         assert db.get(AppPage, "setup-test-page").body == "Public test information"
         assert db.scalar(select(AppMedia).where(AppMedia.source_url == "https://cakecity.co.ke/setup-test.jpg"))
         row.payload = {**row.payload, "name": "Edited in app"}

@@ -9,6 +9,7 @@ import { Text } from "@/components/ui/Typography";
 import { useTheme } from "@/theme/ThemeProvider";
 import { shopDepartments, type ShopDepartmentId } from "./shop-departments";
 import { parseBudget, shopSorts, type ShopSort } from "./shop-browse";
+import { plainText, type Category } from "./contracts";
 
 export type ShopSheetMode = "filters" | "categories" | "sort";
 export type ShopOptions = {
@@ -16,17 +17,20 @@ export type ShopOptions = {
   subfilter: string;
   sort: ShopSort;
   budget: Partial<ReturnType<typeof parseBudget>>;
+  category?: number;
 };
 
 // Mounted afresh for each opening: dismissing a sheet never applies its draft.
 export function ShopOptionsSheet({
   mode,
   value,
+  categories = [],
   onClose,
   onApply,
 }: {
   mode: ShopSheetMode;
   value: ShopOptions;
+  categories?: readonly Category[];
   onClose: () => void;
   onApply: (value: ShopOptions) => void;
 }) {
@@ -76,7 +80,12 @@ export function ShopOptionsSheet({
               setError("");
               setDraft((current) =>
                 mode === "categories"
-                  ? { ...current, department: "all", subfilter: "all" }
+                  ? {
+                      ...current,
+                      department: "all",
+                      subfilter: "all",
+                      category: undefined,
+                    }
                   : mode === "sort"
                     ? { ...current, sort: "popular" }
                     : { ...current, budget: {} },
@@ -93,14 +102,17 @@ export function ShopOptionsSheet({
             <Pressable
               key={item.id}
               accessibilityRole="radio"
-              accessibilityState={{ checked: draft.department === item.id }}
-              aria-checked={draft.department === item.id}
+              accessibilityState={{
+                checked: !draft.category && draft.department === item.id,
+              }}
+              aria-checked={!draft.category && draft.department === item.id}
               accessibilityLabel={item.name}
               onPress={() =>
                 setDraft((current) => ({
                   ...current,
                   department: item.id,
                   subfilter: item.filters[0].id,
+                  category: undefined,
                 }))
               }
               style={{
@@ -111,7 +123,7 @@ export function ShopOptionsSheet({
                 padding: 10,
                 borderRadius: 18,
                 backgroundColor:
-                  draft.department === item.id
+                  !draft.category && draft.department === item.id
                     ? colors.brandLight
                     : colors.surface,
               }}
@@ -138,20 +150,70 @@ export function ShopOptionsSheet({
               </Text>
               <Ionicons
                 name={
-                  draft.department === item.id
+                  !draft.category && draft.department === item.id
                     ? "radio-button-on"
                     : "radio-button-off"
                 }
                 size={22}
                 color={
-                  draft.department === item.id
+                  !draft.category && draft.department === item.id
                     ? colors.brandStrong
                     : colors.muted
                 }
               />
             </Pressable>
           ))}
-          {selected.filters.length > 1 ? (
+          {categories.length ? (
+            <View style={{ gap: 8, paddingVertical: 14 }}>
+              <Text
+                style={{ color: colors.ink, fontWeight: "800", fontSize: 15 }}
+              >
+                Catalogue categories
+              </Text>
+              {categories.map((item) => (
+                <Pressable
+                  key={`category-${item.id}`}
+                  accessibilityRole="radio"
+                  accessibilityLabel={plainText(item.name)}
+                  accessibilityState={{ checked: draft.category === item.id }}
+                  onPress={() =>
+                    setDraft((current) => ({
+                      ...current,
+                      department: "all",
+                      subfilter: "all",
+                      category: item.id,
+                    }))
+                  }
+                  style={{
+                    minHeight: 48,
+                    padding: 12,
+                    borderRadius: 12,
+                    flexDirection: "row",
+                    gap: 12,
+                    backgroundColor:
+                      draft.category === item.id
+                        ? colors.brandLight
+                        : colors.surface,
+                  }}
+                >
+                  <Text style={{ flex: 1, color: colors.ink }}>
+                    {plainText(item.name)}
+                  </Text>
+                  <Text style={{ color: colors.muted }}>{item.count}</Text>
+                  <Ionicons
+                    name={
+                      draft.category === item.id
+                        ? "radio-button-on"
+                        : "radio-button-off"
+                    }
+                    size={20}
+                    color={colors.brandStrong}
+                  />
+                </Pressable>
+              ))}
+            </View>
+          ) : null}
+          {!draft.category && selected.filters.length > 1 ? (
             <View
               style={{
                 gap: 8,

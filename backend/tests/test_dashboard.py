@@ -112,3 +112,45 @@ def test_role_change_is_checked_on_every_request(system):
     app.dependency_overrides[member]=lambda:SimpleNamespace(id="buyer",role="marketing_manager")
     assert client.get("/v1/admin/dashboard/products").status_code == 403
     assert client.get("/v1/admin/content").status_code == 200
+
+
+def test_original_categories_filter_browsable_products_without_enabling_orders(system):
+    client=system["client"]
+    with Session(system["engine"]) as db:
+        original=db.get(AppProduct,12)
+        original.payload={**original.payload,"categories":[{"id":229,"name":"Signature Cakes","slug":"signature-cakes"}]}
+        for identity,slug,category in [(21,"deal-cake",206),(22,"custom-cake",123)]:
+            db.add(AppProduct(id=identity,slug=slug,payload={"id":identity,"slug":slug,"name":slug,"type":"simple",
+                "categories":[{"id":category,"name":"Deals And Steals" if category==206 else "Custom Cakes","slug":"deals-and-steals" if category==206 else "custom-cakes"}]},
+                price_minor=250000,allocation=0,enabled=False))
+        db.commit()
+    categories={r["id"]:r for r in client.get("/v1/catalogue/categories").json()}
+    assert categories[206]["count"] == categories[123]["count"] == categories[229]["count"] == 1
+    for category,identity in [(206,21),(123,22),(229,12)]:
+        rows=client.get("/v1/catalogue/products",params={"category":category}).json()
+        assert [r["id"] for r in rows] == [identity]
+    rows=client.get("/v1/catalogue/products",params={"category":"206,123","category_operator":"in"}).json()
+    assert {r["id"] for r in rows} == {21,22}
+    assert all(not r["is_purchasable"] and not r["is_in_stock"] for r in rows)
+
+
+def test_legacy_zero_parent_repair_restores_categories_and_preserves_inventory(system):
+    from app.migrate import repair_catalogue_parents
+    client=system["client"]
+    with Session(system["engine"]) as db:
+        row=db.get(AppProduct,12)
+        row.parent_id=0
+        row.reserved,row.sold=2,3
+        row.payload={**row.payload,"categories":[{"id":206,"name":"Deals And Steals","slug":"deals-and-steals"}]}
+        db.add(AppProduct(id=13,slug="real-variation",parent_id=12,payload={"id":13,"type":"variation"},price_minor=300000,allocation=8,enabled=True))
+        db.commit()
+    assert client.get("/v1/catalogue/categories").json() == []
+    assert repair_catalogue_parents(system["engine"]) == 1
+    assert repair_catalogue_parents(system["engine"]) == 0
+    assert [p["id"] for p in client.get("/v1/catalogue/products",params={"category":206}).json()] == [12]
+    assert client.get("/v1/catalogue/categories").json()[0]["count"] == 1
+    assert [p["id"] for p in client.get("/v1/catalogue/products",params={"type":"variation"}).json()] == [13]
+    with Session(system["engine"]) as db:
+        row=db.get(AppProduct,12)
+        assert (row.price_minor,row.allocation,row.reserved,row.sold,row.enabled) == (250000,10,2,3,True)
+        assert db.get(AppProduct,13).parent_id == 12

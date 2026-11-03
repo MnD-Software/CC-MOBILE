@@ -181,7 +181,7 @@ def load(directory):
             amount = int(price) if str(price).isdigit() and prices.get("currency_code") == "KES" and prices.get("currency_minor_unit") == 2 else None
             row = db.get(AppProduct, identity)
             if row is None:
-                db.add(AppProduct(id=identity, slug=(payload["slug"] + "--v" + str(identity)) if (parents.get(identity) or payload.get("parent")) else payload["slug"], parent_id=parents.get(identity) or payload.get("parent"),
+                db.add(AppProduct(id=identity, slug=(payload["slug"] + "--v" + str(identity)) if (parents.get(identity) or payload.get("parent")) else payload["slug"], parent_id=parents.get(identity) or payload.get("parent") or None,
                                   payload=payload, price_minor=amount, enabled=False, allocation=0))
             # Reimport never overwrites app prices, stock allocations or editorial changes.
         for image in bundle["media"]:
