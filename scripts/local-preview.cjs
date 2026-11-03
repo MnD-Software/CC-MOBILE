@@ -175,7 +175,7 @@ async function main() {
   );
   await ready(
     apiUrl + "/local-preview/status",
-    45000,
+    180000,
     async (response) => (await response.json()).local_preview === true,
   );
   const webLog = fs.openSync(path.join(directory, "web.log"), "a");
@@ -204,7 +204,7 @@ async function main() {
       stdio: ["ignore", webLog, webLog],
     },
   );
-  await ready(webUrl + "/sign-in", 120000);
+  await ready(webUrl + "/sign-in", 300000);
   fs.writeFileSync(
     path.join(directory, "RUNNING.json"),
     JSON.stringify(

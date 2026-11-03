@@ -1,3 +1,4 @@
+import { appMedia } from "./app-media";
 import { Ionicons } from "@expo/vector-icons";
 import { CampaignStories } from "@/features/editorial/CampaignStories";
 import { CelebrationDashboard } from "@/features/celebrations/CelebrationDashboard";
@@ -82,40 +83,45 @@ const occasionIdeas: readonly OccasionIdea[] = [
     id: "birthday",
     title: "Birthday",
     query: "birthday",
-    image:
+    image: appMedia(
       "https://cakecity.co.ke/wp-content/uploads/2025/08/SPONGEBOB-1-300x300.avif",
+    ),
     tint: "#FFF0F8",
   },
   {
     id: "wedding",
     title: "Wedding",
     query: "wedding",
-    image:
+    image: appMedia(
       "https://i0.wp.com/cakecity.co.ke/wp-content/uploads/2025/02/WhatsApp-Image-2026-04-02-at-12.40.45-Edit-with-AI.jpg-1.webp?fit=360%2C360&ssl=1",
+    ),
     tint: "#F7F3FF",
   },
   {
     id: "baby-shower",
     title: "Baby shower",
     query: "baby shower",
-    image:
+    image: appMedia(
       "https://cakecity.co.ke/wp-content/uploads/2025/08/BSHOWER-12-300x300.avif",
+    ),
     tint: "#EAF8FE",
   },
   {
     id: "graduation",
     title: "Graduation",
     query: "graduation",
-    image:
+    image: appMedia(
       "https://cakecity.co.ke/wp-content/uploads/2025/08/GRAD-4-300x300.avif",
+    ),
     tint: "#FFF6DF",
   },
   {
     id: "pink-simba",
     title: "Pink Simba",
     query: "pink simba",
-    image:
+    image: appMedia(
       "https://i0.wp.com/cakecity.co.ke/wp-content/uploads/2024/08/simba-Photoroom.webp?fit=520%2C520&ssl=1",
+    ),
     tint: "#FFF0F8",
   },
   {
@@ -126,7 +132,9 @@ const occasionIdeas: readonly OccasionIdea[] = [
     // floral cake, rather than silently substituting generic wedding results.
     query: "romantic red floral",
     department: "Anniversary cakes",
-    image: "https://cakecity.co.ke/wp-content/uploads/2025/08/FLORAL-27.avif",
+    image: appMedia(
+      "https://cakecity.co.ke/wp-content/uploads/2025/08/FLORAL-27.avif",
+    ),
     tint: "#FFF5F7",
   },
 ];

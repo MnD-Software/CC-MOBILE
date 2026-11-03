@@ -1,4 +1,5 @@
 from functools import lru_cache
+from typing import Literal
 from urllib.parse import urlsplit
 
 from pydantic import Field
@@ -18,6 +19,15 @@ class Settings(BaseSettings):
     woocommerce_api_url: str = "https://cakecity.co.ke/wp-json/wc/v3"
     woocommerce_consumer_key: str = ""
     woocommerce_consumer_secret: str = ""
+    pesapal_consumer_key: str = ""
+    pesapal_consumer_secret: str = ""
+    pesapal_environment: Literal["live", "sandbox"] = "live"
+    pesapal_account_id: str = "primary"
+    pesapal_accounts_json: str = ""
+    app_public_url: str = ""
+    sales_ingest_secret: str = ""
+    pesapal_public_url: str = ""
+    render_external_url: str = ""
     redis_url: str = ""
     database_pool_size: int = Field(default=5, ge=1, le=50)
     database_max_overflow: int = Field(default=5, ge=0, le=50)

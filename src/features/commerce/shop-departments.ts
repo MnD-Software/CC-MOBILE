@@ -1,3 +1,4 @@
+import { appMedia } from "./app-media";
 import { plainText, type StoreProduct } from "./contracts";
 
 export const shopDepartments = [
@@ -5,16 +6,18 @@ export const shopDepartments = [
     id: "all",
     name: "All",
     categories: [229, 168, 169, 170, 171, 72, 110, 112, 206, 98],
-    image:
+    image: appMedia(
       "https://cakecity.co.ke/wp-content/uploads/2025/08/Straw-gateau-Photoroom-2.avif",
+    ),
     filters: [{ id: "all", label: "All cakes" }],
   },
   {
     id: "vanilla",
     name: "Vanilla",
     categories: [169, 170],
-    image:
+    image: appMedia(
       "https://cakecity.co.ke/wp-content/uploads/2025/08/Lotus-biscoff-Photoroom.avif",
+    ),
     filters: [
       { id: "sponge", label: "Vanilla sponge", note: "Ready now" },
       { id: "pound", label: "Vanilla pound cake", note: "Order 1 day ahead" },
@@ -24,8 +27,9 @@ export const shopDepartments = [
     id: "signature",
     name: "Signature",
     categories: [229],
-    image:
+    image: appMedia(
       "https://cakecity.co.ke/wp-content/uploads/2025/08/Straw-gateau-Photoroom-2.avif",
+    ),
     filters: [
       { id: "vanilla", label: "Vanilla sponge" },
       { id: "chocolate", label: "Chocolate sponge" },
@@ -36,8 +40,9 @@ export const shopDepartments = [
     id: "chocolate",
     name: "Chocolate",
     categories: [168, 170],
-    image:
+    image: appMedia(
       "https://cakecity.co.ke/wp-content/uploads/2025/08/Black-forest-Photoroom.avif",
+    ),
     filters: [
       { id: "pound", label: "Chocolate pound cake", note: "Order 1 day ahead" },
       { id: "sponge", label: "Chocolate sponge", note: "Ready now" },
@@ -47,8 +52,9 @@ export const shopDepartments = [
     id: "cheesecakes",
     name: "Cheesecakes",
     categories: [171],
-    image:
+    image: appMedia(
       "https://i0.wp.com/cakecity.co.ke/wp-content/uploads/2024/08/caramel-cheese-4.webp?fit=1024%2C1024&ssl=1",
+    ),
     filters: [
       { id: "all", label: "All cheesecakes" },
       { id: "24", label: "Order 1 day ahead" },
@@ -59,8 +65,9 @@ export const shopDepartments = [
     id: "cupcakes",
     name: "Cupcakes",
     categories: [110],
-    image:
+    image: appMedia(
       "https://i0.wp.com/cakecity.co.ke/wp-content/uploads/2024/09/DSC04146-Photoroom.jpg?fit=520%2C520&ssl=1",
+    ),
     filters: [
       { id: "all", label: "All cupcakes" },
       { id: "filled", label: "Filled cupcakes" },
@@ -72,8 +79,9 @@ export const shopDepartments = [
     id: "offers",
     name: "Offers",
     categories: [206, 98],
-    image:
+    image: appMedia(
       "https://i0.wp.com/cakecity.co.ke/wp-content/uploads/2026/10/WhatsApp-Image-2026-10-06-at-13.24.30.webp?fit=1254%2C1254&ssl=1",
+    ),
     filters: [{ id: "all", label: "All offers" }],
   },
 ] as const;

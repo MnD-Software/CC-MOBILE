@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Tabs, router, usePathname } from "expo-router";
-import { useEffect, useRef, useState, type ComponentProps } from "react";
+import { usePathname, useRouter } from "expo-router";
+import { useEffect, useRef, useState } from "react";
 import {
   Animated,
   Keyboard,
@@ -20,10 +20,6 @@ import { tokens } from "@/theme/tokens";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import { GlassSurface } from "./GlassSurface";
 
-type BottomTabBarProps = Parameters<
-  NonNullable<ComponentProps<typeof Tabs>["tabBar"]>
->[0];
-
 const destinations = [
   { name: "index", label: "Home", icon: "home-outline", active: "home" },
   { name: "shop", label: "Shop", icon: "grid-outline", active: "grid" },
@@ -42,11 +38,8 @@ const destinations = [
   },
 ] as const;
 
-export function FloatingTabBar(
-  props: BottomTabBarProps | Record<string, never> = {},
-) {
-  const state = "state" in props ? props.state : undefined;
-  const navigation = "navigation" in props ? props.navigation : undefined;
+export function FloatingTabBar() {
+  const router = useRouter();
   const pathname = usePathname();
   const styles = useThemedStyles(baseStyles);
   const { colors } = useTheme();
@@ -64,21 +57,19 @@ export function FloatingTabBar(
   const activeIndex = destinations.findIndex(
     (destination) =>
       destination.name ===
-      (state
-        ? state.routes[state.index].name
-        : pathname === "/"
-          ? "index"
-          : pathname.startsWith("/product") ||
-              pathname.startsWith("/cart") ||
-              pathname.startsWith("/search")
-            ? "shop"
-            : pathname.startsWith("/order")
-              ? "orders"
-              : pathname.startsWith("/loyalty")
-                ? "loyalty"
-                : pathname.startsWith("/campaign-studio")
-                  ? "account"
-                  : pathname.split("/")[1]),
+      (pathname === "/"
+        ? "index"
+        : pathname.startsWith("/product") ||
+            pathname.startsWith("/cart") ||
+            pathname.startsWith("/search")
+          ? "shop"
+          : pathname.startsWith("/order")
+            ? "orders"
+            : pathname.startsWith("/loyalty")
+              ? "loyalty"
+              : pathname.startsWith("/campaign-studio")
+                ? "account"
+                : pathname.split("/")[1]),
   );
   const tabWidth = Math.max(
     0,
@@ -111,19 +102,7 @@ export function FloatingTabBar(
   };
   const navigateTo = (index: number) => {
     const destination = destinations[index];
-    const route = state?.routes.find((item) => item.name === destination.name);
-    if (navigation && route) {
-      const event = navigation.emit({
-        type: "tabPress",
-        target: route.key,
-        canPreventDefault: true,
-      });
-      if (event.defaultPrevented) {
-        settle(Math.max(0, activeIndex) * (tabWidth + 2));
-        return;
-      }
-      if (activeIndex !== index) navigation.navigate(route.name, route.params);
-    } else if (activeIndex !== index) {
+    if (activeIndex !== index) {
       router.navigate(
         destination.name === "index"
           ? "/(tabs)"
@@ -294,9 +273,6 @@ export function FloatingTabBar(
               </Animated.View>
             ) : null}
             {destinations.map((destination) => {
-              const route = state?.routes.find(
-                (item) => item.name === destination.name,
-              );
               const focused = activeIndex === destinations.indexOf(destination);
               const isClub = destination.name === "loyalty";
               return (
@@ -309,11 +285,6 @@ export function FloatingTabBar(
                   accessibilityState={{ selected: focused }}
                   aria-selected={focused}
                   onPress={() => navigateTo(destinations.indexOf(destination))}
-                  onLongPress={() =>
-                    navigation &&
-                    route &&
-                    navigation.emit({ type: "tabLongPress", target: route.key })
-                  }
                   style={({ pressed }) => [
                     styles.tab,
                     pressed && !reduceMotion && styles.pressed,

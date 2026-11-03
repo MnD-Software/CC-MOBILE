@@ -2,6 +2,8 @@
 
 This is a backend testing slice, not a live provider or consumer checkout replacement. Commerce never mounts these routes. No live orders, dispatch, loyalty, messages, funds or fiscal documents are created. Mobile retains WooCommerce checkout.
 
+For the paired local iPhone interface, product points, two/four-purchase test tiers and saved receipts, see [the purchase review guide](PURCHASE_TEST.md). Run `npm run preview:purchase`; the operator-only API below remains available separately. Test points never enter the live Club or Enquest ledger.
+
 ## Local startup
 
 From `backend`, use values from `payment-sandbox.env.example` in a separate process. Generate two different secrets privately with `python -c "import secrets; print(secrets.token_urlsafe(48))"`. Keep them out of tracked files.

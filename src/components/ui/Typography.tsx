@@ -3,6 +3,7 @@ import {
   Platform,
   StyleSheet,
   Text as NativeText,
+  type TextInstance,
   type TextProps,
 } from "react-native";
 
@@ -11,7 +12,7 @@ import {
 export const brandFontFamily =
   Platform.OS === "ios" ? "AmericanTypewriter" : undefined;
 
-export const Text = forwardRef<NativeText, TextProps>(function Text(
+export const Text = forwardRef<TextInstance, TextProps>(function Text(
   { style, ...props },
   ref,
 ) {

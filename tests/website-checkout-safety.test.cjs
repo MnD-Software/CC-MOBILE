@@ -72,8 +72,8 @@ test("website checkout restores a matching cart before replaying add-item reques
   assert.match(source, /cartToken\s*=\s*result\.cartToken/);
 });
 
-test("checkout treats secure cart construction as a mutation, not a refetchable query", () => {
-  const source = read("CheckoutScreen.tsx");
+test("legacy checkout treats secure cart construction as a mutation, not a refetchable query", () => {
+  const source = read("LegacyWebsiteCheckoutForm.tsx");
   assert.match(source, /\buseMutation\b/);
   assert.match(source, /\bmutationFn\b/);
   assert.match(source, /\bprepareWebsiteCheckoutCart\b/);
@@ -87,7 +87,7 @@ test("checkout treats secure cart construction as a mutation, not a refetchable 
 
 test("private checkout recovery and tracked order keys are scoped to a signed-in account", () => {
   const session = read("website-checkout-session.ts");
-  const checkout = read("CheckoutScreen.tsx");
+  const checkout = read("LegacyWebsiteCheckoutForm.tsx");
   const history = read("website-order-history.ts");
 
   assert.match(session, /websiteCheckoutOwnerScope/);

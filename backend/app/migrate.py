@@ -4,6 +4,7 @@ Run once before a release; existing incompatible tables fail validation.
 from sqlalchemy import inspect
 from .db import Base, engine
 from . import models
+from . import commerce_models
 
 
 def migrate():

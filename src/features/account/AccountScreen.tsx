@@ -4,6 +4,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router, type Href } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { clubApi } from "./club-api";
+import { purchaseTestOrigin } from "@/features/purchase-test/client";
 import { membershipPalette } from "./member-card";
 import { customerApi } from "@/features/commerce/api";
 import { useState } from "react";
@@ -289,7 +290,7 @@ export function AccountScreen() {
   const [editingProfile, setEditingProfile] = useState(false);
   const { customer, logout, restoring } = useAuth();
   const membership = useQuery({
-    queryKey: ["club", customer?.id],
+    queryKey: ["club", customer?.id, purchaseTestOrigin()],
     queryFn: ({ signal }) => clubApi.overview(signal),
     enabled: !!customer,
     staleTime: 60_000,
@@ -795,6 +796,15 @@ export function AccountScreen() {
       <View style={styles.accountList}>
         <AccountRow
           link={{
+            id: "billing",
+            title: "Billing details",
+            detail: "Save your contact and billing address before checkout",
+            icon: "card-outline",
+            href: "/billing-details",
+          }}
+        />
+        <AccountRow
+          link={{
             id: "requests",
             title: "Your requests",
             detail: "Custom cakes, quotes and support replies",
@@ -809,6 +819,24 @@ export function AccountScreen() {
       </Disclosure>
       <Section title="Here to help" />
       <View style={styles.accountList}>
+        {[
+          "admin",
+          "staff",
+          "ecommerce_manager",
+          "finance",
+          "executive",
+          "analyst",
+        ].includes(customer.role) ? (
+          <AccountRow
+            link={{
+              id: "app-commerce",
+              title: "App commerce & sales",
+              detail: "App stock, orders and channel reporting",
+              icon: "stats-chart-outline",
+              href: "/commerce-operations",
+            }}
+          />
+        ) : null}
         {customer.role === "staff" || customer.role === "admin" ? (
           <AccountRow
             link={{

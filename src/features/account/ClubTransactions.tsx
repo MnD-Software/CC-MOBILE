@@ -8,16 +8,18 @@ import { Feedback } from "@/components/ui/Commerce";
 import { Text } from "@/components/ui/Typography";
 import { useTheme } from "@/theme/ThemeProvider";
 import { clubApi } from "./club-api";
+import { router } from "expo-router";
+import { purchaseTestOrigin } from "@/features/purchase-test/client";
 
 export function ClubTransactions({ onClose }: { onClose: () => void }) {
   const { customer } = useAuth();
   const { colors } = useTheme();
   const query = useInfiniteQuery({
-    queryKey: ["club-transactions", customer?.id],
+    queryKey: ["club-transactions", customer?.id, purchaseTestOrigin()],
     initialPageParam: undefined as string | undefined,
     queryFn: ({ pageParam, signal }) => clubApi.transactions(pageParam, signal),
     getNextPageParam: (page) => page.next_cursor ?? undefined,
-    enabled: !!customer,
+    enabled: !!customer || Boolean(purchaseTestOrigin()),
     retry: false,
     staleTime: 60_000,
     refetchOnMount: "always",
@@ -113,6 +115,19 @@ export function ClubTransactions({ onClose }: { onClose: () => void }) {
             >
               {entry.description}
             </Text>
+            {entry.receipt_reference ? (
+              <Button
+                variant="ghost"
+                label="View receipt"
+                onPress={() => {
+                  onClose();
+                  router.push({
+                    pathname: "/order/[reference]",
+                    params: { reference: entry.receipt_reference! },
+                  });
+                }}
+              />
+            ) : null}
             <Text style={{ color: colors.muted, fontSize: 12 }}>
               {new Date(entry.created_at).toLocaleDateString(undefined, {
                 day: "numeric",

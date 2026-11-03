@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { randomUUID } from "expo-crypto";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useRef, useState } from "react";
 import { View } from "react-native";
 import { Text } from "@/components/ui/Typography";
@@ -46,15 +46,16 @@ export function RequestsScreen() {
 }
 
 function RequestForm({ owner }: { owner: string }) {
+  const initial = useLocalSearchParams<{ kind?: string; details?: string }>();
   const ui = useThemedStyles(baseUi);
   const client = useQueryClient();
   const key = ["enquiries", owner];
   const requestKey = useRef(randomUUID());
   const [kind, setKind] = useState<"custom_cake" | "corporate" | "support">(
-    "custom_cake",
+    initial.kind === "support" ? "support" : "custom_cake",
   );
   const [subject, setSubject] = useState("");
-  const [details, setDetails] = useState("");
+  const [details, setDetails] = useState(initial.details?.slice(0, 4000) || "");
   const [notice, setNotice] = useState("");
   const query = useQuery({
     queryKey: key,

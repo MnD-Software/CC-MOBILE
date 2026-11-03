@@ -1,7 +1,11 @@
 from types import SimpleNamespace
 import pytest
 from fastapi.testclient import TestClient
-from app.main import app
+from fastapi import FastAPI
+app = FastAPI()
+# Historical receipt contract is tested in isolation, not mounted in the app.
+from app.routes_tracking import router as legacy_tracking_router
+app.include_router(legacy_tracking_router)
 from app.routes_club import member
 from app import routes_tracking
 

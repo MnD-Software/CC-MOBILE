@@ -11,9 +11,37 @@ const billingProfileSchema = z.object({
   address: z.string().trim().max(240),
   area: z.string().trim().max(160),
   city: z.string().trim().max(120),
+  // Older saved profiles retain their contact/address fields and ask for the
+  // missing postal code on their next save or checkout.
+  postcode: z.string().trim().max(16).default(""),
 });
 
 export type BillingProfile = z.infer<typeof billingProfileSchema>;
+
+export function validateBillingProfile(
+  profile: BillingProfile,
+): BillingProfile {
+  const parsed = billingProfileSchema.safeParse(profile);
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    throw new Error(
+      issue.path[0] === "email"
+        ? "Enter a valid billing email address."
+        : "Check your billing details. One of the fields is too long.",
+    );
+  }
+  const value = parsed.data;
+  if (!value.firstName || !value.lastName)
+    throw new Error("Enter your first and last name.");
+  const phone = value.phone.replace(/[\s()-]/g, "");
+  if (!/^(?:\+?254|0)[17]\d{8}$/.test(phone))
+    throw new Error("Enter a Kenyan phone number, for example 0712345678.");
+  if (!value.address || !value.area || !value.city)
+    throw new Error("Enter your billing address, area and city.");
+  if (!/^\d{5}$/.test(value.postcode))
+    throw new Error("Enter your five-digit Kenyan postal code.");
+  return { ...value, email: value.email.toLowerCase(), phone };
+}
 
 function profileKey(customerId: string) {
   return `${PROFILE_PREFIX}.${encodeURIComponent(customerId)}`;
@@ -39,7 +67,8 @@ export async function saveBillingProfile(
   customerId: string,
   profile: BillingProfile,
 ) {
-  if (!customerId.trim()) return;
-  const validated = billingProfileSchema.parse(profile);
+  if (!customerId.trim())
+    throw new Error("Sign in before saving billing details.");
+  const validated = validateBillingProfile(profile);
   await setStorageItem(profileKey(customerId), JSON.stringify(validated));
 }

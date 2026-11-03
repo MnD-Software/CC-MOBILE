@@ -100,7 +100,7 @@ def test_expiry_is_applied_once_and_no_coupons_without_provider(client, monkeypa
     second = client.get("/v1/club", headers=headers).json()
     assert first["points"] == second["points"] == 0
     assert len(first["activity"]) == len(second["activity"]) == 2
-    assert client.post("/v1/club/redeem", headers=headers, json={"points": 100, "request_key": uuid4().hex}).status_code == 503
+    assert client.post("/v1/club/redeem", headers=headers, json={"points": 100, "request_key": uuid4().hex}).status_code == 409
 
 
 def test_celebrations_validate_dates_and_never_cross_accounts(client):
@@ -150,17 +150,16 @@ def test_redemption_recovers_provider_failure_without_double_spend_and_refund_re
 
     monkeypatch.setattr("app.routes_club.httpx.AsyncClient", Provider)
     payload = {"points": 100, "request_key": uuid4().hex}
-    pending = client.post("/v1/club/redeem", headers=headers, json=payload)
-    assert pending.status_code == 200 and pending.json()["status"] == "pending"
-    assert client.get("/v1/club", headers=headers).json()["points"] == 900
-    fail[0] = False
-    completed = client.post("/v1/club/redeem", headers=headers, json=payload)
+    issued_result = client.post("/v1/club/redeem", headers=headers, json=payload)
+    assert issued_result.status_code == 200 and issued_result.json()["status"] == "issued"
     repeated = client.post("/v1/club/redeem", headers=headers, json=payload)
-    assert completed.json() == repeated.json()
-    assert completed.json()["status"] == "issued"
-    assert len(calls) == 1
-    assert calls[0]["amount"] == "100.00" and calls[0]["minimum_amount"] == "1000.00"
-    assert calls[0]["usage_limit"] == 1 and calls[0]["individual_use"] is True
+    assert issued_result.json() == repeated.json()
+    assert client.get("/v1/club", headers=headers).json()["points"] == 900
+    assert calls == []  # App coupons require no website connection.
+    from app.commerce_models import AppCoupon
+    with SessionLocal() as db:
+        coupon = db.get(AppCoupon, issued_result.json()["code"])
+        assert coupon.amount_minor == 10000 and coupon.minimum_minor == 100000
     assert event(client, member, order, paid=10000000, refunded=10000000).status_code == 200
     balance = client.get("/v1/club", headers=headers).json()
     assert balance["points"] == 0 and balance["debt"] == 100
@@ -206,27 +205,8 @@ def test_enquiries_are_account_scoped_and_quote_acceptance_checks_revision(clien
     assert client.post(f"/v1/account/enquiries/{identity}/accept", headers=headers, json={"revision": 2}).status_code == 200
 
 
-def test_woo_link_requires_private_receipt_and_awards_from_verified_provider_data(client, monkeypatch):
-    member, headers = register(client)
-    _, other = register(client)
-    order_id = int(uuid4().hex[:10], 16)
-    order = {"id": order_id, "order_key": "wc_order_private-receipt", "billing": {"email": "buyer@example.com"}, "currency": "KES", "status": "processing", "date_paid": "2026-10-07T10:00:00", "line_items": [{"total": "2500.00"}]}
-    refunds = []
-
-    async def provider(_):
-        return order, refunds
-
-    monkeypatch.setattr("app.routes_woo_club.verified_order", provider)
-    data = {"order_id": order_id, "order_key": "wrong-private-key", "billing_email": "buyer@example.com"}
-    assert client.post("/v1/club/orders/link", headers=headers, json=data).status_code == 403
-    data["order_key"] = order["order_key"]
-    assert client.post("/v1/club/orders/link", headers=headers, json=data).status_code == 200
-    assert client.post("/v1/club/orders/link", headers=headers, json=data).status_code == 200
-    assert client.get("/v1/club", headers=headers).json()["points"] == 25
-    assert client.post("/v1/club/orders/link", headers=other, json=data).status_code == 409
-    refunds.append({"amount": "500.00", "line_items": [{"total": "-500.00"}]})
-    assert client.post("/v1/club/orders/link", headers=headers, json=data).status_code == 200
-    assert client.get("/v1/club", headers=headers).json()["points"] == 20
+def test_website_order_link_is_not_an_app_runtime_dependency(client):
+    assert client.post("/v1/club/orders/link", json={}).status_code == 404
 
 
 def test_pairing_curation_is_staff_only_and_rejects_self_pairings(client):

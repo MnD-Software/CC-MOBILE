@@ -11,6 +11,7 @@ import {
   ScrollView,
   StyleSheet,
   TextInput,
+  type TextInputInstance,
   View,
 } from "react-native";
 import { Text, brandFontFamily } from "@/components/ui/Typography";
@@ -63,7 +64,7 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
     focus?: string;
   }>();
   const insets = useSafeAreaInsets();
-  const searchInputRef = useRef<TextInput>(null);
+  const searchInputRef = useRef<TextInputInstance>(null);
   const listRef = useRef<FlatList<StoreProduct>>(null);
   const [search, setSearch] = useState(params.search ?? "");
   const [debounced, setDebounced] = useState(search);
@@ -575,7 +576,7 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
                   <Text style={styles.endNote}>
                     You've seen this selection. Explore another collection.
                   </Text>
-                ) : null
+                ) : undefined
               }
             />
           </View>

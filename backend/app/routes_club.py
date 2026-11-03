@@ -83,7 +83,7 @@ def overview(customer: Customer = Depends(member), db: Session = Depends(get_db)
             "point_value_kes": settings.club_point_value_minor/100,
             "expiry_days": settings.club_expiry_days, "minimum_redemption": 100,
             "minimum_order_multiple": 10},
-        "redemption_available": bool(settings.woocommerce_consumer_key and settings.woocommerce_consumer_secret) and not value.review_required,
+        "redemption_available": not value.review_required,
         "review_required": value.review_required,
         "activity": [{"id": e.id, "points": e.points, "description": e.description,
             "created_at": e.created_at.isoformat()} for e in entries],
@@ -228,8 +228,6 @@ class Redeem(BaseModel):
 @router.post("/v1/club/redeem")
 async def redeem(payload: Redeem, customer: Customer = Depends(member), db: Session = Depends(get_db)):
     settings = get_settings()
-    if not settings.woocommerce_consumer_key or not settings.woocommerce_consumer_secret:
-        raise HTTPException(503, "Reward coupon issuing is not connected yet")
     value = account(db, customer.id)
     record = db.scalar(select(ClubRedemption).where(
         ClubRedemption.customer_id == customer.id, ClubRedemption.request_key == payload.request_key))
@@ -251,30 +249,12 @@ async def redeem(payload: Redeem, customer: Customer = Depends(member), db: Sess
             description="Points reserved for reward coupon"))
     db.commit()
     if record.status != "issued":
-        # Deterministic coupon code lets a retry recover an ambiguous provider
-        # response without spending points again or issuing another coupon.
-        try:
-            async with httpx.AsyncClient(timeout=15, auth=(settings.woocommerce_consumer_key, settings.woocommerce_consumer_secret)) as client:
-                endpoint = settings.woocommerce_api_url + "/coupons"
-                response = await client.get(endpoint, params={"code": record.code})
-                response.raise_for_status()
-                coupons = response.json()
-                if not isinstance(coupons, list) or len(coupons) > 1:
-                    raise ValueError("Invalid coupon lookup")
-                confirmed = coupons[0] if coupons else None
-                if not coupons:
-                    amount = record.points*settings.club_point_value_minor/100
-                    response = await client.post(endpoint, json={"code": record.code,
-                        "discount_type": "fixed_cart", "amount": f"{amount:.2f}",
-                        "individual_use": True, "usage_limit": 1, "usage_limit_per_user": 1,
-                        "email_restrictions": [customer.email], "minimum_amount": f"{amount*10:.2f}",
-                        "date_expires_gmt": (datetime.now(UTC)+timedelta(days=90)).strftime("%Y-%m-%dT%H:%M:%S")})
-                    response.raise_for_status()
-                    confirmed = response.json()
-                if not isinstance(confirmed, dict) or not isinstance(confirmed.get("id"), int) or confirmed["id"] < 1 or confirmed.get("code") != record.code:
-                    raise ValueError("Coupon issuing could not be verified")
-                record.status = "issued"
-                db.commit()
-        except (httpx.HTTPError, ValueError):
-            return {"id": record.id, "status": "pending", "code": None}
+        from .commerce_models import AppCoupon
+        if not db.get(AppCoupon, record.code):
+            amount = record.points*settings.club_point_value_minor
+            db.add(AppCoupon(code=record.code, customer_id=customer.id, amount_minor=amount,
+                             minimum_minor=amount*10, usage_limit=1,
+                             expires_at=datetime.now(UTC)+timedelta(days=90)))
+        record.status = "issued"
+        db.commit()
     return {"id": record.id, "status": "issued", "code": record.code}

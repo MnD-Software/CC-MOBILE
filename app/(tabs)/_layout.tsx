@@ -4,7 +4,6 @@ import { Tabs } from "expo-router";
 import { Platform, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { tokens } from "@/theme/tokens";
-import { FloatingTabBar } from "@/components/storefront/FloatingTabBar";
 
 const tabIcons = {
   index: ["home-outline", "home"],
@@ -20,8 +19,7 @@ const tabIcons = {
 
 /**
  * The stable Expo Router tab navigator deliberately backs the primary mobile
- * navigation. NativeTabs is still experimental in SDK 57 and a hidden native
- * trigger cannot be opened through JavaScript, which broke Cake Studio links.
+ * navigation, including the Cake Studio route opened through JavaScript.
  */
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
@@ -63,9 +61,11 @@ export default function TabLayout() {
                   />
                 )
               : undefined,
-          tabBarIcon: ({ color, focused, size }) => (
+          tabBarIcon: ({ focused, size }) => (
             <Ionicons
-              color={color}
+              color={
+                focused ? tokens.color.brandStrong : tokens.color.mutedSoft
+              }
               name={icons[focused ? 1 : 0]}
               size={Math.max(21, Math.min(size, 24))}
             />

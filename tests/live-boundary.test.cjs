@@ -21,8 +21,8 @@ test("catalogue has one live mobile boundary and no bundled product fallback", (
   assert.match(api, /findProducts/);
   assert.match(api, /category\?: number/);
   assert.match(api, /productsByCategory/);
-  assert.match(api, /STORE_CATEGORY_FALLBACK_URL/);
-  assert.match(api, /category: String\(category\)/);
+  assert.doesNotMatch(api, /STORE_CATEGORY_FALLBACK_URL|cakecity\.co\.ke/);
+  assert.match(api, /category, perPage: 24/);
 
   for (const source of [home, shop, product]) {
     assert.doesNotMatch(source, /reference-catalogue|referenceCakes/);
@@ -60,7 +60,7 @@ test("EAS preview and production builds embed the live mobile endpoint", () => {
   }
 });
 
-test("unconnected account routes fail honestly while checkout uses Cake City's server cart", () => {
+test("unconnected routes fail honestly and legacy website orders retain their server contract", () => {
   const unavailable = read(
     "src",
     "components",
@@ -68,8 +68,8 @@ test("unconnected account routes fail honestly while checkout uses Cake City's s
     "UnavailableExperience.tsx",
   );
   const commerce = read("src", "components", "ui", "Commerce.tsx");
-  const routes = ["branches.tsx", "offers.tsx", "notifications.tsx"].map(
-    (route) => read("app", route),
+  const routes = ["offers.tsx", "notifications.tsx"].map((route) =>
+    read("app", route),
   );
 
   assert.match(unavailable, /Browse cakes/);
@@ -82,13 +82,14 @@ test("unconnected account routes fail honestly while checkout uses Cake City's s
   }
 
   assert.match(read("app", "addresses.tsx"), /AddressesScreen/);
+  assert.match(read("app", "branches.tsx"), /AppInformation/);
   const cart = read("app", "cart.tsx");
   const checkout = read("app", "checkout.tsx");
   const checkoutScreen = read(
     "src",
     "features",
     "commerce",
-    "CheckoutScreen.tsx",
+    "LegacyWebsiteCheckoutForm.tsx",
   );
   const websiteCheckout = read(
     "src",
@@ -110,8 +111,8 @@ test("unconnected account routes fail honestly while checkout uses Cake City's s
   assert.match(websiteCheckout, /\/cart\/add-item/);
   assert.match(websiteCheckout, /"\/checkout"/);
   assert.match(websiteCheckout, /\/order\/\$\{order\.id\}/);
-  assert.match(orders, /refetchInterval/);
-  assert.match(orders, /fetchWebsiteOrder/);
+  assert.match(orders, /AppOrdersScreen/);
+  assert.doesNotMatch(orders, /fetchWebsiteOrder|Linking/);
   assert.doesNotMatch(cart, /UnavailableExperience/);
   assert.doesNotMatch(checkout, /UnavailableExperience/);
 });
@@ -213,7 +214,8 @@ test("home puts live Deals & Steals ahead of a visual collection navigator", () 
 
 test("catalogue proxy validates and forwards a numeric category filter", () => {
   const routes = read("backend", "app", "routes.py");
-  assert.match(routes, /category: int \| None = Query\(default=None, ge=1\)/);
+  assert.match(routes, /category: str \| None = Query/);
+  assert.match(routes, /from \.app_catalogue import products/);
   assert.match(routes, /params\["category"\] = category/);
 });
 
@@ -224,7 +226,8 @@ test("custom-cake fallback shares a picked inspiration without claiming an unver
   assert.match(brief, /ImagePicker\.launchImageLibraryAsync/);
   assert.match(brief, /ImagePicker\.getPendingResultAsync/);
   assert.match(brief, /Sharing\.shareAsync/);
-  assert.match(brief, /wa\.me/);
+  assert.match(brief, /pathname: "\/requests"/);
+  assert.doesNotMatch(brief, /wa\.me|Linking\.openURL/);
   assert.doesNotMatch(brief, /\/v1\/custom-cakes/);
 });
 
@@ -251,7 +254,12 @@ test("variable cakes use live Store API records instead of parent-price guesses"
 
 test("search, account identity and checkout location stay customer-controlled", () => {
   const shop = read("src", "features", "commerce", "ShopScreen.tsx");
-  const checkout = read("src", "features", "commerce", "CheckoutScreen.tsx");
+  const checkout = read(
+    "src",
+    "features",
+    "commerce",
+    "LegacyWebsiteCheckoutForm.tsx",
+  );
   const billing = read("src", "features", "commerce", "billing-profile.ts");
   const tabs = read("app", "(tabs)", "_layout.tsx");
   const help = read("app", "help.tsx");

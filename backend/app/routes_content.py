@@ -101,7 +101,8 @@ def active(payload, now):
 
 
 def output(record):
-    return {**record.payload, "id": record.id, "revision": record.revision}
+    from .app_catalogue import own_media
+    return {**own_media(record.payload), "id": record.id, "revision": record.revision}
 
 
 @router.get("/v1/content")
@@ -121,7 +122,7 @@ def product_content(product_id: int, response: Response, db: Session = Depends(g
 
 @router.get("/v1/admin/content")
 def queue(_: Customer = Depends(require("content.read")), db: Session = Depends(get_db)):
-    return [dict(output(row), kind=row.kind) for row in db.scalars(select(EditorialContent).order_by(EditorialContent.updated_at.desc()).limit(150))]
+    return [dict(output(row), kind=row.kind) for row in db.scalars(select(EditorialContent).order_by(EditorialContent.updated_at.desc()))]
 
 
 def save(db, identity, kind, payload, customer):

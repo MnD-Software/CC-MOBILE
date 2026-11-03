@@ -139,6 +139,7 @@ test("concurrent payment taps create only one WooCommerce order", async () => {
     address: "Test road",
     area: "Test area",
     city: "Nairobi",
+    postcode: "00100",
   };
   const first = submitWebsiteCheckout(session(), details);
   const second = submitWebsiteCheckout(session(), details);
@@ -259,6 +260,7 @@ test("gift checkout separates recipient contact from buyer payment details", asy
     address: "Building",
     area: "Westlands",
     city: "Nairobi",
+    postcode: " 00606 ",
     notes: "Call first",
     gift: {
       firstName: "Gift",
@@ -270,6 +272,8 @@ test("gift checkout separates recipient contact from buyer payment details", asy
   const body = JSON.parse(calls[1].body);
   assert.equal(body.billing_address.first_name, "Buyer");
   assert.equal(body.billing_address.email, "buyer@example.com");
+  assert.equal(body.billing_address.postcode, "00606");
+  assert.equal(body.shipping_address.postcode, "00606");
   assert.equal(body.shipping_address.first_name, "Gift");
   assert.equal(body.shipping_address.phone, "0798765432");
   assert.equal(body.shipping_address.email, "");
@@ -316,6 +320,63 @@ test("applying a code verifies authoritative totals and preserves scoped recover
     ),
     null,
   );
+});
+
+test("missing or malformed postal codes cannot create a checkout order", async () => {
+  for (const postcode of [undefined, "", " ", "1234", "ABCDE"]) {
+    const calls = transport([{ body: cart() }]);
+    await assert.rejects(
+      submitWebsiteCheckout(session(), {
+        firstName: "Test",
+        lastName: "Buyer",
+        email: "buyer@example.com",
+        phone: "0712345678",
+        address: "Test building",
+        area: "Test area",
+        city: "Nairobi",
+        postcode,
+      }),
+      /postal code/,
+    );
+    assert.deepEqual(
+      calls.map((call) => call.method),
+      ["GET"],
+    );
+  }
+});
+
+test("unlabelled WooCommerce address errors give an actionable message", async () => {
+  for (const kind of ["billing", "shipping"]) {
+    const calls = transport([
+      { body: cart() },
+      {
+        status: 400,
+        body: {
+          code: "woocommerce_rest_invalid_address",
+          message: `There was a problem with the provided ${kind} address: is required`,
+        },
+      },
+    ]);
+    await assert.rejects(
+      submitWebsiteCheckout(session(), {
+        firstName: "Test",
+        lastName: "Buyer",
+        email: "buyer@example.com",
+        phone: "+254 (712) 345-678",
+        address: "Test building",
+        area: "Test area",
+        city: "Nairobi",
+        postcode: " 00100 ",
+      }),
+      (error) =>
+        error.status === 400 &&
+        error.message ===
+          `Complete your ${kind} address, including the postal code, then try again.`,
+    );
+    const submitted = JSON.parse(calls[1].body);
+    assert.equal(submitted.billing_address.postcode, "00100");
+    assert.equal(submitted.billing_address.phone, "+254712345678");
+  }
 });
 
 test("rejected or ignored coupon can never be represented as applied", async () => {

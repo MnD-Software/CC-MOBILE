@@ -82,31 +82,11 @@ class Catalogue:
 
     async def _load(self, key, params):
         try:
-            shared_key = "cakecity:catalogue:v2:" + hashlib.sha256(json.dumps(key).encode()).hexdigest()
-            if self.redis:
-                from redis.exceptions import RedisError
-                try:
-                    cached = await self.redis.get(shared_key)
-                    if cached:
-                        data = json.loads(cached)
-                        self._remember(key, data)
-                        return data
-                except (RedisError, ValueError):
-                    pass  # Public reads may use bounded upstream fallback.
-            response = await self.client.get(
-                get_settings().woocommerce_store_url + "/products", params=params,
-            )
-            response.raise_for_status()
-            data = response.json()
-            if not isinstance(data, list):
-                raise ValueError("Invalid catalogue response")
-            data = [mobile_product(item) for item in data]
+            from .db import SessionLocal
+            from .app_catalogue import products
+            with SessionLocal() as db:
+                data, _ = products(db, params)
             self._remember(key, data)
-            if self.redis:
-                try:
-                    await self.redis.set(shared_key, json.dumps(data), ex=60)
-                except RedisError:
-                    pass
             return data
         finally:
             self.flights.pop(key, None)

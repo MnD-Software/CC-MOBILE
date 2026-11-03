@@ -1,5 +1,10 @@
 import { z } from "zod";
 import { api, isApiError } from "@/api/client";
+import {
+  purchaseTest,
+  purchaseTestOrigin,
+} from "@/features/purchase-test/client";
+import { previewClub } from "@/features/purchase-test/model";
 
 const coupon = z.object({
   id: z.string(),
@@ -13,6 +18,7 @@ const transaction = z.object({
   points: z.number().int(),
   description: z.string(),
   created_at: z.string(),
+  receipt_reference: z.string().optional(),
 });
 const club = z.object({
   member_id: z.string(),
@@ -33,6 +39,17 @@ const club = z.object({
   review_required: z.boolean().default(false),
   coupons: z.array(coupon),
   activity: z.array(transaction),
+  purchase_progress: z
+    .object({
+      purchases: z.number().int(),
+      milestones: z
+        .array(z.object({ purchases: z.number().int(), name: z.string() }))
+        .optional(),
+      next_tier: z
+        .object({ name: z.string(), purchases_remaining: z.number().int() })
+        .nullable(),
+    })
+    .optional(),
 });
 const celebration = z.object({
   id: z.string(),
@@ -45,6 +62,10 @@ const celebration = z.object({
 export type Celebration = z.infer<typeof celebration>;
 export const clubApi = {
   async transactions(before?: string, signal?: AbortSignal) {
+    if (purchaseTestOrigin()) {
+      const overview = await this.overview(signal);
+      return { data: overview.activity, next_cursor: null, recent_only: false };
+    }
     const query = new URLSearchParams({ limit: "20" });
     if (before) query.set("before", before);
     try {
@@ -76,6 +97,13 @@ export const clubApi = {
     }
   },
   async overview(signal?: AbortSignal) {
+    if (purchaseTestOrigin()) {
+      if (!(await purchaseTest.connected()))
+        throw new Error(
+          "Connect your membership in checkout to see your points.",
+        );
+      return club.parse(previewClub(await purchaseTest.state()));
+    }
     try {
       return club.parse(
         await api.get("/v1/club", { auth: true, signal, timeoutMs: 65_000 }),
@@ -96,6 +124,10 @@ export const clubApi = {
     }
   },
   async redeem(points: number, request_key: string) {
+    if (purchaseTestOrigin())
+      throw new Error(
+        "Reward redemption will be available when live payments are connected.",
+      );
     return z
       .object({
         id: z.string(),

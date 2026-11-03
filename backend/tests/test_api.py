@@ -22,42 +22,17 @@ def test_catalogue_category_requires_a_positive_id(client):
     response = client.get("/v1/catalogue/products?category=0")
     assert response.status_code == 422
 
-def test_catalogue_forwards_a_valid_category(client, monkeypatch):
-    received: dict[str, object] = {}
+def test_catalogue_reads_category_from_local_app_store(client, monkeypatch):
+    from app import app_catalogue
+    received={}
+    def stored(db,params):
+        received.update(params)
+        return [],0
+    monkeypatch.setattr(app_catalogue,"products",stored)
+    response=client.get("/v1/catalogue/products?page=2&per_page=6&category=229")
+    assert response.status_code==200
+    assert received["category"]=="229" and received["page"]==2
 
-    class FakeResponse:
-        def raise_for_status(self) -> None:
-            pass
-
-        def json(self) -> list[object]:
-            return []
-
-    class FakeClient:
-        def __init__(self, *args: object, **kwargs: object) -> None:
-            pass
-
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, *args: object) -> None:
-            pass
-
-        async def get(self, url: str, params: dict[str, object]):
-            received["url"] = url
-            received["params"] = params
-            return FakeResponse()
-
-    from app.catalogue import catalogue
-    monkeypatch.setattr(catalogue, "client", FakeClient())
-    response = client.get(
-        "/v1/catalogue/products?page=2&per_page=6&category=229"
-    )
-    assert response.status_code == 200
-    assert received["params"] == {
-        "page": 2,
-        "per_page": 6,
-        "category": 229,
-    }
 
 def test_register_login_refresh_logout(client):
     payload = {

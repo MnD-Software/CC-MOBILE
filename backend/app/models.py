@@ -8,6 +8,25 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .db import Base
 
 
+class PesapalPayment(Base):
+    """One durable provider attempt per Woo cart/order; never automatically resubmit."""
+    __tablename__ = "pesapal_payments"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    cart_digest: Mapped[str] = mapped_column(String(64), unique=True)
+    order_id: Mapped[int | None] = mapped_column(Integer, unique=True, nullable=True)
+    reference: Mapped[str] = mapped_column(String(50), unique=True)
+    tracking_id: Mapped[str | None] = mapped_column(String(36), unique=True, nullable=True)
+    redirect_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    environment: Mapped[str] = mapped_column(String(10))
+    amount_minor: Mapped[int] = mapped_column(Integer)
+    order_digest: Mapped[str] = mapped_column(String(64))
+    access_digest: Mapped[str] = mapped_column(String(64))
+    state: Mapped[str] = mapped_column(String(24), default="creating")
+    synced: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class Customer(Base):
     __tablename__ = "customers"
 

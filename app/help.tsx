@@ -16,7 +16,7 @@ const helpTopics = [
   ],
   [
     "Payments and delivery",
-    "Secure ordering is being connected. We will only show payment and delivery choices when they can be confirmed live.",
+    "Checkout confirms the app's current prices and delivery choices before payment. Your orders and payment receipts stay in the app.",
   ],
   [
     "Rewards and special offers",
@@ -46,6 +46,11 @@ export default function Help() {
       <Button
         label="Explore cakes"
         onPress={() => router.push("/(tabs)/shop")}
+      />
+      <Button
+        variant="outline"
+        label="Cake City information & policies"
+        onPress={() => router.push("/information")}
       />
       <Button
         variant="outline"

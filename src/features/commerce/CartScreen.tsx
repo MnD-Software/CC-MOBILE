@@ -27,7 +27,7 @@ export function CartScreen() {
     0,
   );
 
-  async function orderBagOnWhatsApp() {
+  async function requestBagSupport() {
     const order = bag.lines
       .map(
         (line) =>
@@ -40,13 +40,10 @@ export function CartScreen() {
       `Subtotal: ${money(subtotal)}`,
       "Please help me confirm delivery or pickup.",
     ].join("\n\n");
-    try {
-      await Linking.openURL(
-        `https://wa.me/254709729000?text=${encodeURIComponent(message)}`,
-      );
-    } catch {
-      toast("We could not open WhatsApp. Please try secure checkout instead.");
-    }
+    router.push({
+      pathname: "/requests",
+      params: { kind: "support", details: message },
+    });
   }
 
   return (
@@ -240,8 +237,8 @@ export function CartScreen() {
           />
           <Button
             variant="outline"
-            label="Order everything on WhatsApp"
-            onPress={() => void orderBagOnWhatsApp()}
+            label="Order everything on app support"
+            onPress={() => void requestBagSupport()}
           />
           <Button
             variant="outline"

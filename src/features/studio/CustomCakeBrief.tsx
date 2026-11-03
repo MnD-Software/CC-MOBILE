@@ -108,12 +108,10 @@ export function CustomCakeBrief() {
     ]
       .filter(Boolean)
       .join("\n");
-    const url = `https://wa.me/${CAKE_CITY_WHATSAPP}?text=${encodeURIComponent(summary)}`;
-    if (!(await Linking.canOpenURL(url))) {
-      toast("WhatsApp is unavailable on this device.");
-      return;
-    }
-    await Linking.openURL(url);
+    router.push({
+      pathname: "/requests",
+      params: { kind: "custom_cake", details: summary },
+    });
   }
 
   return (
@@ -255,8 +253,8 @@ export function CustomCakeBrief() {
         onPress={() => void messageCakeCity()}
       />
       <Text style={styles.handoffNote}>
-        After sharing your photo, open the Cake City WhatsApp message and send
-        your brief. The team will confirm availability and the final price.
+        After sharing your photo, open the Cake City in-app support message and
+        send your brief. The team will confirm availability and the final price.
       </Text>
     </View>
   );

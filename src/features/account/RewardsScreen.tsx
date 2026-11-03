@@ -1,9 +1,14 @@
 import { ClubMembership } from "./ClubMembership";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
-import { useEffect, useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { router, useLocalSearchParams } from "expo-router";
+import { useEffect, useRef, useState } from "react";
+import {
+  Pressable,
+  StyleSheet,
+  View,
+  type ScrollViewInstance,
+} from "react-native";
 import { Text } from "@/components/ui/Typography";
 import { useAuth } from "@/auth/AuthProvider";
 import {
@@ -26,8 +31,33 @@ import {
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import { tokens } from "@/theme/tokens";
 import { BrandLogo } from "@/components/BrandLogo";
+import { purchaseTestOrigin } from "@/features/purchase-test/client";
+import { useScreenActive } from "@/design/useScreenActive";
 
 export function RewardsScreen() {
+  const { milestone } = useLocalSearchParams<{ milestone?: string }>();
+  const scrollRef = useRef<ScrollViewInstance>(null);
+  const focused = useScreenActive();
+  const viewedMilestone = useRef<string | undefined>(undefined);
+  const [memberY, setMemberY] = useState(0);
+  useEffect(() => {
+    if (
+      !focused ||
+      !milestone ||
+      !memberY ||
+      viewedMilestone.current === milestone
+    )
+      return;
+    const frame = requestAnimationFrame(() => {
+      if (!scrollRef.current) return;
+      scrollRef.current.scrollTo({
+        y: Math.max(0, memberY - 12),
+        animated: false,
+      });
+      viewedMilestone.current = milestone;
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [focused, milestone, memberY]);
   const { customer, restoring } = useAuth();
   const wallet = useCouponWallet(customer?.id);
   const { colors, isDark } = useTheme();
@@ -62,6 +92,7 @@ export function RewardsScreen() {
 
   return (
     <Screen
+      scrollRef={scrollRef}
       header={
         <CommerceBrowseHeader brand={<BrandLogo width={105} />}>
           <Text style={{ color: colors.muted, fontSize: 12 }}>
@@ -96,8 +127,14 @@ export function RewardsScreen() {
         </Text>
       </LinearGradient>
 
-      <ClubMembership key={wallet.scope} walletScope={wallet.scope} />
-      {!customer ? (
+      <View onLayout={(event) => setMemberY(event.nativeEvent.layout.y)}>
+        <ClubMembership
+          key={wallet.scope}
+          walletScope={wallet.scope}
+          revealToken={milestone}
+        />
+      </View>
+      {!customer && !purchaseTestOrigin() ? (
         <Button
           label="Sign in to Club"
           onPress={() => router.push("/sign-in")}

@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#af0063" />
+    <title>Cake City · App management</title>
+    <link rel="stylesheet" href="/admin/assets/dashboard.css" />
+    <script defer src="/admin/assets/dashboard.js"></script>
+  </head>
+  <body>
+    <div id="login" class="login">
+      <div class="login-story">
+        <a class="brand" href="/admin">cake city<span>APP MANAGEMENT</span></a>
+        <div>
+          <span class="eyebrow">YOUR STORE, IN YOUR HANDS</span>
+          <h1>Make every<br />occasion count.</h1>
+          <p>
+            Manage your app’s products, campaigns and promotions from one place.
+          </p>
+        </div>
+        <small>Cake City · Independent app commerce</small>
+      </div>
+      <section class="login-form">
+        <form id="signin">
+          <span class="eyebrow">STAFF WORKSPACE</span>
+          <h2>Welcome back.</h2>
+          <p>Sign in with your Cake City staff account.</p>
+          <label
+            >Email address<input
+              name="email"
+              type="email"
+              autocomplete="username"
+              required /></label
+          ><label
+            >Password<input
+              name="password"
+              type="password"
+              autocomplete="current-password"
+              required /></label
+          ><button type="submit" class="primary">Sign in to dashboard →</button>
+          <p id="login-error" role="alert"></p>
+          <small
+            >Access is limited to authorised staff. Use an admin account for
+            access to every section.</small
+          >
+        </form>
+      </section>
+    </div>
+    <div id="workspace" hidden>
+      <aside>
+        <a class="brand" href="/admin">cake city<span>APP MANAGEMENT</span></a
+        ><span class="nav-label">WORKSPACE</span>
+        <nav aria-label="Main navigation"></nav>
+        <div class="sidebar-bottom">
+          <span class="status-dot"></span> App-owned commerce
+          <p>Changes here manage the app catalogue.</p>
+          <button id="signout" class="quiet">Sign out</button>
+        </div>
+      </aside>
+      <div class="main">
+        <header>
+          <span>CAKE CITY <b>/</b> <span id="breadcrumb">Overview</span></span
+          ><span id="identity"></span>
+        </header>
+        <main>
+          <div class="page-heading">
+            <div>
+              <span class="eyebrow">STORE MANAGEMENT</span>
+              <h1 id="title">Overview</h1>
+              <p id="subtitle"></p>
+            </div>
+            <button id="create" class="primary" hidden></button>
+          </div>
+          <div id="notice" role="status" hidden></div>
+          <div id="content" aria-live="polite"></div>
+        </main>
+        <footer>
+          Independent app workspace
+          <span>Prices in KES · App and website sales reported separately</span>
+        </footer>
+      </div>
+    </div>
+    <dialog id="editor">
+      <form id="edit-form">
+        <div class="dialog-head">
+          <div>
+            <span class="eyebrow">APP MANAGEMENT</span>
+            <h2 id="editor-title"></h2>
+          </div>
+          <button
+            type="button"
+            class="quiet"
+            id="close-editor"
+            aria-label="Close editor"
+          >
+            ✕
+          </button>
+        </div>
+        <div id="fields"></div>
+        <p id="editor-error" role="alert"></p>
+        <div class="dialog-actions">
+          <button type="button" class="quiet" id="cancel">Cancel</button
+          ><button type="submit" class="primary" id="save">Save changes</button>
+        </div>
+      </form>
+    </dialog>
+  </body>
+</html>

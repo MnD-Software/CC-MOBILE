@@ -3,8 +3,10 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const ts = require("typescript");
 const vm = require("node:vm");
+require("./register.cjs");
+const { previewClub } = require("../src/features/purchase-test/model.ts");
 
-function client(get) {
+function client(get, preview) {
   const exports = {};
   const source = ts.transpileModule(
     fs.readFileSync("src/features/account/club-api.ts", "utf8"),
@@ -20,6 +22,16 @@ function client(get) {
     URLSearchParams,
     require(name) {
       if (name === "zod") return require("zod");
+      if (name === "@/features/purchase-test/client")
+        return {
+          purchaseTestOrigin: () =>
+            preview ? "http://192.168.0.105:8011" : null,
+          purchaseTest: {
+            connected: async () => true,
+            state: async () => preview,
+          },
+        };
+      if (name === "@/features/purchase-test/model") return { previewClub };
       if (name === "@/api/client")
         return { api: { get }, isApiError: (error) => error.api === true };
       throw new Error(name);
@@ -49,6 +61,52 @@ test("transactions use authenticated paginated history when the deployed route e
   assert.equal(result.data[0].points, 5);
   assert.equal(result.next_cursor, "entry-1");
   assert.equal(result.recent_only, false);
+});
+
+test("preview Club and transactions use the same confirmed purchases without live API writes", async () => {
+  const state = {
+    membership: {
+      points: 25,
+      purchases: 1,
+      tier: "Bronze",
+      next_tier: { name: "Silver", purchases_remaining: 1 },
+    },
+    history: [
+      {
+        id: "TEST-paid",
+        status: "succeeded",
+        amount_minor: 10000,
+        refunded_minor: 0,
+        created_at: "2026-10-24T10:00:00Z",
+        items: [{ name: "TEST reward cupcake", test_points: 25, quantity: 1 }],
+      },
+      {
+        id: "TEST-failed",
+        status: "failed",
+        amount_minor: 10000,
+        refunded_minor: 0,
+        created_at: "2026-10-24T09:00:00Z",
+        items: [],
+      },
+    ],
+  };
+  const api = client(() => {
+    throw new Error("No production calls allowed");
+  }, state);
+  const member = await api.overview();
+  const ledger = await api.transactions();
+  assert.equal(member.points, 25);
+  assert.equal(member.purchase_progress.next_tier.purchases_remaining, 1);
+  assert.equal(ledger.data.length, 1);
+  assert.equal(ledger.data[0].points, 25);
+  assert.equal(ledger.data[0].receipt_reference, "TEST-paid");
+  assert.equal(ledger.data[0].description, "reward cupcake");
+  await assert.rejects(api.redeem(100, "some-request"), /live payments/);
+  state.history[0].refunded_minor = 5000;
+  state.membership.points = 12;
+  const adjusted = await api.transactions();
+  assert.equal(adjusted.data[0].points, 12);
+  assert.match(adjusted.data[0].description, /adjusted after refund/);
 });
 
 test("an older server displays only its genuine recent Club activity", async () => {

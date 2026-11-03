@@ -5,6 +5,7 @@ import {
   reportNetworkSuccess,
 } from "@/platform/connectivity";
 import type { BagLine } from "./contracts";
+import { validateBillingProfile } from "./billing-profile";
 import {
   cartHasRequestedCoupon,
   normalizeCouponCode,
@@ -30,6 +31,9 @@ const checkoutSchema = z.object({
   order_key: z.string().min(1),
   order_number: z.string().min(1),
   status: z.string(),
+  payment_provider: z.literal("pesapal-api3").optional(),
+  payment_state: z.string().optional(),
+  billing_email: z.string().email().optional(),
   payment_result: z.object({
     payment_status: z.string(),
     redirect_url: z.string().url().nullable().optional(),
@@ -66,6 +70,7 @@ export type WebsiteCheckoutDetails = {
   address: string;
   area: string;
   city: string;
+  postcode: string;
   notes?: string;
   gift?: {
     firstName: string;
@@ -94,7 +99,16 @@ export class WebsiteCheckoutError extends Error {
 
 function errorMessage(value: unknown, fallback: string) {
   const result = z.object({ message: z.string().min(1) }).safeParse(value);
-  return result.success ? result.data.message : fallback;
+  if (!result.success) return fallback;
+  const message = result.data.message;
+  // The live store's locale omits field labels, so WooCommerce can return
+  // "billing address: is required" with no field a customer can act on.
+  const unnamedAddress = message.match(
+    /provided (billing|shipping) address:\s*(?:is required\s*,?\s*)+$/i,
+  );
+  if (unnamedAddress)
+    return `Complete your ${unnamedAddress[1].toLowerCase()} address, including the postal code, then try again.`;
+  return message;
 }
 
 async function storeRequest(
@@ -394,7 +408,7 @@ function address(details: WebsiteCheckoutDetails) {
     city: details.city.trim(),
     // Cake City's current checkout uses Nairobi's WooCommerce state value.
     state: "KE30",
-    postcode: "",
+    postcode: details.postcode.trim(),
     country: "KE",
     phone: details.phone.replace(/\s/g, ""),
     email: details.email.trim(),
@@ -445,12 +459,14 @@ async function submitVerifiedWebsiteCheckout(
     throw new WebsiteCheckoutError(
       "Cake City's total has changed. Return to your bag and reopen checkout to review it before payment.",
     );
+  // Validate the actual API boundary too, so callers cannot submit a missing
+  // postal code even if they bypass the checkout screen's form validation.
+  const billingAddress = address(validateBillingProfile(details));
   // A checkout attempt consumes this app-run recovery session even if Cake
   // City's payment gateway returns an error. Recreating it must be an explicit
   // customer action, never a background replay of cart writes.
   forgetPreparedSession(session.cartToken);
   forgetPreparedSession(verified.cartToken);
-  const billingAddress = address(details);
   const result = await storeRequest(
     "/checkout",
     {

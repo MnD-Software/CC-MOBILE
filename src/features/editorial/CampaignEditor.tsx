@@ -523,8 +523,8 @@ export function CampaignEditor({
               <Text
                 style={{ color: colors.muted, fontSize: 12, lineHeight: 18 }}
               >
-                Set the actual discount in WooCommerce first. This story shares
-                your offer with customers.
+                Create the discount code under Promotions in the app dashboard,
+                then include the code in this story for customers to use.
               </Text>
             ) : null}
           </>

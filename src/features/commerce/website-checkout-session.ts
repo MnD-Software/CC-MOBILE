@@ -27,6 +27,9 @@ const checkoutResultSchema = z.object({
   order_key: z.string().min(1),
   order_number: z.string().min(1),
   status: z.string(),
+  payment_provider: z.literal("pesapal-api3").optional(),
+  payment_state: z.string().optional(),
+  billing_email: z.string().email().optional(),
   payment_result: z.object({
     payment_status: z.string(),
     redirect_url: z.string().url().nullable().optional(),

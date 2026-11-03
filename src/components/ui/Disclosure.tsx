@@ -28,6 +28,7 @@ export function Disclosure({
     >
       <Pressable
         accessibilityRole="button"
+        accessibilityLabel={title}
         accessibilityState={{ expanded: open }}
         aria-expanded={open}
         onPress={() => setOpen(!open)}

@@ -404,7 +404,7 @@ export function ProductScreen() {
   }
 
   async function shareCake() {
-    const url = `https://cakecity.co.ke/product/${encodeURIComponent(orderCake.slug)}/`;
+    const url = `cakecity://product/${encodeURIComponent(String(orderCake.id))}`;
     try {
       await Share.share({
         title: plainText(orderCake.name),

@@ -27,6 +27,9 @@ class SandboxSettings(BaseSettings):
     database_url: str = "sqlite:///./cakecity-payment-sandbox.db"
     access_token: str = ""
     webhook_secret: str = ""
+    mobile_review_enabled: bool = False
+    mobile_pairing_code: str = ""
+    mobile_origins: str = ""
     model_config = SettingsConfigDict(env_prefix="PAYMENT_SANDBOX_", extra="ignore")
 
     def validate_isolation(self):
@@ -36,6 +39,9 @@ class SandboxSettings(BaseSettings):
             raise RuntimeError("Payment sandbox requires explicit enablement and isolation")
         if min(len(self.access_token), len(self.webhook_secret)) < 32 or self.access_token == self.webhook_secret:
             raise RuntimeError("Provision distinct sandbox access and webhook secrets of at least 32 characters")
+        if self.mobile_review_enabled and (self.environment.casefold() not in {"development", "local", "test"}
+                                           or len(self.mobile_pairing_code) != 8 or not self.mobile_pairing_code.isdecimal()):
+            raise RuntimeError("Mobile review requires a local test environment and a private eight-digit pairing code")
         url = make_url(self.database_url)
         if url.drivername != "sqlite" or not url.database or url.database == ":memory:":
             raise RuntimeError("Payment sandbox requires a dedicated persistent SQLite test database")
@@ -83,13 +89,20 @@ class StrictInput(BaseModel):
 
 
 class TestLine(StrictInput):
-    sku: Literal["TEST-CAKE", "TEST-CANDLES"]
+    sku: Literal["TEST-CAKE", "TEST-CANDLES", "TEST-REWARD-CAKE"]
     quantity: int = Field(ge=1, le=10)
+
+
+class TestBilling(StrictInput):
+    name: str = Field(min_length=1, max_length=160)
+    email: str = Field(min_length=3, max_length=254, pattern=r"^\S+@\S+\.\S+$")
+    address: str = Field(min_length=1, max_length=500)
 
 
 class InitiatePayment(StrictInput):
     request_key: str = Field(min_length=16, max_length=80, pattern=r"^[a-zA-Z0-9-]+$")
     lines: list[TestLine] = Field(min_length=1, max_length=10)
+    billing: TestBilling | None = None
 
 
 class SimulatedCallback(StrictInput):
@@ -108,6 +121,7 @@ class RefundPayment(StrictInput):
 TEST_CATALOGUE = {
     "TEST-CAKE": {"name": "TEST celebration cake", "unit_minor": 350_000},
     "TEST-CANDLES": {"name": "TEST candle pack", "unit_minor": 20_000},
+    "TEST-REWARD-CAKE": {"name": "TEST reward cupcake", "unit_minor": 10_000, "test_points": 25},
 }
 
 
@@ -163,7 +177,7 @@ class SimulatedPaymentProvider:
         items = [{"sku": line.sku, "quantity": line.quantity, **TEST_CATALOGUE[line.sku]} for line in data.lines]
         row = TestPayment(id="TEST-" + uuid4().hex, actor=actor, request_key=data.request_key,
                           fingerprint=digest, amount_minor=sum(line["unit_minor"] * line["quantity"] for line in items),
-                          snapshot={"items": items}, created_at=now())
+                          snapshot={"items": items, "billing": data.billing.model_dump() if data.billing else None}, created_at=now())
         self.db.add(row)
         self.event(row, "initiate", digest, "initiated", actor, {"amount_minor": row.amount_minor, "currency": "KES"})
         try:
@@ -199,6 +213,17 @@ class SimulatedPaymentProvider:
                 return self.output(row)
             raise HTTPException(409, "Simulated payment is already terminal")
         self.event(row, data.event_key, digest, data.status, actor, {"amount_minor": data.amount_minor, "currency": data.currency})
+        if data.status == "succeeded" and any(item["sku"] == "TEST-REWARD-CAKE" for item in row.snapshot["items"]):
+            self.db.refresh(row)
+            # Persist the receipt and its loyalty snapshot in the SAME transaction
+            # as simulated success. Replays never regenerate a different receipt.
+            membership = test_membership(self.db, actor)
+            receipt = {**self.output(row), "receipt_id": row.id + "-RECEIPT", "issued_at": now(),
+                       "label": "TEST - SIMULATED PAYMENT - NOT A TAX INVOICE", "billing": row.snapshot.get("billing"),
+                       "payment_method": "Simulated payment", "points_earned": test_points(row),
+                       "membership_at_purchase": membership, "fiscalized": False, "funds_settled": False,
+                       "real_revenue_minor": 0}
+            self.event(row, "system-receipt-v1", fingerprint(receipt), "test_receipt", actor, receipt)
         self.db.commit()
         self.db.refresh(row)
         return self.output(row)
@@ -230,6 +255,27 @@ class SimulatedPaymentProvider:
         return self.output(row)
 
 
+def test_points(row: TestPayment) -> int:
+    if row.status != "succeeded":
+        return 0
+    earned = sum(item.get("test_points", 0) * item["quantity"] for item in row.snapshot["items"])
+    return earned * (row.amount_minor - row.refunded_minor) // row.amount_minor
+
+
+def test_membership(db: Session, actor: str) -> dict:
+    rows = db.scalars(select(TestPayment).where(TestPayment.actor == actor)
+                      .execution_options(populate_existing=True)).all()
+    successful = [row for row in rows if row.status == "succeeded" and not row.refunded_minor
+                  and any(item["sku"] == "TEST-REWARD-CAKE" for item in row.snapshot["items"])]
+    visits = len(successful)
+    tiers = [(0, "Bronze"), (2, "Silver"), (4, "Gold"), (5, "Diamond"), (6, "Platinum")]
+    tier = next(name for threshold, name in reversed(tiers) if visits >= threshold)
+    upcoming = next(((threshold, name) for threshold, name in tiers if threshold > visits), None)
+    return {"simulated": True, "points": sum(test_points(row) for row in rows), "purchases": visits, "tier": tier,
+            "next_tier": {"name": upcoming[1], "purchases_remaining": upcoming[0] - visits} if upcoming else None,
+            "milestones": [{"purchases": threshold, "name": name} for threshold, name in tiers]}
+
+
 def create_sandbox_app(settings: SandboxSettings | None = None) -> FastAPI:
     settings = settings or SandboxSettings()
     # Validate before creating an engine or touching a database, and at startup.
@@ -257,6 +303,9 @@ def create_sandbox_app(settings: SandboxSettings | None = None) -> FastAPI:
             engine.dispose()
 
     app = FastAPI(title="Cake City TEST payments — no real funds", version="1.0", lifespan=lifespan)
+    if settings.mobile_review_enabled:
+        from .payment_review import mount_mobile_review
+        mount_mobile_review(app, settings, sessions)
 
     @app.middleware("http")
     async def test_headers(request: Request, call_next):

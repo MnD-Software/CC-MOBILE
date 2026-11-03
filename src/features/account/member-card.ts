@@ -39,6 +39,12 @@ export function barcodeModules(value: string) {
 }
 
 export const membershipPalettes = {
+  Bronze: {
+    gradient: ["#F5D9BF", "#CE9B71", "#F1D1AF"],
+    ink: "#442A1A",
+    muted: "#5C3D29",
+    accent: "#825331",
+  },
   Silver: {
     gradient: ["#F3F5F8", "#BAC3D0", "#E8EDF2"],
     ink: "#263242",

@@ -287,6 +287,7 @@ export function Screen({
   header,
   scroll = true,
   contentStyle,
+  scrollRef,
 }: {
   title?: string;
   subtitle?: string;
@@ -296,6 +297,7 @@ export function Screen({
   header?: ReactNode;
   scroll?: boolean;
   contentStyle?: StyleProp<ViewStyle>;
+  scrollRef?: import("react").Ref<import("react-native").ScrollViewInstance>;
 }) {
   const insets = useSafeAreaInsets();
   const themed = useThemedStyles(ui);
@@ -343,6 +345,7 @@ export function Screen({
         )}
         {scroll ? (
           <ScrollView
+            ref={scrollRef}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"

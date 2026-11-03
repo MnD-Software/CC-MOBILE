@@ -38,10 +38,6 @@ async function validated<T>(
 const CATALOGUE_PAGE_SIZE = 24;
 const PRODUCT_LOOKUP_PAGE_SIZE = 100;
 const CATALOGUE_TIMEOUT_MS = 15_000;
-const STORE_CATEGORY_FALLBACK_URL =
-  "https://cakecity.co.ke/wp-json/wc/store/v1/products";
-const STORE_CATEGORY_FALLBACK_TIMEOUT_MS = 12_000;
-const STORE_CATEGORY_PAGE_SIZE = 24;
 export const CATALOGUE_STALE_TIME_MS = 5 * 60_000;
 export const CATALOGUE_GC_TIME_MS = 30 * 60_000;
 
@@ -137,69 +133,6 @@ async function catalogueProducts(
   }
 }
 
-async function liveStoreProductsByCategory(
-  category: number,
-  signal?: AbortSignal,
-) {
-  const controller = new AbortController();
-  let timedOut = false;
-  let cancelled = false;
-  const cancel = () => {
-    cancelled = true;
-    controller.abort();
-  };
-  if (signal?.aborted) cancel();
-  else signal?.addEventListener("abort", cancel, { once: true });
-  const timeout = setTimeout(() => {
-    timedOut = true;
-    controller.abort();
-  }, STORE_CATEGORY_FALLBACK_TIMEOUT_MS);
-
-  try {
-    const fallbackQuery = new URLSearchParams({
-      category: String(category),
-      // Six products made nonempty categories appear complete when they were
-      // not. This is still a compact first category page; the mobile BFF must
-      // eventually expose cursor pagination for arbitrarily large categories.
-      per_page: String(STORE_CATEGORY_PAGE_SIZE),
-    });
-    const response = await fetch(
-      `${STORE_CATEGORY_FALLBACK_URL}?${fallbackQuery.toString()}`,
-      {
-        headers: { Accept: "application/json" },
-        signal: controller.signal,
-      },
-    );
-    if (!response.ok) {
-      throw new ApiError("Cake City could not load this cake collection.", {
-        code: `STORE_CATEGORY_HTTP_${response.status}`,
-        status: response.status,
-      });
-    }
-    const products = rememberProducts(
-      await validated(response.json(), z.array(storeProductSchema)),
-    );
-    rememberLiveCatalogueProducts(products);
-    return products.filter((product) => hasCategoryId(product, category));
-  } catch (error) {
-    if (isApiError(error)) throw error;
-    if (timedOut)
-      throw new ApiError("Cake City took too long to load this collection.", {
-        code: "STORE_CATEGORY_TIMEOUT",
-      });
-    if (cancelled)
-      throw new ApiError("The collection request was cancelled.", {
-        code: "STORE_CATEGORY_ABORTED",
-      });
-    throw new ApiError("Unable to reach Cake City's live cake collection.", {
-      code: "STORE_CATEGORY_NETWORK",
-    });
-  } finally {
-    clearTimeout(timeout);
-    signal?.removeEventListener("abort", cancel);
-  }
-}
-
 function matchingProduct(
   products: z.infer<typeof storeProductSchema>[],
   idOrSlug: string,
@@ -276,28 +209,7 @@ function hasCategoryId(product: StoreProduct, category: number) {
  * proxy remains a live fallback if the Store API is temporarily unavailable.
  */
 async function productsByCategory(category: number, signal?: AbortSignal) {
-  let storeError: unknown;
-  try {
-    const matching = await liveStoreProductsByCategory(category, signal);
-    if (matching.length) return matching;
-  } catch (error) {
-    if (signal?.aborted) throw error;
-    storeError = error;
-  }
-
-  try {
-    const proxied = await catalogueProducts({ category, perPage: 24 }, signal);
-    const matching = proxied.data.filter((product) =>
-      hasCategoryId(product, category),
-    );
-    if (matching.length) return matching;
-  } catch (error) {
-    if (signal?.aborted) throw error;
-    if (!isApiError(error) || !error.status || error.status >= 500) throw error;
-  }
-
-  if (storeError) throw storeError;
-  return [];
+  return (await catalogueProducts({ category, perPage: 24 }, signal)).data;
 }
 
 /**
@@ -329,39 +241,13 @@ async function productsForCategory(
 }
 
 async function publicStoreRead(path: string, signal?: AbortSignal) {
-  const controller = new AbortController();
-  const cancel = () => controller.abort();
-  if (signal?.aborted) cancel();
-  else signal?.addEventListener("abort", cancel, { once: true });
-  const timeout = setTimeout(cancel, CATALOGUE_TIMEOUT_MS);
-  try {
-    const response = await fetch(
-      `https://cakecity.co.ke/wp-json/wc/store/v1/${path}`,
-      {
-        headers: { Accept: "application/json" },
-        signal: controller.signal,
-      },
-    );
-    if (!response.ok)
-      throw new ApiError("The shop could not be loaded. Please try again.", {
-        code: "STORE_BROWSE_HTTP",
-        status: response.status,
-      });
-    // Consume the body inside the timeout boundary too.
-    return {
-      body: await response.json(),
-      pages: response.headers.get("X-WP-TotalPages"),
-    };
-  } catch (error) {
-    if (isApiError(error)) throw error;
-    throw new ApiError(
-      "Unable to load cakes. Check your connection and try again.",
-      { code: "STORE_BROWSE_NETWORK" },
-    );
-  } finally {
-    clearTimeout(timeout);
-    signal?.removeEventListener("abort", cancel);
-  }
+  const route = path.startsWith("products/categories")
+    ? "/v1/catalogue/categories"
+    : "/v1/catalogue/" + path;
+  return {
+    body: await api.get(route, { signal, timeoutMs: CATALOGUE_TIMEOUT_MS }),
+    pages: null,
+  };
 }
 
 export const shopApi = {

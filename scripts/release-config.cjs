@@ -9,6 +9,11 @@ function releaseProblems(
   committedProjectId = "",
 ) {
   const problems = [];
+  if (environment.EXPO_PUBLIC_PURCHASE_TEST_URL) {
+    problems.push(
+      "EXPO_PUBLIC_PURCHASE_TEST_URL is local-only; remove it before an EAS or production build.",
+    );
+  }
   if (environment.EXPO_PUBLIC_LOCAL_REVIEW === "1") {
     problems.push(
       "EXPO_PUBLIC_LOCAL_REVIEW is local-only; remove it before an EAS or production build.",

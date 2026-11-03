@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { RefObject } from 'react';
-import { Platform, Pressable, StyleSheet, Vibration, View } from "react-native";
+import { Platform, Pressable, StyleSheet, Vibration, View, type ViewInstance } from "react-native";
 import { Text } from "@/components/ui/Typography";
 
 import { GlassSurface } from '@/components/storefront/GlassSurface';
@@ -18,7 +18,7 @@ type FuturisticTabBarProps<T extends string> = {
   activeId: T;
   onChange: (id: T) => void;
   /** View whose contents are blurred behind the dock on Android. */
-  blurTarget?: RefObject<View | null>;
+  blurTarget?: RefObject<ViewInstance | null>;
   /** Extra bottom padding from the safe-area inset. */
   bottomInset?: number;
 };

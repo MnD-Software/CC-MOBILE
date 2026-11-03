@@ -1,6 +1,7 @@
 import { z } from "zod";
 
-const STORE_API = "https://cakecity.co.ke/wp-json/wc/store/v1";
+import { env } from "@/config/env";
+const STORE_API = env.apiUrl + "/v1/catalogue";
 const REQUEST_TIMEOUT_MS = 15_000;
 const MAX_VARIATIONS_PER_REQUEST = 100;
 

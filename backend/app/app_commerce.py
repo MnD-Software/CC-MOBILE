@@ -1,0 +1,238 @@
+"""App checkout, stock reservations and sales ledger. All customer operations are local."""
+import hashlib
+import json
+from datetime import UTC, datetime, timedelta
+from uuid import uuid4
+
+from fastapi import HTTPException
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from sqlalchemy import select, update
+from sqlalchemy.exc import IntegrityError
+
+from .commerce_models import AppCoupon, AppDeliveryZone, AppOrder, AppOrderEvent, AppPolicy, AppProduct, AppQuote, CommerceIssue, SalesRecord
+
+
+def digest(value):
+    return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()).hexdigest()
+
+
+def utc(value):
+    return value.replace(tzinfo=UTC) if value.tzinfo is None else value
+
+
+class Selection(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    product_id: int = Field(gt=0)
+    variation_id: int | None = Field(default=None, gt=0)
+    quantity: int = Field(ge=1, le=20)
+    size: str = Field(default="1kg", max_length=30)
+    message: str = Field(default="", max_length=32)
+    add_ons: list[str] = Field(default_factory=list, max_length=10)
+    variation_attributes: list[dict[str, str]] = Field(default_factory=list, max_length=8)
+
+
+class Billing(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    first_name: str = Field(min_length=1, max_length=80)
+    last_name: str = Field(min_length=1, max_length=80)
+    email: EmailStr
+    phone: str = Field(pattern=r"^(?:\+?254|0)[17][0-9]{8}$")
+    address: str = Field(default="", max_length=240)
+    area: str = Field(default="", max_length=160)
+    city: str = Field(default="", max_length=120)
+    postcode: str = Field(default="", max_length=16)
+
+
+class CheckoutData(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    items: list[Selection] = Field(min_length=1, max_length=30)
+    fulfilment: str = Field(pattern="^(pickup|delivery)$")
+    delivery_zone_id: str | None = Field(default=None, max_length=80)
+    coupon_code: str | None = Field(default=None, max_length=100)
+    billing: Billing
+    recipient_name: str = Field(default="", max_length=160)
+    recipient_phone: str = Field(default="", max_length=40)
+    notes: str = Field(default="", max_length=1500)
+
+
+class PlaceOrder(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    quote_id: str = Field(min_length=36, max_length=36)
+
+
+def calculate(db, customer_id, data):
+    policy = db.get(AppPolicy, "checkout")
+    if not policy or not policy.payload.get("enabled") or not policy.payload.get("pricing_confirmed"):
+        raise HTTPException(503, "App ordering is awaiting Cake City's stock and pricing setup. Your bag has been kept.")
+    policy = policy.payload
+    if data.fulfilment == "pickup" and not policy.get("pickup_enabled"):
+        raise HTTPException(409, "Pickup is not currently enabled in the app.")
+    if data.fulfilment == "delivery" and (not data.billing.address or not data.billing.area or not data.billing.city):
+        raise HTTPException(422, "Complete your delivery address.")
+    lines, quantities = [], {}
+    for item in data.items:
+        parent = db.get(AppProduct, item.product_id)
+        product = db.get(AppProduct, item.variation_id or item.product_id)
+        if not parent or not parent.enabled or not product or not product.enabled or product.price_minor is None:
+            raise HTTPException(409, "One of these products is not available for app orders.")
+        if (item.variation_id and product.parent_id != parent.id) or (not item.variation_id and parent.payload.get("type") == "variable"):
+            raise HTTPException(422, "Choose a valid product variation.")
+        if item.add_ons:
+            raise HTTPException(409, "Add each extra to your bag as its own product before checkout.")
+        # Variation price/identity is resolved entirely from the app database.
+        # Reject unknown attribute claims rather than ignoring a changed cake configuration.
+        aliases = {}
+        for group in parent.payload.get("attributes", []):
+            name = str(group.get("name", "")).casefold()
+            aliases[name] = name
+            if group.get("taxonomy"):
+                aliases[str(group["taxonomy"]).casefold()] = name
+        canonical = lambda value: aliases.get(str(value).casefold(), str(value).casefold())
+        known = {(canonical(a.get("name", a.get("attribute", ""))), str(a.get("value", "")).casefold())
+                 for a in product.payload.get("variation_attributes", [])}
+        if item.variation_attributes and known and any(
+                (canonical(a.get("attribute", "")), a.get("value", "").casefold()) not in known for a in item.variation_attributes):
+            raise HTTPException(409, "Your variation details changed. Reopen this product before paying.")
+        quantities[product.id] = quantities.get(product.id, 0) + item.quantity
+        if quantities[product.id] > product.allocation - product.reserved - product.sold:
+            raise HTTPException(409, "The app's available stock or production capacity has changed. Review your bag.")
+        lines.append({"product_id": parent.id, "sku_id": product.id, "name": parent.payload.get("name", parent.slug),
+                      "slug": parent.slug, "quantity": item.quantity, "unit_minor": product.price_minor,
+                      "line_minor": product.price_minor*item.quantity, "revision": product.revision,
+                      "selection": item.model_dump(exclude={"product_id", "quantity"})})
+    subtotal = sum(line["line_minor"] for line in lines)
+    fee, zone_revision, zone_name = 0, None, None
+    if data.fulfilment == "delivery":
+        zone = db.get(AppDeliveryZone, data.delivery_zone_id)
+        if not zone or not zone.enabled:
+            raise HTTPException(409, "Select a delivery area configured in the app.")
+        fee, zone_revision, zone_name = zone.fee_minor, zone.revision, zone.name
+    discount, coupon_code = 0, None
+    if data.coupon_code:
+        coupon_code = data.coupon_code.strip().casefold()
+        coupon = db.get(AppCoupon, coupon_code)
+        if (not coupon or not coupon.enabled or coupon.customer_id not in (None, customer_id)
+                or coupon.uses + coupon.reserved >= coupon.usage_limit or subtotal < coupon.minimum_minor
+                or (coupon.expires_at and utc(coupon.expires_at) <= datetime.now(UTC))):
+            raise HTTPException(409, "This app coupon is not eligible for this order.")
+        discount = min(coupon.amount_minor, subtotal)
+    base = subtotal + fee - discount
+    rate = int(policy.get("tax_bps", 0))
+    included = bool(policy.get("prices_include_tax", True))
+    tax = (base*rate + (10000+rate)//2)//(10000+rate) if included else (base*rate + 5000)//10000
+    total = base if included else base + tax
+    if not 0 < total <= 1_000_000_000:
+        raise HTTPException(409, "This order total needs staff assistance.")
+    return {"lines": lines, "quantities": {str(k): v for k, v in quantities.items()}, "subtotal_minor": subtotal,
+            "delivery_minor": fee, "discount_minor": discount, "tax_minor": tax, "prices_include_tax": included,
+            "total_minor": total, "currency": "KES", "coupon_code": coupon_code, "zone_revision": zone_revision,
+            "zone_name": zone_name, "policy_digest": digest(policy), "checkout": data.model_dump(mode="json")}
+
+
+def quote(db, customer_id, data):
+    snapshot = calculate(db, customer_id, data)
+    row = AppQuote(id=str(uuid4()), customer_id=customer_id, request_digest=digest(snapshot), snapshot=snapshot,
+                   expires_at=datetime.now(UTC)+timedelta(minutes=10))
+    db.add(row)
+    db.commit()
+    return {"id": row.id, "expires_at": utc(row.expires_at).isoformat(), **snapshot}
+
+
+def record_event(db, order, kind, **details):
+    key = f"{order.reference}:{kind}"
+    if not db.scalar(select(AppOrderEvent.id).where(AppOrderEvent.event_key == key)):
+        db.add(AppOrderEvent(id=str(uuid4()), order_id=order.id, event_key=key, kind=kind, details=details))
+
+
+def issue(db, reference, kind, channel="app"):
+    if not db.scalar(select(CommerceIssue.id).where(CommerceIssue.reference == reference, CommerceIssue.kind == kind, CommerceIssue.channel == channel)):
+        db.add(CommerceIssue(id=str(uuid4()), reference=reference, kind=kind, channel=channel))
+
+
+def place(db, customer_id, quote_id, request_key, account_id, environment):
+    from .pesapal import account as payment_account
+    old = db.scalar(select(AppOrder).where(AppOrder.customer_id == customer_id, AppOrder.request_key == request_key))
+    if old:
+        if old.request_digest != digest({"quote_id": quote_id}):
+            raise HTTPException(409, "This payment request belongs to another checkout. Check your existing order.")
+        return old
+    saved = db.get(AppQuote, quote_id)
+    if not saved or saved.customer_id != customer_id or utc(saved.expires_at) < datetime.now(UTC):
+        raise HTTPException(409, "Your quote has expired. Review the current total before payment.")
+    current = calculate(db, customer_id, CheckoutData.model_validate(saved.snapshot["checkout"]))
+    if digest(current) != saved.request_digest:
+        raise HTTPException(409, "Prices, stock or delivery rules changed. Review a new quote before paying.")
+    # Conditional atomic updates work on PostgreSQL and SQLite and prevent overselling.
+    try:
+        for identity, quantity in sorted(current["quantities"].items(), key=lambda item: int(item[0])):
+            expected = next(line for line in current["lines"] if line["sku_id"] == int(identity))
+            result = db.execute(update(AppProduct).where(AppProduct.id == int(identity), AppProduct.enabled.is_(True),
+                AppProduct.revision == expected["revision"], AppProduct.price_minor == expected["unit_minor"],
+                AppProduct.allocation-AppProduct.reserved-AppProduct.sold >= quantity).values(reserved=AppProduct.reserved+quantity))
+            if result.rowcount != 1:
+                raise HTTPException(409, "Available app stock changed. Please review your bag.")
+        if current["coupon_code"]:
+            result = db.execute(update(AppCoupon).where(AppCoupon.code == current["coupon_code"],
+                AppCoupon.uses+AppCoupon.reserved < AppCoupon.usage_limit).values(reserved=AppCoupon.reserved+1))
+            if result.rowcount != 1:
+                raise HTTPException(409, "This coupon has just been used.")
+        reference = "APP-" + datetime.now(UTC).strftime("%Y%m%d") + "-" + uuid4().hex[:16].upper()
+        order = AppOrder(reference=reference, customer_id=customer_id, request_key=request_key,
+                         request_digest=digest({"quote_id": quote_id}), account_id=account_id, environment=environment,
+                         account_fingerprint=digest(payment_account(account_id)["consumer_key"]),
+                         snapshot=current, total_minor=current["total_minor"], subtotal_minor=current["subtotal_minor"],
+                         discount_minor=current["discount_minor"], delivery_minor=current["delivery_minor"],
+                         coupon_code=current["coupon_code"], channel="app")
+        db.add(order)
+        db.flush()
+        record_event(db, order, "order_created", channel="app", account_id=account_id)
+        db.commit()
+        return order
+    except IntegrityError:
+        db.rollback()
+        old = db.scalar(select(AppOrder).where(AppOrder.customer_id == customer_id, AppOrder.request_key == request_key))
+        if old and old.request_digest == digest({"quote_id": quote_id}):
+            return old
+        raise HTTPException(409, "This order request is already being processed. Check your orders.") from None
+    except HTTPException:
+        db.rollback()
+        raise
+
+
+def inventory_transition(db, order, paid=False):
+    if order.inventory_state != "reserved":
+        return
+    for identity, quantity in sorted(order.snapshot["quantities"].items(), key=lambda item: int(item[0])):
+        result = db.execute(update(AppProduct).where(AppProduct.id == int(identity), AppProduct.reserved >= quantity).values(
+            reserved=AppProduct.reserved-quantity, sold=AppProduct.sold+(quantity if paid else 0)))
+        if result.rowcount != 1:
+            raise HTTPException(409, "Stock reservations require staff reconciliation.")
+    if order.coupon_code:
+        result = db.execute(update(AppCoupon).where(AppCoupon.code == order.coupon_code, AppCoupon.reserved > 0).values(
+            reserved=AppCoupon.reserved-1, uses=AppCoupon.uses+(1 if paid else 0)))
+        if result.rowcount != 1:
+            raise HTTPException(409, "Coupon reservation requires staff reconciliation.")
+    order.inventory_state = "sold" if paid else "released"
+
+
+def sale(db, order, reversed=False):
+    record = db.scalar(select(SalesRecord).where(SalesRecord.channel == "app", SalesRecord.reference == order.reference,
+                                                SalesRecord.environment == order.environment))
+    if not record:
+        record = SalesRecord(id=str(uuid4()), channel="app", reference=order.reference, environment=order.environment,
+                             account_id=order.account_id, paid_minor=order.total_minor, occurred_at=datetime.now(UTC))
+        db.add(record)
+    if reversed:
+        record.reversed_minor = order.total_minor
+        record.version += 1
+
+
+def order_view(order, private=True):
+    result = {"reference": order.reference, "channel": "app", "environment": order.environment,
+              "payment_account": order.account_id, "status": order.state, "payment_state": order.payment_state,
+              "total_minor": order.total_minor, "currency": "KES", "created_at": utc(order.created_at).isoformat(),
+              "paid_at": utc(order.paid_at).isoformat() if order.paid_at else None}
+    if private:
+        result.update(snapshot=order.snapshot, payment_url=order.payment_url if order.payment_state == "pending" else None,
+                      tracking_id=order.tracking_id, receipt_label="Payment receipt — not an eTIMS tax invoice")
+    return result

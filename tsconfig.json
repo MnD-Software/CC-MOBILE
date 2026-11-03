@@ -18,6 +18,12 @@
   ],
   "exclude": [
     "node_modules",
+    ".venv",
+    "backend",
+    "android",
+    "artifacts",
+    "dist",
+    "downloads",
     ".rebuild-backup",
     ".build-work",
     "web-preview"

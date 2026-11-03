@@ -15,8 +15,8 @@ router = APIRouter(tags=["platform"])
 
 
 @router.get("/health")
-def health() -> dict[str, str]:
-    return {"status": "ok", "service": "cakecity-api", "release": "editorial-2026-10-10"}
+def health() -> dict[str, str | bool]:
+    return {"status": "ok", "service": "cakecity-api", "release": "independent-app-commerce-v1", "website_dependency": False}
 
 
 @router.get("/ready")
@@ -48,21 +48,39 @@ def mobile_config() -> MobileConfigResponse:
 async def catalogue_products(
     page: int = Query(default=1, ge=1),
     per_page: int = Query(default=24, ge=1, le=100),
-    category: int | None = Query(default=None, ge=1),
+    category: str | None = Query(default=None, pattern=r"^[1-9][0-9]*(,[1-9][0-9]*)*$"),
     search: str | None = Query(default=None, max_length=120),
+    include: str | None = Query(default=None, pattern=r"^[1-9][0-9]*(,[1-9][0-9]*)*$"),
+    type: str | None = Query(default=None, pattern="^variation$"),
+    orderby: str = Query(default="id", pattern="^(id|date|title|price|popularity|rating)$"),
+    order: str = Query(default="asc", pattern="^(asc|desc)$"),
+    min_price: int | None = Query(default=None, ge=0),
+    max_price: int | None = Query(default=None, ge=0),
+    on_sale: str | None = Query(default=None, pattern="^(true|false)$"),
+    category_operator: str | None = Query(default=None, pattern="^in$"),
     accept_encoding: str = Header(default=""),
+    db: Session = Depends(get_db),
 ):
     params: dict[str, str | int] = {"page": page, "per_page": per_page}
     if category is not None:
         params["category"] = category
     if search:
         params["search"] = search
+    for key, value in {"include": include, "type": type, "orderby": orderby, "order": order,
+                       "min_price": min_price, "max_price": max_price, "on_sale": on_sale}.items():
+        if value is not None:
+            params[key] = value
     try:
         compressed = any(part.strip().lower() == "gzip" for part in accept_encoding.split(","))
         headers = {"Cache-Control": "public, max-age=30, stale-while-revalidate=240", "Vary": "Accept-Encoding"}
         if compressed:
             headers["Content-Encoding"] = "gzip"
-        return Response(content=await catalogue.response_bytes(params, compressed), media_type="application/json", headers=headers)
+        import json, gzip
+        from .app_catalogue import products
+        data, pages = products(db, params)
+        headers["X-Total-Pages"] = str(pages)
+        body = json.dumps(data, separators=(",", ":")).encode()
+        return Response(content=gzip.compress(body) if compressed else body, media_type="application/json", headers=headers)
     except (httpx.HTTPError, ValueError) as error:
         raise HTTPException(status_code=502, detail="Catalogue service unavailable") from error
 

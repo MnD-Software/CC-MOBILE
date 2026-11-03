@@ -20,14 +20,14 @@ import {
   View,
 } from "react-native";
 import { Text } from "@/components/ui/Typography";
-import type { StyleProp, ViewStyle } from "react-native";
+import type { StyleProp, ViewInstance, ViewStyle } from "react-native";
 
 import { tokens } from "@/theme/tokens";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import { themeColor } from "@/theme/appearance";
 
 type GlassSurfaceProps = PropsWithChildren<{
-  blurTarget?: RefObject<View | null>;
+  blurTarget?: RefObject<ViewInstance | null>;
   intensity?: number;
   interactive?: boolean;
   glassStyle?: "clear" | "regular";

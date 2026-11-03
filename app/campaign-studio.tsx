@@ -590,8 +590,8 @@ export default function CampaignStudio() {
                 />
               </Disclosure>
               <Text style={{ color: colors.muted, fontSize: 12 }}>
-                Only add confirmed details. Cake prices and stock are managed in
-                WooCommerce.
+                Only add confirmed details. App prices and stock are managed in
+                the app web dashboard.
               </Text>
             </View>
           ) : null}

@@ -27,12 +27,28 @@ import { ClubTransactions } from "./ClubTransactions";
 import { OccasionDateField } from "@/components/ui/OccasionDateField";
 import { CampaignStories } from "@/features/editorial/CampaignStories";
 import { AnimatedNumber, SuccessBurst } from "@/components/ui/Delight";
+import { router } from "expo-router";
+import { purchaseTestOrigin } from "@/features/purchase-test/client";
+import { milestoneProgress } from "./milestones";
+import { MilestoneProgressBar } from "./MilestoneProgressBar";
 
-export function ClubMembership({ walletScope }: { walletScope: string }) {
-  const { customer } = useAuth();
+export function ClubMembership({
+  walletScope,
+  revealToken,
+}: {
+  walletScope: string;
+  revealToken?: string;
+}) {
+  const { customer: signedInCustomer } = useAuth();
+  const preview = purchaseTestOrigin();
+  const customer =
+    signedInCustomer ??
+    (preview
+      ? { id: "purchase-preview", first_name: "", last_name: "" }
+      : null);
   const { colors } = useTheme();
   const client = useQueryClient();
-  const key = ["club", customer?.id];
+  const key = ["club", customer?.id, preview];
   const identity = useRef({ scope: customer?.id, key: randomUUID() });
   if (identity.current.scope !== customer?.id)
     identity.current = { scope: customer?.id, key: randomUUID() };
@@ -72,6 +88,7 @@ export function ClubMembership({ walletScope }: { walletScope: string }) {
     },
   });
   const data = query.data;
+  const progress = milestoneProgress(data?.purchase_progress);
   useEffect(() => {
     if (!customer || !data) return;
     const previous = previousPoints.current;
@@ -89,7 +106,7 @@ export function ClubMembership({ walletScope }: { walletScope: string }) {
       <Notice message="Sign in to see your Club membership and save celebrations across devices." />
     );
   return (
-    <View style={{ gap: 12 }}>
+    <View testID="club-membership" style={{ gap: 12 }}>
       {query.isPending ? (
         <Notice message="Loading your verified membership…" />
       ) : null}
@@ -105,14 +122,18 @@ export function ClubMembership({ walletScope }: { walletScope: string }) {
           />
           <Button
             variant="outline"
-            label="Retry membership"
-            onPress={() => void query.refetch()}
+            label={preview ? "Open checkout" : "Retry membership"}
+            onPress={() =>
+              preview ? router.push("/checkout") : void query.refetch()
+            }
           />
         </>
       ) : null}
       {data ? (
         <>
           <MembershipCard
+            progress={progress}
+            revealToken={revealToken}
             id={data.member_id}
             name={
               [customer.first_name, customer.last_name]
@@ -184,9 +205,13 @@ export function ClubMembership({ walletScope }: { walletScope: string }) {
             >
               <Ionicons
                 name={
-                  data.points >= data.rules.minimum_redemption
-                    ? "gift-outline"
-                    : "sparkles-outline"
+                  progress
+                    ? progress.current >= progress.total
+                      ? "trophy-outline"
+                      : "sparkles-outline"
+                    : data.points >= data.rules.minimum_redemption
+                      ? "gift-outline"
+                      : "sparkles-outline"
                 }
                 size={22}
                 color={colors.brandStrong}
@@ -195,40 +220,40 @@ export function ClubMembership({ walletScope }: { walletScope: string }) {
                 <Text
                   style={{ color: colors.ink, fontSize: 13, fontWeight: "700" }}
                 >
-                  {data.points >= data.rules.minimum_redemption
-                    ? "You've reached your next reward"
-                    : `${data.rules.minimum_redemption - data.points} points to your next reward`}
+                  {progress
+                    ? progress.current >= progress.total
+                      ? `${progress.target} unlocked!`
+                      : `${progress.total - progress.current} more purchase${progress.total - progress.current === 1 ? "" : "s"} to ${progress.target}`
+                    : data.points >= data.rules.minimum_redemption
+                      ? "You've reached your next reward"
+                      : `${data.rules.minimum_redemption - data.points} points to your next reward`}
                 </Text>
                 <Text style={{ color: colors.muted, fontSize: 11 }}>
-                  {data.next_tier
-                    ? `${money(data.next_tier.spend_required_kes)} qualifying spend to ${data.next_tier.name}`
-                    : "Enjoy your highest Club tier"}
+                  {progress
+                    ? progress.next
+                    : data.purchase_progress?.next_tier
+                      ? `${data.purchase_progress.next_tier.purchases_remaining} more purchase${data.purchase_progress.next_tier.purchases_remaining === 1 ? "" : "s"} to ${data.purchase_progress.next_tier.name}`
+                      : data.next_tier
+                        ? `${money(data.next_tier.spend_required_kes)} qualifying spend to ${data.next_tier.name}`
+                        : "Enjoy your highest Club tier"}
                 </Text>
               </View>
             </View>
-            <View
-              accessibilityRole="progressbar"
-              accessibilityValue={{
-                min: 0,
-                max: data.rules.minimum_redemption,
-                now: Math.min(data.rules.minimum_redemption, data.points),
-              }}
-              style={{
-                height: 5,
-                borderRadius: 99,
-                backgroundColor: colors.brandLight,
-                overflow: "hidden",
-              }}
-            >
-              <View
-                style={{
-                  height: 5,
-                  borderRadius: 99,
-                  backgroundColor: colors.brandStrong,
-                  width: `${Math.min(100, (data.points / Math.max(1, data.rules.minimum_redemption)) * 100)}%`,
-                }}
-              />
-            </View>
+            <MilestoneProgressBar
+              current={
+                progress?.current ??
+                Math.min(data.rules.minimum_redemption, data.points)
+              }
+              total={progress?.total ?? data.rules.minimum_redemption}
+              color={colors.brandStrong}
+              trackColor={colors.brandLight}
+              label={
+                progress
+                  ? `Overall progress to ${progress.target}`
+                  : "Progress to your next reward"
+              }
+              height={5}
+            />
           </View>
           <Text style={{ color: colors.ink, fontSize: 15, fontWeight: "700" }}>
             <AnimatedNumber value={data.points} /> points ·{" "}
@@ -329,11 +354,28 @@ export function ClubMembership({ walletScope }: { walletScope: string }) {
               Member {data.member_id}
             </Text>
             <Text style={text}>
-              Earn 1 point per {money(data.rules.earn_spend_kes)} of qualifying
-              spend. Each point is worth {money(data.rules.point_value_kes)}.
-              Points expire after {data.rules.expiry_days} days.
+              {data.purchase_progress ? (
+                <>
+                  Earn 25 points with each reward cupcake purchase.{" "}
+                  {data.purchase_progress.milestones
+                    ?.filter((milestone) => milestone.purchases > 0)
+                    .map(
+                      (milestone) =>
+                        `${milestone.name} after ${milestone.purchases} purchases`,
+                    )
+                    .join("; ")}
+                  .
+                </>
+              ) : (
+                <>
+                  Earn 1 point per {money(data.rules.earn_spend_kes)} of
+                  qualifying spend. Each point is worth{" "}
+                  {money(data.rules.point_value_kes)}. Points expire after{" "}
+                  {data.rules.expiry_days} days.
+                </>
+              )}
             </Text>
-            {data.next_tier ? (
+            {data.next_tier && !data.purchase_progress ? (
               <Text style={text}>
                 {money(data.next_tier.spend_required_kes)} more qualifying spend
                 to {data.next_tier.name}.
@@ -345,7 +387,12 @@ export function ClubMembership({ walletScope }: { walletScope: string }) {
               message={`${data.debt} points from refunded purchases will be recovered from future earnings.`}
             />
           ) : null}
-          {!data.redemption_available ? (
+          {!data.redemption_available && preview ? (
+            <Text style={{ color: colors.muted, fontSize: 12 }}>
+              Reward redemption will be available when live payments are
+              connected.
+            </Text>
+          ) : !data.redemption_available ? (
             <Notice
               message={
                 data.review_required

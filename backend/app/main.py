@@ -8,6 +8,7 @@ from .config import get_settings, validate_production_settings
 from .catalogue import catalogue
 from .middleware import RequestTelemetry, SharedRateLimit
 from .db import Base, engine
+from . import commerce_models
 from .routes import router as platform_router
 from .routes_auth import router as auth_router
 from .routes_addresses import router as addresses_router
@@ -21,6 +22,10 @@ from .routes_celebrations import router as celebrations_router
 from .routes_content import router as content_router
 from .routes_corporate import router as corporate_router
 from .routes_workspace import router as workspace_router
+from .routes_pesapal import router as pesapal_router
+from .app_catalogue import router as app_catalogue_router
+from .routes_app_admin import router as app_admin_router
+from .routes_dashboard import router as dashboard_router
 
 
 @asynccontextmanager
@@ -49,16 +54,20 @@ app.add_middleware(RequestTelemetry)
 app.include_router(platform_router)
 app.include_router(auth_router)
 app.include_router(addresses_router)
-app.include_router(tracking_router)
+# Legacy website order tracking is not part of the independent app runtime.
 app.include_router(club_router)
 app.include_router(club_benefits_router)
 app.include_router(club_wallet_router)
-app.include_router(woo_club_router)
+# Website sales enter through the separate signed channel-sales ingestion boundary.
 app.include_router(enquiries_router)
 app.include_router(celebrations_router)
 app.include_router(content_router)
 app.include_router(corporate_router)
 app.include_router(workspace_router)
+app.include_router(pesapal_router)
+app.include_router(app_catalogue_router)
+app.include_router(app_admin_router)
+app.include_router(dashboard_router)
 
 
 @app.get("/ready/db")

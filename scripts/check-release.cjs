@@ -22,8 +22,15 @@ problems.push(
   ),
 );
 const [major, minor] = process.versions.node.split(".").map(Number);
-if (major < 22 || (major === 22 && minor < 13))
-  problems.push("Expo SDK 57 requires Node.js 22.13 or newer.");
+if (
+  !(
+    (major === 22 && minor >= 13) ||
+    (major === 24 && minor >= 3) ||
+    major === 26 ||
+    major >= 27
+  )
+)
+  problems.push("Expo SDK 58 requires Node.js 22.13+, 24.3+, 26 or newer.");
 if (problems.length) {
   process.stderr.write(problems.join("\n") + "\n");
   process.exit(1);

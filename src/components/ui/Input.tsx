@@ -1,5 +1,11 @@
 import { forwardRef, useState } from "react";
-import { StyleSheet, TextInput, TextInputProps, View } from "react-native";
+import {
+  StyleSheet,
+  TextInput,
+  type TextInputInstance,
+  type TextInputProps,
+  View,
+} from "react-native";
 import { Text, brandFontFamily } from "@/components/ui/Typography";
 import { tokens } from "@/theme/tokens";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
@@ -10,7 +16,7 @@ type Props = TextInputProps & {
   hint?: string;
 };
 
-export const Input = forwardRef<TextInput, Props>(function Input(
+export const Input = forwardRef<TextInputInstance, Props>(function Input(
   {
     label,
     error,

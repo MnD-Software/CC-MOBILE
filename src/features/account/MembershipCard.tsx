@@ -18,6 +18,8 @@ import {
   barcodeModules,
   membershipPalette,
 } from "./member-card";
+import type { MilestoneProgress } from "./milestones";
+import { MilestoneProgressBar } from "./MilestoneProgressBar";
 
 export function MembershipCard({
   id,
@@ -26,6 +28,8 @@ export function MembershipCard({
   points,
   pointValue,
   rewards,
+  progress,
+  revealToken,
 }: {
   id: string;
   name: string;
@@ -33,6 +37,8 @@ export function MembershipCard({
   points: number;
   pointValue: number;
   rewards: number;
+  progress?: MilestoneProgress;
+  revealToken?: string;
 }) {
   const [faceHeight, setFaceHeight] = useState(266);
   const shine = useRef(new Animated.Value(0)).current;
@@ -40,6 +46,12 @@ export function MembershipCard({
   const [barcodeWidth, setBarcodeWidth] = useState(0);
   const turn = useRef(new Animated.Value(0)).current;
   const reduced = useReducedMotion();
+  useEffect(() => {
+    if (!revealToken) return;
+    setBack(false);
+    turn.stopAnimation();
+    turn.setValue(0);
+  }, [revealToken, turn]);
   const palette = membershipPalette(tier);
   const code = useMemo(() => memberBarcode(id), [id]);
   const modules = useMemo(() => barcodeModules(code), [code]);
@@ -193,32 +205,28 @@ export function MembershipCard({
               <Text style={{ fontSize: 16 }}>points</Text>
             </Text>
             <Text style={{ color: palette.muted, fontSize: 12 }}>
-              {points >= 100
-                ? "Your next reward is ready to explore"
-                : `${100 - points} points to your next reward`}
+              {progress
+                ? `${progress.current} of ${progress.total} purchases to ${progress.target}`
+                : points >= 100
+                  ? "Your next reward is ready to explore"
+                  : `${100 - points} points to your next reward`}
             </Text>
-            <View
-              accessibilityRole="progressbar"
-              accessibilityValue={{
-                min: 0,
-                max: 100,
-                now: Math.min(100, points),
-              }}
-              style={{
-                height: 6,
-                backgroundColor: "rgba(100,110,125,0.22)",
-                borderRadius: 4,
-                overflow: "hidden",
-              }}
-            >
-              <View
-                style={{
-                  width: `${Math.min(100, points)}%`,
-                  height: "100%",
-                  backgroundColor: palette.accent,
-                }}
-              />
-            </View>
+            <MilestoneProgressBar
+              current={progress?.current ?? Math.min(100, points)}
+              total={progress?.total ?? 100}
+              label={
+                progress
+                  ? `${progress.current} of ${progress.total} purchases to ${progress.target}`
+                  : "Progress to your next reward"
+              }
+              color={palette.accent}
+              trackColor="rgba(100,110,125,0.22)"
+            />
+            {progress ? (
+              <Text style={{ color: palette.muted, fontSize: 12 }}>
+                {progress.next}
+              </Text>
+            ) : null}
             <View
               style={{
                 flexDirection: "row",

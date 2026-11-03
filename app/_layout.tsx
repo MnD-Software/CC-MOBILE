@@ -19,6 +19,7 @@ import {
 import { observeNativeConnectivity } from "@/platform/connectivity-observer";
 import { ThemeProvider, useTheme } from "@/theme/ThemeProvider";
 import { GlassPreferencesProvider } from "@/components/storefront/GlassSurface";
+import { MilestoneCelebrationObserver } from "@/features/account/MilestoneCelebration";
 
 const appShellModuleLoadedAt = Date.now();
 
@@ -98,6 +99,7 @@ function AppShell() {
                   </Stack>
                   <FloatingTabBar />
                   <BrandEntrance />
+                  <MilestoneCelebrationObserver />
                 </View>
               </ToastProvider>
             </AuthProvider>

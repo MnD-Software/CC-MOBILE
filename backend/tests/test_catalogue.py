@@ -1,50 +1,24 @@
 import asyncio
-
-import httpx
 import pytest
+from app.catalogue import Catalogue, mobile_product
 
-from app.catalogue import Catalogue
+@pytest.mark.parametrize("payload", [None, {"images":None}, {"images":[None]}])
+def test_malformed_imported_product_is_rejected(payload):
+    with pytest.raises(ValueError): mobile_product(payload)
 
-
-@pytest.mark.parametrize('payload', [[None], [{'images': None}], [{'images': [None]}]])
-def test_malformed_upstream_products_are_rejected_and_not_cached(payload):
+def test_catalogue_uses_persistent_app_store_not_a_website(monkeypatch):
+    from app import app_catalogue
+    calls=[]
+    def stored(db,params):
+        calls.append(params)
+        return [{"id":1}],1
+    monkeypatch.setattr(app_catalogue,"products",stored)
     async def scenario():
-        class Upstream:
-            async def get(self, url, params):
-                return httpx.Response(200, json=payload, request=httpx.Request('GET', url))
-        store = Catalogue()
-        store.client = Upstream()
-        with pytest.raises(ValueError):
-            await store.products({'page': 1})
-        assert not store.cache and not store.flights
-    asyncio.run(scenario())
-
-
-def test_concurrent_public_reads_share_one_upstream_request_and_failures_can_retry():
-    async def scenario():
-        calls = []
-        fail = [False]
-
-        class Upstream:
-            async def get(self, url, params):
-                calls.append(params)
-                await asyncio.sleep(.01)
-                if fail[0]:
-                    raise httpx.ConnectError("offline")
-                return httpx.Response(200, json=[{"id": 1}], request=httpx.Request("GET", url))
-
-        store = Catalogue()
-        store.client = Upstream()
-        results = await asyncio.gather(*(store.products({"page": 1}) for _ in range(100)))
-        assert all(result == [{"id": 1}] for result in results)
-        assert len(calls) == 1
-        assert await store.products({"page": 1}) == [{"id": 1}]
-        assert len(calls) == 1
-        fail[0] = True
-        results = await asyncio.gather(*(store.products({"page": 2}) for _ in range(10)), return_exceptions=True)
-        assert all(isinstance(result, httpx.ConnectError) for result in results)
-        assert len(calls) == 2 and not store.flights
-        fail[0] = False
-        assert await store.products({"page": 2}) == [{"id": 1}]
-        assert len(calls) == 3
+        store=Catalogue()
+        class ForbiddenWebsite:
+            async def get(self,*args,**kwargs): raise AssertionError("website unavailable")
+        store.client=ForbiddenWebsite()
+        values=await asyncio.gather(*(store.products({"page":1}) for _ in range(20)))
+        assert all(value==[{"id":1}] for value in values)
+        assert len(calls)==1
     asyncio.run(scenario())
