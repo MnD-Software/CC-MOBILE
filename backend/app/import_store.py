@@ -103,12 +103,14 @@ async def export(directory):
             if not isinstance(values, list):
                 raise ValueError("Invalid product export")
             products.extend(values)
+            print(f"Copied catalogue page {page}: {len(products)} product records so far.", flush=True)
             if len(values) < 100:
                 break
         ids = sorted({v["id"] for p in products for v in p.get("variations", [])})
         for start in range(0, len(ids), 100):
             batch = ",".join(map(str, ids[start:start+100]))
             products.extend(await fetch(client, f"{SOURCE}/wp-json/wc/store/v1/products?type=variation&include={batch}&per_page=100"))
+            print(f"Copied variation batch {start//100+1}: {len(products)} total product/variation records.", flush=True)
         pages = []
         page_errors = []
         try:
@@ -140,6 +142,7 @@ async def export(directory):
             urls.update(re.findall(r'https://(?:cakecity\.co\.ke|i[012]\.wp\.com)/[^\s"\x27`<>]+', path.read_text(encoding="utf-8")))
         urls = {u for u in urls if any(ext in u.lower() for ext in (".jpg", ".jpeg", ".png", ".webp", ".avif", ".gif"))}
         media, failures = [], []
+        print(f"Copying {len(urls)} image sources into app storage…", flush=True)
         semaphore = asyncio.Semaphore(6)
         media_dir = directory / "media"
         media_dir.mkdir(exist_ok=True)
@@ -152,6 +155,9 @@ async def export(directory):
                     media.append({"id": identity, "source_url": url, "mime": mime, "bytes": len(data)})
                 except (httpx.HTTPError, ValueError) as error:
                     failures.append({"source_url": url, "reason": type(error).__name__})
+                completed = len(media) + len(failures)
+                if completed % 25 == 0 or completed == len(urls):
+                    print(f"Images checked: {completed}/{len(urls)}; copied: {len(media)}; unavailable: {len(failures)}.", flush=True)
         await asyncio.gather(*(mirror(url) for url in sorted(urls)))
     bundle = {"version": 1, "source": SOURCE, "products": products, "pages": pages, "media": media,
               "media_failures": failures, "page_errors": page_errors}

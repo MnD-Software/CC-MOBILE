@@ -3,7 +3,7 @@ services:
     name: cakecity-api
     runtime: python
     rootDir: backend
-    buildCommand: pip install -r requirements.txt
+    buildCommand: pip install -r requirements.txt && python -m app.setup_store --if-empty
     startCommand: python -m app.start
     healthCheckPath: /health
     envVars:

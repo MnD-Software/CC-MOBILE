@@ -61,6 +61,53 @@ Export results: 1,677 product/variation records, 368 image URL mappings, and fiv
 
 ## Stock, delivery and tax setup
 
+### Automated catalogue copy
+
+The catalogue does not need manual entry or an archive upload. On **Render Free
+with Neon**, keep the existing Neon `DATABASE_URL` in Render Environment. Update
+the service's **Build Command** (with Root Directory `backend`) to:
+
+```sh
+pip install -r requirements.txt && python -m app.setup_store --if-empty
+```
+
+Save and deploy the commit containing `app.setup_store`. No paid shell or
+pre-deploy command is needed. The Blueprint in `backend/render.yaml` includes
+this command; existing manually configured Render services must update their
+Build Command in Settings. A nonempty app catalogue causes the copy to be skipped
+without contacting the website on subsequent builds. Fresh imports copy data
+directly into the configured Neon database; downloads on Render disk are only
+temporary staging. This does not create or replace the Neon database.
+
+For an operator with shell access, or local development, the equivalent command
+without the skip-existing guard is:
+
+```sh
+python -m app.setup_store
+```
+
+It downloads the public products, variations, images and available information
+pages, then saves them in the app database. Progress is printed throughout.
+Wait for the build log to report `Catalogue copy complete` (or the existing-catalogue
+skip message). Missing source
+images/pages are counted; they do not silently become replacement content.
+Temporary downloads are removed after the database import. Re-running without `--if-empty`
+preserves app edits, prices, stock allocations and existing pages. An empty source
+catalogue aborts the import. No website credentials are required.
+
+This is a deployment/operator task, not a customer or startup dependency. Afterwards the
+app reads its own database even when the website is unavailable. The command
+does not enable new products, invent stock/delivery/tax settings, grant an admin
+role or attempt a payment. Those are separate configuration decisions.
+
+Render Free has no service shell, SSH or paid pre-deploy step, and its web service
+can sleep after inactivity. Neon stores the app records and copied image bytes
+across Render restarts. This does not remove Render cold-start delays. Source:
+[Render Free documentation](https://render.com/docs/free).
+
+An existing extracted export can also be imported in one command with
+`python -m app.setup_store --from-directory /absolute/path/to/export`.
+
 The implementation uses a separate app stock/production allocation so the website can be unavailable without stopping app orders. No allocation was invented. Cake City must reserve that capacity for the app and prevent the website from selling those same units. A truly shared real-time inventory pool would require an independent inventory service used by both channels; it is not claimed here.
 
 Authorized roles can open Account > App commerce & sales. This screen manages app product prices/allocations, delivery zones, checkout rules, the app fulfilment queue, channel sales and issue status. Product updates reject stale revisions and allocations below existing reservations plus sold units. It supports 5,000 catalogue entries (the export contains 1,677).
