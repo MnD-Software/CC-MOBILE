@@ -64,6 +64,7 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
     category?: string;
     categoryName?: string;
     search?: string;
+    searchRequest?: string;
     department?: string;
     focus?: string;
   }>();
@@ -117,7 +118,7 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
     setDepartment(next);
     setSubfilter(shopDepartments.find((d) => d.id === next)!.filters[0].id);
     setSearch(params.search ?? "");
-  }, [routeCategory, params.categoryName, params.search]);
+  }, [routeCategory, params.categoryName, params.search, params.searchRequest]);
   useEffect(() => {
     const timer = setTimeout(() => setDebounced(search.trim()), 250);
     return () => clearTimeout(timer);

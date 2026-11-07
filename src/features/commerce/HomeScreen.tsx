@@ -22,7 +22,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/auth/AuthProvider";
 import { BrandLogo } from "@/components/BrandLogo";
 import { ProfileAvatarButton } from "@/components/ProfileAvatar";
-import { GlassSurface } from "@/components/storefront/GlassSurface";
 import {
   CommerceBrowseHeader,
   Feedback,
@@ -35,6 +34,7 @@ import { tokens } from "@/theme/tokens";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import { CATALOGUE_GC_TIME_MS, CATALOGUE_STALE_TIME_MS, shopApi } from "./api";
 import { homeCollections } from "./collection-artwork";
+import { HomeSearchBar } from "./HomeSearchBar";
 import { money, plainText, productPrice, type StoreProduct } from "./contracts";
 import { usePreferences } from "./store";
 import { dealCarouselProducts, isDealsAndSteals } from "./home-catalogue";
@@ -296,25 +296,7 @@ export function HomeScreen() {
             </View>
           }
         >
-          <GlassSurface interactive style={styles.searchGlass}>
-            <Pressable
-              accessibilityLabel="Search the Cake City collection"
-              accessibilityRole="search"
-              onPress={() => router.navigate("/(tabs)/search")}
-              style={({ pressed }) => [
-                styles.search,
-                pressed && styles.pressed,
-              ]}
-            >
-              <View style={styles.searchIcon}>
-                <Ionicons color={colors.brandStrong} name="search" size={18} />
-              </View>
-              <Text style={styles.searchText}>
-                Search cakes, flavours, themes…
-              </Text>
-              <Ionicons color={colors.cocoa} name="options-outline" size={19} />
-            </Pressable>
-          </GlassSurface>
+          <HomeSearchBar />
         </CommerceBrowseHeader>
       }
     >
@@ -802,27 +784,6 @@ const baseStyles = StyleSheet.create({
     fontWeight: "800",
     letterSpacing: 0.2,
   },
-  searchGlass: {
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: tokens.color.border,
-  },
-  search: {
-    minHeight: 48,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 11,
-    paddingHorizontal: 10,
-  },
-  searchIcon: {
-    width: 32,
-    height: 32,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 11,
-    backgroundColor: tokens.color.brandLight,
-  },
-  searchText: { flex: 1, color: tokens.color.muted, fontSize: 13.5 },
   carouselSection: { gap: 4 },
   dealHero: {
     minHeight: 238,
