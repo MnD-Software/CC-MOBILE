@@ -4,7 +4,6 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router, type Href } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { clubApi } from "./club-api";
-import { purchaseTestOrigin } from "@/features/purchase-test/client";
 import { membershipPalette } from "./member-card";
 import { customerApi } from "@/features/commerce/api";
 import { useState } from "react";
@@ -290,7 +289,7 @@ export function AccountScreen() {
   const [editingProfile, setEditingProfile] = useState(false);
   const { customer, logout, restoring } = useAuth();
   const membership = useQuery({
-    queryKey: ["club", customer?.id, purchaseTestOrigin()],
+    queryKey: ["club", customer?.id, null],
     queryFn: ({ signal }) => clubApi.overview(signal),
     enabled: !!customer,
     staleTime: 60_000,

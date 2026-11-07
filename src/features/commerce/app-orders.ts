@@ -4,6 +4,7 @@ import { api } from "@/api/client";
 export const appOrderSchema = z.object({
   reference: z.string(),
   channel: z.literal("app"),
+  payment_test: z.boolean().default(false),
   environment: z.enum(["live", "sandbox"]),
   payment_account: z.string(),
   status: z.string(),
@@ -14,6 +15,9 @@ export const appOrderSchema = z.object({
   paid_at: z.string().nullable(),
   payment_url: z.string().nullable().optional(),
   tracking_id: z.string().nullable().optional(),
+  dispatch: z
+    .object({ rider_name: z.string(), rider_phone: z.string() })
+    .optional(),
   events: z
     .array(z.object({ kind: z.string(), created_at: z.string() }))
     .optional(),

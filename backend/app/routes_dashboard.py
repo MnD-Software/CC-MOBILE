@@ -204,3 +204,15 @@ def promotion(code: str, data: PromotionInput, actor: Customer = Depends(operato
         raise HTTPException(409, "Promotion changed. Reload before saving.") from None
     db.refresh(row)
     return coupon_view(row)
+
+
+@router.get("/v1/admin/dashboard/club")
+def club_members(_: Customer = Depends(operator), db: Session = Depends(get_db)):
+    from .models import ClubAccount, ClubOrder
+    counts = select(ClubOrder.customer_id, func.count().label("purchases")).group_by(ClubOrder.customer_id).subquery()
+    rows = db.execute(select(Customer, ClubAccount, counts.c.purchases)
+        .outerjoin(ClubAccount, ClubAccount.customer_id == Customer.id)
+        .outerjoin(counts, counts.c.customer_id == Customer.id).order_by(Customer.created_at.desc()).limit(500)).all()
+    return [{"id": c.id, "name": " ".join(filter(None, [c.first_name, c.last_name])), "email": c.email,
+        "points": a.points if a else 0, "spend_minor": a.spend_minor if a else 0,
+        "review_required": a.review_required if a else False, "purchases": n or 0} for c, a, n in rows]

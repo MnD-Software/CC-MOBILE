@@ -48,6 +48,7 @@ function pickup() {
   };
   const jsx = (type, props) => ({ type, props });
   const modules = {
+    "@/theme/ThemeProvider": { useTheme: () => ({ colors: {} }) },
     react,
     "react/jsx-runtime": { jsx, jsxs: jsx },
     "react-native": { View: "View" },

@@ -10,7 +10,7 @@ from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from . import app_commerce as commerce
-from .commerce_models import AppDeliveryZone, AppOrder, AppPolicy, CommerceIssue
+from .commerce_models import AppDeliveryZone, AppOrder, AppPolicy, AppQuote, CommerceIssue
 from .config import get_settings
 from .db import get_db
 from .models import Customer
@@ -63,9 +63,11 @@ def quote(data: commerce.CheckoutData, customer: Customer = Depends(member), db:
 async def create_order(data: commerce.PlaceOrder,
                        idempotency_key: str = Header(alias="Idempotency-Key", min_length=16, max_length=80),
                        customer: Customer = Depends(member), db: Session = Depends(get_db)):
-    profile = account()
+    saved = db.get(AppQuote, data.quote_id)
+    simulated = bool(saved and saved.customer_id == customer.id and saved.snapshot.get("payment_test"))
+    profile = {"environment": "sandbox"} if simulated else account()
     order = commerce.place(db, customer.id, data.quote_id, idempotency_key,
-                           get_settings().pesapal_account_id, profile["environment"])
+                           "simulation" if simulated else get_settings().pesapal_account_id, profile["environment"])
     return commerce.order_view(order)
 
 
@@ -112,13 +114,15 @@ def receipt(reference: str, customer: Customer = Depends(member), db: Session = 
     if not order.paid_at:
         raise HTTPException(409, "A receipt is available only after verified payment.")
     return {**commerce.order_view(order), "receipt_reference": "RCPT-" + order.reference,
-            "notice": "Payment receipt. Fiscal tax invoicing is a separate integration.",
+            "notice": "SIMULATED TEST receipt. No money charged." if order.channel == "app_test" else "Payment receipt. Fiscal tax invoicing is a separate integration.",
             "payment_reversed": order.payment_state == "reversed"}
 
 
 @router.post(PREFIX + "/orders/{reference}/start")
 async def start_payment(reference: str, customer: Customer = Depends(member), db: Session = Depends(get_db)):
     order = owned(db, reference, customer.id)
+    if order.channel == "app_test":
+        raise HTTPException(409, "Use the labelled simulation for this test order; Pesapal is not called.")
     profile = account(order.account_id)
     if profile["environment"] != order.environment or commerce.digest(profile["consumer_key"]) != order.account_fingerprint:
         raise HTTPException(409, "The original payment account must be retained for this order.")
@@ -178,6 +182,8 @@ def paid_amount(value):
 
 
 async def reconcile(db, order, tracking_id):
+    if order.channel == "app_test":
+        raise HTTPException(409, "Simulated test orders do not have Pesapal transactions.")
     # A same-row write serializes workers on PostgreSQL and SQLite.
     db.execute(update(AppOrder).where(AppOrder.id == order.id).values(reference=order.reference))
     db.refresh(order)
@@ -223,7 +229,7 @@ async def reconcile(db, order, tracking_id):
         commerce.record_event(db, order, "payment_" + state, account_id=order.account_id, tracking_id=tracking_id)
     db.flush()
     # App Club uses app order references and confirmed app-only spend.
-    if order.paid_at and state in ("completed", "reversed"):
+    if order.paid_at and state in ("completed", "reversed") and order.channel != "app_test":
         from .routes_club import OrderEvent, apply_order_event
         goods = order.subtotal_minor-order.discount_minor
         apply_order_event(OrderEvent(event_id=f"app-{order.reference}-{state}", order_id=order.reference,

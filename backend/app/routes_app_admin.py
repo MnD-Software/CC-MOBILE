@@ -26,6 +26,22 @@ def operator(customer: Customer = Depends(member)):
     return customer
 
 
+@router.post("/v1/admin/payment-test/product")
+def payment_test_product(actor: Customer = Depends(operator), db: Session = Depends(get_db)):
+    from .payment_test import ensure_product
+    from .app_catalogue import product_view
+    product = ensure_product(db)
+    audit(db, actor.id, "payment_test_opened", str(product.id))
+    db.commit()
+    return product_view(product)
+
+
+def fulfilment_operator(customer: Customer = Depends(member)):
+    if customer.role not in ("admin", "staff", "ecommerce_manager", "production", "dispatch", "branch_manager", "customer_service"):
+        raise HTTPException(403, "Fulfilment workspace access required.")
+    return customer
+
+
 def reporting(customer: Customer = Depends(member)):
     if customer.role not in ("admin", "staff", "ecommerce_manager", "executive", "finance", "analyst"):
         raise HTTPException(403, "Channel reporting access required.")
@@ -127,12 +143,12 @@ def page(slug: str, data: PageInput, actor: Customer = Depends(operator), db: Se
 
 
 @router.get("/v1/admin/app-orders")
-def orders(_: Customer = Depends(operator), db: Session = Depends(get_db)):
+def orders(_: Customer = Depends(fulfilment_operator), db: Session = Depends(get_db)):
     return [commerce.order_view(r) for r in db.scalars(select(AppOrder).order_by(AppOrder.id.desc()).limit(200))]
 
 
 @router.get("/v1/admin/app-orders/{reference}")
-def order_detail(reference: str, _: Customer = Depends(operator), db: Session = Depends(get_db)):
+def order_detail(reference: str, _: Customer = Depends(fulfilment_operator), db: Session = Depends(get_db)):
     row = db.scalar(select(AppOrder).where(AppOrder.reference == reference))
     if not row:
         raise HTTPException(404, "App order not found.")
@@ -141,18 +157,24 @@ def order_detail(reference: str, _: Customer = Depends(operator), db: Session = 
 
 class FulfilmentInput(BaseModel):
     status: str = Field(pattern="^(preparing|ready|out_for_delivery|completed)$")
+    note: str = Field(default="", max_length=1000)
 
 
 @router.patch("/v1/admin/app-orders/{reference}")
-def fulfil(reference: str, data: FulfilmentInput, actor: Customer = Depends(operator), db: Session = Depends(get_db)):
+def fulfil(reference: str, data: FulfilmentInput, actor: Customer = Depends(fulfilment_operator), db: Session = Depends(get_db)):
     row = db.scalar(select(AppOrder).where(AppOrder.reference == reference).with_for_update())
     transitions = {"paid": {"preparing"}, "preparing": {"ready"}, "ready": {"out_for_delivery", "completed"}, "out_for_delivery": {"completed"}}
     if not row or row.payment_state != "completed" or data.status not in transitions.get(row.state, set()):
         raise HTTPException(409, "This fulfilment transition is not available.")
+    permitted = {"production": {"preparing", "ready"}, "dispatch": {"out_for_delivery", "completed"}, "branch_manager": {"completed"}, "customer_service": set()}
+    if actor.role in permitted and data.status not in permitted[actor.role]:
+        raise HTTPException(403, "This role cannot change that fulfilment stage.")
+    if data.status == "completed" and row.state == "ready" and row.snapshot.get("checkout", {}).get("fulfilment") == "delivery":
+        raise HTTPException(409, "Dispatch a delivery order before marking it delivered.")
     if data.status == "out_for_delivery" and row.snapshot.get("checkout", {}).get("fulfilment") != "delivery":
         raise HTTPException(409, "Pickup orders cannot be dispatched for delivery.")
     row.state = data.status
-    commerce.record_event(db, row, "fulfilment_" + data.status, actor_id=actor.id)
+    commerce.record_event(db, row, "fulfilment_" + data.status, actor_id=actor.id, note=data.note)
     audit(db, actor.id, "app_order_fulfilment", reference, status=data.status)
     db.commit()
     return commerce.order_view(row)
@@ -226,3 +248,34 @@ async def website_sale(request: Request, x_sales_signature: str = Header(default
             paid_minor=data.paid_minor, reversed_minor=data.reversed_minor, version=data.version, occurred_at=data.occurred_at))
     db.commit()
     return {"status": "accepted", "channel": "website"}
+
+
+@router.post("/v1/admin/payment-test/orders/{reference}/complete")
+def complete_payment_test(reference: str, actor: Customer = Depends(operator), db: Session = Depends(get_db)):
+    from .payment_test import complete
+    row = db.scalar(select(AppOrder).where(AppOrder.reference == reference, AppOrder.customer_id == actor.id))
+    if not row:
+        raise HTTPException(404, "Test order not found.")
+    return complete(db, row, actor)
+
+
+class DispatchInput(BaseModel):
+    rider_name: str = Field(min_length=1, max_length=120)
+    rider_phone: str = Field(pattern=r"^(?:\+?254|0)[17][0-9]{8}$")
+    note: str = Field(default="", max_length=1000)
+
+
+@router.put("/v1/admin/app-orders/{reference}/dispatch")
+def assign_dispatch(reference: str, data: DispatchInput, actor: Customer = Depends(fulfilment_operator), db: Session = Depends(get_db)):
+    if actor.role not in ("admin", "staff", "ecommerce_manager", "dispatch"):
+        raise HTTPException(403, "Dispatch assignment access required.")
+    row = db.scalar(select(AppOrder).where(AppOrder.reference == reference).with_for_update())
+    if (not row or row.payment_state != "completed" or row.state not in ("preparing", "ready", "out_for_delivery")
+            or row.snapshot.get("checkout", {}).get("fulfilment") != "delivery"):
+        raise HTTPException(409, "Only an active paid delivery order can be assigned.")
+    # Assignment changes are append-only and retain their operator identity.
+    db.add(AppOrderEvent(id=str(uuid4()), order_id=row.id, event_key=f"{row.reference}:dispatch:{uuid4().hex}",
+        kind="dispatch_assigned", details={**data.model_dump(), "actor_id": actor.id}))
+    audit(db, actor.id, "app_dispatch_assigned", reference)
+    db.commit()
+    return {"status": "assigned"}

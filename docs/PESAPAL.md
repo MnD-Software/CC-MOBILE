@@ -1,5 +1,63 @@
 # Independent app payments and commerce
 
+## Current review: checkout, Club and full-cycle test
+
+The checkout now uses a Cake City pink header, product previews, grouped contact
+fields, pickup/delivery choice cards and a responsive order summary. Phone screens
+stack the sections; larger screens show the summary beside the form.
+
+Normal Club now always reads the authenticated app backend. The old development
+purchase-code service no longer supplies membership, points or transactions.
+Verified provider payments continue to award points automatically. Returning to
+Club refreshes the balance; transaction entries link to their APP order receipts.
+
+### Run the owner-authorized KES 1 simulation
+
+Sign into the app with an **admin, staff or ecommerce_manager** account. Open
+**Club → Test a KES 1 purchase**. This does not require an access code, maps key or
+active Pesapal credentials. The test product is created automatically and remains
+hidden from the customer catalogue.
+
+The test total is exactly **KES 1**, with zero delivery/pickup fee and zero tax.
+**No money is charged.** The button explicitly simulates the purchase. Pesapal
+remains implemented for normal orders but is never called for this test product.
+Only one designated test product is permitted per test order; ordinary products,
+coupons and mixed bags cannot use the simulation endpoint.
+
+As requested by the owner, each completed simulation contributes **KES 100 of
+qualifying spend to the normal Club ledger**. Under the default rule of one point
+per KES 100, that means **one point**, not 100 points. These are real Club ledger
+entries, eligible under the normal Club rules, with descriptions that identify
+them as simulations. Repeating confirmation or recovering a lost response cannot
+award the same order twice. Starting another test creates a new APP-TEST reference.
+
+Test orders use the sandbox environment, a `simulation` payment account and an
+internal `app_test` channel. They are visible to staff and to their owner, clearly
+labelled as simulations in order tracking and exported receipts. They do not enter
+real sales totals. No physical cake production or dispatch is required for a test.
+
+### Dashboard production and delivery workflow
+
+Open `/admin` on the app backend and sign in with a staff account:
+
+1. **Orders / Payments**: inspect references, product variations, customer details,
+   payment state and clearly labelled test activity.
+2. **Kitchen & production**: start preparation, then mark the order ready.
+3. **Dispatch & delivery**: assign a rider name and phone, dispatch the order, then
+   confirm delivery. Pickup orders instead finish with confirmed collection.
+4. **Customers & Club**: inspect member points, qualifying spend and purchase counts.
+
+The existing Products, Campaigns, Promotions, Checkout & delivery, Channel sales
+and Issues modules remain available according to role. Production roles can mark
+preparing/ready; dispatch roles can assign riders and finish delivery; branch
+managers can confirm pickup collection. Admin/staff/ecommerce managers can operate
+the whole sequence. Stage changes and rider assignments retain staff audit records.
+The customer tracking page reads those same events and displays the assigned rider.
+This is order-status tracking, not live GPS vehicle tracking.
+
+Deploy the backend and load an updated app build (or reload Expo development) for
+these changes. A GitHub push by itself does not update an already installed APK.
+
 The app now owns its catalogue, made-to-order availability, price validation, delivery rules, orders, payment records, receipts and customer information pages. Runtime checkout does not call WooCommerce, WordPress, or Cake City's website. The previous WordPress bridge is retired and must not be installed for this implementation.
 
 ## Customer flow
@@ -35,8 +93,16 @@ For a different merchant account, retain the original credentials for outstandin
 
 ```json
 {
-  "primary": {"environment":"live","consumer_key":"<old key>","consumer_secret":"<old secret>"},
-  "app-v2": {"environment":"live","consumer_key":"<new key>","consumer_secret":"<new secret>"}
+  "primary": {
+    "environment": "live",
+    "consumer_key": "<old key>",
+    "consumer_secret": "<old secret>"
+  },
+  "app-v2": {
+    "environment": "live",
+    "consumer_key": "<new key>",
+    "consumer_secret": "<new secret>"
+  }
 }
 ```
 
@@ -137,7 +203,14 @@ Every app order and sale has `channel=app`, its app reference, payment environme
 Website sales can be ingested independently at `POST /v1/integrations/website-sales`. Configure a private `SALES_INGEST_SECRET` of at least 32 characters. The sender signs the exact UTF-8 JSON bytes using HMAC-SHA256 and sends the lowercase hex digest as `X-Sales-Signature`:
 
 ```json
-{"reference":"WEB-12345","environment":"live","paid_minor":250000,"reversed_minor":0,"version":1,"occurred_at":"2026-11-03T09:00:00+03:00"}
+{
+  "reference": "WEB-12345",
+  "environment": "live",
+  "paid_minor": 250000,
+  "reversed_minor": 0,
+  "version": 1,
+  "occurred_at": "2026-11-03T09:00:00+03:00"
+}
 ```
 
 Only aggregate sale/accounting identifiers enter this endpoint; no payment credentials or customer details are required. Versions reject stale/conflicting updates. Website reporting must not send copied app orders as website sales: `APP-` references are rejected. The sender should queue/retry independently. A separate optional reporting job is included: run `python -m app.sync_website_sales --days 7` in a Render cron job using the app database plus the existing WooCommerce read credentials. It only copies sales totals, not customer data, marks website reporting failures in the website issue channel, and skips app orders/copies. Use a larger lookback for an initial historical import. Neither the cron schedule nor a live website sales import was deployed/executed in this change. Website failure may delay website reporting but cannot block an app purchase.
@@ -155,6 +228,7 @@ The owner will perform the live payment. Test both Android and iPhone: confirm t
 Local checks include `npm test`, `npm run typecheck`, backend `python -m pytest tests -q`, migration import validation and Android JS bundle export. These do not certify a native-device payment, the live merchant, settlement, eTIMS, hosted deployment, website reporting synchronization or all store-specific fulfilment policies.
 
 Provider references: [Pesapal order submission](https://developer.pesapal.com/how-to-integrate/e-commerce/api-30-json/submitorderrequest), [transaction verification](https://developer.pesapal.com/how-to-integrate/e-commerce/api-30-json/gettransactionstatus), [Expo WebView](https://docs.expo.dev/versions/v58.0.0/sdk/webview/).
+
 ## Catalogue category repair
 
 Source products with `parent: 0` are main products, not variations. The importer
@@ -174,7 +248,6 @@ the development app or installing an updated production app build.
 The independent backend includes the staff web dashboard at `/admin` for products,
 campaigns, promotion codes, app orders and channel reporting. See
 [APP_DASHBOARD.md](APP_DASHBOARD.md) for owner access and deployment instructions.
-
 
 ### Customer tracking and staff fulfilment
 

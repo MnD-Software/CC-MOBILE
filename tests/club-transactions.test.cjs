@@ -63,50 +63,41 @@ test("transactions use authenticated paginated history when the deployed route e
   assert.equal(result.recent_only, false);
 });
 
-test("preview Club and transactions use the same confirmed purchases without live API writes", async () => {
-  const state = {
-    membership: {
-      points: 25,
-      purchases: 1,
-      tier: "Bronze",
-      next_tier: { name: "Silver", purchases_remaining: 1 },
+test("normal Club ignores old preview configuration and reads the authenticated app ledger", async () => {
+  const requests = [];
+  const overview = {
+    member_id: "buyer",
+    points: 1,
+    debt: 0,
+    tier: "Silver",
+    next_tier: null,
+    rules: {
+      earn_spend_kes: 100,
+      point_value_kes: 1,
+      expiry_days: 365,
+      minimum_redemption: 100,
+      minimum_order_multiple: 10,
     },
-    history: [
-      {
-        id: "TEST-paid",
-        status: "succeeded",
-        amount_minor: 10000,
-        refunded_minor: 0,
-        created_at: "2026-10-24T10:00:00Z",
-        items: [{ name: "TEST reward cupcake", test_points: 25, quantity: 1 }],
-      },
-      {
-        id: "TEST-failed",
-        status: "failed",
-        amount_minor: 10000,
-        refunded_minor: 0,
-        created_at: "2026-10-24T09:00:00Z",
-        items: [],
-      },
-    ],
+    redemption_available: true,
+    coupons: [],
+    activity: [entry],
   };
-  const api = client(() => {
-    throw new Error("No production calls allowed");
-  }, state);
-  const member = await api.overview();
-  const ledger = await api.transactions();
-  assert.equal(member.points, 25);
-  assert.equal(member.purchase_progress.next_tier.purchases_remaining, 1);
-  assert.equal(ledger.data.length, 1);
-  assert.equal(ledger.data[0].points, 25);
-  assert.equal(ledger.data[0].receipt_reference, "TEST-paid");
-  assert.equal(ledger.data[0].description, "reward cupcake");
-  await assert.rejects(api.redeem(100, "some-request"), /live payments/);
-  state.history[0].refunded_minor = 5000;
-  state.membership.points = 12;
-  const adjusted = await api.transactions();
-  assert.equal(adjusted.data[0].points, 12);
-  assert.match(adjusted.data[0].description, /adjusted after refund/);
+  const api = client(
+    async (path, options) => {
+      requests.push({ path, options });
+      return path === "/v1/club"
+        ? overview
+        : { data: [entry], next_cursor: null };
+    },
+    { membership: { points: 9999 }, history: [] },
+  );
+  assert.equal((await api.overview()).points, 1);
+  assert.equal((await api.transactions()).data[0].points, 5);
+  assert.deepEqual(
+    requests.map((r) => r.path),
+    ["/v1/club", "/v1/club/transactions?limit=20"],
+  );
+  assert(requests.every((r) => r.options.auth));
 });
 
 test("an older server displays only its genuine recent Club activity", async () => {

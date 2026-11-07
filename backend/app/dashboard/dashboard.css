@@ -701,3 +701,10 @@ dialog::backdrop {
     padding: 20px;
   }
 }
+
+.workflow-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}

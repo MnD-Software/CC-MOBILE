@@ -169,11 +169,18 @@ export function AppOrderScreen() {
         <Feedback error={order.error} onRetry={() => void order.refetch()} />
       ) : value ? (
         <>
+          {value.payment_test ? (
+            <Notice message="SIMULATED TEST: no Pesapal payment or real charge. This order tests kitchen and delivery tracking. KES 100 qualifying value was assigned to your normal Club by the test rule." />
+          ) : null}
           <Text>{value.reference}</Text>
           <Text>{value.status.replaceAll("_", " ")}</Text>
           <Text>
             {money(value.total_minor / 100)} ·{" "}
-            {value.environment === "sandbox" ? "Sandbox" : "App sale"}
+            {value.payment_test
+              ? "SIMULATED TEST - no money charged"
+              : value.environment === "sandbox"
+                ? "Sandbox"
+                : "App sale"}
           </Text>
           <View
             style={{
@@ -204,6 +211,12 @@ export function AppOrderScreen() {
                   {money(value.snapshot.route.fee_minor / 100)}.
                 </Text>
               </>
+            ) : null}
+            {value.dispatch ? (
+              <Text>
+                Delivery contact: {value.dispatch.rider_name} ?{" "}
+                {value.dispatch.rider_phone}
+              </Text>
             ) : null}
             {orderTracking(value).map((step) => (
               <View key={step.label} style={{ gap: 4 }}>
@@ -245,7 +258,7 @@ export function AppOrderScreen() {
           ))}
           {value.paid_at ? (
             <Notice
-              message={`Payment receipt: RCPT-${value.reference}. Paid ${new Date(value.paid_at).toLocaleString()}. ${value.payment_state === "reversed" ? "Payment reversed; contact support." : ""} This is not an eTIMS tax invoice.`}
+              message={`${value.payment_test ? "SIMULATED TEST receipt (no charge)" : "Payment receipt"}: RCPT-${value.reference}. ${value.payment_test ? "Confirmed" : "Paid"} ${new Date(value.paid_at).toLocaleString()}. ${value.payment_state === "reversed" ? "Payment reversed; contact support." : ""} This is not an eTIMS tax invoice.`}
             />
           ) : null}
           {value.paid_at ? (
@@ -257,7 +270,8 @@ export function AppOrderScreen() {
             />
           ) : null}
           {error ? <Notice error message={error} /> : null}
-          {["not_started", "pending"].includes(value.payment_state) ? (
+          {!value.payment_test &&
+          ["not_started", "pending"].includes(value.payment_state) ? (
             <Button
               label="Pay inside the app"
               disabled={busy}

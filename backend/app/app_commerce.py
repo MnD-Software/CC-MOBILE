@@ -62,15 +62,24 @@ class PlaceOrder(BaseModel):
 
 
 def calculate(db, customer_id, data):
+    from .payment_test import PRODUCT_ID, require_tester
+    from .models import Customer
+    payment_test = any(item.product_id == PRODUCT_ID or item.variation_id == PRODUCT_ID for item in data.items)
+    if payment_test:
+        require_tester(db.get(Customer, customer_id))
+        if (len(data.items) != 1 or data.items[0].product_id != PRODUCT_ID
+                or data.items[0].variation_id or data.items[0].quantity != 1
+                or data.items[0].add_ons or data.coupon_code):
+            raise HTTPException(422, "A KES 1 payment test must contain only one test product, without other goods or coupons.")
     policy = db.get(AppPolicy, "checkout")
-    if not policy or not policy.payload.get("enabled") or not policy.payload.get("pricing_confirmed"):
+    if not payment_test and (not policy or not policy.payload.get("enabled") or not policy.payload.get("pricing_confirmed")):
         raise HTTPException(503, "App ordering is awaiting Cake City's pricing and fulfilment setup. Your bag has been kept.")
-    policy = policy.payload
+    policy = policy.payload if policy else {}
     from . import app_delivery
     delivery_config = app_delivery.policy(db)
-    if data.fulfilment == "pickup" and not policy.get("pickup_enabled"):
+    if not payment_test and data.fulfilment == "pickup" and not policy.get("pickup_enabled"):
         raise HTTPException(409, "Pickup is not currently enabled in the app.")
-    if data.fulfilment == "delivery" and (not data.billing.address or (not delivery_config.enabled and (not data.billing.area or not data.billing.city))):
+    if not payment_test and data.fulfilment == "delivery" and (not data.billing.address or (not delivery_config.enabled and (not data.billing.area or not data.billing.city))):
         raise HTTPException(422, "Complete your delivery address.")
     lines, quantities = [], {}
     for item in data.items:
@@ -78,6 +87,8 @@ def calculate(db, customer_id, data):
         product = db.get(AppProduct, item.variation_id or item.product_id)
         if not parent or not parent.enabled or not product or not product.enabled or product.price_minor is None:
             raise HTTPException(409, "One of these products is not available for app orders.")
+        if payment_test and (not product.payload.get("payment_test") or product.price_minor != 100):
+            raise HTTPException(409, "The test product must remain priced at exactly KES 1.")
         if (item.variation_id and product.parent_id != parent.id) or (not item.variation_id and parent.payload.get("type") == "variable"):
             raise HTTPException(422, "Choose a valid product variation.")
         if item.add_ons:
@@ -108,11 +119,11 @@ def calculate(db, customer_id, data):
     subtotal = sum(line["line_minor"] for line in lines)
     fee, zone_revision, zone_name = 0, None, None
     route_snapshot = None
-    if delivery_config.enabled:
+    if delivery_config.enabled and not payment_test:
         route_snapshot = app_delivery.checked_quote(db, customer_id, data.delivery_quote_id, data.fulfilment)
         fee = route_snapshot["fee_minor"]
         zone_name = route_snapshot["destination_name"]
-    elif data.fulfilment == "delivery":
+    elif data.fulfilment == "delivery" and not payment_test:
         zone = db.get(AppDeliveryZone, data.delivery_zone_id)
         if not zone or not zone.enabled:
             raise HTTPException(409, "Select a delivery area configured in the app.")
@@ -127,16 +138,16 @@ def calculate(db, customer_id, data):
             raise HTTPException(409, "This app coupon is not eligible for this order.")
         discount = min(coupon.amount_minor, subtotal)
     base = subtotal + fee - discount
-    rate = int(policy.get("tax_bps", 0))
-    included = bool(policy.get("prices_include_tax", True))
+    rate = 0 if payment_test else int(policy.get("tax_bps", 0))
+    included = True if payment_test else bool(policy.get("prices_include_tax", True))
     tax = (base*rate + (10000+rate)//2)//(10000+rate) if included else (base*rate + 5000)//10000
     total = base if included else base + tax
     if not 0 < total <= 1_000_000_000:
         raise HTTPException(409, "This order total needs staff assistance.")
-    pickup_instructions = policy.get("pickup_instructions", "") if data.fulfilment == "pickup" else ""
+    pickup_instructions = "Simulated order. No money charged or physical fulfilment required." if payment_test else (policy.get("pickup_instructions", "") if data.fulfilment == "pickup" else "")
     if route_snapshot and data.fulfilment == "pickup" and route_snapshot.get("pickup_location_id") != "hq":
         pickup_instructions = f"Collect from {route_snapshot['destination_name']}, {route_snapshot['destination_address']}, after your order is marked ready. Present your APP order reference."
-    return {"lines": lines, "quantities": {str(k): v for k, v in quantities.items()}, "subtotal_minor": subtotal,
+    return {**({"payment_test": True} if payment_test else {}), "lines": lines, "quantities": {str(k): v for k, v in quantities.items()}, "subtotal_minor": subtotal,
             "delivery_minor": fee, "discount_minor": discount, "tax_minor": tax, "prices_include_tax": included,
             "total_minor": total, "currency": "KES", "coupon_code": coupon_code, "zone_revision": zone_revision,
             "zone_name": zone_name, "route": route_snapshot, "policy_digest": digest(policy), "checkout": data.model_dump(mode="json"), "pickup_instructions": pickup_instructions}
@@ -195,16 +206,16 @@ def place(db, customer_id, quote_id, request_key, account_id, environment):
                 AppCoupon.uses+AppCoupon.reserved < AppCoupon.usage_limit).values(reserved=AppCoupon.reserved+1))
             if result.rowcount != 1:
                 raise HTTPException(409, "This coupon has just been used.")
-        reference = "APP-" + datetime.now(UTC).strftime("%Y%m%d") + "-" + uuid4().hex[:16].upper()
+        reference = ("APP-TEST-" if current.get("payment_test") else "APP-") + datetime.now(UTC).strftime("%Y%m%d") + "-" + uuid4().hex[:16].upper()
         order = AppOrder(reference=reference, customer_id=customer_id, request_key=request_key,
                          request_digest=digest({"quote_id": quote_id}), account_id=account_id, environment=environment,
-                         account_fingerprint=digest(payment_account(account_id)["consumer_key"]),
+                         account_fingerprint=digest("simulation" if current.get("payment_test") else payment_account(account_id)["consumer_key"]),
                          snapshot=current, total_minor=current["total_minor"], subtotal_minor=current["subtotal_minor"],
                          discount_minor=current["discount_minor"], delivery_minor=current["delivery_minor"],
-                         coupon_code=current["coupon_code"], channel="app")
+                         coupon_code=current["coupon_code"], channel="app_test" if current.get("payment_test") else "app")
         db.add(order)
         db.flush()
-        record_event(db, order, "order_created", channel="app", account_id=account_id)
+        record_event(db, order, "order_created", channel=order.channel, account_id=account_id)
         db.commit()
         return order
     except IntegrityError:
@@ -238,10 +249,12 @@ def inventory_transition(db, order, paid=False):
 
 
 def sale(db, order, reversed=False):
-    record = db.scalar(select(SalesRecord).where(SalesRecord.channel == "app", SalesRecord.reference == order.reference,
+    if order.channel == "app_test":
+        return
+    record = db.scalar(select(SalesRecord).where(SalesRecord.channel == order.channel, SalesRecord.reference == order.reference,
                                                 SalesRecord.environment == order.environment))
     if not record:
-        record = SalesRecord(id=str(uuid4()), channel="app", reference=order.reference, environment=order.environment,
+        record = SalesRecord(id=str(uuid4()), channel=order.channel, reference=order.reference, environment=order.environment,
                              account_id=order.account_id, paid_minor=order.total_minor, occurred_at=datetime.now(UTC))
         db.add(record)
     if reversed:
@@ -250,7 +263,7 @@ def sale(db, order, reversed=False):
 
 
 def order_view(order, private=True):
-    result = {"reference": order.reference, "channel": "app", "environment": order.environment,
+    result = {"reference": order.reference, "channel": "app", "payment_test": order.channel == "app_test", "environment": order.environment,
               "payment_account": order.account_id, "status": order.state, "payment_state": order.payment_state,
               "total_minor": order.total_minor, "currency": "KES", "created_at": utc(order.created_at).isoformat(),
               "paid_at": utc(order.paid_at).isoformat() if order.paid_at else None}
@@ -269,5 +282,9 @@ def tracked_order_view(db, order):
                         for event in db.scalars(select(AppOrderEvent).where(AppOrderEvent.order_id == order.id)
                                                 .order_by(AppOrderEvent.created_at, AppOrderEvent.id))
                         if event.kind in visible]
+    dispatch = db.scalar(select(AppOrderEvent).where(AppOrderEvent.order_id == order.id,
+        AppOrderEvent.kind == "dispatch_assigned").order_by(AppOrderEvent.created_at.desc(), AppOrderEvent.id.desc()))
+    if dispatch:
+        result["dispatch"] = {k: dispatch.details[k] for k in ("rider_name", "rider_phone") if k in dispatch.details}
     result["events"].sort(key=lambda event: (event["created_at"], visible.index(event["kind"])))
     return result

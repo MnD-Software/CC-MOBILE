@@ -73,7 +73,7 @@ def product_view(row):
 
 
 def products(db, params):
-    rows = list(db.scalars(select(AppProduct)))
+    rows = [r for r in db.scalars(select(AppProduct)) if not r.payload.get("payment_test")]
     if params.get("type") == "variation":
         rows = [r for r in rows if r.parent_id is not None]
     else:

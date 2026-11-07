@@ -33,6 +33,7 @@ export function usePaymentSuccess(
     });
     void queryClient.invalidateQueries({ queryKey: ["app-orders"] });
     void queryClient.invalidateQueries({ queryKey: ["club"] });
+    void queryClient.invalidateQueries({ queryKey: ["club-transactions"] });
     const key = paymentCelebrationKey(owner, order.reference);
     if (!celebrated.current.has(key)) {
       void getStorageItem(key)

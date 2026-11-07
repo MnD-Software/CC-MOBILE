@@ -61,6 +61,28 @@ const operatorRoles = ["admin", "staff", "ecommerce_manager"],
   writerRoles = [...operatorRoles, "marketing_manager", "content_manager"],
   readerRoles = [...writerRoles, "executive", "analyst"],
   reportRoles = [...operatorRoles, "executive", "finance", "analyst"];
+const fulfilmentRoles = [
+  "admin",
+  "staff",
+  "ecommerce_manager",
+  "production",
+  "dispatch",
+  "branch_manager",
+  "customer_service",
+];
+const canFulfil = () => fulfilmentRoles.includes(session?.customer.role);
+const canKitchen = () =>
+  ["admin", "staff", "ecommerce_manager", "production"].includes(
+    session?.customer.role,
+  );
+const canDispatch = () =>
+  [
+    "admin",
+    "staff",
+    "ecommerce_manager",
+    "dispatch",
+    "branch_manager",
+  ].includes(session?.customer.role);
 const canOperate = () => operatorRoles.includes(session?.customer.role);
 const canWrite = () => writerRoles.includes(session?.customer.role);
 const canReport = () => reportRoles.includes(session?.customer.role);
@@ -131,7 +153,11 @@ $("signin").onsubmit = async (e) => {
       "POST",
       Object.fromEntries(f),
     );
-    if (!readerRoles.includes(session.customer.role) && !canReport()) {
+    if (
+      !readerRoles.includes(session.customer.role) &&
+      !canReport() &&
+      !canFulfil()
+    ) {
       await request("/v1/auth/mobile/logout", "POST", {
         refresh_token: session.refresh_token,
       });
@@ -164,6 +190,26 @@ $("signout").onclick = async () => {
   }
 };
 const sections = {
+  kitchen: [
+    "K",
+    "Kitchen & production",
+    "HQ preparation queue, cake variations and order instructions.",
+  ],
+  dispatch: [
+    "D",
+    "Dispatch & delivery",
+    "Assign riders, dispatch deliveries and confirm delivery or branch collection.",
+  ],
+  payments: [
+    "P",
+    "Payments",
+    "Verified provider payments and explicitly labelled simulated test orders.",
+  ],
+  club: [
+    "C",
+    "Customers & Club",
+    "Member balances, qualifying spend and traceable purchase activity.",
+  ],
   delivery: [
     "↗",
     "Checkout & delivery",
@@ -202,7 +248,10 @@ function navigation() {
     "overview",
     ...(canOperate() ? ["products"] : []),
     ...(readerRoles.includes(session.customer.role) ? ["campaigns"] : []),
-    ...(canOperate() ? ["promotions", "orders", "delivery"] : []),
+    ...(canOperate() ? ["promotions", "delivery", "payments", "club"] : []),
+    ...(canFulfil() ? ["orders"] : []),
+    ...(canKitchen() ? ["kitchen"] : []),
+    ...(canDispatch() ? ["dispatch"] : []),
     ...(canReport() ? ["sales", "issues"] : []),
   ];
   document.querySelector("nav").innerHTML = allowed
@@ -256,7 +305,70 @@ async function show(next = tab) {
 }
 const stat = (label, value, note) =>
   `<div class="stat"><small>${esc(label)}</small><strong>${esc(value)}</strong><span>${esc(note)}</span></div>`;
+function orderActions(o) {
+  const next =
+    {
+      paid: ["preparing"],
+      preparing: ["ready"],
+      ready:
+        o.snapshot?.checkout?.fulfilment === "delivery"
+          ? ["out_for_delivery"]
+          : ["completed"],
+      out_for_delivery: ["completed"],
+    }[o.status] || [];
+  return o.payment_state === "completed"
+    ? next
+        .filter((status) =>
+          session.customer.role === "branch_manager"
+            ? status === "completed" &&
+              o.snapshot?.checkout?.fulfilment === "pickup"
+            : ["preparing", "ready"].includes(status)
+              ? canKitchen()
+              : canDispatch(),
+        )
+        .map(
+          (status) =>
+            `<button data-order="${esc(o.reference)}" data-status="${status}">${{ preparing: "Start preparation", ready: "Mark ready", out_for_delivery: "Dispatch order", completed: o.snapshot?.checkout?.fulfilment === "delivery" ? "Confirm delivered" : "Confirm collected" }[status]}</button>`,
+        )
+        .join(" ")
+    : "Awaiting payment";
+}
+async function workflowBoard(stage) {
+  const all = await request("/v1/admin/app-orders");
+  const states =
+    stage === "kitchen" ? ["paid", "preparing"] : ["ready", "out_for_delivery"];
+  const rows = all.filter(
+    (o) => o.payment_state === "completed" && states.includes(o.status),
+  );
+  return `<button data-action="retry">Refresh queue</button><p>Test orders are labelled. No physical production or delivery is needed for simulations.</p><div class="cards">${rows.map((o) => `<section class="panel"><span>${pill(o.status, true)} ${o.payment_test ? pill("SIMULATED TEST") : ""}</span><h2>${esc(o.reference)}</h2><p>${esc(date(o.created_at))} / ${esc(o.snapshot?.checkout?.fulfilment)}</p>${(o.snapshot?.lines || []).map((l) => `<h3>${esc(l.quantity)} x ${esc(l.name)}</h3><p>${esc(l.selection?.size || "")} ${(l.selection?.variation_attributes || []).map((a) => `${esc(a.attribute)}: ${esc(a.value)}`).join(" / ")}</p><p>${esc(l.selection?.message || "")}</p>`).join("")}<p>${esc(o.snapshot?.checkout?.notes || "")}</p><button data-order-details="${esc(o.reference)}">Customer details & tracking</button>${stage === "dispatch" && o.snapshot?.checkout?.fulfilment === "delivery" && session.customer.role !== "branch_manager" ? `<button data-assign="${esc(o.reference)}">Assign / update rider</button>` : ""}<div class="workflow-actions">${orderActions(o)}</div></section>`).join("") || empty("Queue is clear", "Orders appear here when they reach this stage.")}</div>`;
+}
 const views = {
+  async kitchen() {
+    return workflowBoard("kitchen");
+  },
+  async dispatch() {
+    return workflowBoard("dispatch");
+  },
+  async payments() {
+    const orders = await request("/v1/admin/app-orders");
+    return table(
+      ["Reference", "Kind", "Total", "State", ""],
+      orders.map(
+        (o) =>
+          `<tr><td>${esc(o.reference)}</td><td>${o.payment_test ? pill("SIMULATED - NO CHARGE") : esc(o.environment)}</td><td>${money(o.total_minor)}</td><td>${pill(o.payment_state, o.payment_state === "completed")}</td><td><button data-order-details="${esc(o.reference)}">View details</button></td></tr>`,
+      ),
+    );
+  },
+  async club() {
+    const rows = await request("/v1/admin/dashboard/club");
+    return table(
+      ["Customer", "Points", "Qualifying spend", "Purchases", "Review"],
+      rows.map(
+        (c) =>
+          `<tr><td>${esc(c.name)}<small>${esc(c.email)}</small></td><td>${c.points}</td><td>${money(c.spend_minor)}</td><td>${c.purchases}</td><td>${c.review_required ? pill("Review required") : "Clear"}</td></tr>`,
+      ),
+    );
+  },
   async delivery() {
     [deliverySettings, checkoutSettings] = await Promise.all([
       request("/v1/admin/app-delivery"),
@@ -267,6 +379,8 @@ const views = {
     return `<section class="panel"><h2>App payments and HQ fulfilment</h2><p>All app orders are produced and dispatched from HQ. Confirm the HQ pin, delivery boundary and price/tax treatment before accepting payments.</p><div class="stats">${stat("Route service", d.maps_ready ? "Configured" : "Key needed", "GOOGLE_MAPS_API_KEY on Render")}${stat("Map picker", d.map_picker_ready ? "Configured" : "Key needed", "GOOGLE_MAPS_BROWSER_KEY on Render")}${stat("Checkout", p.enabled && p.pricing_confirmed ? "Enabled" : "Awaiting confirmation", "Live payment also requires the Pesapal merchant account")}</div><button data-payment-check="true">Check Pesapal account and callback setup</button><h3>Confirmed rate card</h3><p>Doorstep: KES 100 + KES 30/km by road from HQ. Same-store HQ collection: free. Transfers to another pickup store: 50% of the applicable delivery fee.</p><small>${esc(d.source)}</small><h3>${esc(d.origin_name)}</h3><p>${esc(d.origin_address)}</p><p>${d.origin ? `${esc(d.origin.latitude)}, ${esc(d.origin.longitude)}` : "HQ pin not confirmed"}. Boundary: ${d.radius_km ? `${esc(d.radius_km)} km radius` : "not confirmed"}.</p><button data-delivery-config="hq">Configure HQ and delivery area</button><button data-checkout-config="true">Configure checkout and tax</button><h3>Additional pickup stores</h3><p>HQ collection is free. Additional stores require a quoted transfer from HQ.</p>${(d.pickup_stores || []).map((s) => `<p>${esc(s.name)} - ${esc(s.address)} <button data-edit-pickup="${esc(s.id)}">Edit branch</button><button data-remove-pickup="${esc(s.id)}">Remove store</button></p>`).join("")}<button data-delivery-config="store">Add pickup store</button></section>`;
   },
   async overview() {
+    if (!canOperate() && canFulfil())
+      return workflowBoard(canKitchen() ? "kitchen" : "dispatch");
     const results = await Promise.all([
       canOperate() ? request("/v1/admin/dashboard/products?per_page=1") : null,
       readerRoles.includes(session.customer.role)
@@ -371,17 +485,7 @@ const views = {
         ? table(
             ["App order", "Total", "Payment", "Fulfilment", ""],
             rows.map((o) => {
-              const next =
-                {
-                  paid: ["preparing"],
-                  preparing: ["ready"],
-                  ready:
-                    o.snapshot?.checkout?.fulfilment === "delivery"
-                      ? ["out_for_delivery"]
-                      : ["completed"],
-                  out_for_delivery: ["completed"],
-                }[o.status] || [];
-              return `<tr><td><strong>${esc(o.reference)}</strong><button data-order-details="${esc(o.reference)}">View details and tracking</button><small>${esc(date(o.created_at))}</small></td><td>${money(o.total_minor)}</td><td>${pill(o.payment_state, o.payment_state === "completed")}</td><td>${pill(o.status)}</td><td>${o.payment_state === "completed" ? next.map((s) => `<button data-order="${esc(o.reference)}" data-status="${s}">Mark ${s.replaceAll("_", " ")}</button>`).join(" ") : "Awaiting verified payment"}</td></tr>`;
+              return `<tr><td><strong>${esc(o.reference)}</strong>${o.payment_test ? pill("SIMULATED TEST") : ""}<button data-order-details="${esc(o.reference)}">View details and tracking</button><small>${esc(date(o.created_at))}</small></td><td>${money(o.total_minor)}</td><td>${pill(o.payment_state, o.payment_state === "completed")}</td><td>${pill(o.status)}</td><td>${orderActions(o)}</td></tr>`;
             }),
           )
         : empty(
@@ -800,13 +904,26 @@ document.addEventListener("click", async (e) => {
           .join("");
       openEditor(
         o.reference,
-        `<div class="full"><h3>${esc(o.status.replaceAll("_", " "))} - ${money(o.total_minor)}</h3><p>Payment: ${esc(o.payment_state)} / ${esc(o.environment)}</p><h3>Customer and fulfilment</h3>${entries(o.snapshot?.checkout || {})}<h3>Products and variations</h3>${(o.snapshot?.lines || []).map((l) => `<section class="panel"><strong>${esc(l.quantity)} x ${esc(l.name)}</strong><p>Product ${esc(l.product_id)} / SKU ${esc(l.sku_id)} / ${money(l.line_minor)}</p>${entries(l.selection || {})}</section>`).join("")}<h3>Delivery route and charge</h3>${entries(o.snapshot?.route || {})}<h3>Tracking history</h3><p>Order received / ${esc(date(o.created_at))}</p>${(o.events || []).map((e) => `<p>${esc(e.kind.replaceAll("_", " "))} / ${esc(date(e.created_at))}</p>`).join("")}</div>`,
+        `<div class="full"><h3>${esc(o.status.replaceAll("_", " "))} - ${money(o.total_minor)}</h3><p>Payment: ${esc(o.payment_state)} / ${o.payment_test ? "SIMULATED TEST - NO MONEY CHARGED" : esc(o.environment)}</p>${o.dispatch ? `<h3>Assigned rider</h3>${entries(o.dispatch)}` : ""}<h3>Customer and fulfilment</h3>${entries(o.snapshot?.checkout || {})}<h3>Products and variations</h3>${(o.snapshot?.lines || []).map((l) => `<section class="panel"><strong>${esc(l.quantity)} x ${esc(l.name)}</strong><p>Product ${esc(l.product_id)} / SKU ${esc(l.sku_id)} / ${money(l.line_minor)}</p>${entries(l.selection || {})}</section>`).join("")}<h3>Delivery route and charge</h3>${entries(o.snapshot?.route || {})}<h3>Tracking history</h3><p>Order received / ${esc(date(o.created_at))}</p>${(o.events || []).map((e) => `<p>${esc(e.kind.replaceAll("_", " "))} / ${esc(date(e.created_at))}</p>`).join("")}</div>`,
         null,
         true,
       );
     } catch (error) {
       notice(error.message, true);
     }
+  }
+  if (d.assign) {
+    openEditor(
+      "Assign delivery rider",
+      `<div class="form-grid">${input("rider_name", "Rider name", "", "text", "required maxlength=120")}${input("rider_phone", "Rider phone", "", "tel", 'required pattern="(\\+?254|0)[17][0-9]{8}"')}${area("note", "Dispatch notes")}</div>`,
+      async (f) => {
+        await request(
+          `/v1/admin/app-orders/${encodeURIComponent(d.assign)}/dispatch`,
+          "PUT",
+          Object.fromEntries(f),
+        );
+      },
+    );
   }
   if (d.order || d.issue) {
     b.disabled = true;

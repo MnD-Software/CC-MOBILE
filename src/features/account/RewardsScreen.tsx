@@ -31,7 +31,6 @@ import {
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import { tokens } from "@/theme/tokens";
 import { BrandLogo } from "@/components/BrandLogo";
-import { purchaseTestOrigin } from "@/features/purchase-test/client";
 import { useScreenActive } from "@/design/useScreenActive";
 
 export function RewardsScreen() {
@@ -59,6 +58,9 @@ export function RewardsScreen() {
     return () => cancelAnimationFrame(frame);
   }, [focused, milestone, memberY]);
   const { customer, restoring } = useAuth();
+  const canTest =
+    !!customer &&
+    ["admin", "staff", "ecommerce_manager"].includes(customer.role);
   const wallet = useCouponWallet(customer?.id);
   const { colors, isDark } = useTheme();
   const styles = useThemedStyles(baseStyles);
@@ -127,6 +129,13 @@ export function RewardsScreen() {
         </Text>
       </LinearGradient>
 
+      {canTest ? (
+        <Button
+          variant="outline"
+          label="Test a KES 1 purchase"
+          onPress={() => router.push("/payment-test")}
+        />
+      ) : null}
       <View onLayout={(event) => setMemberY(event.nativeEvent.layout.y)}>
         <ClubMembership
           key={wallet.scope}
@@ -134,7 +143,7 @@ export function RewardsScreen() {
           revealToken={milestone}
         />
       </View>
-      {!customer && !purchaseTestOrigin() ? (
+      {!customer ? (
         <Button
           label="Sign in to Club"
           onPress={() => router.push("/sign-in")}

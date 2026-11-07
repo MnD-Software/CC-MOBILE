@@ -14,6 +14,7 @@ import {
 } from "./app-delivery";
 import { DeliveryMap } from "./DeliveryMap";
 import { money } from "./contracts";
+import { useTheme } from "@/theme/ThemeProvider";
 
 export function HqDeliveryPicker({
   options,
@@ -26,6 +27,8 @@ export function HqDeliveryPicker({
   onChange: (quote: DeliveryRouteQuote | null) => void;
   onAddressSelect: (address: string) => void;
 }) {
+  const { colors } = useTheme();
+  const detailStyle = { color: colors.muted, fontSize: 12, lineHeight: 19 };
   const [point, setPoint] = useState<DeliveryPoint | null>(null);
   const [search, setSearch] = useState("");
   const [results, setResults] = useState<
@@ -174,11 +177,13 @@ export function HqDeliveryPicker({
   }
   return (
     <View style={{ gap: 12 }}>
-      <Text>Prepared at {options.origin_name}</Text>
-      <Text>{options.origin_address}</Text>
+      <Text style={{ color: colors.ink, fontWeight: "700" }}>
+        Prepared at {options.origin_name}
+      </Text>
+      <Text style={detailStyle}>{options.origin_address}</Text>
       {fulfilment === "delivery" ? (
         <>
-          <Text>
+          <Text style={detailStyle}>
             KES 100 + KES 30/km by road from HQ. Available within the configured{" "}
             {options.radius_km} km delivery area.
           </Text>
@@ -244,7 +249,7 @@ export function HqDeliveryPicker({
         </>
       ) : (
         <>
-          <Text>
+          <Text style={detailStyle}>
             Collect at HQ for free, or choose an available store. Transfers cost
             50% of the applicable delivery fee from HQ.
           </Text>

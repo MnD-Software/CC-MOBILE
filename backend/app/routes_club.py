@@ -86,7 +86,7 @@ def overview(customer: Customer = Depends(member), db: Session = Depends(get_db)
         "redemption_available": not value.review_required,
         "review_required": value.review_required,
         "activity": [{"id": e.id, "points": e.points, "description": e.description,
-            "created_at": e.created_at.isoformat()} for e in entries],
+            "created_at": e.created_at.isoformat(), **({"receipt_reference": e.order_id} if e.order_id and e.order_id.startswith("APP-") else {})} for e in entries],
         "coupons": [{"id": c.id, "points": c.points, "code": c.code if c.status == "issued" else None,
             "status": c.status, "request_key": c.request_key} for c in coupons]}
     db.commit()
@@ -105,7 +105,7 @@ def transactions(before: str | None = Query(default=None, max_length=36), limit:
     entries = db.scalars(statement.order_by(ClubEntry.created_at.desc(), ClubEntry.id.desc()).limit(limit + 1)).all()
     page = entries[:limit]
     return {"data": [{"id": e.id, "points": e.points, "description": e.description,
-        "created_at": e.created_at.isoformat()} for e in page],
+        "created_at": e.created_at.isoformat(), **({"receipt_reference": e.order_id} if e.order_id and e.order_id.startswith("APP-") else {})} for e in page],
         "next_cursor": page[-1].id if len(entries) > limit else None}
 
 
@@ -211,8 +211,13 @@ def apply_order_event(event: OrderEvent, db: Session):
         consume(db, event.customer_id, debit)
         value.points -= debit
         value.debt += reclaim-debit
+    from .commerce_models import AppOrder
+    app_order = db.scalar(select(AppOrder).where(AppOrder.reference == event.order_id)) if event.order_id.startswith("APP-") else None
+    description = f"Order {event.order_id}: qualifying spend updated"
+    if app_order and app_order.channel == "app_test":
+        description = f"SIMULATED TEST {event.order_id}: KES 100 qualifying value (no payment)"
     db.add(ClubEntry(id=str(uuid4()), customer_id=event.customer_id, event_key=key,
-        points=delta+waived, remaining=remaining, order_id=event.order_id, description=f"Order {event.order_id}: qualifying spend updated",
+        points=delta+waived, remaining=remaining, order_id=event.order_id, description=description,
         expires_at=datetime.now(UTC)+timedelta(days=settings.club_expiry_days) if remaining else None))
     db.commit()
     from .routes_club_benefits import sync_referral

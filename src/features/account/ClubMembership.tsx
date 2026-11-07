@@ -4,7 +4,7 @@ import {
 } from "@/native/celebration-reminders";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { randomUUID } from "expo-crypto";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Share, View, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "@/components/ui/Typography";
@@ -27,8 +27,7 @@ import { ClubTransactions } from "./ClubTransactions";
 import { OccasionDateField } from "@/components/ui/OccasionDateField";
 import { CampaignStories } from "@/features/editorial/CampaignStories";
 import { AnimatedNumber, SuccessBurst } from "@/components/ui/Delight";
-import { router } from "expo-router";
-import { purchaseTestOrigin } from "@/features/purchase-test/client";
+import { router, useFocusEffect } from "expo-router";
 import { milestoneProgress } from "./milestones";
 import { MilestoneProgressBar } from "./MilestoneProgressBar";
 
@@ -39,16 +38,10 @@ export function ClubMembership({
   walletScope: string;
   revealToken?: string;
 }) {
-  const { customer: signedInCustomer } = useAuth();
-  const preview = purchaseTestOrigin();
-  const customer =
-    signedInCustomer ??
-    (preview
-      ? { id: "purchase-preview", first_name: "", last_name: "" }
-      : null);
+  const { customer } = useAuth();
   const { colors } = useTheme();
   const client = useQueryClient();
-  const key = ["club", customer?.id, preview];
+  const key = ["club", customer?.id, null];
   const identity = useRef({ scope: customer?.id, key: randomUUID() });
   if (identity.current.scope !== customer?.id)
     identity.current = { scope: customer?.id, key: randomUUID() };
@@ -65,6 +58,11 @@ export function ClubMembership({
     enabled: !!customer,
     retry: false,
   });
+  useFocusEffect(
+    useCallback(() => {
+      if (customer) void query.refetch();
+    }, [customer?.id, query.refetch]),
+  );
   const redeem = useMutation({
     mutationFn: ({
       points,
@@ -122,15 +120,14 @@ export function ClubMembership({
           />
           <Button
             variant="outline"
-            label={preview ? "Open checkout" : "Retry membership"}
-            onPress={() =>
-              preview ? router.push("/checkout") : void query.refetch()
-            }
+            label="Retry membership"
+            onPress={() => void query.refetch()}
           />
         </>
       ) : null}
       {data ? (
         <>
+          <Notice message="Your app purchases update Club automatically. No purchase code is needed. Staff simulations are labelled in your history." />
           <MembershipCard
             progress={progress}
             revealToken={revealToken}
@@ -356,7 +353,7 @@ export function ClubMembership({
             <Text style={text}>
               {data.purchase_progress ? (
                 <>
-                  Earn 25 points with each reward cupcake purchase.{" "}
+                  Earn 25 test points with each verified KES 1 test payment.{" "}
                   {data.purchase_progress.milestones
                     ?.filter((milestone) => milestone.purchases > 0)
                     .map(
@@ -387,12 +384,7 @@ export function ClubMembership({
               message={`${data.debt} points from refunded purchases will be recovered from future earnings.`}
             />
           ) : null}
-          {!data.redemption_available && preview ? (
-            <Text style={{ color: colors.muted, fontSize: 12 }}>
-              Reward redemption will be available when live payments are
-              connected.
-            </Text>
-          ) : !data.redemption_available ? (
+          {!data.redemption_available ? (
             <Notice
               message={
                 data.review_required
