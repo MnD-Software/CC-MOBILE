@@ -66,9 +66,11 @@ def calculate(db, customer_id, data):
     if not policy or not policy.payload.get("enabled") or not policy.payload.get("pricing_confirmed"):
         raise HTTPException(503, "App ordering is awaiting Cake City's pricing and fulfilment setup. Your bag has been kept.")
     policy = policy.payload
+    from . import app_delivery
+    delivery_config = app_delivery.policy(db)
     if data.fulfilment == "pickup" and not policy.get("pickup_enabled"):
         raise HTTPException(409, "Pickup is not currently enabled in the app.")
-    if data.fulfilment == "delivery" and (not data.billing.address or not data.billing.area or not data.billing.city):
+    if data.fulfilment == "delivery" and (not data.billing.address or (not delivery_config.enabled and (not data.billing.area or not data.billing.city))):
         raise HTTPException(422, "Complete your delivery address.")
     lines, quantities = [], {}
     for item in data.items:
@@ -105,8 +107,6 @@ def calculate(db, customer_id, data):
                       "selection": item.model_dump(exclude={"product_id", "quantity"})})
     subtotal = sum(line["line_minor"] for line in lines)
     fee, zone_revision, zone_name = 0, None, None
-    from . import app_delivery
-    delivery_config = app_delivery.policy(db)
     route_snapshot = None
     if delivery_config.enabled:
         route_snapshot = app_delivery.checked_quote(db, customer_id, data.delivery_quote_id, data.fulfilment)

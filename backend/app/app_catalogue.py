@@ -1,5 +1,8 @@
 """Persistent app catalogue and media; browsing performs zero website HTTP calls."""
 from urllib.parse import urlsplit
+from html import unescape
+import re
+import unicodedata
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy import select
@@ -10,6 +13,26 @@ from .config import get_settings
 from .db import get_db
 
 router = APIRouter(tags=["independent-catalogue"])
+
+
+def search_text(value):
+    value = re.sub(r"([a-z])([A-Z])", r"\1 \2", str(value))
+    value = unicodedata.normalize("NFKD", unescape(value)).casefold()
+    return " ".join(re.findall(r"[a-z0-9]+", value))
+
+
+def search_matches(row, query):
+    name = search_text(row.payload.get("name", ""))
+    slug = search_text(row.slug)
+    categories = " ".join(search_text(c.get("name", "")) for c in row.payload.get("categories", []))
+    attributes = " ".join(search_text(option) for attribute in row.payload.get("attributes", []) for option in attribute.get("options", []))
+    haystack = f"{name} {slug} {categories} {attributes}"
+    words = search_text(query).split()
+    # Search each word rather than requiring an adjacent phrase. Cake/cakes
+    # and names typed without spaces retain the same published catalogue.
+    return bool(words) and all(
+        (word[:-1] if word.endswith("s") and len(word) > 3 else word) in haystack.replace(" ", "")
+        for word in words)
 
 
 def origin():
@@ -62,8 +85,7 @@ def products(db, params):
         ids = {int(i) for i in str(params["category"]).split(",") if i.isdigit()}
         rows = [r for r in rows if any(c.get("id") in ids for c in r.payload.get("categories", []))]
     if params.get("search"):
-        term = str(params["search"]).casefold()
-        rows = [r for r in rows if term in str(r.payload.get("name", "")).casefold() or term in r.slug.casefold()]
+        rows = [r for r in rows if search_matches(r, params["search"])]
     if str(params.get("on_sale", "")).lower() == "true":
         rows = [r for r in rows if r.payload.get("on_sale")]
     for name, predicate in (("min_price", lambda price, bound: price >= bound), ("max_price", lambda price, bound: price <= bound)):

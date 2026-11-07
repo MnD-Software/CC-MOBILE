@@ -94,3 +94,46 @@ test("profiles saved before postal codes retain their details and require comple
     /postal code/,
   );
 });
+
+test("pickup needs contact details while a confirmed delivery pin needs a street address without a postal-code gate", async () => {
+  const client = profileClient();
+  const contact = { ...fields, address: "", area: "", city: "", postcode: "" };
+  assert.equal(
+    client.validateBillingProfile(contact, { address: "none", postcode: false })
+      .phone,
+    "+254712345678",
+  );
+  assert.throws(
+    () =>
+      client.validateBillingProfile(contact, {
+        address: "street",
+        postcode: false,
+      }),
+    /building/,
+  );
+  const pinDelivery = { ...contact, address: "Confirmed building entrance" };
+  await client.saveBillingProfile("buyer-1", pinDelivery, {
+    address: "street",
+    postcode: false,
+  });
+  assert.equal(
+    (await client.loadBillingProfile("buyer-1")).address,
+    pinDelivery.address,
+  );
+  assert.throws(
+    () =>
+      client.validateBillingProfile(
+        { ...contact, phone: "bad" },
+        { address: "none", postcode: false },
+      ),
+    /phone/,
+  );
+  assert.throws(
+    () =>
+      client.validateBillingProfile(
+        { ...pinDelivery, postcode: "ABC" },
+        { address: "street", postcode: false },
+      ),
+    /postal/,
+  );
+});

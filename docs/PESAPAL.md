@@ -128,6 +128,8 @@ The values above illustrate the API shape; zero tax is not a tax recommendation 
 
 ## Sales accountability and issue separation
 
+Checkout keeps contact details separate from fulfilment: pickup needs a name, email and Kenyan phone number; distance delivery adds an editable street/building address alongside its verified pin. Postal code is optional for app checkout (a supplied code must still be valid). Legacy flat-zone delivery retains the area/city checks. The account billing editor retains its full validation. Selected branch and destination fees calculate automatically, followed by one review/pay button. The server still verifies all quotes, product variations and payment outcomes; changing details invalidates the reviewed total.
+
 Every app order and sale has `channel=app`, its app reference, payment environment, merchant profile and provider tracking ID. App order events record creation, payment changes and staff fulfilment transitions. Sandbox transactions are excluded from live channel totals. Staff fulfilment moves only a verified paid app order through supported preparation/ready/delivery/completion states.
 
 `GET /v1/admin/channel-sales?environment=live` reports gross, reversed and net KES minor units separately for `app` and `website`. No website totals are assumed. `GET /v1/admin/commerce-issues` returns an explicit channel and reference for each issue. Payment ambiguity, amount mismatches, reversals and late payments are recorded against the app channel.

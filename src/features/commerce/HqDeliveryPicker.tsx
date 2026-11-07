@@ -46,10 +46,19 @@ export function HqDeliveryPicker({
     setBusy(false);
     setError("");
     latestChange.current(null);
+    if (fulfilment === "pickup" && (pickup === "hq" || options.maps_ready)) {
+      void work(
+        () => appDelivery.quote("pickup", null, pickup),
+        (value) => {
+          setRoute(value);
+          latestChange.current(value);
+        },
+      );
+    }
     return () => {
       generation.current++;
     };
-  }, [fulfilment, options]);
+  }, [fulfilment, options, pickup]);
   function changeDestination(
     value: DeliveryPoint | null,
     label = "",
@@ -122,14 +131,14 @@ export function HqDeliveryPicker({
         ),
     );
   }
-  function confirm() {
+  function confirm(destination = point) {
     setRoute(null);
     onChange(null);
     void work(
       () =>
         appDelivery.quote(
           fulfilment,
-          point,
+          destination,
           fulfilment === "pickup" ? pickup : null,
         ),
       (value) => {
@@ -148,8 +157,20 @@ export function HqDeliveryPicker({
             setAddress(results[0].address);
             onAddressSelect(results[0].address);
           }
+          confirm(value);
         },
       );
+  }
+  function findLocations() {
+    if (busy || search.trim().length < 3 || !options.maps_ready) return;
+    void work(
+      () => appDelivery.search(search.trim()),
+      (value) => {
+        setResults(value);
+        if (!value.length)
+          setError("No destination found. Try a nearby road or landmark.");
+      },
+    );
   }
   return (
     <View style={{ gap: 12 }}>
@@ -170,24 +191,18 @@ export function HqDeliveryPicker({
           <Input
             label="Search for your building, road or landmark"
             value={search}
-            onChangeText={setSearch}
+            onChangeText={(value) => {
+              setSearch(value);
+              setResults([]);
+            }}
+            returnKeyType="search"
+            onSubmitEditing={findLocations}
           />
           <Button
             variant="outline"
             label="Find destination"
             disabled={busy || search.trim().length < 3 || !options.maps_ready}
-            onPress={() =>
-              void work(
-                () => appDelivery.search(search.trim()),
-                (value) => {
-                  setResults(value);
-                  if (!value.length)
-                    setError(
-                      "No destination found. Try a nearby road or landmark.",
-                    );
-                },
-              )
-            }
+            onPress={findLocations}
           />
           {results.map((value, i) => (
             <Button
@@ -197,6 +212,7 @@ export function HqDeliveryPicker({
               onPress={() => {
                 changeDestination(value, value.address, true);
                 setResults([]);
+                confirm(value);
               }}
             />
           ))}
@@ -253,6 +269,7 @@ export function HqDeliveryPicker({
                   setRoute(null);
                   setBusy(false);
                   onChange(null);
+                  if (store.id === pickup) confirm(null);
                 }}
               />
             ))}
@@ -263,20 +280,28 @@ export function HqDeliveryPicker({
         <Notice message="Maps setup is pending. Delivery quotes are unavailable; HQ collection can still be configured separately." />
       ) : null}
       {error ? <Notice error message={error} /> : null}
-      <Button
-        label={
-          fulfilment === "delivery"
-            ? "Confirm pin and delivery fee"
-            : "Confirm pickup and transport fee"
-        }
-        loading={busy}
-        disabled={
-          busy ||
-          (fulfilment === "delivery" && (!point || !options.maps_ready)) ||
-          (fulfilment === "pickup" && pickup !== "hq" && !options.maps_ready)
-        }
-        onPress={confirm}
-      />
+      {fulfilment === "delivery" || (!route && !busy) ? (
+        <Button
+          variant="outline"
+          label={
+            fulfilment === "delivery"
+              ? route
+                ? "Recalculate delivery fee"
+                : "Calculate delivery fee"
+              : "Retry pickup transport quote"
+          }
+          loading={busy}
+          disabled={
+            busy ||
+            (fulfilment === "delivery" && (!point || !options.maps_ready)) ||
+            (fulfilment === "pickup" && pickup !== "hq" && !options.maps_ready)
+          }
+          onPress={() => confirm()}
+        />
+      ) : null}
+      {fulfilment === "pickup" && busy ? (
+        <Notice message="Calculating transport to your pickup branch…" />
+      ) : null}
       {route ? (
         <Notice
           message={`${route.rate}. ${route.distance_meters / 1000} km by road. ${fulfilment === "pickup" ? "Transport" : "Delivery"}: ${money(route.fee_minor / 100)}. Quote valid until ${new Date(route.expires_at).toLocaleTimeString()}.`}

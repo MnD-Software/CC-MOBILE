@@ -25,7 +25,11 @@ import {
 } from "@/auth/secure-storage";
 import { appOrderSchema, appOrders, type AppOrder } from "./app-orders";
 import { InAppPayment } from "./InAppPayment";
-import { loadBillingProfile, validateBillingProfile } from "./billing-profile";
+import {
+  loadBillingProfile,
+  saveBillingProfile,
+  validateBillingProfile,
+} from "./billing-profile";
 import { useBag } from "./store";
 import { money, type CheckoutInput } from "./contracts";
 import { distanceOptionsSchema, type DeliveryRouteQuote } from "./app-delivery";
@@ -263,7 +267,16 @@ function AppCheckout({ owner }: { owner: string }) {
     setBusy(true);
     setError("");
     try {
-      const valid = validateBillingProfile(billing);
+      const requirements = {
+        address:
+          fulfilment === "pickup"
+            ? ("none" as const)
+            : options.data?.distance_delivery?.enabled
+              ? ("street" as const)
+              : ("full" as const),
+        postcode: false,
+      };
+      const valid = validateBillingProfile(billing, requirements);
       if (lines.some((l) => !l.product_id || l.selection.studio_quote_id))
         throw new Error(
           "This cake configuration needs an app quote. Contact support in Requests.",
@@ -300,6 +313,7 @@ function AppCheckout({ owner }: { owner: string }) {
       );
       if (!alive.current) return;
       setQuote(result);
+      void saveBillingProfile(owner, valid, requirements).catch(() => {});
       attempt.current = { quote_id: result.id, key: randomUUID(), fingerprint };
     } catch (e) {
       if (alive.current)
@@ -685,14 +699,18 @@ function AppCheckout({ owner }: { owner: string }) {
           lastName: "Last name",
           email: "Email",
           phone: "Phone",
-          address: "Address",
-          area: "Area",
-          city: "City",
-          postcode: "Postal code",
         }).map(([field, label]) => (
           <Input
             key={field}
             label={label}
+            keyboardType={
+              field === "phone"
+                ? "phone-pad"
+                : field === "email"
+                  ? "email-address"
+                  : "default"
+            }
+            autoCapitalize={field === "email" ? "none" : "words"}
             value={billing[field as keyof typeof billing]}
             onChangeText={(value) =>
               setBilling((b) => ({ ...b, [field]: value }))
@@ -745,6 +763,48 @@ function AppCheckout({ owner }: { owner: string }) {
             }
           />
         ) : null}
+        {fulfilment === "delivery" ? (
+          <>
+            <Input
+              label="Building, street and apartment / delivery entrance"
+              value={billing.address}
+              onChangeText={(address) => setBilling((b) => ({ ...b, address }))}
+            />
+            {options.data?.distance_delivery?.enabled ? (
+              <Disclosure title="Additional address details (optional)">
+                {(["area", "city", "postcode"] as const).map((field) => (
+                  <Input
+                    key={field}
+                    label={
+                      field === "postcode"
+                        ? "Postal code (optional)"
+                        : field === "city"
+                          ? "City"
+                          : "Area"
+                    }
+                    value={billing[field]}
+                    onChangeText={(value) =>
+                      setBilling((b) => ({ ...b, [field]: value }))
+                    }
+                  />
+                ))}
+              </Disclosure>
+            ) : (
+              <>
+                <Input
+                  label="Area"
+                  value={billing.area}
+                  onChangeText={(area) => setBilling((b) => ({ ...b, area }))}
+                />
+                <Input
+                  label="City"
+                  value={billing.city}
+                  onChangeText={(city) => setBilling((b) => ({ ...b, city }))}
+                />
+              </>
+            )}
+          </>
+        ) : null}
         {fulfilment === "delivery" && !options.data?.distance_delivery?.enabled
           ? options.data?.delivery_zones.map((z) => (
               <Button
@@ -790,23 +850,6 @@ function AppCheckout({ owner }: { owner: string }) {
         title="Review & pay"
         subtitle="Your final price is checked by Cake City before payment."
       >
-        <Button
-          label="Review confirmed total"
-          disabled={
-            busy ||
-            !restored ||
-            !lines.length ||
-            options.isPending ||
-            options.isError ||
-            (options.data?.distance_delivery?.enabled && !deliveryQuote) ||
-            !(
-              options.data?.pickup_enabled ||
-              options.data?.distance_delivery?.enabled ||
-              options.data?.delivery_zones.length
-            )
-          }
-          onPress={() => void review()}
-        />
         {quote ? (
           <>
             <PriceRow
@@ -846,13 +889,30 @@ function AppCheckout({ owner }: { owner: string }) {
                 {money(quote.total_minor / 100)}
               </Text>
             </View>
-            <Button
-              label={`Pay ${money(quote.total_minor / 100)} inside the app`}
-              disabled={busy}
-              onPress={() => void pay()}
-            />
           </>
         ) : null}
+        <Button
+          label={
+            quote
+              ? `Pay ${money(quote.total_minor / 100)} inside the app`
+              : "Review confirmed total"
+          }
+          loading={busy}
+          disabled={
+            busy ||
+            !restored ||
+            !lines.length ||
+            options.isPending ||
+            options.isError ||
+            (options.data?.distance_delivery?.enabled && !deliveryQuote) ||
+            !(
+              options.data?.pickup_enabled ||
+              options.data?.distance_delivery?.enabled ||
+              options.data?.delivery_zones.length
+            )
+          }
+          onPress={() => void (quote ? pay() : review())}
+        />
         <View style={checkoutStyles.secure}>
           <Ionicons
             name="shield-checkmark-outline"

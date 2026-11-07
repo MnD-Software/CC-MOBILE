@@ -138,6 +138,7 @@ function checkout() {
     "./billing-profile": {
       loadBillingProfile: async () => null,
       validateBillingProfile: (b) => b,
+      saveBillingProfile: async () => {},
     },
     "./store": { useBag: (f) => f(bag) },
     "./contracts": { money: (v) => `KES ${v}` },
@@ -210,6 +211,15 @@ test("lost app-order response locks new checkout and recovery reuses the origina
     .find((b) => b.props.label === "Review confirmed total")
     .props.onPress();
   await c.flush();
+  assert.equal(
+    c.buttons().filter((b) => b.props.label === "Review confirmed total")
+      .length,
+    0,
+  );
+  assert.equal(
+    c.buttons().filter((b) => b.props.label.startsWith("Pay KES")).length,
+    1,
+  );
   c.buttons()
     .find((b) => b.props.label.startsWith("Pay KES"))
     .props.onPress();

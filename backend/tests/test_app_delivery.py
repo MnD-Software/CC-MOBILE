@@ -146,3 +146,20 @@ def test_address_only_branch_resolves_and_order_keeps_branch_pickup_instructions
     result = place(s)
     assert result.status_code == 200, result.text
     assert "Collect from Test branch" in result.json()["snapshot"]["pickup_instructions"]
+
+
+def test_verified_delivery_pin_does_not_require_retyping_area_or_postcode(system, monkeypatch):
+    s = system; configure(s, monkeypatch)
+    r = route(s).json()
+    s["payload"].update(fulfilment="delivery", delivery_quote_id=r["id"])
+    s["payload"]["billing"].update(area="", city="", postcode="")
+    assert quote(s)["delivery_minor"] == 26500
+    s["payload"]["billing"]["address"] = ""
+    assert s["client"].post("/v1/app-checkout/quote", json=s["payload"]).status_code == 422
+    s["payload"]["billing"]["address"] = "Building"
+    s["payload"]["delivery_zone_id"] = "zone"
+    with Session(s["engine"]) as db:
+        policy = db.get(AppPolicy, "delivery")
+        policy.payload = {**policy.payload, "enabled": False}
+        db.commit()
+    assert s["client"].post("/v1/app-checkout/quote", json=s["payload"]).status_code == 422

@@ -1,4 +1,4 @@
-import { Modal, View } from "react-native";
+import { ActivityIndicator, Modal, StyleSheet, View } from "react-native";
 import { WebView } from "react-native-webview";
 import { Button } from "@/components/ui/Button";
 import { Notice } from "@/components/ui/Commerce";
@@ -65,7 +65,24 @@ export function InAppPayment({
           <WebView
             source={{ uri: url }}
             style={{ flex: 1 }}
-          originWhitelist={["*"]}
+            startInLoadingState
+            renderLoading={() => (
+              <View
+                style={[
+                  StyleSheet.absoluteFill,
+                  {
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: "white",
+                    gap: 16,
+                  },
+                ]}
+              >
+                <ActivityIndicator size="large" color="#B80068" />
+                <Notice message="Opening secure payment…" />
+              </View>
+            )}
+            originWhitelist={["*"]}
             javaScriptEnabled
             domStorageEnabled
             mixedContentMode="never"

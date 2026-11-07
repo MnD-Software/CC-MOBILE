@@ -1,8 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
-import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -71,6 +71,15 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
   const searchInputRef = useRef<TextInputInstance>(null);
   const listRef = useRef<FlatList<StoreProduct>>(null);
   const [search, setSearch] = useState(params.search ?? "");
+  useFocusEffect(
+    useCallback(() => {
+      if (!searchOnly && params.focus !== "1") return;
+      const frame = requestAnimationFrame(() =>
+        searchInputRef.current?.focus(),
+      );
+      return () => cancelAnimationFrame(frame);
+    }, [searchOnly, params.focus]),
+  );
   const [debounced, setDebounced] = useState(search);
   const [department, setDepartment] = useState<ShopDepartmentId>("all");
   const [subfilter, setSubfilter] = useState("all");
@@ -180,6 +189,11 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
     setDepartment("all");
     setSubfilter("all");
   };
+  const submitSearch = () => {
+    if (search.trim()) rememberSearch(search.trim());
+    setDebounced(search.trim());
+    if (search.trim() === debounced) void products.refetch();
+  };
   return (
     <Screen
       scroll={false}
@@ -204,9 +218,14 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
             </View>
           }
         >
-          <GlassSurface style={styles.searchGlass}>
+          <GlassSurface opaque interactive style={styles.searchGlass}>
             <View style={styles.search}>
-              <Ionicons name="search-outline" size={20} color={colors.cocoa} />
+              <IconButton
+                name="search-outline"
+                label="Search products"
+                plain
+                onPress={submitSearch}
+              />
               <TextInput
                 ref={searchInputRef}
                 value={search}
@@ -217,12 +236,17 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
                 autoFocus={searchOnly || params.focus === "1"}
                 maxLength={120}
                 returnKeyType="search"
-                onSubmitEditing={() => {
-                  if (search.trim()) rememberSearch(search.trim());
-                  setDebounced(search.trim());
-                }}
+                autoCorrect={false}
+                onSubmitEditing={submitSearch}
                 style={styles.searchInput}
               />
+              {search.trim() !== debounced || products.isFetching ? (
+                <ActivityIndicator
+                  size="small"
+                  color={colors.brandStrong}
+                  accessibilityLabel="Searching products"
+                />
+              ) : null}
               {search ? (
                 <IconButton
                   name="close-circle"

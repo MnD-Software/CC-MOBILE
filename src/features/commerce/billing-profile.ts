@@ -17,9 +17,14 @@ const billingProfileSchema = z.object({
 });
 
 export type BillingProfile = z.infer<typeof billingProfileSchema>;
+type ProfileRequirements = {
+  address?: "full" | "street" | "none";
+  postcode?: boolean;
+};
 
 export function validateBillingProfile(
   profile: BillingProfile,
+  requirements: ProfileRequirements = {},
 ): BillingProfile {
   const parsed = billingProfileSchema.safeParse(profile);
   if (!parsed.success) {
@@ -36,9 +41,15 @@ export function validateBillingProfile(
   const phone = value.phone.replace(/[\s()-]/g, "");
   if (!/^(?:\+?254|0)[17]\d{8}$/.test(phone))
     throw new Error("Enter a Kenyan phone number, for example 0712345678.");
-  if (!value.address || !value.area || !value.city)
+  const address = requirements.address ?? "full";
+  if (address === "full" && (!value.address || !value.area || !value.city))
     throw new Error("Enter your billing address, area and city.");
-  if (!/^\d{5}$/.test(value.postcode))
+  if (address === "street" && !value.address)
+    throw new Error("Enter your building, street or delivery entrance.");
+  if (
+    (requirements.postcode !== false || value.postcode) &&
+    !/^\d{5}$/.test(value.postcode)
+  )
     throw new Error("Enter your five-digit Kenyan postal code.");
   return { ...value, email: value.email.toLowerCase(), phone };
 }
@@ -66,9 +77,10 @@ export async function loadBillingProfile(customerId: string) {
 export async function saveBillingProfile(
   customerId: string,
   profile: BillingProfile,
+  requirements: ProfileRequirements = {},
 ) {
   if (!customerId.trim())
     throw new Error("Sign in before saving billing details.");
-  const validated = validateBillingProfile(profile);
+  const validated = validateBillingProfile(profile, requirements);
   await setStorageItem(profileKey(customerId), JSON.stringify(validated));
 }
