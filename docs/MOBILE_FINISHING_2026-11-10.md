@@ -48,7 +48,38 @@ for current behavior and validation boundaries.
   screenshots were visually inspected. Evidence: `artifacts/local-preview/splash-verification.json`;
   screenshots: `artifacts/local-preview/splash-320.png` and `splash-390.png`.
 
-## Release boundary
+## iPhone development connection
+
+The reported `192.168.0.70:8081` connection error was checked against the running
+Metro server. The exact iOS bundle returned HTTP 200 locally and through the
+computer's LAN address; this does not establish reachability from the phone.
+Windows has Public-network allow rules for Node. Phone local-network permission,
+VPN routing and Wi-Fi client isolation remain possible causes.
+
+The Expo Go launcher now respects the selected connection mode instead of forcing
+`--lan`, which conflicted with `--tunnel`. For a fresh QR code that bypasses LAN
+reachability, run:
+
+```sh
+npm run start:go:tunnel
+```
+
+If another preview already uses port 8081, use
+`npm run start:go:tunnel -- --port 8083`. Scan the **new** QR code with the iPhone
+Camera and open Expo Go; reopening the old recent project retains its LAN URL.
+Keep the terminal running. Tunnel addresses are temporary and change when restarted.
+The current installed SDK 58 CLI supports Expo's built-in tunnel; it requires an
+Expo login (`npx expo login`) with tunnel access. An optional ngrok fallback is
+`npm install --global @expo/ngrok@^4.1.0`, followed by
+`npm run start:go -- --tunnel ngrok`. No tunnel package is required in the app.
+See [Expo CLI documentation](https://docs.expo.dev/more/expo-cli/).
+
+The tunnel status, iOS manifest and full compressed iOS bundle returned HTTP 200
+during this review (2,216,302 downloaded bundle bytes in 5.3 seconds). All 177
+frontend tests and changed-file formatting passed. Actual iPhone reconnection
+still requires opening the new preview on the device.
+
+## Deployment and device acceptance
 
 The implementation was validated locally and prepared for GitHub delivery. This
 report does not establish a completed Render deployment or a new installed native

@@ -6,13 +6,7 @@ delete env.EXPO_PUBLIC_LOCAL_REVIEW;
 delete env.EXPO_PUBLIC_PURCHASE_TEST_URL;
 const child = spawn(
   process.execPath,
-  [
-    path.join(__dirname, "expo.cjs"),
-    "start",
-    "--go",
-    "--lan",
-    ...process.argv.slice(2),
-  ],
+  [path.join(__dirname, "expo.cjs"), "start", "--go", ...process.argv.slice(2)],
   {
     env,
     stdio: "inherit",
