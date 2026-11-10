@@ -1,4 +1,5 @@
 import { appMedia } from "./app-media";
+import { TestJourneyCard } from "./TestJourneyCard";
 import { Ionicons } from "@expo/vector-icons";
 import { CampaignStories } from "@/features/editorial/CampaignStories";
 import { CelebrationDashboard } from "@/features/celebrations/CelebrationDashboard";
@@ -309,6 +310,7 @@ export function HomeScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
+        <TestJourneyCard />
         {catalogue.isPending ? (
           <HomeSkeleton cardWidth={collectionCardWidth} />
         ) : catalogue.isError ? (

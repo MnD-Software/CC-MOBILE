@@ -21,6 +21,17 @@ export const appOrderSchema = z.object({
   events: z
     .array(z.object({ kind: z.string(), created_at: z.string() }))
     .optional(),
+  deliveries: z
+    .array(
+      z.object({
+        id: z.string(),
+        status: z.string(),
+        service_type: z.string(),
+        scheduled_at: z.string().nullable(),
+        slot: z.string(),
+      }),
+    )
+    .optional(),
   snapshot: z
     .object({
       lines: z.array(

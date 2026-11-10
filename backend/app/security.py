@@ -44,7 +44,7 @@ def create_access_token(customer: Customer) -> str:
     )
 
 
-def create_session(db: Session, customer: Customer) -> dict:
+def create_session(db: Session, customer: Customer, previous_hash: str | None = None) -> dict:
     settings = get_settings()
     raw_refresh = secrets.token_urlsafe(48)
     db.add(
@@ -54,6 +54,10 @@ def create_session(db: Session, customer: Customer) -> dict:
             expires_at=datetime.now(UTC) + timedelta(days=settings.refresh_token_days),
         )
     )
+    if previous_hash:
+        from .notification_models import PushDevice
+        db.execute(update(PushDevice).where(PushDevice.session_hash == previous_hash, PushDevice.customer_id == customer.id)
+                   .values(session_hash=token_hash(raw_refresh)))
     db.commit()
     return {
         "access_token": create_access_token(customer),
@@ -107,4 +111,4 @@ def rotate_refresh_token(db: Session, raw_refresh: str) -> dict:
         db.rollback()
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Customer not found")
     # Revocation and replacement are committed together by create_session.
-    return create_session(db, customer)
+    return create_session(db, customer, previous_hash=token_hash(raw_refresh))

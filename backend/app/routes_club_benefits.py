@@ -20,6 +20,8 @@ def local_today():
 
 
 def grant(db, value, key, points, description):
+    from .odoo_loyalty import local_mutation_guard
+    local_mutation_guard()
     debt_paid = min(value.debt, points)
     value.debt -= debt_paid
     remaining = points-debt_paid
@@ -134,6 +136,9 @@ def apply_referral(data: ReferralInput, customer: Customer = Depends(member), db
 
 
 def sync_referral(customer_id, order_id, status, db):
+    from .odoo_loyalty import authoritative
+    if authoritative():
+        return
     initial = db.get(ClubReferral, customer_id)
     if not initial:
         return

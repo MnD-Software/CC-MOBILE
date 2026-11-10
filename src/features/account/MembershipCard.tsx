@@ -30,6 +30,7 @@ export function MembershipCard({
   rewards,
   progress,
   revealToken,
+  minimumRedemption = 100,
 }: {
   id: string;
   name: string;
@@ -39,6 +40,7 @@ export function MembershipCard({
   rewards: number;
   progress?: MilestoneProgress;
   revealToken?: string;
+  minimumRedemption?: number;
 }) {
   const [faceHeight, setFaceHeight] = useState(266);
   const shine = useRef(new Animated.Value(0)).current;
@@ -202,18 +204,20 @@ export function MembershipCard({
               }}
             >
               {points.toLocaleString()}{" "}
-              <Text style={{ fontSize: 16 }}>points</Text>
+              <Text style={{ fontSize: 16 }}>
+                {points === 1 ? "point" : "points"}
+              </Text>
             </Text>
             <Text style={{ color: palette.muted, fontSize: 12 }}>
               {progress
                 ? `${progress.current} of ${progress.total} purchases to ${progress.target}`
-                : points >= 100
+                : points >= minimumRedemption
                   ? "Your next reward is ready to explore"
-                  : `${100 - points} points to your next reward`}
+                  : `${minimumRedemption - points} ${minimumRedemption - points === 1 ? "point" : "points"} to your next reward`}
             </Text>
             <MilestoneProgressBar
-              current={progress?.current ?? Math.min(100, points)}
-              total={progress?.total ?? 100}
+              current={progress?.current ?? Math.min(minimumRedemption, points)}
+              total={progress?.total ?? minimumRedemption}
               label={
                 progress
                   ? `${progress.current} of ${progress.total} purchases to ${progress.target}`

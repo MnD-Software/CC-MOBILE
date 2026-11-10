@@ -65,6 +65,9 @@ def products(_: Customer = Depends(operator), db: Session = Depends(get_db)):
 
 @router.put("/v1/admin/app-products/{identity}")
 def product(identity: int, data: StockInput, actor: Customer = Depends(operator), db: Session = Depends(get_db)):
+    existing = db.get(AppProduct, identity)
+    if existing and existing.payload.get("odoo_source"):
+        raise HTTPException(409, "Odoo manages this product. Change it in Odoo and synchronize the app.")
     result = db.execute(update(AppProduct).where(AppProduct.id == identity, AppProduct.revision == data.revision,
         AppProduct.reserved+AppProduct.sold <= data.allocation).values(price_minor=data.price_minor, allocation=data.allocation,
         enabled=data.enabled, revision=AppProduct.revision+1))
@@ -166,6 +169,18 @@ def fulfil(reference: str, data: FulfilmentInput, actor: Customer = Depends(fulf
     transitions = {"paid": {"preparing"}, "preparing": {"ready"}, "ready": {"out_for_delivery", "completed"}, "out_for_delivery": {"completed"}}
     if not row or row.payment_state != "completed" or data.status not in transitions.get(row.state, set()):
         raise HTTPException(409, "This fulfilment transition is not available.")
+    from .logistics_models import ProductionTask, LogisticsTask
+    from .logistics import require_plant
+    production = db.get(ProductionTask, row.id)
+    if production:
+        require_plant(db, actor, production.plant)
+        if actor.role == "production" and production.assigned_to != actor.id:
+            raise HTTPException(403, "This kitchen task belongs to another team member.")
+    trips = list(db.scalars(select(LogisticsTask).where(LogisticsTask.order_id == row.id)))
+    managed_delivery = any(task.service_type == "delivery" for task in trips)
+    unfinished_transfer = any(task.status not in {"delivered", "cancelled"} for task in trips)
+    if data.status in {"out_for_delivery", "completed"} and (managed_delivery or unfinished_transfer):
+        raise HTTPException(409, "Update this order through its individual dispatch tasks and delivery confirmations.")
     permitted = {"production": {"preparing", "ready"}, "dispatch": {"out_for_delivery", "completed"}, "branch_manager": {"completed"}, "customer_service": set()}
     if actor.role in permitted and data.status not in permitted[actor.role]:
         raise HTTPException(403, "This role cannot change that fulfilment stage.")
@@ -277,5 +292,7 @@ def assign_dispatch(reference: str, data: DispatchInput, actor: Customer = Depen
     db.add(AppOrderEvent(id=str(uuid4()), order_id=row.id, event_key=f"{row.reference}:dispatch:{uuid4().hex}",
         kind="dispatch_assigned", details={**data.model_dump(), "actor_id": actor.id}))
     audit(db, actor.id, "app_dispatch_assigned", reference)
+    from .odoo_sync import capture_order
+    capture_order(db, row, "dispatch_assigned:" + uuid4().hex, data.model_dump())
     db.commit()
     return {"status": "assigned"}

@@ -1,5 +1,9 @@
 # Cake City app web dashboard
 
+Order-linked mobile Kitchen, Dispatch and rider workspaces are documented in
+[LOGISTICS.md](LOGISTICS.md). The rider workspace is separate from this staff web
+dashboard. Optional ERP installation and API-key setup: [ODOO19_SETUP.md](ODOO19_SETUP.md).
+
 The dashboard is served by the independent FastAPI app backend at `/admin`.
 After this code is deployed on the existing Render service, its address is
 `https://cc-mobile-1.onrender.com/admin`. This is a deployment target, not proof
@@ -32,7 +36,11 @@ Roles:
 | marketing_manager, content_manager | Campaign editing |
 | executive, analyst | Campaign viewing and channel reporting |
 | finance | Channel reporting |
-| customer and other operational roles | No dashboard access |
+| production | Orders and kitchen preparation/ready transitions |
+| dispatch | Orders, rider assignment and delivery transitions |
+| branch_manager | Orders and pickup collection confirmation |
+| customer_service | Order viewing; fulfilment changes remain restricted |
+| customer | No dashboard access |
 
 The server checks the account's current database role on every API request.
 Dashboard tokens are retained in memory only; refreshing the page requires sign-in.

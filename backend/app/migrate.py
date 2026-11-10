@@ -6,6 +6,10 @@ from sqlalchemy.orm import Session
 from .db import Base, engine
 from . import models
 from . import commerce_models
+from . import odoo_models
+from . import logistics_models
+from . import notification_models
+from . import club_celebrations
 
 
 def repair_catalogue_parents(bind=engine):

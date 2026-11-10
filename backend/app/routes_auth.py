@@ -69,6 +69,9 @@ def logout(payload: RefreshRequest, db: Session = Depends(get_db)):
     record = db.get(RefreshToken, token_hash(payload.refresh_token))
     if record:
         record.revoked = True
+        from .notification_models import PushDevice
+        from sqlalchemy import update
+        db.execute(update(PushDevice).where(PushDevice.session_hash == record.token_hash).values(enabled=False))
         db.commit()
     return None
 

@@ -1,10 +1,65 @@
 # Independent app payments and commerce
 
+## Delivery completion and notifications
+
+See [NOTIFICATIONS.md](NOTIFICATIONS.md) for the completed-order thank-you screen,
+private ratings, account inbox, native push activation, worker setup and the
+remaining mobile release acceptance checks. The local preview supports inbox and
+rating verification and intentionally disables remote push delivery.
+See [MOBILE_FINISHING_2026-11-10.md](MOBILE_FINISHING_2026-11-10.md) for the latest
+validation results, premium splash changes and explicit remaining release blockers.
+
+## Kitchen, riders and optional Odoo integration
+
+The app remains independent by default. See [LOGISTICS.md](LOGISTICS.md) for the
+order-linked kitchen, dispatch and rider workspaces and APIs. See
+[ODOO19_SETUP.md](ODOO19_SETUP.md) for the optional Odoo 19 addon, `cake-demo`
+installation/API-key instructions and integration boundaries. Odoo synchronization
+and Odoo loyalty authority remain disabled until explicitly configured and tested.
+
+## Final local review
+
+See [FINAL_REVIEW_2026-11-10.md](FINAL_REVIEW_2026-11-10.md) for the current
+validation results and remaining release gates. Older audit documents describe
+earlier architectures; the independent app described here is the current code.
+
+Start the isolated customer/staff review with `npm run preview:local`.
+The customer app is at `http://localhost:8082` and the staff dashboard is at
+`http://127.0.0.1:8010/admin`. Local account details are stored only in the ignored
+`artifacts/local-preview/LOGIN.txt` file. This review uses its own SQLite database;
+it clears Pesapal, Maps, website and sales-ingestion settings. Real payment and
+road-distance quotes are unavailable in this mode. The catalogue and business
+policy must be configured in that local database before reviewing ordinary checkout.
+
+From `backend`, run the read-only deployment check:
+
+```sh
+python verify_deployment.py https://cc-mobile-1.onrender.com
+python verify_deployment.py https://cc-mobile-1.onrender.com --require-checkout
+```
+
+Both commands read public endpoints only. The first validates the current app API
+routes and database and reports configuration blockers. The strict command also
+fails for missing catalogue/privacy, unavailable live-payment configuration or
+missing fulfilment options. Neither command proves merchant activation, accepts a
+payment, creates an order or registers an IPN.
+
 ## Current review: checkout, Club and full-cycle test
 
 The checkout now uses a Cake City pink header, product previews, grouped contact
 fields, pickup/delivery choice cards and a responsive order summary. Phone screens
 stack the sections; larger screens show the summary beside the form.
+The checkout also shows Bag / Details / Payment progress and an upfront bag
+subtotal, with delivery and discounts confirmed separately before payment.
+
+The refreshed test checkout has a prominent product card, contact/destination
+validation, a review step, an explicit zero actual charge, and direct links into
+order tracking, Club, Kitchen and Dispatch. Local browser verification created the
+test order through this UI and completed the same reference through kitchen,
+dispatch and rider delivery. The test checkout was checked at 320px, 390px and
+1280px with no horizontal overflow. All 174 frontend tests, TypeScript and the
+changed-file formatting checks passed. This is local web validation; native device
+and live payment verification remain separate release checks.
 
 Normal Club now always reads the authenticated app backend. The old development
 purchase-code service no longer supplies membership, points or transactions.
@@ -13,10 +68,28 @@ Club refreshes the balance; transaction entries link to their APP order receipts
 
 ### Run the owner-authorized KES 1 simulation
 
-Sign into the app with an **admin, staff or ecommerce_manager** account. Open
-**Club → Test a KES 1 purchase**. This does not require an access code, maps key or
-active Pesapal credentials. The test product is created automatically and remains
-hidden from the customer catalogue.
+Sign into the app with an **admin, staff or ecommerce_manager** account. A prominent
+**Test cake · KES 1.00** card appears on **Home, Bag, Account and Checkout**. Tap
+**Try the test cake**, or open `http://localhost:8082/payment-test` in the local
+preview. Ordinary customer accounts do not see staff test tools. Local test account
+details are in the ignored `artifacts/local-preview/LOGIN.txt` file.
+
+1. Enter a valid Kenyan phone number and a test delivery address or pickup branch.
+2. Tap **Review test order** and check the contact, destination and simulated total.
+3. Tap **Simulate KES 1 purchase**. The actual charge is **KES 0.00**.
+4. Save the displayed order reference. **Track this test order** opens its progress;
+   **View my Club** opens the authenticated membership balance.
+5. For a full rider journey, choose delivery. Use **Continue in Kitchen**, find the
+   reference, choose Head Office, assign production and mark it ready.
+6. Open **Dispatch**, select a provisioned rider and assign the remaining items.
+7. In a separate browser session, sign in at `/rider-login` with that rider account.
+   Accept the assignment, confirm collection, start delivery and enter delivery
+   confirmation. Track the same reference to see the completed order.
+
+This does not require an access code, maps key or active Pesapal credentials.
+The test product is created automatically and remains hidden from the customer
+catalogue. It never replaces or clears the real shopping bag. Each test order is
+clearly marked as a simulation; no physical cake or dispatch is requested.
 
 The test total is exactly **KES 1**, with zero delivery/pickup fee and zero tax.
 **No money is charged.** The button explicitly simulates the purchase. Pesapal

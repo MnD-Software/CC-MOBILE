@@ -7,14 +7,16 @@ import {
   View,
   useWindowDimensions,
 } from "react-native";
-import { useReducedMotion } from "@/design/useReducedMotion";
+import { useMotionAccessibilityPreference } from "@/design/useReducedMotion";
 
 /** Mounted only after a server-verified payment, never by a payment-button tap. */
 export function PaymentConfetti({ onComplete }: { onComplete: () => void }) {
-  const reduce = useReducedMotion();
+  const { reduceMotion: reduce, isResolved } =
+    useMotionAccessibilityPreference();
   const { width, height } = useWindowDimensions();
   const motion = useRef(new Animated.Value(0)).current;
   useEffect(() => {
+    if (!isResolved) return;
     if (reduce) {
       onComplete();
       return;
@@ -29,8 +31,8 @@ export function PaymentConfetti({ onComplete }: { onComplete: () => void }) {
       if (finished) onComplete();
     });
     return () => animation.stop();
-  }, [reduce, motion, onComplete]);
-  if (reduce) return null;
+  }, [reduce, isResolved, motion, onComplete]);
+  if (!isResolved || reduce) return null;
   return (
     <View
       testID="payment-success-confetti"

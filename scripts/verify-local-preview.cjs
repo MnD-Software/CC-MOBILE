@@ -9,6 +9,7 @@ const origin = "http://localhost:8082";
 const apiOrigin = "http://127.0.0.1:8010";
 const checks = [];
 const errors = [];
+let checkoutReference;
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function main() {
@@ -18,12 +19,16 @@ async function main() {
     true,
   );
   const credentials = JSON.parse(
-    fs.readFileSync(path.join(directory, "credentials.json"), "utf8"),
+    fs.readFileSync(
+      process.env.CAKECITY_QA_CREDENTIALS ||
+        path.join(directory, "credentials.json"),
+      "utf8",
+    ),
   );
   const browser = [
     path.join(
-      process.env["PROGRAMFILES(X86)"] || "",
-      "Microsoft/Edge/Application/msedge.exe",
+      process.env.PROGRAMFILES || "",
+      "Google/Chrome/Application/chrome.exe",
     ),
     path.join(
       process.env.PROGRAMFILES || "",
@@ -52,6 +57,8 @@ async function main() {
       `--user-data-dir=${profile}`,
       "--no-first-run",
       "--disable-extensions",
+      "--disable-sync",
+      "--no-default-browser-check",
       "about:blank",
     ],
     { windowsHide: true, stdio: "ignore" },
@@ -60,14 +67,14 @@ async function main() {
   let send;
   try {
     let target;
-    for (let i = 0; i < 60; i++) {
+    for (let i = 0; i < 120; i++) {
       try {
         target = (
           await (await fetch("http://127.0.0.1:9349/json/list")).json()
-        ).find((tab) => tab.type === "page");
+        ).find((tab) => tab.type === "page" && !tab.url.startsWith("edge://"));
       } catch {}
       if (target) break;
-      await pause(250);
+      await pause(500);
     }
     assert.ok(target, "Disposable browser did not start");
     socket = new WebSocket(target.webSocketDebuggerUrl);
@@ -140,7 +147,7 @@ async function main() {
     }
     async function observe(name) {
       const state = await evaluate(
-        `({url:location.pathname,inputs:Array.from(document.querySelectorAll('input,textarea')).map(n=>({label:n.getAttribute('aria-label'),type:n.type})),buttons:Array.from(document.querySelectorAll('[role="button"],button,a')).map(n=>({label:n.getAttribute('aria-label')||n.innerText?.trim(),href:n.getAttribute('href')})),text:document.body.innerText.slice(0,6500)})`,
+        `({url:location.pathname,inputs:Array.from(document.querySelectorAll('input,textarea')).filter(n=>n.getClientRects().length).map(n=>({label:n.getAttribute('aria-label'),type:n.type})),buttons:Array.from(document.querySelectorAll('[role="button"],button,a')).filter(n=>n.getClientRects().length).map(n=>({label:n.getAttribute('aria-label')||n.innerText?.trim(),href:n.getAttribute('href')})),text:document.body.innerText.slice(0,6500)})`,
       );
       fs.writeFileSync(
         path.join(directory, name + ".json"),
@@ -184,7 +191,7 @@ async function main() {
         "Control must be unique: " + label,
       );
       await evaluate(
-        `Array.from(document.querySelectorAll('[role="button"],button,a')).find(n=>(n.getAttribute('aria-label')||n.innerText?.trim())===${JSON.stringify(label)}).click()`,
+        `Array.from(document.querySelectorAll('[role="button"],button,a')).find(n=>n.getClientRects().length&&(n.getAttribute('aria-label')||n.innerText?.trim())===${JSON.stringify(label)}).click()`,
       );
       await pause(200);
     }
@@ -213,7 +220,7 @@ async function main() {
       await wait(
         `document.querySelector('input[aria-label="Email address"]')`,
         "sign-in form",
-        180000,
+        300000,
       );
       await fill("Email address", credentials.accounts[role].email);
       await fill("Password", credentials.accounts[role].password);
@@ -253,6 +260,114 @@ async function main() {
         );
         await capture("corporate-preview");
       } else {
+        if (process.argv.includes("--checkout")) {
+          // Expo retains Home beneath Account in the tab tree. Account is the
+          // later mounted screen; both cards intentionally share their label.
+          const testEntries = await evaluate(
+            "Array.from(document.querySelectorAll('[role=\"button\"],button')).filter(n=>n.getAttribute('aria-label')==='Try the test cake').length",
+          );
+          assert.equal(
+            testEntries,
+            2,
+            "Home and Account each expose the test product",
+          );
+          await evaluate(
+            "Array.from(document.querySelectorAll('[role=\"button\"],button')).filter(n=>n.getAttribute('aria-label')==='Try the test cake').at(-1).click()",
+          );
+          await wait(
+            "document.body.innerText.includes('Cake City test cake')",
+            "visible test product",
+          );
+          for (const width of [320, 390, 1280]) {
+            await send("Emulation.setDeviceMetricsOverride", {
+              width,
+              height: 900,
+              deviceScaleFactor: 1,
+              mobile: width < 600,
+            });
+            const size = await evaluate(
+              "({viewport:innerWidth,scroll:document.documentElement.scrollWidth})",
+            );
+            assert.ok(
+              size.scroll <= size.viewport,
+              "Test checkout overflow at " + width,
+            );
+            await capture("test-checkout-" + width);
+          }
+          await fill("Phone", "0712345678");
+          await fill(
+            "Delivery address (test)",
+            "Westlands test building, reception",
+          );
+          await click("Review test order");
+          await wait(
+            "document.body.innerText.includes('Actual charge: KES 0.00')",
+            "test review before confirmation",
+          );
+          await capture("test-checkout-review");
+          await click("Simulate KES 1 purchase");
+          await wait(
+            "document.body.innerText.includes('Test purchase confirmed:')",
+            "test checkout confirmed",
+          );
+          checkoutReference = await evaluate(
+            "document.body.innerText.match(/Test purchase confirmed: (APP-[A-Z0-9-]+)/)[1]",
+          );
+          await capture("test-checkout-confirmed");
+          if (process.argv.includes("--club")) {
+            await wait(
+              "document.body.innerText.includes('Your first points!')",
+              "first-points celebration",
+            );
+            await wait(
+              "!!document.querySelector('[data-testid=\"milestone-confetti\"]')",
+              "first-points confetti burst",
+            );
+            await capture("club-first-points-confetti");
+            await click("Reveal my Club card");
+            await wait(
+              "!!document.querySelector('[data-testid=\"club-journey\"]')",
+              "Club card and milestone journey",
+            );
+            for (const width of [320, 390, 1280]) {
+              await send("Emulation.setDeviceMetricsOverride", {
+                width,
+                height: 900,
+                deviceScaleFactor: 1,
+                mobile: width < 600,
+              });
+              await pause(250);
+              const size = await evaluate(
+                "({viewport:innerWidth,scroll:document.documentElement.scrollWidth})",
+              );
+              assert.ok(
+                size.scroll <= size.viewport,
+                "Club overflow at " + width,
+              );
+              await capture("club-updated-" + width);
+            }
+            checks.push({
+              club: "verified first points, confetti, acknowledged card reveal and responsive journey",
+              reference: checkoutReference,
+            });
+            continue;
+          }
+          await click("Track this test order");
+          await wait(
+            "document.body.innerText.includes(" +
+              JSON.stringify(checkoutReference) +
+              ")",
+            "test order tracking",
+          );
+          await capture("test-order-tracking");
+          checks.push({
+            checkout: "visible test cake, review, simulation and tracking",
+            reference: checkoutReference,
+            noCharge: true,
+            widths: [320, 390, 1280],
+          });
+          continue;
+        }
         await click("Command Center");
         await wait(
           `document.body.innerText.includes('Requests and quotations')`,
@@ -265,6 +380,340 @@ async function main() {
         await capture("command-center-preview");
       }
       checks.push({ account: role, authenticated_workspace: true });
+    }
+    if (process.argv.includes("--logistics")) {
+      const localCall = async (path, token, body) => {
+        const response = await fetch(apiOrigin + path, {
+          method: body === undefined ? "GET" : "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: "Bearer " + token } : {}),
+          },
+          ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+        });
+        const result = await response.json();
+        assert.ok(response.ok, path + ": " + JSON.stringify(result));
+        return result;
+      };
+      const sessions = {};
+      for (const role of ["admin", "production", "rider"]) {
+        sessions[role] = await localCall(
+          "/v1/auth/mobile/login",
+          null,
+          credentials.accounts[role],
+        );
+      }
+      const adminToken = sessions.admin.access_token;
+      let order;
+      if (checkoutReference) {
+        order = await localCall(
+          "/v1/app-orders/" + checkoutReference,
+          adminToken,
+        );
+      } else {
+        const product = await localCall(
+          "/v1/admin/payment-test/product",
+          adminToken,
+          {},
+        );
+        const quote = await localCall("/v1/app-checkout/quote", adminToken, {
+          items: [{ product_id: product.id, quantity: 1 }],
+          fulfilment: "delivery",
+          billing: {
+            first_name: "Local",
+            last_name: "Logistics",
+            email: "local@example.com",
+            phone: "0712345678",
+            address: "Local review destination",
+          },
+        });
+        const placed = await fetch(apiOrigin + "/v1/app-orders", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + adminToken,
+            "Idempotency-Key": "local-logistics-" + Date.now(),
+          },
+          body: JSON.stringify({ quote_id: quote.id }),
+        });
+        assert.ok(placed.ok);
+        order = await placed.json();
+        await localCall(
+          `/v1/admin/payment-test/orders/${order.reference}/complete`,
+          adminToken,
+          {},
+        );
+      }
+      const signIn = async (role, route) => {
+        await send("Page.navigate", {
+          url: origin + "/" + (role === "rider" ? "rider-login" : "sign-in"),
+        });
+        await wait(
+          `document.querySelector('input[aria-label="Email address"]')`,
+          "team login",
+        );
+        await fill("Email address", credentials.accounts[role].email);
+        await fill("Password", credentials.accounts[role].password);
+        await click("Sign in");
+        await wait(
+          `!location.pathname.includes('sign-in') && !location.pathname.includes('rider-login')`,
+          "team authenticated",
+        );
+        if (route !== "/rider") {
+          // Browser authentication is intentionally held in memory. Navigate
+          // through real app controls rather than reloading the JS session.
+          const account = `Array.from(document.querySelectorAll('[aria-label]')).find(n=>/account/i.test(n.getAttribute('aria-label'))&&['button','link','tab'].includes(n.getAttribute('role')))`;
+          await wait(`!!(${account})`, "Account navigation");
+          await evaluate(`(${account}).click()`);
+          await wait(`location.pathname.includes('account')`, "Account route");
+          await click(
+            route === "/kitchen"
+              ? "Kitchen"
+              : route === "/notifications"
+                ? "Notifications"
+                : "Dispatch",
+          );
+        }
+      };
+      const workSelector = `[data-testid="work-${order.reference}"]`;
+      const scopedClick = async (selector, label) => {
+        const expression = `Array.from(document.querySelector(${JSON.stringify(selector)})?.querySelectorAll('[role="button"],button')||[]).find(n=>(n.getAttribute('aria-label')||n.innerText?.trim())===${JSON.stringify(label)})`;
+        await wait(`!!(${expression})`, label);
+        await evaluate(`(${expression}).click()`);
+        await pause(300);
+      };
+      await send("Emulation.setDeviceMetricsOverride", {
+        width: 390,
+        height: 900,
+        deviceScaleFactor: 1,
+        mobile: true,
+      });
+      await signIn("production", "/kitchen");
+      await wait(
+        "document.body.innerText.includes('Sign out of team workspace')",
+        "current team build",
+      );
+      await wait(
+        `!!document.querySelector(${JSON.stringify(workSelector)})`,
+        "paid kitchen task",
+      );
+      await scopedClick(workSelector, "Head Office");
+      await scopedClick(workSelector, "Assign production to me");
+      await scopedClick(workSelector, "Start preparing");
+      await scopedClick(workSelector, "Mark ready for collection");
+      await wait(
+        `document.querySelector(${JSON.stringify(workSelector)}).innerText.includes('ready')`,
+        "kitchen ready",
+      );
+      await capture("kitchen-ready-390");
+      await signIn("admin", "/dispatch");
+      await wait(
+        `!!document.querySelector(${JSON.stringify(workSelector)})`,
+        "dispatch task",
+      );
+      await scopedClick(workSelector, "Local Reviewer");
+      await scopedClick(workSelector, "Assign remaining order items");
+      const tasks = await localCall(
+        "/v1/rider/tasks",
+        sessions.rider.access_token,
+      );
+      const trip = tasks.find((task) => task.reference === order.reference);
+      assert.ok(trip, "Assignment must arrive in the rider API");
+      await capture("dispatch-assigned-390");
+      await signIn("rider", "/rider");
+      await wait(
+        "document.body.innerText.includes('Sign out of rider workspace')",
+        "current rider build",
+      );
+      const tripSelector = `[data-testid="trip-${trip.id}"]`;
+      for (const label of [
+        "Accept assignment",
+        "Confirm collection",
+        "Start delivery",
+      ])
+        await scopedClick(tripSelector, label);
+      await wait(
+        `document.querySelector('input[aria-label="Delivery confirmation"]')`,
+        "delivery confirmation input",
+      );
+      await fill(
+        "Delivery confirmation",
+        "Local recipient confirmed receipt (simulation)",
+      );
+      await scopedClick(tripSelector, "Confirm delivery");
+      await wait(
+        `document.querySelector(${JSON.stringify(tripSelector)}).innerText.includes('delivered')`,
+        "delivered trip",
+      );
+      await capture("rider-delivered-390");
+      const finalOrder = await localCall(
+        "/v1/app-orders/" + order.reference,
+        adminToken,
+      );
+      assert.equal(finalOrder.status, "completed");
+      assert.equal(
+        finalOrder.deliveries.find((task) => task.id === trip.id).status,
+        "delivered",
+      );
+      checks.push({
+        lifecycle: "independent kitchen-dispatch-rider",
+        reference: order.reference,
+        simulated: true,
+        riderSignIn: true,
+        readyBeforeCollection: true,
+        customerOrderCompleted: true,
+      });
+      if (process.argv.includes("--notifications")) {
+        await signIn("admin", "/notifications");
+        await wait(
+          "document.body.innerText.includes('Your order updates, all in one place.')",
+          "notification inbox",
+        );
+        const inboxItems = await localCall(
+          "/v1/account/notifications",
+          adminToken,
+        );
+        const completedAlert = inboxItems.find(
+          (item) =>
+            item.data.reference === order.reference &&
+            item.kind === "fulfilment_completed",
+        );
+        assert.ok(
+          completedAlert,
+          "Completed delivery must appear in the customer's inbox",
+        );
+        await capture("notification-inbox-390");
+        const cardButton = `Array.from(document.querySelectorAll('[role="button"]')).filter(n=>n.getAttribute('aria-label')==='View order').find(n=>n.parentElement.innerText.includes(${JSON.stringify(completedAlert.title)}))`;
+        await wait(`!!(${cardButton})`, "completed notification card");
+        await evaluate(`(${cardButton}).click()`);
+        await wait(
+          "document.body.innerText.includes('Test journey complete!')",
+          "completed-order confirmation",
+        );
+        await click("Rate 5 stars");
+        await fill(
+          "Tell us more (optional)",
+          "Verified local end-to-end delivery feedback.",
+        );
+        await click("Send feedback");
+        await wait(
+          "document.body.innerText.includes('Thank you for your feedback')",
+          "saved review confirmation",
+        );
+        const savedReview = await localCall(
+          "/v1/app-orders/" + order.reference + "/review",
+          adminToken,
+        );
+        assert.equal(savedReview.rating, 5);
+        assert.equal(savedReview.simulated, true);
+        for (const width of [320, 390, 1280]) {
+          await send("Emulation.setDeviceMetricsOverride", {
+            width,
+            height: 900,
+            deviceScaleFactor: 1,
+            mobile: width < 600,
+          });
+          const size = await evaluate(
+            "({viewport:innerWidth,scroll:document.documentElement.scrollWidth})",
+          );
+          assert.ok(
+            size.scroll <= size.viewport,
+            "Delivered order overflow at " + width,
+          );
+          await capture("delivery-complete-" + width);
+        }
+        checks.push({
+          notifications:
+            "inbox, order deep link, delivery confirmation and persisted review",
+          reference: order.reference,
+          noRemotePush: true,
+        });
+      }
+    }
+    if (process.argv.includes("--commerce")) {
+      const products = await (
+        await fetch(apiOrigin + "/v1/catalogue/products?per_page=1")
+      ).json();
+      assert.ok(
+        products.length,
+        "Import the catalogue into the local preview before the commerce check.",
+      );
+      for (const width of [390, 1280]) {
+        await send("Emulation.setDeviceMetricsOverride", {
+          width,
+          height: 900,
+          deviceScaleFactor: 1,
+          mobile: width < 600,
+        });
+        for (const [name, route] of [
+          ["home", "/"],
+          ["shop", "/shop"],
+          ["product", "/product/" + products[0].id],
+        ]) {
+          await send("Page.navigate", { url: origin + route });
+          await wait(
+            "document.querySelector('[role=\"button\"],button,a') && document.body.innerText.length > 150",
+            name + " loaded",
+            180000,
+          );
+          if (name === "product")
+            await wait(
+              `document.body.innerText.includes(${JSON.stringify(products[0].name)})`,
+              "imported product",
+            );
+          if (name === "shop")
+            await wait(
+              "document.querySelector('input[aria-label=\"Search Cake City\"]')",
+              "catalogue search",
+            );
+          await pause(1200);
+          const size = await evaluate(
+            "({viewport:innerWidth,scroll:document.documentElement.scrollWidth})",
+          );
+          assert.ok(
+            size.scroll <= size.viewport,
+            "Horizontal overflow on " + name + " at " + width,
+          );
+          await capture(name + "-" + width);
+          checks.push({ screen: name, width, horizontalOverflow: false });
+        }
+      }
+    }
+    if (process.argv.includes("--splash")) {
+      await send("Page.navigate", { url: origin + "/splash-preview" });
+      await wait(
+        "document.body.innerText.includes('EVERY MOMENT DESERVES')",
+        "branded splash preview",
+      );
+      for (const [width, height] of [
+        [320, 568],
+        [390, 844],
+        [430, 932],
+        [1280, 900],
+      ]) {
+        await send("Emulation.setDeviceMetricsOverride", {
+          width,
+          height,
+          deviceScaleFactor: 1,
+          mobile: width < 600,
+        });
+        await pause(250);
+        const size = await evaluate(
+          "({viewport:innerWidth,scroll:document.documentElement.scrollWidth,height:innerHeight,scrollHeight:document.documentElement.scrollHeight})",
+        );
+        assert.ok(size.scroll <= size.viewport, "Splash overflow at " + width);
+        assert.ok(
+          size.scrollHeight <= size.height,
+          "Splash vertical overflow at " + width,
+        );
+        await capture("splash-" + width);
+        checks.push({
+          splash: "real app artwork preview",
+          width,
+          height,
+          overflow: false,
+        });
+      }
     }
     assert.deepEqual(errors, [], "Unexpected runtime failures/external writes");
     fs.writeFileSync(
@@ -287,7 +736,7 @@ async function main() {
   } finally {
     if (send && socket?.readyState === WebSocket.OPEN) {
       try {
-        await send("Browser.close");
+        await Promise.race([send("Browser.close"), pause(1500)]);
       } catch {}
       socket.close();
     }

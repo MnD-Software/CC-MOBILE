@@ -4,7 +4,17 @@ import { isRunningInExpoGo } from "expo";
 import Constants from "expo-constants";
 import { api } from "@/api/client";
 import type { Href } from "expo-router";
+import { getStorageItem } from "@/auth/secure-storage";
 export function notificationRoute(data: Record<string, unknown>): Href | null {
+  if (data.workspace === "rider") return "/rider";
+  if (
+    typeof data.reference === "string" &&
+    /^APP-[A-Za-z0-9-]{1,46}$/.test(data.reference)
+  )
+    return {
+      pathname: "/order/[reference]",
+      params: { reference: data.reference },
+    };
   const orderId =
     data.cakeCityOrderTracking === true ? Number(data.orderId) : Number.NaN;
   if (Number.isSafeInteger(orderId) && orderId > 0)
@@ -32,7 +42,7 @@ export function notificationRoute(data: Record<string, unknown>): Href | null {
   };
   return Object.hasOwn(routes, url) ? routes[url] : null;
 }
-export async function registerNotifications() {
+export async function registerNotifications(prompt = true) {
   if (Platform.OS === "web" || isRunningInExpoGo())
     throw new Error(
       "Push notifications are available in the installed Cake City app.",
@@ -53,10 +63,15 @@ export async function registerNotifications() {
       sound: null,
     });
   }
-  const permission = await Notifications.requestPermissionsAsync({
-    ios: { allowAlert: true, allowBadge: true, allowSound: true },
-  });
-  if (!permission.granted)
+  let permission = await Notifications.getPermissionsAsync();
+  if (!permission.granted && prompt && permission.canAskAgain)
+    permission = await Notifications.requestPermissionsAsync({
+      ios: { allowAlert: true, allowBadge: true, allowSound: true },
+    });
+  if (
+    !permission.granted &&
+    permission.ios?.status !== Notifications.IosAuthorizationStatus.PROVISIONAL
+  )
     throw new Error(
       "Notifications are disabled. You can enable them in your device settings.",
     );
@@ -66,9 +81,16 @@ export async function registerNotifications() {
   if (!projectId)
     throw new Error("Notifications cannot be registered at the moment.");
   const token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
+  const refreshToken = await getStorageItem("cakecity.refresh-token");
+  if (!refreshToken) throw new Error("Sign in again to enable notifications.");
   await api.post(
     "/v1/account/notifications/devices",
-    { token, platform: Platform.OS, provider: "expo" },
+    {
+      token,
+      platform: Platform.OS,
+      provider: "expo",
+      refresh_token: refreshToken,
+    },
     { auth: true },
   );
   return token;

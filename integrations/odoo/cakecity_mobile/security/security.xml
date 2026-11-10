@@ -1,0 +1,25 @@
+<odoo>
+  <record id="group_mobile_integration" model="res.groups">
+    <field name="name">Cake City Mobile Integration</field>
+  </record>
+  <record id="change_company_rule" model="ir.rule">
+    <field name="name">Mobile changes by company</field>
+    <field name="model_id" ref="model_cakecity_mobile_change"/>
+    <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+  </record>
+  <record id="event_company_rule" model="ir.rule">
+    <field name="name">Mobile receipts by company</field>
+    <field name="model_id" ref="model_cakecity_mobile_event"/>
+    <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+  </record>
+  <record id="reward_company_rule" model="ir.rule">
+    <field name="name">Mobile rewards by company</field>
+    <field name="model_id" ref="model_cakecity_mobile_redemption"/>
+    <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+  </record>
+  <record id="trip_company_rule" model="ir.rule">
+    <field name="name">Mobile trips by company</field>
+    <field name="model_id" ref="model_cakecity_mobile_trip"/>
+    <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+  </record>
+</odoo>

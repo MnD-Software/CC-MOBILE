@@ -1,0 +1,134 @@
+"""Independent kitchen, dispatch and rider APIs. Odoo is optional."""
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from . import logistics as service
+from .commerce_models import AppOrder
+from .db import get_db
+from .logistics_models import LogisticsScope, LogisticsTask, ProductionTask
+from .models import Customer
+from .permissions import audit
+from .routes_club import member
+
+router = APIRouter(tags=["kitchen-and-logistics"])
+
+
+def kitchen(customer: Customer = Depends(member)):
+    if customer.role not in service.KITCHEN:
+        raise HTTPException(403, "Kitchen workspace access required.")
+    return customer
+
+
+def dispatch(customer: Customer = Depends(member)):
+    if customer.role not in service.DISPATCH:
+        raise HTTPException(403, "Dispatch workspace access required.")
+    return customer
+
+
+def rider(customer: Customer = Depends(member)):
+    if customer.role not in service.RIDERS:
+        raise HTTPException(403, "Rider or driver access required.")
+    return customer
+
+
+def queue(db, actor):
+    result = []
+    for order in db.scalars(select(AppOrder).where(AppOrder.payment_state == "completed",
+            AppOrder.state.in_(["paid", "preparing", "ready", "out_for_delivery"]))
+            .order_by(AppOrder.created_at).limit(300)):
+        production = db.get(ProductionTask, order.id)
+        plant = production.plant if production else "hq"
+        if not service.allowed_plant(db, actor, plant):
+            continue
+        result.append({"reference": order.reference, "status": order.state,
+            "plant": production.plant if production else None,
+            "assigned_to": production.assigned_to if production else None,
+            "attention": "unassigned" if not production else "active",
+            "fulfilment": order.snapshot.get("checkout", {}).get("fulfilment"),
+            "items": [{key: line[key] for key in ("name", "quantity", "sku_id", "selection") if key in line}
+                      for line in order.snapshot.get("lines", [])],
+            "created_at": service.commerce.utc(order.created_at).isoformat(), "payment_test": order.channel == "app_test"})
+    return result
+
+
+@router.get("/v1/kitchen/orders")
+def kitchen_queue(actor: Customer = Depends(kitchen), db: Session = Depends(get_db)):
+    return queue(db, actor)
+
+
+@router.get("/v1/kitchen/locations")
+def kitchen_locations(actor: Customer = Depends(kitchen), db: Session = Depends(get_db)):
+    codes = {"hq"} | set(db.scalars(select(LogisticsScope.plant).distinct()))
+    return [{"id": code, "name": "Head Office" if code == "hq" else code.removeprefix("branch:").replace("-", " ").title()}
+        for code in sorted(codes) if service.allowed_plant(db, actor, code)]
+
+
+@router.put("/v1/kitchen/orders/{reference}/assignment")
+def assign_kitchen(reference: str, data: service.AssignProduction, actor: Customer = Depends(kitchen), db: Session = Depends(get_db)):
+    return service.assign_production(db, actor, reference, data)
+
+
+class KitchenStatus(BaseModel):
+    status: str = Field(pattern="^(preparing|ready)$")
+
+
+@router.patch("/v1/kitchen/orders/{reference}/status")
+def kitchen_progress(reference: str, data: KitchenStatus, actor: Customer = Depends(kitchen), db: Session = Depends(get_db)):
+    return service.kitchen_status(db, actor, reference, data.status)
+
+
+@router.get("/v1/logistics/orders")
+def dispatch_queue(actor: Customer = Depends(dispatch), db: Session = Depends(get_db)):
+    return queue(db, actor)
+
+
+@router.get("/v1/logistics/riders")
+def riders(_: Customer = Depends(dispatch), db: Session = Depends(get_db)):
+    return [{"id": row.id, "name": " ".join([row.first_name, row.last_name]), "role": row.role}
+        for row in db.scalars(select(Customer).where(Customer.role.in_(service.RIDERS)).order_by(Customer.first_name).limit(1000))]
+
+
+@router.post("/v1/logistics/orders/{reference}/tasks", status_code=201)
+def create_trip(reference: str, data: service.NewTrip, actor: Customer = Depends(dispatch), db: Session = Depends(get_db)):
+    return service.task_view(db, service.new_trip(db, actor, reference, data))
+
+
+@router.get("/v1/logistics/tasks")
+def tasks(actor: Customer = Depends(dispatch), db: Session = Depends(get_db)):
+    return [service.task_view(db, task, history=True) for task in db.scalars(select(LogisticsTask)
+        .order_by(LogisticsTask.created_at.desc()).limit(300)) if service.allowed_plant(db, actor, task.plant)]
+
+
+@router.patch("/v1/logistics/tasks/{identity}")
+def manage_trip(identity: str, data: service.TaskUpdate, actor: Customer = Depends(dispatch), db: Session = Depends(get_db)):
+    return service.update_task(db, actor, identity, data)
+
+
+@router.get("/v1/rider/tasks")
+def my_tasks(actor: Customer = Depends(rider), db: Session = Depends(get_db)):
+    return [service.task_view(db, task, history=True) for task in db.scalars(select(LogisticsTask)
+        .where(LogisticsTask.rider_id == actor.id).order_by(LogisticsTask.created_at.desc()).limit(100))]
+
+
+@router.patch("/v1/rider/tasks/{identity}")
+def rider_progress(identity: str, data: service.TaskUpdate, actor: Customer = Depends(rider), db: Session = Depends(get_db)):
+    return service.update_task(db, actor, identity, data)
+
+
+class Scope(BaseModel):
+    plant: str = Field(pattern=r"^(hq|branch:[a-z0-9-]+)$", max_length=100)
+
+
+@router.post("/v1/admin/logistics/scopes/{customer_id}")
+def grant_scope(customer_id: str, data: Scope, actor: Customer = Depends(member), db: Session = Depends(get_db)):
+    if actor.role != "admin":
+        raise HTTPException(403, "Administrator access required.")
+    if not db.get(Customer, customer_id):
+        raise HTTPException(404, "Team member not found.")
+    if not db.get(LogisticsScope, (customer_id, data.plant)):
+        db.add(LogisticsScope(customer_id=customer_id, plant=data.plant))
+    audit(db, actor.id, "logistics_scope_granted", customer_id, plant=data.plant)
+    db.commit()
+    return {"status": "granted"}

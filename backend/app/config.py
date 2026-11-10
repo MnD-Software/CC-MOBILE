@@ -31,13 +31,25 @@ class Settings(BaseSettings):
     redis_url: str = ""
     google_maps_api_key: str = ""
     google_maps_browser_key: str = ""
+    odoo_enabled: bool = False
+    push_enabled: bool = False
+    expo_push_access_token: str = ""
+    odoo_url: str = ""
+    odoo_database: str = ""
+    odoo_api_key: str = ""
+    odoo_source_id: str = "cakecity-odoo"
+    odoo_company_id: int = Field(default=0, ge=0)
+    odoo_webhook_secret: str = ""
+    odoo_loyalty_authority: bool = False
+    odoo_require_mapped_products: bool = True
+    odoo_catalogue_max_age_seconds: int = Field(default=300, ge=30, le=86400)
     database_pool_size: int = Field(default=5, ge=1, le=50)
     database_max_overflow: int = Field(default=5, ge=0, le=50)
     club_earn_minor: int = Field(default=10000, gt=0)
     club_point_value_minor: int = Field(default=100, gt=0)
     club_expiry_days: int = Field(default=365, ge=1, le=3650)
 
-    model_config = SettingsConfigDict(env_file=".env", case_sensitive=False, extra="ignore")
+    model_config = SettingsConfigDict(env_file=(".env", ".env.odoo.local"), case_sensitive=False, extra="ignore")
 
     @property
     def sqlalchemy_url(self) -> str:

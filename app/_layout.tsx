@@ -12,6 +12,7 @@ import { AppErrorBoundary, ToastProvider } from "@/components/ui/Commerce";
 import { OfflineNotice } from "@/components/ui/OfflineNotice";
 import { CelebrationReminderPrivacy } from "@/native/celebration-reminders";
 import { NotificationObserver } from "@/native/NotificationObserver";
+import { PushRegistration } from "@/native/PushRegistration";
 import {
   recordPerformanceMetric,
   trackCommerceEvent,
@@ -76,6 +77,7 @@ function AppShell() {
             <AuthProvider>
               <ToastProvider>
                 <NotificationObserver />
+                <PushRegistration />
                 <CelebrationReminderPrivacy />
                 <AndroidBackNavigator />
                 <OfflineNotice />

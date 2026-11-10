@@ -1,0 +1,9 @@
+<odoo noupdate="1">
+  <record id="cron_mobile_snapshot" model="ir.cron">
+    <field name="name">Cake City app: reconcile Odoo resources</field>
+    <field name="model_id" ref="model_cakecity_mobile_bridge"/>
+    <field name="state">code</field><field name="code">model.cron_snapshot()</field>
+    <field name="interval_number">5</field><field name="interval_type">minutes</field>
+    <field name="active" eval="False"/>
+  </record>
+</odoo>

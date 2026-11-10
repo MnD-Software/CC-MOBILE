@@ -87,8 +87,22 @@ def calculate(db, customer_id, data):
         product = db.get(AppProduct, item.variation_id or item.product_id)
         if not parent or not parent.enabled or not product or not product.enabled or product.price_minor is None:
             raise HTTPException(409, "One of these products is not available for app orders.")
+        from .config import get_settings
+        settings = get_settings()
+        if (settings.odoo_enabled and settings.odoo_require_mapped_products and not payment_test
+                and not product.payload.get("odoo_source")):
+            raise HTTPException(409, "This cake must be mapped to Odoo before orders can be accepted.")
         if payment_test and (not product.payload.get("payment_test") or product.price_minor != 100):
             raise HTTPException(409, "The test product must remain priced at exactly KES 1.")
+        if product.payload.get("odoo_source"):
+            from .config import get_settings
+            from .odoo_models import OdooCursor
+            settings = get_settings()
+            cursor = db.get(OdooCursor, settings.odoo_source_id)
+            if (not settings.odoo_enabled or product.payload["odoo_source"] != settings.odoo_source_id
+                    or not cursor or not cursor.last_success
+                    or datetime.now(UTC)-utc(cursor.last_success) > timedelta(seconds=settings.odoo_catalogue_max_age_seconds)):
+                raise HTTPException(503, "Odoo catalogue synchronization is overdue. Refresh before paying; your bag is kept.")
         if (item.variation_id and product.parent_id != parent.id) or (not item.variation_id and parent.payload.get("type") == "variable"):
             raise HTTPException(422, "Choose a valid product variation.")
         if item.add_ons:
@@ -166,6 +180,10 @@ def record_event(db, order, kind, **details):
     key = f"{order.reference}:{kind}"
     if not db.scalar(select(AppOrderEvent.id).where(AppOrderEvent.event_key == key)):
         db.add(AppOrderEvent(id=str(uuid4()), order_id=order.id, event_key=key, kind=kind, details=details))
+        from .odoo_sync import capture_order
+        capture_order(db, order, kind, details)
+        from .notifications import order_event
+        order_event(db, order, kind)
 
 
 def issue(db, reference, kind, channel="app"):
@@ -287,4 +305,16 @@ def tracked_order_view(db, order):
     if dispatch:
         result["dispatch"] = {k: dispatch.details[k] for k in ("rider_name", "rider_phone") if k in dispatch.details}
     result["events"].sort(key=lambda event: (event["created_at"], visible.index(event["kind"])))
+    from .logistics_models import LogisticsTask
+    tasks = list(db.scalars(select(LogisticsTask).where(LogisticsTask.order_id == order.id)
+        .order_by(LogisticsTask.created_at)))
+    if tasks:
+        result["deliveries"] = [{"id": task.id, "status": task.status, "service_type": task.service_type,
+            "scheduled_at": utc(task.scheduled_at).isoformat() if task.scheduled_at else None,
+            "slot": task.slot} for task in tasks]
+        active = next((task for task in reversed(tasks) if task.rider_id and task.status not in ("cancelled", "delivered")), None)
+        if active:
+            from .models import Customer
+            rider = db.get(Customer, active.rider_id)
+            result["dispatch"] = {"rider_name": f"{rider.first_name} {rider.last_name}", "rider_phone": rider.phone or ""}
     return result

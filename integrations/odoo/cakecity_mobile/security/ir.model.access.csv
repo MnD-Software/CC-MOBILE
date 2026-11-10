@@ -1,0 +1,9 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_mobile_change,Mobile change feed,model_cakecity_mobile_change,cakecity_mobile.group_mobile_integration,1,0,1,0
+access_mobile_event,Mobile event receipts,model_cakecity_mobile_event,cakecity_mobile.group_mobile_integration,1,0,1,0
+access_mobile_reward,Mobile reward conversion,model_cakecity_mobile_redemption,cakecity_mobile.group_mobile_integration,1,1,1,0
+access_mobile_change_admin,Mobile changes administration,model_cakecity_mobile_change,base.group_system,1,0,1,0
+access_mobile_event_admin,Mobile events administration,model_cakecity_mobile_event,base.group_system,1,0,1,0
+access_mobile_reward_admin,Mobile rewards administration,model_cakecity_mobile_redemption,base.group_system,1,1,1,0
+access_mobile_trip,Mobile trips,model_cakecity_mobile_trip,cakecity_mobile.group_mobile_integration,1,1,1,0
+access_mobile_trip_admin,Mobile trips administration,model_cakecity_mobile_trip,base.group_system,1,1,1,0

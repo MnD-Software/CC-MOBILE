@@ -28,6 +28,7 @@ function renderCheckout(
       if (name === "@tanstack/react-query") return { useQuery: () => query };
       if (name === "./pesapal-checkout")
         return { loadPesapalConfiguration() {} };
+      if (name === "./TestJourneyCard") return { TestJourneyCard: () => null };
       if (name === "./PesapalCheckoutForm")
         return {
           PesapalCheckoutForm: () =>

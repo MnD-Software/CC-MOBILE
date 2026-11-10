@@ -20,6 +20,26 @@ const club = z.object({
   points: z.number().int().nonnegative(),
   debt: z.number().int().nonnegative(),
   tier: z.string(),
+  celebrations: z
+    .array(
+      z.object({
+        id: z.string(),
+        kind: z.string(),
+        tier: z.string(),
+        points: z.number().int().positive(),
+        reference: z.string(),
+      }),
+    )
+    .optional(),
+  journey: z
+    .object({
+      qualifying_spend_kes: z.number().nonnegative(),
+      lifetime_points: z.number().int().nonnegative(),
+      milestones: z.array(
+        z.object({ name: z.string(), spend_kes: z.number().nonnegative() }),
+      ),
+    })
+    .optional(),
   next_tier: z
     .object({ name: z.string(), spend_required_kes: z.number() })
     .nullable(),

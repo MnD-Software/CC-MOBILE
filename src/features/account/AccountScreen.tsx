@@ -21,6 +21,7 @@ import {
   useToast,
 } from "@/components/ui/Commerce";
 import { Button } from "@/components/ui/Button";
+import { TestJourneyCard } from "@/features/commerce/TestJourneyCard";
 import { usePreferences } from "@/features/commerce/store";
 import { tokens } from "@/theme/tokens";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
@@ -540,6 +541,7 @@ export function AccountScreen() {
         </View>
       </LinearGradient>
 
+      <TestJourneyCard />
       <LinearGradient
         colors={clubPalette?.gradient ?? [colors.brandLight, colors.brandLight]}
         style={{
@@ -793,6 +795,61 @@ export function AccountScreen() {
       </Pressable>
       <Section title="Your essentials" />
       <View style={styles.accountList}>
+        {["rider", "driver"].includes(customer.role) ? (
+          <AccountRow
+            link={{
+              id: "rider",
+              title: "Your deliveries",
+              detail: "Assigned collections and delivery updates",
+              icon: "bicycle-outline",
+              href: "/rider",
+            }}
+          />
+        ) : null}
+        {[
+          "admin",
+          "staff",
+          "ecommerce_manager",
+          "production",
+          "head_chef",
+        ].includes(customer.role) ? (
+          <AccountRow
+            link={{
+              id: "kitchen",
+              title: "Kitchen",
+              detail: "Production assignments and readiness",
+              icon: "restaurant-outline",
+              href: "/kitchen",
+            }}
+          />
+        ) : null}
+        {[
+          "admin",
+          "staff",
+          "ecommerce_manager",
+          "dispatch",
+          "branch_dispatch",
+          "branch_manager",
+        ].includes(customer.role) ? (
+          <AccountRow
+            link={{
+              id: "dispatch",
+              title: "Dispatch",
+              detail: "Allocate riders and follow deliveries",
+              icon: "navigate-outline",
+              href: "/dispatch",
+            }}
+          />
+        ) : null}
+        <AccountRow
+          link={{
+            id: "notifications",
+            title: "Notifications",
+            detail: "Order updates and phone notification settings",
+            icon: "notifications-outline",
+            href: "/notifications",
+          }}
+        />
         <AccountRow
           link={{
             id: "billing",

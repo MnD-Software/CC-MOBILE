@@ -63,6 +63,8 @@ class Adjustment(BaseModel):
 
 @router.post("/v1/admin/club/{customer_id}/adjust")
 def adjust(customer_id: str, data: Adjustment, actor: Customer = Depends(staff), db: Session = Depends(get_db)):
+    from .odoo_loyalty import local_mutation_guard
+    local_mutation_guard()
     if not data.points or not db.get(Customer, customer_id):
         raise HTTPException(422, "A member and non-zero adjustment are required")
     value = account(db, customer_id)

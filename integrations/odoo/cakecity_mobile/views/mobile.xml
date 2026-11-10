@@ -1,0 +1,57 @@
+<odoo>
+  <record id="company_mobile_form" model="ir.ui.view">
+    <field name="name">res.company.cakecity.mobile</field><field name="model">res.company</field>
+    <field name="inherit_id" ref="base.view_company_form"/>
+    <field name="arch" type="xml"><xpath expr="//notebook" position="inside">
+      <page string="Cake City app" groups="base.group_system"><group>
+        <field name="cakecity_mobile_enabled"/><field name="cakecity_mobile_pricelist_id"/>
+        <field name="cakecity_mobile_delivery_product_id"/><field name="cakecity_mobile_confirm_orders"/>
+      </group><group string="Odoo loyalty and app reward conversion">
+        <field name="cakecity_mobile_program_id"/><field name="cakecity_mobile_rewards_enabled"/>
+        <field name="cakecity_mobile_earn_minor"/><field name="cakecity_mobile_point_minor"/>
+        <field name="cakecity_mobile_expiry_days"/><field name="cakecity_mobile_reward_days"/><field name="cakecity_mobile_minimum_points"/>
+        <field name="cakecity_mobile_minimum_multiple"/>
+      </group></page>
+    </xpath></field>
+  </record>
+  <record id="partner_mobile_form" model="ir.ui.view">
+    <field name="name">res.partner.cakecity.mobile</field><field name="model">res.partner</field>
+    <field name="inherit_id" ref="base.view_partner_form"/>
+    <field name="arch" type="xml"><xpath expr="//notebook" position="inside">
+      <page string="Cake City app" groups="cakecity_mobile.group_mobile_integration,base.group_system"><group>
+        <field name="cakecity_mobile_customer_id"/><field name="cakecity_mobile_tier"/>
+        <field name="cakecity_mobile_rider"/>
+      </group></page>
+    </xpath></field>
+  </record>
+  <record id="template_mobile_form" model="ir.ui.view">
+    <field name="name">product.template.cakecity.mobile</field><field name="model">product.template</field>
+    <field name="inherit_id" ref="product.product_template_only_form_view"/>
+    <field name="arch" type="xml"><xpath expr="//field[@name='sale_ok']" position="after">
+      <field name="cakecity_mobile_export"/>
+    </xpath></field>
+  </record>
+  <record id="sale_mobile_form" model="ir.ui.view">
+    <field name="name">sale.order.cakecity.mobile</field><field name="model">sale.order</field>
+    <field name="inherit_id" ref="sale.view_order_form"/>
+    <field name="arch" type="xml"><xpath expr="//notebook" position="inside">
+      <page string="Cake City app"><group>
+        <field name="cakecity_mobile_reference" readonly="1"/>
+        <field name="cakecity_mobile_payment_state"/><field name="cakecity_mobile_provider_reference"/>
+        <field name="cakecity_mobile_paid_minor"/><field name="cakecity_mobile_review"/>
+        <field name="cakecity_mobile_stage"/><field name="cakecity_mobile_rider_id"/>
+        <field name="cakecity_mobile_plant"/><field name="cakecity_mobile_kitchen_customer_id"/>
+      </group></page>
+    </xpath></field>
+  </record>
+  <record id="trip_list" model="ir.ui.view">
+    <field name="name">cakecity.mobile.trip.list</field><field name="model">cakecity.mobile.trip</field>
+    <field name="arch" type="xml"><list><field name="reference"/><field name="rider_id"/><field name="destination"/><field name="scheduled_at"/><field name="slot"/><field name="status"/></list></field>
+  </record>
+  <record id="trip_form" model="ir.ui.view">
+    <field name="name">cakecity.mobile.trip.form</field><field name="model">cakecity.mobile.trip</field>
+    <field name="arch" type="xml"><form><sheet><group><field name="company_id"/><field name="app_task_id" readonly="1"/><field name="reference"/><field name="plant"/><field name="rider_id"/><field name="status"/><field name="service_type"/><field name="resource_type"/><field name="destination"/><field name="recipient"/><field name="phone"/><field name="scheduled_at"/><field name="slot"/><field name="pv_reference"/></group><group><field name="items"/><field name="external_reason"/><field name="note"/><field name="proof"/></group></sheet></form></field>
+  </record>
+  <record id="trip_action" model="ir.actions.act_window"><field name="name">Cake City dispatch tasks</field><field name="res_model">cakecity.mobile.trip</field><field name="view_mode">list,form</field></record>
+  <menuitem id="mobile_logistics_menu" name="Cake City logistics" action="trip_action" groups="cakecity_mobile.group_mobile_integration,base.group_system"/>
+</odoo>

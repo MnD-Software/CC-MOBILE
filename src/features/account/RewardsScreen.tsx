@@ -121,11 +121,11 @@ export function RewardsScreen() {
         </View>
         <Text style={styles.heroTitle}>
           {customer?.first_name
-            ? `Hello, ${customer.first_name}.`
+            ? `Your sweet era, ${customer.first_name}.`
             : "Welcome to the sweet life."}
         </Text>
         <Text style={styles.heroCopy}>
-          Your points, your rewards, your next reason to celebrate.
+          Collect points. Unlock your card. Make every celebration count.
         </Text>
       </LinearGradient>
 

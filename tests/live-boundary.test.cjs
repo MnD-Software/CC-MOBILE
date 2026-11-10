@@ -68,9 +68,7 @@ test("unconnected routes fail honestly and legacy website orders retain their se
     "UnavailableExperience.tsx",
   );
   const commerce = read("src", "components", "ui", "Commerce.tsx");
-  const routes = ["offers.tsx", "notifications.tsx"].map((route) =>
-    read("app", route),
-  );
+  const routes = ["offers.tsx"].map((route) => read("app", route));
 
   assert.match(unavailable, /Browse cakes/);
   assert.match(unavailable, /does not provide yet/);
@@ -80,6 +78,7 @@ test("unconnected routes fail honestly and legacy website orders retain their se
     assert.match(source, /UnavailableExperience/);
     assert.doesNotMatch(source, /api\.|customerApi|shopApi|useQuery/);
   }
+  assert.match(read("app", "notifications.tsx"), /NotificationsScreen/);
 
   assert.match(read("app", "addresses.tsx"), /AddressesScreen/);
   assert.match(read("app", "branches.tsx"), /AppInformation/);

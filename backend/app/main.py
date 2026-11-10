@@ -9,6 +9,11 @@ from .catalogue import catalogue
 from .middleware import RequestTelemetry, SharedRateLimit
 from .db import Base, engine
 from . import commerce_models
+from . import odoo_models
+from . import logistics_models
+from . import notification_models
+from . import club_celebrations
+from .routes_notifications import router as notifications_router
 from .routes import router as platform_router
 from .routes_auth import router as auth_router
 from .routes_addresses import router as addresses_router
@@ -27,6 +32,8 @@ from .app_catalogue import router as app_catalogue_router
 from .routes_app_admin import router as app_admin_router
 from .routes_dashboard import router as dashboard_router
 from .routes_app_delivery import router as delivery_router
+from .routes_odoo import router as odoo_router
+from .routes_logistics import router as logistics_router
 
 
 @asynccontextmanager
@@ -70,6 +77,9 @@ app.include_router(app_catalogue_router)
 app.include_router(app_admin_router)
 app.include_router(dashboard_router)
 app.include_router(delivery_router)
+app.include_router(odoo_router)
+app.include_router(logistics_router)
+app.include_router(notifications_router)
 
 
 @app.get("/ready/db")

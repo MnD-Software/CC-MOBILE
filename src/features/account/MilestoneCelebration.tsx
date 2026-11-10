@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/api/client";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, usePathname } from "expo-router";
 import { useEffect, useRef, useState } from "react";
@@ -25,11 +26,19 @@ import { clubApi } from "./club-api";
 import { membershipPalette } from "./member-card";
 import { MilestoneTracker } from "./milestones";
 
-type Celebration = { tier: string; owner: string; id: string };
+type Celebration = {
+  tier: string;
+  owner: string;
+  id: string;
+  kind?: string;
+  points?: number;
+  reference?: string;
+};
 
 /** Lives above navigation so a confirmed milestone follows the member between screens. */
 export function MilestoneCelebrationObserver() {
   const pathname = usePathname();
+  const client = useQueryClient();
   const origin = purchaseTestOrigin();
   const { customer } = useAuth();
   const preview = usePurchasePreview();
@@ -39,6 +48,7 @@ export function MilestoneCelebrationObserver() {
     enabled: !origin && Boolean(customer),
     staleTime: 60_000,
     retry: false,
+    refetchInterval: 20_000,
   });
   const tracker = useRef(new MilestoneTracker());
   const owner = origin
@@ -52,7 +62,17 @@ export function MilestoneCelebrationObserver() {
   const [queued, setQueued] = useState<Celebration | null>(null);
   const [celebration, setCelebration] = useState<Celebration | null>(null);
   const sequence = useRef(0);
+  const dismissed = useRef(new Set<string>());
+  const [ackError, setAckError] = useState("");
   useEffect(() => {
+    if (!origin && live.data?.celebrations && owner) {
+      const next = live.data.celebrations.find(
+        (event) =>
+          !dismissed.current.has(event.id) && event.id !== celebration?.id,
+      );
+      if (next && !celebration) setQueued({ ...next, owner });
+      return;
+    }
     const achieved = tracker.current.update(
       owner && tier ? { owner, tier } : null,
     );
@@ -62,7 +82,7 @@ export function MilestoneCelebrationObserver() {
         owner,
         id: `${++sequence.current}-${achieved}`,
       });
-  }, [owner, tier]);
+  }, [owner, tier, live.data?.celebrations, celebration?.id, origin]);
   useEffect(() => {
     if (celebration && celebration.owner !== owner) setCelebration(null);
     if (!queued) return;
@@ -70,22 +90,46 @@ export function MilestoneCelebrationObserver() {
       setQueued(null);
       return;
     }
-    // Let checkout finish navigation before offering another destination.
-    if (["/checkout", "/purchase-test"].includes(pathname)) return;
-    setCelebration(queued);
-    setQueued(null);
+    const timer = setTimeout(() => {
+      setCelebration(queued);
+      setQueued(null);
+    }, 1500);
+    return () => clearTimeout(timer);
   }, [owner, pathname, queued, celebration]);
+  async function acknowledge(view = false) {
+    if (!celebration) return;
+    setAckError("");
+    if (celebration.kind) {
+      try {
+        await api.post(
+          `/v1/club/celebrations/${encodeURIComponent(celebration.id)}/ack`,
+          {},
+          { auth: true },
+        );
+      } catch {
+        setAckError("Your celebration could not be saved. Please try again.");
+        return;
+      }
+      dismissed.current.add(celebration.id);
+      void client.invalidateQueries({ queryKey: ["club"] });
+    }
+    const id = celebration.id;
+    setCelebration(null);
+    if (view)
+      router.navigate({
+        pathname: "/(tabs)/loyalty",
+        params: { milestone: id },
+      });
+  }
   return celebration ? (
     <MilestoneCelebration
       key={celebration.id}
       tier={celebration.tier}
-      onClose={() => setCelebration(null)}
-      onView={() =>
-        router.navigate({
-          pathname: "/(tabs)/loyalty",
-          params: { milestone: celebration.id },
-        })
-      }
+      first={celebration.kind === "first_points"}
+      points={celebration.points}
+      error={ackError}
+      onClose={() => void acknowledge()}
+      onView={() => void acknowledge(true)}
     />
   ) : null;
 }
@@ -94,10 +138,16 @@ export function MilestoneCelebration({
   tier,
   onClose,
   onView,
+  first = false,
+  points,
+  error,
 }: {
   tier: string;
   onClose: () => void;
   onView: () => void;
+  first?: boolean;
+  points?: number;
+  error?: string;
 }) {
   const { colors } = useTheme();
   const palette = membershipPalette(tier);
@@ -109,9 +159,11 @@ export function MilestoneCelebration({
   const [prompt, setPrompt] = useState(true);
   useEffect(() => {
     AccessibilityInfo.announceForAccessibility(
-      `${tier} unlocked! Your membership card has a new colour.`,
+      first
+        ? `Your first ${points} Club points have arrived! View your member card.`
+        : `${tier} unlocked! Your membership card has a new colour.`,
     );
-  }, [tier]);
+  }, [tier, first, points]);
   useEffect(() => {
     if (reduce) {
       motion.setValue(1);
@@ -266,30 +318,32 @@ export function MilestoneCelebration({
               <Text
                 style={{ color: colors.ink, fontSize: 20, fontWeight: "800" }}
               >
-                {tier} unlocked!
+                {first ? "Your first points!" : `${tier} unlocked!`}
               </Text>
               <Text
                 style={{ color: colors.muted, fontSize: 13, lineHeight: 18 }}
               >
-                Your membership card has a new colour.
+                {first
+                  ? `You earned ${points} ${points === 1 ? "point" : "points"}. Your Club journey has begun—come reveal your card.`
+                  : "Milestone achieved! Come see your membership card and your next goal."}
               </Text>
             </View>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Dismiss milestone celebration"
-              onPress={() => setPrompt(false)}
+              onPress={onClose}
               style={{ padding: 8 }}
             >
               <Ionicons name="close" size={20} color={colors.muted} />
             </Pressable>
           </View>
           <Button
-            label="View new card"
+            label={first ? "Reveal my Club card" : "View new card"}
             onPress={() => {
-              setPrompt(false);
               onView();
             }}
           />
+          {error ? <Text style={{ color: colors.error }}>{error}</Text> : null}
         </Animated.View>
       ) : null}
     </View>

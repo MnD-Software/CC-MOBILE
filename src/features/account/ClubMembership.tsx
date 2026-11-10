@@ -30,6 +30,7 @@ import { AnimatedNumber, SuccessBurst } from "@/components/ui/Delight";
 import { router, useFocusEffect } from "expo-router";
 import { milestoneProgress } from "./milestones";
 import { MilestoneProgressBar } from "./MilestoneProgressBar";
+import { ClubJourney } from "./ClubJourney";
 
 export function ClubMembership({
   walletScope,
@@ -127,7 +128,6 @@ export function ClubMembership({
       ) : null}
       {data ? (
         <>
-          <Notice message="Your app purchases update Club automatically. No purchase code is needed. Staff simulations are labelled in your history." />
           <MembershipCard
             progress={progress}
             revealToken={revealToken}
@@ -139,12 +139,20 @@ export function ClubMembership({
             }
             tier={data.tier}
             points={data.points}
+            minimumRedemption={data.rules.minimum_redemption}
             pointValue={data.rules.point_value_kes}
             rewards={
               data.coupons.filter((coupon) => coupon.status === "issued").length
             }
           />
           <SuccessBurst trigger={celebrationTrigger} />
+          {data.journey ? (
+            <ClubJourney
+              points={data.points}
+              minimum={data.rules.minimum_redemption}
+              journey={data.journey}
+            />
+          ) : null}
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="View Club transactions"
@@ -187,71 +195,77 @@ export function ClubMembership({
               onClose={() => setTransactionsOpen(false)}
             />
           ) : null}
-          <View
-            style={{
-              padding: 16,
-              borderRadius: 22,
-              backgroundColor: colors.surface,
-              borderWidth: 1,
-              borderColor: colors.border,
-              gap: 10,
-            }}
-          >
+          {!data.journey ? (
             <View
-              style={{ flexDirection: "row", alignItems: "center", gap: 10 }}
+              style={{
+                padding: 16,
+                borderRadius: 22,
+                backgroundColor: colors.surface,
+                borderWidth: 1,
+                borderColor: colors.border,
+                gap: 10,
+              }}
             >
-              <Ionicons
-                name={
-                  progress
-                    ? progress.current >= progress.total
-                      ? "trophy-outline"
-                      : "sparkles-outline"
-                    : data.points >= data.rules.minimum_redemption
-                      ? "gift-outline"
-                      : "sparkles-outline"
-                }
-                size={22}
-                color={colors.brandStrong}
-              />
-              <View style={{ flex: 1, gap: 3 }}>
-                <Text
-                  style={{ color: colors.ink, fontSize: 13, fontWeight: "700" }}
-                >
-                  {progress
-                    ? progress.current >= progress.total
-                      ? `${progress.target} unlocked!`
-                      : `${progress.total - progress.current} more purchase${progress.total - progress.current === 1 ? "" : "s"} to ${progress.target}`
-                    : data.points >= data.rules.minimum_redemption
-                      ? "You've reached your next reward"
-                      : `${data.rules.minimum_redemption - data.points} points to your next reward`}
-                </Text>
-                <Text style={{ color: colors.muted, fontSize: 11 }}>
-                  {progress
-                    ? progress.next
-                    : data.purchase_progress?.next_tier
-                      ? `${data.purchase_progress.next_tier.purchases_remaining} more purchase${data.purchase_progress.next_tier.purchases_remaining === 1 ? "" : "s"} to ${data.purchase_progress.next_tier.name}`
-                      : data.next_tier
-                        ? `${money(data.next_tier.spend_required_kes)} qualifying spend to ${data.next_tier.name}`
-                        : "Enjoy your highest Club tier"}
-                </Text>
+              <View
+                style={{ flexDirection: "row", alignItems: "center", gap: 10 }}
+              >
+                <Ionicons
+                  name={
+                    progress
+                      ? progress.current >= progress.total
+                        ? "trophy-outline"
+                        : "sparkles-outline"
+                      : data.points >= data.rules.minimum_redemption
+                        ? "gift-outline"
+                        : "sparkles-outline"
+                  }
+                  size={22}
+                  color={colors.brandStrong}
+                />
+                <View style={{ flex: 1, gap: 3 }}>
+                  <Text
+                    style={{
+                      color: colors.ink,
+                      fontSize: 13,
+                      fontWeight: "700",
+                    }}
+                  >
+                    {progress
+                      ? progress.current >= progress.total
+                        ? `${progress.target} unlocked!`
+                        : `${progress.total - progress.current} more purchase${progress.total - progress.current === 1 ? "" : "s"} to ${progress.target}`
+                      : data.points >= data.rules.minimum_redemption
+                        ? "You've reached your next reward"
+                        : `${data.rules.minimum_redemption - data.points} points to your next reward`}
+                  </Text>
+                  <Text style={{ color: colors.muted, fontSize: 11 }}>
+                    {progress
+                      ? progress.next
+                      : data.purchase_progress?.next_tier
+                        ? `${data.purchase_progress.next_tier.purchases_remaining} more purchase${data.purchase_progress.next_tier.purchases_remaining === 1 ? "" : "s"} to ${data.purchase_progress.next_tier.name}`
+                        : data.next_tier
+                          ? `${money(data.next_tier.spend_required_kes)} qualifying spend to ${data.next_tier.name}`
+                          : "Enjoy your highest Club tier"}
+                  </Text>
+                </View>
               </View>
+              <MilestoneProgressBar
+                current={
+                  progress?.current ??
+                  Math.min(data.rules.minimum_redemption, data.points)
+                }
+                total={progress?.total ?? data.rules.minimum_redemption}
+                color={colors.brandStrong}
+                trackColor={colors.brandLight}
+                label={
+                  progress
+                    ? `Overall progress to ${progress.target}`
+                    : "Progress to your next reward"
+                }
+                height={5}
+              />
             </View>
-            <MilestoneProgressBar
-              current={
-                progress?.current ??
-                Math.min(data.rules.minimum_redemption, data.points)
-              }
-              total={progress?.total ?? data.rules.minimum_redemption}
-              color={colors.brandStrong}
-              trackColor={colors.brandLight}
-              label={
-                progress
-                  ? `Overall progress to ${progress.target}`
-                  : "Progress to your next reward"
-              }
-              height={5}
-            />
-          </View>
+          ) : null}
           <Text style={{ color: colors.ink, fontSize: 15, fontWeight: "700" }}>
             <AnimatedNumber value={data.points} /> points ·{" "}
             {money(data.points * data.rules.point_value_kes)} reward value

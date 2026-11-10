@@ -114,13 +114,30 @@ test("order and payment requests address only app-owned routes with authenticate
   }
 });
 
-
 test("app receipt exports are escaped, app-referenced and require verified payment", () => {
   const { appReceiptHtml } = load("src/features/commerce/app-receipt.ts", {});
   assert.throws(() => appReceiptHtml({ paid_at: null }), /verified payment/);
-  const order = { reference: "APP-20261103-ABC", environment: "sandbox", paid_at: "2026-11-03T10:00:00+03:00", tracking_id: "provider-123", payment_state: "completed", total_minor: 250000,
-    snapshot: { subtotal_minor: 250000, delivery_minor: 0, discount_minor: 0, tax_minor: 0,
-      lines: [{ name: '<script>alert("test")</script>', quantity: 1, line_minor: 250000 }] } };
+  const order = {
+    reference: "APP-20261103-ABC",
+    environment: "sandbox",
+    paid_at: "2026-11-03T10:00:00+03:00",
+    tracking_id: "provider-123",
+    payment_state: "completed",
+    total_minor: 250000,
+    snapshot: {
+      subtotal_minor: 250000,
+      delivery_minor: 0,
+      discount_minor: 0,
+      tax_minor: 0,
+      lines: [
+        {
+          name: '<script>alert("test")</script>',
+          quantity: 1,
+          line_minor: 250000,
+        },
+      ],
+    },
+  };
   const html = appReceiptHtml(order);
   assert.match(html, /RCPT-APP-20261103-ABC/);
   assert.match(html, /SANDBOX/);
@@ -129,10 +146,19 @@ test("app receipt exports are escaped, app-referenced and require verified payme
   assert.match(html, /not an eTIMS tax invoice/);
 });
 
-
 test("active app orders, checkout and catalogue contain no website handoff", () => {
-  for (const file of ["src/features/commerce/PesapalCheckoutForm.tsx", "src/features/commerce/AppOrdersScreen.tsx", "src/features/account/OrdersScreen.tsx", "src/features/commerce/api.ts", "app/legal.tsx"]) {
+  for (const file of [
+    "src/features/commerce/PesapalCheckoutForm.tsx",
+    "src/features/commerce/AppOrdersScreen.tsx",
+    "src/features/account/OrdersScreen.tsx",
+    "src/features/commerce/api.ts",
+    "app/legal.tsx",
+  ]) {
     const source = fs.readFileSync(file, "utf8");
-    assert.doesNotMatch(source, /LegacyWebsiteCheckoutForm|fetchWebsiteOrder|prepareWebsiteCheckoutCart|websiteOrderUrl|Linking\.openURL|cakecity\.co\.ke/, file);
+    assert.doesNotMatch(
+      source,
+      /LegacyWebsiteCheckoutForm|fetchWebsiteOrder|prepareWebsiteCheckoutCart|websiteOrderUrl|Linking\.openURL|cakecity\.co\.ke/,
+      file,
+    );
   }
 });

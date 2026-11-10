@@ -34,6 +34,7 @@ import { useBag } from "./store";
 import { money, type CheckoutInput } from "./contracts";
 import { distanceOptionsSchema, type DeliveryRouteQuote } from "./app-delivery";
 import { HqDeliveryPicker } from "./HqDeliveryPicker";
+import { CheckoutProgress } from "@/components/storefront/CheckoutProgress";
 
 const quoteSchema = z.object({
   id: z.string(),
@@ -618,6 +619,7 @@ function AppCheckout({ owner }: { owner: string }) {
     );
   return (
     <View style={{ gap: 18 }}>
+      <CheckoutProgress current={quote ? 2 : 1} />
       <LinearGradient
         colors={["#930052", "#B80068", "#DB218D"]}
         start={{ x: 0, y: 0 }}
@@ -629,11 +631,9 @@ function AppCheckout({ owner }: { owner: string }) {
             <Text style={checkoutStyles.heroEyebrow}>
               BAKED FOR YOUR MOMENT
             </Text>
-            <Text style={checkoutStyles.introTitle}>
-              Your sweet{"\n"}moment.
-            </Text>
+            <Text style={checkoutStyles.introTitle}>Almost yours.</Text>
             <Text style={checkoutStyles.heroSubtitle}>
-              Made to order. Made for you.
+              Add your details, choose delivery, then review before paying.
             </Text>
           </View>
           {lines[0]?.image ? (
@@ -666,6 +666,35 @@ function AppCheckout({ owner }: { owner: string }) {
           </View>
         </View>
       </LinearGradient>
+      <View
+        style={[
+          checkoutStyles.quoteHint,
+          {
+            backgroundColor: colors.surface,
+            borderColor: colors.border,
+            borderWidth: 1,
+          },
+        ]}
+      >
+        <View style={{ flex: 1, gap: 4 }}>
+          <Text style={{ color: colors.muted, fontSize: 12 }}>
+            Bag subtotal · {itemCount} {itemCount === 1 ? "item" : "items"}
+          </Text>
+          <Text style={{ color: colors.ink, fontSize: 22, fontWeight: "800" }}>
+            {money(
+              lines.reduce((sum, line) => sum + line.price * line.quantity, 0),
+            )}
+          </Text>
+          <Text style={{ color: colors.muted, fontSize: 12 }}>
+            Delivery and discounts confirmed before payment.
+          </Text>
+        </View>
+        <Button
+          variant="ghost"
+          label="Edit bag"
+          onPress={() => router.push("/cart")}
+        />
+      </View>
       {!lines.length ? <Notice message="Your bag is empty." /> : null}
       <View style={checkoutStyles.columns}>
         <View style={checkoutStyles.mainColumn}>

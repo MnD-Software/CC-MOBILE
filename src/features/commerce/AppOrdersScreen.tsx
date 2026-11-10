@@ -18,6 +18,7 @@ import { appOrderSchema } from "./app-orders";
 import { appReceiptHtml } from "./app-receipt";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
+import { DeliveryComplete } from "./DeliveryComplete";
 
 export function AppOrdersScreen() {
   const { customer } = useAuth();
@@ -174,6 +175,7 @@ export function AppOrderScreen() {
           ) : null}
           <Text>{value.reference}</Text>
           <Text>{value.status.replaceAll("_", " ")}</Text>
+          <DeliveryComplete key={value.reference} order={value} />
           <Text>
             {money(value.total_minor / 100)} ·{" "}
             {value.payment_test
@@ -218,6 +220,19 @@ export function AppOrderScreen() {
                 {value.dispatch.rider_phone}
               </Text>
             ) : null}
+            {value.deliveries?.map((delivery, index) => (
+              <View key={delivery.id} style={{ gap: 4 }}>
+                <Text>
+                  Delivery {index + 1}: {delivery.status.replaceAll("_", " ")}
+                </Text>
+                {delivery.scheduled_at ? (
+                  <Text>
+                    {new Date(delivery.scheduled_at).toLocaleString()}
+                    {delivery.slot ? ` · ${delivery.slot}` : ""}
+                  </Text>
+                ) : null}
+              </View>
+            ))}
             {orderTracking(value).map((step) => (
               <View key={step.label} style={{ gap: 4 }}>
                 <Text>

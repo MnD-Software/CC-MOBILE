@@ -206,7 +206,17 @@ export function FloatingTabBar() {
       hide.remove();
     };
   }, []);
-  if (keyboardVisible) return null;
+  if (
+    keyboardVisible ||
+    [
+      "/rider",
+      "/rider-login",
+      "/kitchen",
+      "/dispatch",
+      "/splash-preview",
+    ].includes(pathname)
+  )
+    return null;
   return (
     <View
       pointerEvents="box-none"

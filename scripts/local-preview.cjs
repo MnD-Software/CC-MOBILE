@@ -121,6 +121,16 @@ async function main() {
     );
   }
   const credentials = JSON.parse(fs.readFileSync(credentialsFile, "utf8"));
+  for (const role of ["production", "rider", "dispatch"]) {
+    if (!credentials.accounts[role])
+      credentials.accounts[role] = {
+        email: `${role}@preview.example.com`,
+        password: randomBytes(24).toString("base64url"),
+      };
+  }
+  fs.writeFileSync(credentialsFile, JSON.stringify(credentials, null, 2), {
+    mode: 0o600,
+  });
   const loginNotes = [
     "LOCAL REVIEW ACCOUNTS — this computer only",
     "",
@@ -151,6 +161,24 @@ async function main() {
     WOOCOMMERCE_CONSUMER_SECRET: "",
     WOOCOMMERCE_WEBHOOK_SECRET: "",
     CLUB_EVENT_SECRET: "",
+    PESAPAL_CONSUMER_KEY: "",
+    PESAPAL_CONSUMER_SECRET: "",
+    PESAPAL_ACCOUNTS_JSON: "",
+    PESAPAL_ENVIRONMENT: "sandbox",
+    PESAPAL_PUBLIC_URL: "",
+    APP_PUBLIC_URL: apiUrl,
+    RENDER_EXTERNAL_URL: "",
+    SALES_INGEST_SECRET: "",
+    GOOGLE_MAPS_API_KEY: "",
+    GOOGLE_MAPS_BROWSER_KEY: "",
+    ODOO_ENABLED: "false",
+    PUSH_ENABLED: "false",
+    EXPO_PUSH_ACCESS_TOKEN: "",
+    ODOO_LOYALTY_AUTHORITY: "false",
+    ODOO_URL: "",
+    ODOO_DATABASE: "",
+    ODOO_API_KEY: "",
+    ODOO_WEBHOOK_SECRET: "",
     CAKECITY_LOCAL_PREVIEW_DIR: directory,
   };
   const backendLog = fs.openSync(path.join(directory, "backend.log"), "a");
@@ -185,6 +213,7 @@ async function main() {
       "scripts/expo.cjs",
       "start",
       "--web",
+      "--clear",
       "--host",
       "localhost",
       "--port",

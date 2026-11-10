@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { randomUUID } from "expo-crypto";
 import { useQueryClient } from "@tanstack/react-query";
@@ -12,12 +14,14 @@ import {
 } from "@/auth/secure-storage";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { Disclosure } from "@/components/ui/Disclosure";
 import { Notice, Screen } from "@/components/ui/Commerce";
 import { Text } from "@/components/ui/Typography";
 import { useTheme } from "@/theme/ThemeProvider";
 import { z } from "zod";
 import { appOrderSchema, type AppOrder } from "./app-orders";
 import { PaymentConfetti } from "./PaymentConfetti";
+import { CheckoutProgress } from "@/components/storefront/CheckoutProgress";
 
 const attemptSchema = z.object({
   quote_id: z.string().uuid(),
@@ -32,6 +36,12 @@ export function PaymentTestScreen() {
   ) : (
     <Screen title="Purchase test" back>
       <Notice message="Sign in with an app commerce staff account to run this test." />
+      {!customer ? (
+        <Button
+          label="Sign in to test checkout"
+          onPress={() => router.push("/sign-in")}
+        />
+      ) : null}
     </Screen>
   );
 }
@@ -59,6 +69,7 @@ function TestPurchase({
   const [error, setError] = useState("");
   const [ready, setReady] = useState(false);
   const [celebrate, setCelebrate] = useState(false);
+  const [reviewed, setReviewed] = useState(false);
   const attempt = useRef<z.infer<typeof attemptSchema> | null>(null);
   const flight = useRef(false);
   const key = `cakecity.simulated-purchase.${customer.id}`;
@@ -103,6 +114,10 @@ function TestPurchase({
         if (!attempt.current) {
           if (!/^(?:\+?254|0)[17][0-9]{8}$/.test(phone.trim()))
             throw new Error("Enter a valid Kenyan phone number.");
+          if (!destination.trim())
+            throw new Error(
+              "Add a test delivery address or pickup branch so dispatch has a destination.",
+            );
           const product = z
             .object({ id: z.number() })
             .parse(
@@ -185,14 +200,55 @@ function TestPurchase({
   const done = order?.payment_state === "completed";
   return (
     <Screen
-      title="Test the full journey"
+      title="Test cake checkout"
       subtitle="Order → Club → kitchen → delivery"
       back
     >
       {celebrate ? (
         <PaymentConfetti onComplete={() => setCelebrate(false)} />
       ) : null}
-      <Notice message="SIMULATED PURCHASE — no money is charged and Pesapal is not called. Only the designated test product can use this flow." />
+      <CheckoutProgress current={reviewed || order ? 2 : 1} />
+      <LinearGradient
+        colors={["#930052", "#B80068", "#DB218D"]}
+        style={{ padding: 22, borderRadius: 26, gap: 14 }}
+      >
+        <Text
+          style={{
+            color: "#FFE1F0",
+            fontSize: 10,
+            fontWeight: "800",
+            letterSpacing: 1.5,
+          }}
+        >
+          DEMO PRODUCT • NOT A REAL CAKE
+        </Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 16 }}>
+          <View
+            style={{
+              width: 72,
+              height: 72,
+              borderRadius: 22,
+              backgroundColor: "rgba(255,255,255,0.18)",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Ionicons name="flask-outline" size={38} color="#FFFFFF" />
+          </View>
+          <View style={{ flex: 1, gap: 5 }}>
+            <Text style={{ color: "#FFFFFF", fontSize: 24, fontWeight: "800" }}>
+              Cake City test cake
+            </Text>
+            <Text style={{ color: "#FFE1F0", lineHeight: 20 }}>
+              1 test item · KES 1.00
+            </Text>
+          </View>
+        </View>
+        <Text style={{ color: "#FFFFFF", lineHeight: 20 }}>
+          Your complete order journey, without a charge.
+        </Text>
+      </LinearGradient>
+      <Notice message="SIMULATED PURCHASE — no money is charged and Pesapal is not called. This is a dedicated test item, not part of your real shopping bag. No physical cake or delivery is requested." />
       <View
         style={{
           padding: 22,
@@ -207,15 +263,17 @@ function TestPurchase({
           KES 1.00 total
         </Text>
         <Text style={{ color: colors.ink }}>
-          Test product: KES 1 · Delivery / pickup: KES 0 · Tax: KES 0
+          Test cake × 1: KES 1 · Delivery / pickup: KES 0 · Tax: KES 0
         </Text>
-        <Text style={{ color: colors.muted }}>
-          Counts as KES 100 qualifying spend in your normal Club, using its
-          current earning rule. This does not mean 100 points. Test activity is
-          labelled in orders and the dashboard.
-        </Text>
+        <Disclosure title="How this test updates Club">
+          <Text style={{ color: colors.muted }}>
+            Counts as KES 100 qualifying spend in your normal Club, using its
+            current earning rule. This does not mean 100 points. Test activity
+            is labelled in orders and the dashboard.
+          </Text>
+        </Disclosure>
       </View>
-      {!order && !attempt.current ? (
+      {!order && !attempt.current && !reviewed ? (
         <>
           <Input
             label="Phone"
@@ -241,6 +299,11 @@ function TestPurchase({
             />
           </View>
           <Input
+            placeholder={
+              fulfilment === "pickup"
+                ? "e.g. Head Office — test pickup"
+                : "e.g. Westlands, test building, reception"
+            }
             label={
               fulfilment === "pickup"
                 ? "Pickup branch (test)"
@@ -251,6 +314,36 @@ function TestPurchase({
             editable={!busy}
           />
         </>
+      ) : null}
+      {reviewed && !order && !attempt.current ? (
+        <View
+          style={{
+            padding: 20,
+            gap: 12,
+            borderRadius: 22,
+            borderWidth: 1,
+            borderColor: colors.border,
+            backgroundColor: colors.surface,
+          }}
+        >
+          <Text style={{ color: colors.ink, fontSize: 19, fontWeight: "800" }}>
+            Review your test order
+          </Text>
+          <Text style={{ color: colors.ink }}>
+            {customer.first_name} {customer.last_name} · {phone}
+          </Text>
+          <Text style={{ color: colors.muted }}>
+            {fulfilment === "pickup" ? "Pickup" : "Delivery"}: {destination}
+          </Text>
+          <Text style={{ color: colors.brandStrong, fontWeight: "800" }}>
+            Simulated total: KES 1.00 · Actual charge: KES 0.00
+          </Text>
+          <Button
+            variant="ghost"
+            label="Edit test details"
+            onPress={() => setReviewed(false)}
+          />
+        </View>
       ) : null}
       {error ? <Notice error message={error} /> : null}
       {done ? (
@@ -274,9 +367,21 @@ function TestPurchase({
           />
           <Button
             variant="outline"
+            label="Continue in Kitchen"
+            onPress={() => router.push("/kitchen")}
+          />
+          <Button
+            variant="outline"
+            label="Open Dispatch"
+            onPress={() => router.push("/dispatch")}
+          />
+          <Notice message="Next: in Kitchen, find this order reference, choose a location, assign production and mark it ready. In Dispatch, select a rider and assign the items. Sign in separately at /rider-login with the assigned rider account to accept, collect and confirm delivery. Track this same reference in Your orders. Pickup orders finish through the staff collection workflow." />
+          <Button
+            variant="outline"
             label="Run another KES 1 test"
             onPress={() => {
               setOrder(null);
+              setReviewed(false);
               setCelebrate(false);
             }}
           />
@@ -286,11 +391,30 @@ function TestPurchase({
           label={
             order || attempt.current
               ? "Resume the same test purchase"
-              : "Simulate KES 1 purchase"
+              : reviewed
+                ? "Simulate KES 1 purchase"
+                : "Review test order"
           }
           loading={busy}
           disabled={!ready || busy}
-          onPress={() => void run()}
+          onPress={() => {
+            if (order || attempt.current || reviewed) {
+              void run();
+              return;
+            }
+            if (!/^(?:\+?254|0)[17][0-9]{8}$/.test(phone.trim())) {
+              setError("Enter a valid Kenyan phone number.");
+              return;
+            }
+            if (!destination.trim()) {
+              setError(
+                "Add a test delivery address or pickup branch so dispatch has a destination.",
+              );
+              return;
+            }
+            setError("");
+            setReviewed(true);
+          }}
         />
       )}
     </Screen>

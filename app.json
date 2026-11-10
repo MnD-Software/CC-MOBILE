@@ -61,10 +61,14 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#FFFFFF",
+          "backgroundColor": "#21051E",
           "image": "./assets/cake-city-splash.png",
           "imageWidth": 260,
-          "resizeMode": "contain"
+          "resizeMode": "contain",
+          "dark": {
+            "backgroundColor": "#21051E",
+            "image": "./assets/cake-city-splash.png"
+          }
         }
       ],
       [

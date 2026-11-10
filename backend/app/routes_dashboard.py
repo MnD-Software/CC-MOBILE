@@ -100,6 +100,8 @@ class ProductInput(BaseModel):
 
 def save_product(identity, data, actor, db):
     row = db.get(AppProduct, identity) if identity else None
+    if row and row.payload.get("odoo_source"):
+        raise HTTPException(409, "Odoo manages this product. Change it in Odoo and synchronize the app.")
     if identity and not row:
         raise HTTPException(404, "Product not found")
     if (row and row.parent_id != data.parent_id) or (not row and data.revision):
@@ -207,7 +209,11 @@ def promotion(code: str, data: PromotionInput, actor: Customer = Depends(operato
 
 
 @router.get("/v1/admin/dashboard/club")
-def club_members(_: Customer = Depends(operator), db: Session = Depends(get_db)):
+async def club_members(_: Customer = Depends(operator), db: Session = Depends(get_db)):
+    from .odoo_loyalty import authoritative
+    if authoritative():
+        from .odoo_client import OdooClient
+        return await OdooClient().bridge("club_members")
     from .models import ClubAccount, ClubOrder
     counts = select(ClubOrder.customer_id, func.count().label("purchases")).group_by(ClubOrder.customer_id).subquery()
     rows = db.execute(select(Customer, ClubAccount, counts.c.purchases)

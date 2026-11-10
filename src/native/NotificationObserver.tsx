@@ -6,16 +6,19 @@ import { useAuth } from "@/auth/AuthProvider";
 import { notificationRoute } from "./notifications";
 
 const Notifications = getNativeNotifications();
+let notificationOwner: string | null = null;
 if (Notifications) {
   Notifications.setNotificationHandler({
     handleNotification: async (notification) => {
       const tracking =
         notification.request.content.data?.cakeCityOrderTracking === true;
+      const target = notification.request.content.data?.customer_id;
+      const owned = typeof target !== "string" || target === notificationOwner;
       return {
-        shouldPlaySound: !tracking,
+        shouldPlaySound: owned && !tracking,
         shouldSetBadge: false,
-        shouldShowBanner: true,
-        shouldShowList: true,
+        shouldShowBanner: owned,
+        shouldShowList: owned,
         priority: tracking
           ? Notifications.AndroidNotificationPriority.LOW
           : Notifications.AndroidNotificationPriority.DEFAULT,
@@ -26,6 +29,7 @@ if (Notifications) {
 
 export function NotificationObserver() {
   const { customer, restoring } = useAuth();
+  notificationOwner = customer?.id ?? null;
   const handledResponse = useRef<string | null>(null);
   useEffect(() => {
     const Notifications = getNativeNotifications();
@@ -33,6 +37,8 @@ export function NotificationObserver() {
     let active = true;
     const handle = (response: NotificationTypes.NotificationResponse) => {
       if (!active) return;
+      const owner = response.notification.request.content.data?.customer_id;
+      if (typeof owner === "string" && owner !== customer.id) return;
       const identity = `${response.notification.request.identifier}:${response.notification.date}:${response.actionIdentifier}`;
       if (handledResponse.current === identity) return;
       handledResponse.current = identity;

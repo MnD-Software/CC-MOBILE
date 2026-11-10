@@ -148,6 +148,9 @@ function checkout() {
     },
     "./app-delivery": { distanceOptionsSchema: z.any() },
     "./HqDeliveryPicker": { HqDeliveryPicker: "HqPicker" },
+    "@/components/storefront/CheckoutProgress": {
+      CheckoutProgress: "Progress",
+    },
     "./PaymentConfetti": { PaymentConfetti: "Confetti" },
     "./InAppPayment": { InAppPayment: "Payment" },
     "@/theme/ThemeProvider": { useTheme: () => ({ colors: {} }) },

@@ -16,6 +16,7 @@ from .config import get_settings
 from .db import get_db
 from .models import ClubAccount, ClubEntry, ClubOrder, ClubRedemption, Customer
 from .security import customer_from_access_token
+from .club_celebrations import TIERS, ClubAchievement, earn as earn_achievements, pending as pending_achievements
 
 router = APIRouter(tags=["club"])
 
@@ -66,10 +67,13 @@ def consume(db, customer_id, points):
 
 
 @router.get("/v1/club")
-def overview(customer: Customer = Depends(member), db: Session = Depends(get_db)):
+async def overview(customer: Customer = Depends(member), db: Session = Depends(get_db)):
+    from . import odoo_loyalty
+    if odoo_loyalty.authoritative():
+        return await odoo_loyalty.overview(customer.id)
     value = account(db, customer.id)
     settings = get_settings()
-    tiers = [(0, "Silver"), (2000000, "Gold"), (5000000, "Diamond"), (10000000, "Platinum")]
+    tiers = TIERS
     tier = next(name for threshold, name in reversed(tiers) if value.spend_minor >= threshold)
     next_tier = next(({"name": name, "spend_required_kes": (threshold-value.spend_minor)/100}
         for threshold, name in tiers if threshold > value.spend_minor), None)
@@ -79,6 +83,10 @@ def overview(customer: Customer = Depends(member), db: Session = Depends(get_db)
         .order_by(ClubRedemption.id).limit(100)).all()
     payload = {"member_id": customer.id, "points": value.points, "debt": value.debt,
         "tier": tier, "next_tier": next_tier,
+        "celebrations": pending_achievements(db, customer.id),
+        "journey": {"qualifying_spend_kes": value.spend_minor/100,
+            "lifetime_points": value.lifetime_points,
+            "milestones": [{"name": name, "spend_kes": threshold/100} for threshold, name in TIERS]},
         "rules": {"earn_spend_kes": settings.club_earn_minor/100,
             "point_value_kes": settings.club_point_value_minor/100,
             "expiry_days": settings.club_expiry_days, "minimum_redemption": 100,
@@ -93,8 +101,22 @@ def overview(customer: Customer = Depends(member), db: Session = Depends(get_db)
     return payload
 
 
+@router.post("/v1/club/celebrations/{identity}/ack")
+def acknowledge_celebration(identity: str, customer: Customer = Depends(member), db: Session = Depends(get_db)):
+    row = db.get(ClubAchievement, identity)
+    if not row or row.customer_id != customer.id:
+        raise HTTPException(404, "Celebration not found")
+    if not row.seen_at:
+        row.seen_at = datetime.now(UTC)
+        db.commit()
+    return {"acknowledged": True}
+
+
 @router.get("/v1/club/transactions")
-def transactions(before: str | None = Query(default=None, max_length=36), limit: int = Query(default=20, ge=1, le=50), customer: Customer = Depends(member), db: Session = Depends(get_db)):
+async def transactions(before: str | None = Query(default=None, max_length=36), limit: int = Query(default=20, ge=1, le=50), customer: Customer = Depends(member), db: Session = Depends(get_db)):
+    from . import odoo_loyalty
+    if odoo_loyalty.authoritative():
+        return await odoo_loyalty.transactions(customer.id, before, limit)
     statement = select(ClubEntry).where(ClubEntry.customer_id == customer.id)
     if before:
         cursor = db.scalar(select(ClubEntry).where(ClubEntry.id == before, ClubEntry.customer_id == customer.id))
@@ -114,7 +136,7 @@ class BranchLookup(BaseModel):
 
 
 @router.post("/v1/admin/club/lookup")
-def branch_lookup(body: BranchLookup, customer: Customer = Depends(member), db: Session = Depends(get_db)):
+async def branch_lookup(body: BranchLookup, customer: Customer = Depends(member), db: Session = Depends(get_db)):
     # The printed pass identifies a member; it never grants redemption authority.
     if customer.role not in ("staff", "admin"):
         raise HTTPException(403, "Staff access required")
@@ -126,6 +148,11 @@ def branch_lookup(body: BranchLookup, customer: Customer = Depends(member), db: 
     target = db.get(Customer, str(UUID(bytes=raw)))
     if not target:
         raise HTTPException(404, "Member not found")
+    from . import odoo_loyalty
+    if odoo_loyalty.authoritative():
+        value = await odoo_loyalty.overview(target.id)
+        return {"member_id": target.id, "name": " ".join(filter(None, [target.first_name, target.last_name])),
+            "tier": value["tier"], "points": value["points"], "review_required": value["review_required"]}
     value = account(db, target.id)
     tiers = [(0, "Silver"), (2000000, "Gold"), (5000000, "Diamond"), (10000000, "Platinum")]
     tier = next(name for threshold, name in reversed(tiers) if value.spend_minor >= threshold)
@@ -163,6 +190,9 @@ async def order_event(request: Request, x_club_signature: str = Header(default="
 
 
 def apply_order_event(event: OrderEvent, db: Session):
+    from . import odoo_loyalty
+    if odoo_loyalty.authoritative():
+        return {"status": "managed_by_odoo"}
     settings = get_settings()
     if event.currency != "KES" or event.refunded_minor > event.paid_minor:
         raise HTTPException(422, "Invalid qualifying spend")
@@ -180,6 +210,8 @@ def apply_order_event(event: OrderEvent, db: Session):
         raise HTTPException(409, "Stale refund event")
     value.review_required = False
     delta = 0
+    previous_spend, previous_lifetime = value.spend_minor, value.lifetime_points
+    new_purchase = order is None
     if not order:
         earned = event.paid_minor // settings.club_earn_minor
         order = ClubOrder(order_id=event.order_id, customer_id=event.customer_id,
@@ -216,6 +248,8 @@ def apply_order_event(event: OrderEvent, db: Session):
     description = f"Order {event.order_id}: qualifying spend updated"
     if app_order and app_order.channel == "app_test":
         description = f"SIMULATED TEST {event.order_id}: KES 100 qualifying value (no payment)"
+    if new_purchase and remaining > 0:
+        earn_achievements(db, value, previous_spend, previous_lifetime, remaining, event.order_id)
     db.add(ClubEntry(id=str(uuid4()), customer_id=event.customer_id, event_key=key,
         points=delta+waived, remaining=remaining, order_id=event.order_id, description=description,
         expires_at=datetime.now(UTC)+timedelta(days=settings.club_expiry_days) if remaining else None))
@@ -232,6 +266,9 @@ class Redeem(BaseModel):
 
 @router.post("/v1/club/redeem")
 async def redeem(payload: Redeem, customer: Customer = Depends(member), db: Session = Depends(get_db)):
+    from . import odoo_loyalty
+    if odoo_loyalty.authoritative():
+        return await odoo_loyalty.redeem(db, customer.id, payload.points, payload.request_key)
     settings = get_settings()
     value = account(db, customer.id)
     record = db.scalar(select(ClubRedemption).where(

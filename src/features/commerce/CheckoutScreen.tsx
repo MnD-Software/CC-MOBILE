@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/Button";
 import { Feedback, Notice, Screen } from "@/components/ui/Commerce";
 import { PesapalCheckoutForm } from "./PesapalCheckoutForm";
 import { loadPesapalConfiguration } from "./pesapal-checkout";
+import { TestJourneyCard } from "./TestJourneyCard";
 
 function LiveCheckout() {
   const configuration = useQuery({
@@ -14,6 +15,7 @@ function LiveCheckout() {
   });
   return (
     <Screen title="Checkout" subtitle="Secure payment with Pesapal." back>
+      <TestJourneyCard />
       {configuration.isPending && configuration.fetchStatus !== "idle" ? (
         <Feedback loading />
       ) : configuration.isError ? (

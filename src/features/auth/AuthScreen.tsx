@@ -13,8 +13,10 @@ import { authApi } from "@/auth/api";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 export function AuthScreen({
   mode,
+  destination,
 }: {
   mode: "login" | "register" | "forgot" | "reset";
+  destination?: "/rider";
 }) {
   const ui = useThemedStyles(baseUi);
   const { colors } = useTheme();
@@ -50,7 +52,8 @@ export function AuthScreen({
       if (mode === "login") {
         if (!password) throw new Error("Enter your password.");
         await auth.login(email, password);
-        if (router.canGoBack()) router.back();
+        if (destination) router.replace(destination);
+        else if (router.canGoBack()) router.back();
         else router.replace("/home");
       }
       if (mode === "register") {
@@ -111,7 +114,7 @@ export function AuthScreen({
           <Text
             style={[ui.title, { fontSize: 38, lineHeight: 44, marginTop: 10 }]}
           >
-            {title}
+            {destination === "/rider" ? "Rider sign in" : title}
           </Text>
           <Text style={[ui.body, { marginTop: 10 }]}>
             The cakes you love. The people you celebrate. A little more Cake
@@ -219,11 +222,22 @@ export function AuthScreen({
                 label="Forgot password?"
                 onPress={() => router.push("/forgot-password")}
               />
-              <Button
-                variant="outline"
-                label="Create a Cake City account"
-                onPress={() => router.push("/register")}
-              />
+              {destination !== "/rider" ? (
+                <>
+                  <Button
+                    variant="outline"
+                    label="Create a Cake City account"
+                    onPress={() => router.push("/register")}
+                  />
+                  <Button
+                    variant="ghost"
+                    label="Rider sign in"
+                    onPress={() => router.push("/rider-login")}
+                  />
+                </>
+              ) : (
+                <Notice message="Use your provisioned rider or driver account. Dispatch assigns access; signing up as a customer does not grant rider access." />
+              )}
             </>
           ) : null}
           {mode === "register" ? (

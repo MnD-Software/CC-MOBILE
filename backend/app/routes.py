@@ -32,7 +32,7 @@ def mobile_config() -> MobileConfigResponse:
             "distance_delivery": False,
             "studio": False,
             "coupons": False,
-            "native_push": False,
+            "native_push": get_settings().push_enabled,
             "variation_checkout": False,
             "club": True,
             "celebrations": True,
