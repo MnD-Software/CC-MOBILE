@@ -37,6 +37,28 @@ def test_explicit_web_origins_and_native_only_configuration_are_supported():
     validate_production_settings(Settings(_env_file=None, environment="development"))
 
 
+def test_password_recovery_requires_private_smtp_configuration_when_enabled():
+    with pytest.raises(RuntimeError, match="SMTP_HOST"):
+        validate_production_settings(production(password_recovery_enabled=True))
+
+    with pytest.raises(RuntimeError, match="SMTP_SENDER_EMAIL"):
+        validate_production_settings(production(
+            password_recovery_enabled=True,
+            smtp_host="smtp.example.com",
+            smtp_username="mailer",
+            smtp_password="private-secret",
+            smtp_sender_email="not-an-email",
+        ))
+
+    validate_production_settings(production(
+        password_recovery_enabled=True,
+        smtp_host="smtp.example.com",
+        smtp_username="mailer",
+        smtp_password="private-secret",
+        smtp_sender_email="support@example.com",
+    ))
+
+
 def test_direct_asgi_start_cannot_bypass_production_guards(monkeypatch):
     import app.main as main
     monkeypatch.setattr(main, "get_settings", lambda: production(jwt_secret="secret"))

@@ -3,6 +3,14 @@
 Updated 11 September 2026. This document describes the current native application;
 older web-preview and device screenshots are historical artifacts.
 
+> **Historical snapshot:** the feature list and QA evidence below describe the
+> September 2026 baseline and are not a current inventory. The app has since
+> advanced to Expo SDK 58 and version 0.3.2. Use
+> [the current feature status](enhancements/FEATURE_STATUS.md),
+> [the enhancement plan](enhancements/ENHANCEMENT_PLAN.md) and
+> [the SDK 58 upgrade notes](SDK_58_UPGRADE.md) for present-day status and
+> release gates.
+
 ## Delivered source
 
 - Five persistent Expo Router tabs: Home, Shop, Custom, Orders and Account.

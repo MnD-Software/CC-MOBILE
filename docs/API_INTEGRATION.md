@@ -14,11 +14,13 @@ does not fall back to bundled display products when that service is unavailable.
 | Session | `POST /v1/auth/mobile/refresh`, `/logout` | Refresh rotates the native session; logout returns HTTP 204. |
 | Mobile config | `GET /v1/mobile/config` | Available, but current capabilities do not enable checkout, rewards, delivery or studio ordering. |
 
-`/v1/auth/mobile/google`, password-reset routes, account orders, addresses,
-favourites, rewards, checkout quotes, payments and delivery routes are not live
-on this deployment. The app intentionally does not present them as working
-actions. Device-local saved cakes are labelled as local and are resolved against
-the current catalogue before display.
+`/v1/auth/mobile/google`, account orders, addresses, favourites, rewards,
+checkout quotes, payments and delivery routes are not live on the deployment
+evidence above. Password recovery is now implemented in source but remains
+disabled until private SMTP settings are provisioned; its deployed status has not
+been checked. The app does not present unsupported actions as working. Device-
+local saved cakes are labelled as local and are resolved against the current
+catalogue before display.
 
 Runtime schemas are in `src/features/commerce/contracts.ts`. The API boundary is
 in `src/features/commerce/api.ts`; authentication is in `src/auth/api.ts`.
@@ -78,11 +80,20 @@ delivery. Current checkout location entry uses GPS at the delivery address.
 
 ### Password recovery and native notifications
 
-- `POST /v1/auth/forgot-password`: `{email, redirect_uri}`. Allowlist
-  `cakecity://reset-password`, issue a short-lived single-use token and return
-  a generic response regardless of account existence.
-- `POST /v1/auth/reset-password`: `{token,password}`. Invalidate used reset tokens
-  and apply the account's session-revocation policy.
+- `POST /v1/auth/forgot-password`: `{email, redirect_uri}`. Source accepts only
+  `cakecity://reset-password`, stores only a hash of a random 30-minute token,
+  throttles repeat sends, and returns the same generic accepted response for
+  known/unknown accounts. SMTP delivery uses STARTTLS and runs after the response.
+- `POST /v1/auth/reset-password`: `{token,password}`. Source atomically claims
+  single-use tokens, invalidates other reset tokens, revokes refresh sessions,
+  and disables push devices bound to those sessions. Already-issued access JWTs
+  remain valid only until their configured short expiry.
+- Recovery remains off by default. Provision
+  `PASSWORD_RECOVERY_ENABLED=true`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`,
+  `SMTP_PASSWORD`, and `SMTP_SENDER_EMAIL` in the backend's private environment
+  only after verifying the sender and delivery service. Production startup
+  rejects enabling the feature without the required SMTP settings. See
+  `backend/.env.example`. No live email delivery was tested in this workspace.
 - `POST /v1/account/notifications/devices`: `{token,platform,provider:"expo"}`.
   Bind registration to the authenticated customer, reassign a reused token safely,
   honor preferences, and remove invalid tokens when processing delivery receipts.

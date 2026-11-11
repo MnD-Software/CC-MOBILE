@@ -2,6 +2,7 @@ from functools import lru_cache
 from typing import Literal
 from urllib.parse import urlsplit
 
+from email_validator import EmailNotValidError, validate_email
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -29,6 +30,14 @@ class Settings(BaseSettings):
     pesapal_public_url: str = ""
     render_external_url: str = ""
     redis_url: str = ""
+    password_recovery_enabled: bool = False
+    smtp_host: str = ""
+    smtp_port: int = Field(default=587, ge=1, le=65535)
+    smtp_username: str = ""
+    smtp_password: str = ""
+    smtp_sender_email: str = ""
+    smtp_sender_name: str = "Cake City"
+    smtp_timeout_seconds: int = Field(default=10, ge=1, le=30)
     google_maps_api_key: str = ""
     google_maps_browser_key: str = ""
     odoo_enabled: bool = False
@@ -88,3 +97,25 @@ def validate_production_settings(settings: Settings) -> None:
             raise RuntimeError("CORS_ORIGINS must contain explicit HTTPS origins, or be empty for native-only access.")
     if not settings.redis_url:
         raise RuntimeError("Set REDIS_URL to enable shared production authentication and mutation rate limits.")
+    if settings.password_recovery_enabled:
+        required = {
+            "SMTP_HOST": settings.smtp_host,
+            "SMTP_USERNAME": settings.smtp_username,
+            "SMTP_PASSWORD": settings.smtp_password,
+            "SMTP_SENDER_EMAIL": settings.smtp_sender_email,
+        }
+        missing = [key for key, value in required.items() if not value.strip()]
+        if missing:
+            raise RuntimeError(
+                "Configure SMTP_HOST, SMTP_USERNAME, SMTP_PASSWORD and SMTP_SENDER_EMAIL "
+                "before enabling PASSWORD_RECOVERY_ENABLED."
+            )
+        sender = settings.smtp_sender_email.strip()
+        if "\r" in sender or "\n" in sender:
+            raise RuntimeError("Set a valid SMTP_SENDER_EMAIL before enabling password recovery.")
+        try:
+            validate_email(sender, check_deliverability=False)
+        except EmailNotValidError:
+            raise RuntimeError("Set a valid SMTP_SENDER_EMAIL before enabling password recovery.") from None
+        if "\r" in settings.smtp_sender_name or "\n" in settings.smtp_sender_name:
+            raise RuntimeError("Set an SMTP_SENDER_NAME without line breaks before enabling password recovery.")

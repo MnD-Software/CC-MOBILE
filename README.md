@@ -1,14 +1,16 @@
 # Cake City Mobile
 
-Native Cake City customer app for Android and iOS, using Expo SDK 57, React Native
+Native Cake City customer app for Android and iOS, using Expo SDK 58, React Native
 and strict TypeScript. It has five focused destinations: Home, Shop, Orders,
 Loyalty and Account. Its glossy white interface only renders products returned by
 the Cake City mobile API.
 
-The live deployment currently supports email registration, sign-in, session
-refresh/logout and current catalogue browsing. Checkout, tracking, rewards,
-addresses and Google/password-reset identity remain backend dependencies, so the
-app presents those areas honestly rather than sending customers into failed calls.
+The deployment evidence currently confirms email registration, sign-in, session
+refresh/logout and catalogue browsing. The source also contains checkout,
+orders/tracking, rewards, addresses and fulfilment workflows, but those services
+must be verified on the live backend before release. Google sign-in is not
+configured; password recovery is implemented in source but stays disabled until
+private SMTP delivery is provisioned.
 
 ## Development
 
@@ -75,5 +77,7 @@ linked into a shipping widget target.
 - [API contracts and backend work](docs/API_INTEGRATION.md)
 - [Build, environment and deployment instructions](docs/release-builds.md)
 - [Architecture, features and QA checklist](docs/REBUILD_STATUS.md)
+- [Current enhancement status and release gates](docs/enhancements/FEATURE_STATUS.md)
 - [Production audit](docs/PRODUCTION_AUDIT.md)
+- [Expo SDK 58 upgrade notes](docs/SDK_58_UPGRADE.md)
 - [Codemagic iOS setup](docs/codemagic-ios.md)

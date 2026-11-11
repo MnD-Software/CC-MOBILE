@@ -42,6 +42,16 @@ class GoogleRequest(BaseModel):
     id_token: str = Field(min_length=20)
 
 
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+    redirect_uri: Literal["cakecity://reset-password"]
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str = Field(min_length=32, max_length=200)
+    password: str = Field(min_length=8, max_length=128)
+
+
 class CampaignResponse(BaseModel):
     id: str
     title: str

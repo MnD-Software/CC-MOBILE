@@ -208,8 +208,12 @@ export function FloatingTabBar() {
   }, []);
   if (
     keyboardVisible ||
-    pathname === "/concierge" ||
     [
+      "/concierge",
+      "/sign-in",
+      "/register",
+      "/forgot-password",
+      "/reset-password",
       "/rider",
       "/rider-login",
       "/kitchen",
