@@ -264,7 +264,7 @@ test("search, account identity and checkout location stay customer-controlled", 
   const help = read("app", "help.tsx");
   const appConfig = read("app.json");
 
-  assert.match(shop, /perPage: 100/);
+  assert.match(shop, /perPage: 24/);
   assert.match(shop, /const changeSearch/);
   assert.match(shop, /setCategory\(undefined\)/);
   assert.match(shop, /rememberSearch\(search\.trim\(\)\)/);

@@ -24,6 +24,8 @@ test("payment confetti waits for the accessibility preference before animating o
     }
   }
   const modules = {
+    "@/components/ui/ConfettiLayer": { useConfettiLayer: () => null },
+    "@/components/ui/ConfettiBurst": { ConfettiBurst: "ConfettiBurst" },
     react: {
       useEffect: (fn) => {
         effect = fn;

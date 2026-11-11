@@ -90,6 +90,26 @@ def riders(_: Customer = Depends(dispatch), db: Session = Depends(get_db)):
         for row in db.scalars(select(Customer).where(Customer.role.in_(service.RIDERS)).order_by(Customer.first_name).limit(1000))]
 
 
+@router.post("/v1/logistics/orders/{reference}/collection")
+def confirm_collection(reference: str, actor: Customer = Depends(dispatch), db: Session = Depends(get_db)):
+    order = service.paid_order(db, reference)
+    production = db.get(ProductionTask, order.id)
+    service.require_plant(db, actor, production.plant if production else "hq")
+    if order.snapshot.get("checkout", {}).get("fulfilment") != "pickup":
+        raise HTTPException(409, "Delivery orders must be completed through rider delivery confirmation.")
+    if order.state == "completed":
+        return {"status": "completed"}
+    if order.state != "ready":
+        raise HTTPException(409, "Kitchen must mark this order ready before collection.")
+    if any(task.status not in {"delivered", "cancelled"} for task in db.scalars(select(LogisticsTask).where(LogisticsTask.order_id == order.id))):
+        raise HTTPException(409, "Complete the branch transfer before confirming customer collection.")
+    order.state = "completed"
+    service.commerce.record_event(db, order, "fulfilment_completed", actor_id=actor.id)
+    audit(db, actor.id, "customer_collection_confirmed", reference)
+    db.commit()
+    return {"status": "completed"}
+
+
 @router.post("/v1/logistics/orders/{reference}/tasks", status_code=201)
 def create_trip(reference: str, data: service.NewTrip, actor: Customer = Depends(dispatch), db: Session = Depends(get_db)):
     return service.task_view(db, service.new_trip(db, actor, reference, data))

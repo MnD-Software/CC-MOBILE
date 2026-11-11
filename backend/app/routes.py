@@ -50,6 +50,7 @@ async def catalogue_products(
     per_page: int = Query(default=24, ge=1, le=100),
     category: str | None = Query(default=None, pattern=r"^[1-9][0-9]*(,[1-9][0-9]*)*$"),
     search: str | None = Query(default=None, max_length=120),
+    slug: str | None = Query(default=None, max_length=240),
     include: str | None = Query(default=None, pattern=r"^[1-9][0-9]*(,[1-9][0-9]*)*$"),
     type: str | None = Query(default=None, pattern="^variation$"),
     orderby: str = Query(default="id", pattern="^(id|date|title|price|popularity|rating)$"),
@@ -66,6 +67,8 @@ async def catalogue_products(
         params["category"] = category
     if search:
         params["search"] = search
+    if slug:
+        params["slug"] = slug
     for key, value in {"include": include, "type": type, "orderby": orderby, "order": order,
                        "min_price": min_price, "max_price": max_price, "on_sale": on_sale}.items():
         if value is not None:

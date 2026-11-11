@@ -1,11 +1,12 @@
 import { View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { Text } from "@/components/ui/Typography";
+import { Disclosure } from "@/components/ui/Disclosure";
 import { useTheme } from "@/theme/ThemeProvider";
 import { MilestoneProgressBar } from "./MilestoneProgressBar";
 import { money } from "@/features/commerce/contracts";
 
+/** One next goal; the full tier map stays available on demand. */
 export function ClubJourney({
   points,
   minimum,
@@ -23,140 +24,81 @@ export function ClubJourney({
   const next = journey.milestones.find(
     (step) => step.spend_kes > journey.qualifying_spend_kes,
   );
-  const rewardReady = points >= minimum;
+  const previous = [...journey.milestones]
+    .reverse()
+    .find((step) => step.spend_kes <= journey.qualifying_spend_kes);
   return (
-    <View testID="club-journey" style={{ gap: 16 }}>
-      <LinearGradient
-        colors={["#310A29", "#731043", "#B80068"]}
-        style={{ padding: 22, borderRadius: 26, gap: 14 }}
-      >
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 12,
-          }}
-        >
-          <View style={{ flex: 1, gap: 5 }}>
-            <Text
-              style={{
-                color: "#F6B4DA",
-                fontSize: 10,
-                fontWeight: "800",
-                letterSpacing: 1.5,
-              }}
-            >
-              YOUR NEXT SWEET WIN
-            </Text>
-            <Text style={{ color: "#FFFFFF", fontSize: 23, fontWeight: "800" }}>
-              {rewardReady
-                ? "A reward is within reach."
-                : `${Math.max(0, minimum - points)} points to go.`}
-            </Text>
-          </View>
-          <Ionicons
-            name={rewardReady ? "gift" : "sparkles"}
-            size={32}
-            color="#F6CE70"
-          />
-        </View>
-        <MilestoneProgressBar
-          current={points}
-          total={minimum}
-          color="#F6CE70"
-          trackColor="rgba(255,255,255,0.15)"
-          height={9}
-          label="Points toward reward redemption"
-        />
-        <Text style={{ color: "#FFE3F2", fontSize: 12, lineHeight: 19 }}>
-          {rewardReady
-            ? "Explore My rewards below. Checkout confirms reward eligibility."
-            : "Every verified purchase adds to your story. Earn points, unlock your next reward and celebrate along the way."}
-        </Text>
-      </LinearGradient>
-      <View
-        style={{
-          padding: 20,
-          borderWidth: 1,
-          borderColor: colors.border,
-          backgroundColor: colors.surface,
-          borderRadius: 24,
-          gap: 16,
-        }}
-      >
+    <View testID="club-journey" style={{ gap: 12 }}>
+      <View style={{ gap: 10, paddingVertical: 12 }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
           <Ionicons
-            name="trophy-outline"
-            size={23}
+            name={next ? "sparkles-outline" : "trophy-outline"}
+            size={20}
             color={colors.brandStrong}
           />
-          <Text style={{ color: colors.ink, fontSize: 19, fontWeight: "800" }}>
-            Your Club adventure
-          </Text>
-        </View>
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
-          {[
-            {
-              name: "First points",
-              unlocked: journey.lifetime_points > 0,
-              requirement: "Your journey begins",
-            },
-            ...journey.milestones.map((step) => ({
-              name: step.name,
-              unlocked: journey.qualifying_spend_kes >= step.spend_kes,
-              requirement:
-                step.spend_kes === 0
-                  ? "Your starting card"
-                  : `${money(step.spend_kes)} qualifying spend`,
-            })),
-          ].map((step, index) => (
-            <View
-              key={step.name}
-              style={{
-                flexBasis: 125,
-                flexGrow: 1,
-                padding: 14,
-                borderRadius: 18,
-                gap: 8,
-                borderWidth: 1,
-                borderColor: step.unlocked ? colors.brandStrong : colors.border,
-                backgroundColor: step.unlocked
-                  ? colors.brandLight
-                  : colors.background,
-              }}
+          <View style={{ flex: 1, gap: 3 }}>
+            <Text
+              style={{ color: colors.ink, fontWeight: "700", fontSize: 15 }}
             >
-              <Ionicons
-                name={
-                  step.unlocked ? "checkmark-circle" : "lock-closed-outline"
-                }
-                size={24}
-                color={step.unlocked ? colors.brandStrong : colors.muted}
-              />
-              <Text
-                style={{ color: colors.muted, fontSize: 9, letterSpacing: 1 }}
-              >
-                MILESTONE {index + 1}
-              </Text>
-              <Text
-                style={{ color: colors.ink, fontWeight: "800", fontSize: 15 }}
-              >
-                {step.name}
-              </Text>
-              <Text
-                style={{ color: colors.muted, fontSize: 11, lineHeight: 17 }}
-              >
-                {step.requirement}
-              </Text>
-            </View>
-          ))}
+              {next ? `Next chapter: ${next.name}` : "Every tier unlocked"}
+            </Text>
+            <Text style={{ color: colors.muted, fontSize: 12 }}>
+              {next
+                ? `${money(next.spend_kes - journey.qualifying_spend_kes)} qualifying spend to your next card`
+                : "Enjoy your highest Club tier"}
+            </Text>
+          </View>
         </View>
-        <Text style={{ color: colors.muted, fontSize: 13, lineHeight: 20 }}>
-          {next
-            ? `${money(next.spend_kes - journey.qualifying_spend_kes)} qualifying spend to ${next.name}. Your card levels up when the milestone is verified.`
-            : "You've unlocked every card tier. Keep enjoying your points and member rewards."}
-        </Text>
+        <MilestoneProgressBar
+          current={
+            next ? journey.qualifying_spend_kes - (previous?.spend_kes ?? 0) : 1
+          }
+          total={next ? next.spend_kes - (previous?.spend_kes ?? 0) : 1}
+          color={colors.brandStrong}
+          trackColor={colors.brandLight}
+          label={next ? `Progress to ${next.name}` : "All tiers unlocked"}
+          height={5}
+        />
       </View>
+      <Disclosure title="Explore card levels">
+        {journey.milestones.map((step) => (
+          <View
+            key={step.name}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 12,
+              paddingVertical: 12,
+            }}
+          >
+            <Ionicons
+              name={
+                journey.qualifying_spend_kes >= step.spend_kes
+                  ? "checkmark-circle"
+                  : "lock-closed-outline"
+              }
+              size={20}
+              color={
+                journey.qualifying_spend_kes >= step.spend_kes
+                  ? colors.brandStrong
+                  : colors.muted
+              }
+            />
+            <Text style={{ flex: 1, color: colors.ink, fontWeight: "600" }}>
+              {step.name}
+            </Text>
+            <Text style={{ color: colors.muted, fontSize: 11 }}>
+              {step.spend_kes ? money(step.spend_kes) : "Welcome card"}
+            </Text>
+          </View>
+        ))}
+        <Text style={{ color: colors.muted, fontSize: 12, lineHeight: 19 }}>
+          {points >= minimum
+            ? "Your next reward is ready to explore in My rewards."
+            : `Earn ${Math.max(0, minimum - points)} more points to reach your next reward.`}{" "}
+          Card levels follow verified qualifying spend.
+        </Text>
+      </Disclosure>
     </View>
   );
 }

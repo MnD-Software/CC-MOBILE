@@ -25,8 +25,7 @@ import { clubApi } from "./club-api";
 import { MembershipCard } from "./MembershipCard";
 import { ClubTransactions } from "./ClubTransactions";
 import { OccasionDateField } from "@/components/ui/OccasionDateField";
-import { CampaignStories } from "@/features/editorial/CampaignStories";
-import { AnimatedNumber, SuccessBurst } from "@/components/ui/Delight";
+import { SuccessBurst } from "@/components/ui/Delight";
 import { router, useFocusEffect } from "expo-router";
 import { milestoneProgress } from "./milestones";
 import { MilestoneProgressBar } from "./MilestoneProgressBar";
@@ -58,10 +57,11 @@ export function ClubMembership({
     queryFn: ({ signal }) => clubApi.overview(signal),
     enabled: !!customer,
     retry: false,
+    staleTime: 60_000,
   });
   useFocusEffect(
     useCallback(() => {
-      if (customer) void query.refetch();
+      if (customer && query.isStale) void query.refetch();
     }, [customer?.id, query.refetch]),
   );
   const redeem = useMutation({
@@ -266,30 +266,25 @@ export function ClubMembership({
               />
             </View>
           ) : null}
-          <Text style={{ color: colors.ink, fontSize: 15, fontWeight: "700" }}>
-            <AnimatedNumber value={data.points} /> points ·{" "}
-            {money(data.points * data.rules.point_value_kes)} reward value
-          </Text>
-          <CampaignStories members />
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
             {(
               [
                 {
                   id: "rewards",
                   title: "My rewards",
-                  copy: "Saved codes",
+                  short: "Rewards",
                   icon: "ticket-outline",
                 },
                 {
                   id: "perks",
                   title: "Member perks",
-                  copy: "Birthdays & friends",
+                  short: "Perks",
                   icon: "gift-outline",
                 },
                 {
                   id: "celebrations",
                   title: "My celebrations",
-                  copy: "Dates to remember",
+                  short: "Dates",
                   icon: "calendar-outline",
                 },
               ] as const
@@ -303,9 +298,10 @@ export function ClubMembership({
                 onPress={() => setPanel(panel === item.id ? null : item.id)}
                 style={{
                   flexGrow: 1,
-                  flexBasis: 100,
-                  padding: 14,
-                  borderRadius: 20,
+                  flexBasis: 0,
+                  minWidth: 0,
+                  padding: 12,
+                  borderRadius: 16,
                   borderWidth: 1,
                   borderColor:
                     panel === item.id ? colors.brandStrong : colors.border,
@@ -316,18 +312,13 @@ export function ClubMembership({
               >
                 <Ionicons
                   name={item.icon}
-                  size={24}
+                  size={20}
                   color={colors.brandStrong}
                 />
                 <Text
                   style={{ fontSize: 13, fontWeight: "700", color: colors.ink }}
                 >
-                  {item.title}
-                </Text>
-                <Text
-                  style={{ fontSize: 10, lineHeight: 14, color: colors.muted }}
-                >
-                  {item.copy}
+                  {item.short}
                 </Text>
               </Pressable>
             ))}
@@ -360,110 +351,115 @@ export function ClubMembership({
               )}
             </View>
           ) : null}
-          <Disclosure title="How points work">
-            <Text selectable style={text}>
-              Member {data.member_id}
-            </Text>
-            <Text style={text}>
-              {data.purchase_progress ? (
-                <>
-                  Earn 25 test points with each verified KES 1 test payment.{" "}
-                  {data.purchase_progress.milestones
-                    ?.filter((milestone) => milestone.purchases > 0)
-                    .map(
-                      (milestone) =>
-                        `${milestone.name} after ${milestone.purchases} purchases`,
-                    )
-                    .join("; ")}
-                  .
-                </>
-              ) : (
-                <>
-                  Earn 1 point per {money(data.rules.earn_spend_kes)} of
-                  qualifying spend. Each point is worth{" "}
-                  {money(data.rules.point_value_kes)}. Points expire after{" "}
-                  {data.rules.expiry_days} days.
-                </>
-              )}
-            </Text>
-            {data.next_tier && !data.purchase_progress ? (
-              <Text style={text}>
-                {money(data.next_tier.spend_required_kes)} more qualifying spend
-                to {data.next_tier.name}.
+          <Disclosure title="Points & reward details">
+            <Disclosure title="How points work">
+              <Text selectable style={text}>
+                Member {data.member_id}
               </Text>
-            ) : null}
-          </Disclosure>
-          {data.debt > 0 ? (
-            <Notice
-              message={`${data.debt} points from refunded purchases will be recovered from future earnings.`}
-            />
-          ) : null}
-          {!data.redemption_available ? (
-            <Notice
-              message={
-                data.review_required
-                  ? "Redemption is paused while staff reconcile a refunded order. Contact support for help."
-                  : "Reward issuing is not connected yet. Your verified points and history remain available."
-              }
-            />
-          ) : (
-            <>
-              <Disclosure title="Reward details">
+              <Text style={text}>
+                {data.purchase_progress ? (
+                  <>
+                    Earn 25 test points with each verified KES 1 test payment.{" "}
+                    {data.purchase_progress.milestones
+                      ?.filter((milestone) => milestone.purchases > 0)
+                      .map(
+                        (milestone) =>
+                          `${milestone.name} after ${milestone.purchases} purchases`,
+                      )
+                      .join("; ")}
+                    .
+                  </>
+                ) : (
+                  <>
+                    Earn 1 point per {money(data.rules.earn_spend_kes)} of
+                    qualifying spend. Each point is worth{" "}
+                    {money(data.rules.point_value_kes)}. Points expire after{" "}
+                    {data.rules.expiry_days} days.
+                  </>
+                )}
+              </Text>
+              {data.next_tier && !data.purchase_progress ? (
                 <Text style={text}>
-                  Exchange 100 points for a{" "}
-                  {money(100 * data.rules.point_value_kes)} coupon. Minimum
-                  order:{" "}
-                  {money(
-                    100 *
-                      data.rules.point_value_kes *
-                      data.rules.minimum_order_multiple,
-                  )}
-                  . Reward coupons expire after 90 days and cannot be combined
-                  with other coupons.
+                  {money(data.next_tier.spend_required_kes)} more qualifying
+                  spend to {data.next_tier.name}.
                 </Text>
-              </Disclosure>
-              <Button
-                label="Redeem 100 points"
-                loading={redeem.isPending}
-                disabled={
-                  data.points < 100 ||
-                  data.debt > 0 ||
-                  redeem.isPending ||
-                  data.coupons.some((c) => c.status === "pending")
-                }
-                onPress={() =>
-                  redeem.mutate({
-                    points: 100,
-                    requestKey: identity.current.key,
-                  })
+              ) : null}
+            </Disclosure>
+            {data.debt > 0 ? (
+              <Notice
+                message={`${data.debt} points from refunded purchases will be recovered from future earnings.`}
+              />
+            ) : null}
+            {!data.redemption_available ? (
+              <Notice
+                message={
+                  data.review_required
+                    ? "Redemption is paused while staff reconcile a refunded order. Contact support for help."
+                    : "Reward issuing is not connected yet. Your verified points and history remain available."
                 }
               />
-            </>
-          )}
-          {data.coupons
-            .filter((c) => c.status === "pending")
-            .map((c) => (
-              <Button
-                key={c.id}
-                variant="outline"
-                label={`Finish pending ${c.points}-point reward`}
-                disabled={redeem.isPending}
-                onPress={() =>
-                  redeem.mutate({ points: c.points, requestKey: c.request_key })
-                }
-              />
-            ))}
-          <Disclosure title="Reward coupons">
+            ) : (
+              <>
+                <Disclosure title="Reward details">
+                  <Text style={text}>
+                    Exchange 100 points for a{" "}
+                    {money(100 * data.rules.point_value_kes)} coupon. Minimum
+                    order:{" "}
+                    {money(
+                      100 *
+                        data.rules.point_value_kes *
+                        data.rules.minimum_order_multiple,
+                    )}
+                    . Reward coupons expire after 90 days and cannot be combined
+                    with other coupons.
+                  </Text>
+                </Disclosure>
+                <Button
+                  label="Redeem 100 points"
+                  loading={redeem.isPending}
+                  disabled={
+                    data.points < 100 ||
+                    data.debt > 0 ||
+                    redeem.isPending ||
+                    data.coupons.some((c) => c.status === "pending")
+                  }
+                  onPress={() =>
+                    redeem.mutate({
+                      points: 100,
+                      requestKey: identity.current.key,
+                    })
+                  }
+                />
+              </>
+            )}
             {data.coupons
-              .filter((c) => c.code)
+              .filter((c) => c.status === "pending")
               .map((c) => (
                 <Button
                   key={c.id}
                   variant="outline"
-                  label={`Save reward ${c.code}`}
-                  onPress={() => void saveCouponCode(walletScope, c.code!)}
+                  label={`Finish pending ${c.points}-point reward`}
+                  disabled={redeem.isPending}
+                  onPress={() =>
+                    redeem.mutate({
+                      points: c.points,
+                      requestKey: c.request_key,
+                    })
+                  }
                 />
               ))}
+            <Disclosure title="Reward coupons">
+              {data.coupons
+                .filter((c) => c.code)
+                .map((c) => (
+                  <Button
+                    key={c.id}
+                    variant="outline"
+                    label={`Save reward ${c.code}`}
+                    onPress={() => void saveCouponCode(walletScope, c.code!)}
+                  />
+                ))}
+            </Disclosure>
           </Disclosure>
         </>
       ) : null}

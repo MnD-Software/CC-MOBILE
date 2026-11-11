@@ -21,7 +21,6 @@ import {
   useToast,
 } from "@/components/ui/Commerce";
 import { Button } from "@/components/ui/Button";
-import { TestJourneyCard } from "@/features/commerce/TestJourneyCard";
 import { usePreferences } from "@/features/commerce/store";
 import { tokens } from "@/theme/tokens";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
@@ -541,7 +540,6 @@ export function AccountScreen() {
         </View>
       </LinearGradient>
 
-      <TestJourneyCard />
       <LinearGradient
         colors={clubPalette?.gradient ?? [colors.brandLight, colors.brandLight]}
         style={{

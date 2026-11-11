@@ -1,5 +1,15 @@
 # Cake City local finishing review — 10 November 2026
 
+The subsequent customer-feedback pass is documented in
+[BUYING_EXPERIENCE_2026-11-10.md](BUYING_EXPERIENCE_2026-11-10.md): predictive search,
+cleaner Club, header celebration creation, inline staff test cake, customer order
+visibility, foreground updates and dispatch handover controls.
+
+Final follow-up validation on **11 November 2026**: 178 frontend tests, 82 targeted
+backend tests, TypeScript, formatting and the full local browser/API experience
+walkthrough passed. See that report for references, screenshots and the remaining
+phone-push/deployment boundary.
+
 The splash artwork described below was subsequently revised to a bolder berry/cyan
 direction with a bundled cake visual. Club now also has first-points and persistent
 tier celebrations plus a refreshed progress page. See [CLUB_CELEBRATIONS.md](CLUB_CELEBRATIONS.md)

@@ -213,7 +213,7 @@ async function main() {
       "scripts/expo.cjs",
       "start",
       "--web",
-      "--clear",
+      ...(process.argv.includes("--clear") ? ["--clear"] : []),
       "--host",
       "localhost",
       "--port",

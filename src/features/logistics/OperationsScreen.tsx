@@ -13,7 +13,7 @@ import {
   ui as baseUi,
 } from "@/components/ui/Commerce";
 import { useThemedStyles } from "@/theme/ThemeProvider";
-import { logisticsApi, type WorkOrder } from "./api";
+import { logisticsApi, type WorkOrder, type Trip } from "./api";
 
 export function OperationsScreen({ kitchen }: { kitchen: boolean }) {
   const { customer, logout } = useAuth();
@@ -89,6 +89,23 @@ function Queue({ owner, kitchen }: { owner: string; kitchen: boolean }) {
             owner={owner}
             kitchen={kitchen}
             order={order}
+            allocated={
+              (tasks.data ?? [])
+                .filter(
+                  (task) =>
+                    task.reference === order.reference &&
+                    task.status !== "cancelled",
+                )
+                .reduce(
+                  (sum, task) =>
+                    sum +
+                    task.items.reduce(
+                      (count, item) => count + item.quantity,
+                      0,
+                    ),
+                  0,
+                ) >= order.items.reduce((sum, item) => sum + item.quantity, 0)
+            }
           />
         ))
       )}
@@ -96,14 +113,7 @@ function Queue({ owner, kitchen }: { owner: string; kitchen: boolean }) {
         <>
           <Text>Dispatch activity</Text>
           {tasks.data.map((task) => (
-            <View key={task.id} style={{ padding: 16, gap: 8 }}>
-              <Text>
-                {task.reference} · {task.status.replaceAll("_", " ")}
-              </Text>
-              <Text>
-                {task.rider_name} · {task.destination}
-              </Text>
-            </View>
+            <DispatchTask key={task.id} task={task} />
           ))}
         </>
       ) : null}
@@ -117,10 +127,12 @@ function WorkCard({
   owner,
   kitchen,
   order,
+  allocated,
 }: {
   owner: string;
   kitchen: boolean;
   order: WorkOrder;
+  allocated: boolean;
 }) {
   const ui = useThemedStyles(baseUi);
   const cache = useQueryClient();
@@ -143,10 +155,15 @@ function WorkCard({
         ? logisticsApi.assignKitchen(order.reference, plant, owner)
         : action === "trip"
           ? logisticsApi.assignTrip(order.reference, rider, destination)
-          : logisticsApi.kitchenProgress(order.reference, action),
+          : action === "collection"
+            ? logisticsApi.collect(order.reference)
+            : logisticsApi.kitchenProgress(order.reference, action),
     onSuccess: async () => {
       await cache.invalidateQueries({ queryKey: ["logistics-orders"] });
       await cache.invalidateQueries({ queryKey: ["dispatch-tasks"] });
+      await cache.invalidateQueries({ queryKey: ["app-orders"] });
+      await cache.invalidateQueries({ queryKey: ["app-order"] });
+      await cache.invalidateQueries({ queryKey: ["order-updates"] });
     },
   });
   return (
@@ -212,16 +229,44 @@ function WorkCard({
           ) : null}
           {order.assigned_to && order.status === "preparing" ? (
             <Button
-              label="Mark ready for collection"
+              label={
+                order.fulfilment === "delivery"
+                  ? "Kitchen complete — ready for dispatch"
+                  : "Kitchen complete — ready for pickup"
+              }
               loading={mutation.isPending}
               onPress={() => mutation.mutate("ready")}
             />
           ) : null}
         </>
       ) : order.fulfilment !== "delivery" ? (
-        <Notice message="Customer pickup stays separate from delivery. Branch-transfer tasks are supported through the dispatch API." />
+        <>
+          <Notice
+            message={
+              order.status === "ready"
+                ? "Ready for customer collection. Confirm only after handing over the order."
+                : "The kitchen is still preparing this pickup order."
+            }
+          />
+          {order.status === "ready" ? (
+            <Button
+              label="Confirm customer collected"
+              loading={mutation.isPending}
+              onPress={() => mutation.mutate("collection")}
+            />
+          ) : null}
+        </>
       ) : !order.plant ? (
-        <Notice message="Kitchen must confirm the production location before rider allocation." />
+        <>
+          <Notice message="Kitchen must confirm the production location before rider allocation." />
+          <Button
+            variant="outline"
+            label="Open kitchen assignment"
+            onPress={() => router.push("/kitchen")}
+          />
+        </>
+      ) : allocated ? (
+        <Notice message="All items have a rider assignment. Continue through Dispatch activity below, or the assigned rider's workspace." />
       ) : (
         <>
           <Text style={ui.label}>Assign a rider or driver</Text>
@@ -253,6 +298,92 @@ function WorkCard({
           />
         </>
       )}
+      {mutation.isError ? (
+        <Notice error message={mutation.error.message} />
+      ) : null}
+    </View>
+  );
+}
+
+function DispatchTask({ task }: { task: Trip }) {
+  const ui = useThemedStyles(baseUi);
+  const cache = useQueryClient();
+  const [proof, setProof] = useState("");
+  const [note, setNote] = useState("");
+  const next: Record<string, [string, string]> = {
+    assigned: ["accepted", "Confirm rider accepted"],
+    accepted: ["collected", "Confirm handover to rider"],
+    collected: ["in_transit", "Mark out for delivery"],
+    in_transit: ["delivered", "Confirm delivered"],
+    rescheduled: ["accepted", "Confirm rider accepted"],
+  };
+  const action = next[task.status];
+  const mutation = useMutation({
+    mutationFn: (status: string) =>
+      logisticsApi.manage(task, status, note, proof),
+    onSuccess: async () => {
+      for (const queryKey of [
+        ["dispatch-tasks"],
+        ["logistics-orders"],
+        ["app-orders"],
+        ["app-order"],
+        ["order-updates"],
+      ])
+        await cache.invalidateQueries({ queryKey });
+    },
+  });
+  return (
+    <View style={ui.panel} testID={`dispatch-${task.id}`}>
+      <Text style={ui.heading}>{task.reference}</Text>
+      <Text style={ui.eyebrow}>{task.status.replaceAll("_", " ")}</Text>
+      <Text>{task.rider_name || "Rider unassigned"}</Text>
+      <Text style={ui.body}>{task.destination}</Text>
+      {task.status === "in_transit" ? (
+        <Input
+          label="Delivery confirmation"
+          hint="Recipient name and delivery confirmation"
+          value={proof}
+          onChangeText={setProof}
+          maxLength={1000}
+        />
+      ) : null}
+      {action ? (
+        <Button
+          label={action[1]}
+          disabled={
+            mutation.isPending ||
+            (task.status === "in_transit" && proof.trim().length < 3)
+          }
+          loading={mutation.isPending}
+          onPress={() => mutation.mutate(action[0])}
+        />
+      ) : null}
+      {["assigned", "accepted", "failed", "rescheduled"].includes(
+        task.status,
+      ) ? (
+        <>
+          <Input
+            label="Exception reason"
+            value={note}
+            onChangeText={setNote}
+            maxLength={1000}
+          />
+          {task.status === "failed" ? (
+            <Button
+              variant="outline"
+              label="Reopen assignment"
+              disabled={note.trim().length < 5 || mutation.isPending}
+              onPress={() => mutation.mutate("rescheduled")}
+            />
+          ) : null}
+          <Button
+            variant="ghost"
+            label="Cancel this assignment"
+            disabled={note.trim().length < 5 || mutation.isPending}
+            onPress={() => mutation.mutate("cancelled")}
+          />
+        </>
+      ) : null}
       {mutation.isError ? (
         <Notice error message={mutation.error.message} />
       ) : null}

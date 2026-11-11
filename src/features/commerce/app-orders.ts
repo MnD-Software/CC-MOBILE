@@ -73,6 +73,19 @@ export const appOrderSchema = z.object({
 });
 export type AppOrder = z.infer<typeof appOrderSchema>;
 export const appOrders = {
+  async page(cursor?: number) {
+    return z
+      .object({
+        data: z.array(appOrderSchema),
+        next_cursor: z.number().nullable(),
+      })
+      .parse(
+        await api.get(
+          `/v1/app-orders${cursor === undefined ? "" : `?before=${cursor}`}`,
+          { auth: true },
+        ),
+      );
+  },
   async list() {
     return z
       .object({

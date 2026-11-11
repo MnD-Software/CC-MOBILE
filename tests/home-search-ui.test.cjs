@@ -12,13 +12,17 @@ function homeSearch() {
   const jsx = (type, props) => ({ type, props });
   const modules = {
     react: {
-      useState: () => [
-        query,
-        (next) => {
-          query = next;
-        },
-      ],
+      useState: (initial) =>
+        typeof initial === "boolean"
+          ? [false, () => {}]
+          : [
+              query,
+              (next) => {
+                query = next;
+              },
+            ],
     },
+    "./SearchPredictions": { SearchPredictions: "Predictions" },
     "react/jsx-runtime": { jsx, jsxs: jsx },
     "react-native": {
       Pressable: "Pressable",

@@ -230,6 +230,87 @@ async function main() {
         "authenticated navigation",
       );
       await observe(role + "-signed-in");
+      if (role === "admin" && process.argv.includes("--experience")) {
+        await send("Emulation.setDeviceMetricsOverride", {
+          width: 390,
+          height: 844,
+          deviceScaleFactor: 1,
+          mobile: true,
+        });
+        await wait(
+          `!!document.querySelector('[aria-label="Make my celebration"]')`,
+          "celebration header icon",
+        );
+        await evaluate(
+          `document.querySelector('input[aria-label="Search cakes, flavours and themes"]').focus()`,
+        );
+        await fill("Search cakes, flavours and themes", "chocolate");
+        await wait(
+          `document.querySelector('[data-testid="search-predictions"]')?.innerText.includes('Chocolate')`,
+          "live Home predictions",
+        );
+        await capture("experience-home-predictions-390");
+        await fill("Search cakes, flavours and themes", "");
+        const tab = (label) =>
+          `Array.from(document.querySelectorAll('[role="tab"]')).find(n=>n.getAttribute('aria-label')===${JSON.stringify(label)})`;
+        await evaluate(`(${tab("Shop")}).click()`);
+        await wait(
+          `!!document.querySelector('input[aria-label="Search Cake City"]')`,
+          "Shop search",
+        );
+        await wait(
+          `document.body.innerText.includes('Test celebration cake')`,
+          "inline test product",
+        );
+        await capture("experience-shop-390");
+        await evaluate(
+          `document.querySelector('input[aria-label="Search Cake City"]').focus()`,
+        );
+        await fill("Search Cake City", "choclate");
+        await wait(
+          `document.querySelector('[data-testid="search-predictions"]')?.innerText.includes('Chocolate')`,
+          "typo-tolerant predictions",
+        );
+        const prediction = await evaluate(
+          `Array.from(document.querySelector('[data-testid="search-predictions"]').querySelectorAll('[role="button"]')).find(n=>n.getAttribute('aria-label')?.startsWith('View '))?.getAttribute('aria-label')`,
+        );
+        assert.ok(prediction, "A real product prediction must be selectable");
+        await click(prediction);
+        await wait(
+          `location.pathname.startsWith('/product/')`,
+          "predictive product navigation",
+        );
+        // Use the app's back control; CDP Page.goBack is not supported everywhere.
+        const back = await evaluate(
+          `Array.from(document.querySelectorAll('[role="button"]')).find(n=>/^(Go back|Back)$/.test(n.getAttribute('aria-label')||''))?.getAttribute('aria-label')`,
+        );
+        if (back) await click(back);
+        await wait(`!!(${tab("Cake City Club")})`, "Club tab");
+        await evaluate(`(${tab("Cake City Club")}).click()`);
+        await wait(
+          `!!document.querySelector('[data-testid="club-membership"]') && document.body.innerText.includes('Next chapter:')`,
+          "simplified Club",
+        );
+        for (const width of [320, 390, 430, 1280]) {
+          await send("Emulation.setDeviceMetricsOverride", {
+            width,
+            height: 900,
+            deviceScaleFactor: 1,
+            mobile: width < 600,
+          });
+          await pause(250);
+          const size = await evaluate(
+            `({viewport:innerWidth,scroll:document.documentElement.scrollWidth})`,
+          );
+          assert.ok(size.scroll <= size.viewport, "Club overflow at " + width);
+          await capture("experience-club-" + width);
+        }
+        checks.push({
+          experience:
+            "predictive Home and Shop, typo correction, product navigation, inline staff test cake, simplified Club",
+          widths: [320, 390, 430, 1280],
+        });
+      }
       // Use the app navigation so browser memory-only auth is preserved.
       const navigation = await evaluate(
         `Array.from(document.querySelectorAll('[aria-label]')).filter(n=>/account/i.test(n.getAttribute('aria-label'))).map(n=>({label:n.getAttribute('aria-label'),role:n.getAttribute('role')}))`,
@@ -261,18 +342,20 @@ async function main() {
         await capture("corporate-preview");
       } else {
         if (process.argv.includes("--checkout")) {
-          // Expo retains Home beneath Account in the tab tree. Account is the
-          // later mounted screen; both cards intentionally share their label.
-          const testEntries = await evaluate(
-            "Array.from(document.querySelectorAll('[role=\"button\"],button')).filter(n=>n.getAttribute('aria-label')==='Try the test cake').length",
+          const shopTab = `Array.from(document.querySelectorAll('[role="tab"]')).find(n=>n.getAttribute('aria-label')==='Shop')`;
+          await wait(`!!(${shopTab})`, "Shop tab");
+          await evaluate(`(${shopTab}).click()`);
+          await wait(`location.pathname.includes('shop')`, "Shop route");
+          const clearSearch = await evaluate(
+            `Array.from(document.querySelectorAll('[role="button"]')).find(n=>n.getClientRects().length && n.getAttribute('aria-label')==='Clear search')?.getAttribute('aria-label')`,
           );
-          assert.equal(
-            testEntries,
-            2,
-            "Home and Account each expose the test product",
+          if (clearSearch) await click(clearSearch);
+          await wait(
+            `!!document.querySelector('[aria-label="Test celebration cake, KES 1, simulation only, no charge"]')`,
+            "test product in All cakes",
           );
-          await evaluate(
-            "Array.from(document.querySelectorAll('[role=\"button\"],button')).filter(n=>n.getAttribute('aria-label')==='Try the test cake').at(-1).click()",
+          await click(
+            "Test celebration cake, KES 1, simulation only, no charge",
           );
           await wait(
             "document.body.innerText.includes('Cake City test cake')",
@@ -382,9 +465,9 @@ async function main() {
       checks.push({ account: role, authenticated_workspace: true });
     }
     if (process.argv.includes("--logistics")) {
-      const localCall = async (path, token, body) => {
+      const localCall = async (path, token, body, method) => {
         const response = await fetch(apiOrigin + path, {
-          method: body === undefined ? "GET" : "POST",
+          method: method ?? (body === undefined ? "GET" : "POST"),
           headers: {
             "Content-Type": "application/json",
             ...(token ? { Authorization: "Bearer " + token } : {}),
@@ -500,7 +583,10 @@ async function main() {
       await scopedClick(workSelector, "Head Office");
       await scopedClick(workSelector, "Assign production to me");
       await scopedClick(workSelector, "Start preparing");
-      await scopedClick(workSelector, "Mark ready for collection");
+      await scopedClick(
+        workSelector,
+        "Kitchen complete \u2014 ready for dispatch",
+      );
       await wait(
         `document.querySelector(${JSON.stringify(workSelector)}).innerText.includes('ready')`,
         "kitchen ready",
@@ -590,6 +676,10 @@ async function main() {
           "document.body.innerText.includes('Test journey complete!')",
           "completed-order confirmation",
         );
+        await wait(
+          `!!document.querySelector('[aria-label="Rate 5 stars"]')`,
+          "feedback form loaded",
+        );
         await click("Rate 5 stars");
         await fill(
           "Tell us more (optional)",
@@ -626,6 +716,86 @@ async function main() {
           notifications:
             "inbox, order deep link, delivery confirmation and persisted review",
           reference: order.reference,
+          noRemotePush: true,
+        });
+      }
+      if (
+        process.argv.includes("--experience") &&
+        process.argv.includes("--notifications")
+      ) {
+        const product = await localCall(
+          "/v1/admin/payment-test/product",
+          adminToken,
+          {},
+        );
+        const quote = await localCall("/v1/app-checkout/quote", adminToken, {
+          items: [{ product_id: product.id, quantity: 1 }],
+          fulfilment: "pickup",
+          billing: {
+            first_name: "Local",
+            last_name: "Pickup",
+            email: "local@example.com",
+            phone: "0712345678",
+            address: "HQ local pickup",
+          },
+        });
+        const placed = await fetch(apiOrigin + "/v1/app-orders", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + adminToken,
+            "Idempotency-Key": "local-pickup-" + Date.now(),
+          },
+          body: JSON.stringify({ quote_id: quote.id }),
+        });
+        assert.ok(placed.ok);
+        const pickup = await placed.json();
+        await localCall(
+          `/v1/admin/payment-test/orders/${pickup.reference}/complete`,
+          adminToken,
+          {},
+        );
+        await localCall(
+          `/v1/kitchen/orders/${pickup.reference}/assignment`,
+          adminToken,
+          { plant: "hq", assigned_to: sessions.admin.customer.id },
+          "PUT",
+        );
+        for (const status of ["preparing", "ready"])
+          await localCall(
+            `/v1/kitchen/orders/${pickup.reference}/status`,
+            adminToken,
+            { status },
+            "PATCH",
+          );
+        const bannerSelector = `[role="button"][aria-label$="View update"]`;
+        await wait(
+          `document.querySelector(${JSON.stringify(bannerSelector)})?.innerText.includes('ready for collection')`,
+          "foreground kitchen-ready alert",
+          30000,
+        );
+        await capture("experience-ready-notification-390");
+        await evaluate(
+          `document.querySelector(${JSON.stringify(bannerSelector)}).click()`,
+        );
+        await wait(
+          `location.pathname.includes(${JSON.stringify(pickup.reference)}) && document.body.innerText.includes('Ready for pickup')`,
+          "notification opens matching tracking",
+        );
+        await capture("experience-ready-tracking-390");
+        await signIn("admin", "/dispatch");
+        const pickupWork = `[data-testid="work-${pickup.reference}"]`;
+        await scopedClick(pickupWork, "Confirm customer collected");
+        const result = await localCall(
+          "/v1/app-orders/" + pickup.reference,
+          adminToken,
+        );
+        assert.equal(result.status, "completed");
+        checks.push({
+          foregroundReadinessAlert: true,
+          alertOpensMatchingOrder: true,
+          pickupDispatchHandover: true,
+          reference: pickup.reference,
           noRemotePush: true,
         });
       }

@@ -151,7 +151,7 @@ def new_trip(db, actor, reference, data, commit=True):
             raise HTTPException(409, "Dispatch task quantities exceed this paid order.")
     checkout = order.snapshot.get("checkout", {})
     billing = checkout.get("billing", {})
-    destination = data.destination or billing.get("address", "")
+    destination = data.destination or (order.snapshot.get("route") or {}).get("destination_address") or billing.get("address", "")
     if not destination.strip():
         raise HTTPException(422, "Confirm this task's destination before assigning it.")
     task = LogisticsTask(id=str(uuid4()), order_id=order.id, plant=production.plant,
@@ -321,5 +321,9 @@ def import_kitchen(db, payload):
         if (order.state, target) not in {("paid", "preparing"), ("preparing", "ready")}:
             raise HTTPException(409, "Odoo kitchen readiness must follow the production sequence.")
         order.state = target
-        db.add(AppOrderEvent(id=str(uuid4()), order_id=order.id, event_key=f"odoo-kitchen:{uuid4().hex}",
-            kind="fulfilment_"+target, details={"source": "odoo"}))
+        previous_import = db.info.get("odoo_import")
+        db.info["odoo_import"] = True
+        try:
+            commerce.record_event(db, order, "fulfilment_"+target, source="odoo")
+        finally:
+            db.info["odoo_import"] = previous_import

@@ -37,6 +37,11 @@ def order_event(db, order, kind):
     if kind not in ORDER_MESSAGES:
         return
     title, body = ORDER_MESSAGES[kind]
+    if kind == "fulfilment_ready":
+        if order.snapshot.get("checkout", {}).get("fulfilment") == "delivery":
+            title, body = "Kitchen complete — ready for dispatch", "Your cake is finished and ready for our dispatch team. We will let you know when your rider sets off."
+        else:
+            title, body = "Your cake is ready for collection", "The kitchen has finished your cake. Open your order for the collection location and bring your order reference."
     if kind == "fulfilment_completed" and order.snapshot.get("checkout", {}).get("fulfilment") == "pickup":
         title, body = "Your cake has been collected! 🎂", "Enjoy your celebration. Tell us how your Cake City experience went."
     simulated = order.channel == "app_test" or order.environment != "live"

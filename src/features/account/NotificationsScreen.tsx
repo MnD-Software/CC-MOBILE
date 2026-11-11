@@ -107,8 +107,9 @@ export function NotificationsScreen() {
               Keep up with your cake
             </Text>
             <Text style={{ color: colors.muted, lineHeight: 21 }}>
-              Get updates when preparation starts, your rider sets off and your
-              order arrives. Marketing notifications are off.
+              Get updates when preparation starts, your cake is ready for
+              dispatch or collection, your rider sets off and your order
+              arrives. Marketing notifications are off.
             </Text>
             {Platform.OS === "web" ? (
               <Notice message="Your inbox works here. Phone alerts need the installed Android or iPhone app." />
@@ -231,6 +232,9 @@ export function NotificationsScreen() {
                         { auth: true },
                       );
                       await cache.invalidateQueries({ queryKey: key });
+                      await cache.invalidateQueries({
+                        queryKey: ["order-updates"],
+                      });
                       router.push(path);
                     }, "")
                   }

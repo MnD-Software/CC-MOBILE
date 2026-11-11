@@ -1,4 +1,8 @@
-import { useQuery } from "@tanstack/react-query";
+import { Ionicons } from "@expo/vector-icons";
+import { useScreenActive } from "@/design/useScreenActive";
+import { useTheme } from "@/theme/ThemeProvider";
+import { orderStageLabel } from "./ActiveOrderCard";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { View } from "react-native";
@@ -22,18 +26,28 @@ import { DeliveryComplete } from "./DeliveryComplete";
 
 export function AppOrdersScreen() {
   const { customer } = useAuth();
-  const orders = useQuery({
-    queryKey: ["app-orders", customer?.id],
-    queryFn: appOrders.list,
-    refetchInterval: 30_000,
-    enabled: !!customer,
+  const active = useScreenActive();
+  const { colors } = useTheme();
+  const orders = useInfiniteQuery({
+    queryKey: ["app-orders", customer?.id, "history"],
+    initialPageParam: undefined as number | undefined,
+    queryFn: ({ pageParam }) => appOrders.page(pageParam),
+    getNextPageParam: (page) => page.next_cursor ?? undefined,
+    refetchInterval: active ? 20_000 : false,
+    staleTime: 10_000,
+    enabled: !!customer && active,
   });
   return (
     <Screen
-      title="Your app orders"
-      subtitle="App order numbers, payments and receipts."
+      title="Your orders"
+      subtitle="From our kitchen to your celebration."
       back
     >
+      <Button
+        variant="ghost"
+        label="Order notifications"
+        onPress={() => router.push("/notifications")}
+      />
       {!customer ? (
         <Button
           label="Sign in to view orders"
@@ -43,29 +57,60 @@ export function AppOrdersScreen() {
         <Feedback loading />
       ) : orders.isError ? (
         <Feedback error={orders.error} onRetry={() => void orders.refetch()} />
-      ) : !orders.data?.data.length ? (
+      ) : !orders.data?.pages.flatMap((page) => page.data).length ? (
         <Notice message="Orders you place in the app will appear here." />
       ) : (
-        orders.data.data.map((order) => (
-          <View key={order.reference} style={{ padding: 16, gap: 8 }}>
-            <Text>{order.reference}</Text>
-            <Text>
-              {order.status.replaceAll("_", " ")} ·{" "}
-              {money(order.total_minor / 100)}
-            </Text>
-            <Button
-              variant="outline"
-              label="View order and receipt"
-              onPress={() =>
-                router.push({
-                  pathname: "/order/[reference]",
-                  params: { reference: order.reference },
-                })
-              }
-            />
-          </View>
-        ))
+        orders.data.pages
+          .flatMap((page) => page.data)
+          .map((order) => (
+            <View
+              key={order.reference}
+              style={{
+                padding: 20,
+                gap: 12,
+                borderRadius: 22,
+                backgroundColor: colors.surface,
+                borderWidth: 1,
+                borderColor: colors.border,
+              }}
+            >
+              <Text
+                style={{
+                  color: colors.brandStrong,
+                  fontSize: 18,
+                  fontWeight: "800",
+                }}
+              >
+                {orderStageLabel(order.status)}
+              </Text>
+              <Text style={{ color: colors.muted, fontSize: 11 }}>
+                {order.reference}
+              </Text>
+              <Text>
+                {order.status.replaceAll("_", " ")} ·{" "}
+                {money(order.total_minor / 100)}
+              </Text>
+              <Button
+                variant="outline"
+                label="Track order"
+                onPress={() =>
+                  router.push({
+                    pathname: "/order/[reference]",
+                    params: { reference: order.reference },
+                  })
+                }
+              />
+            </View>
+          ))
       )}
+      {orders.hasNextPage ? (
+        <Button
+          label="Load earlier orders"
+          variant="outline"
+          loading={orders.isFetchingNextPage}
+          onPress={() => void orders.fetchNextPage()}
+        />
+      ) : null}
     </Screen>
   );
 }
@@ -73,6 +118,8 @@ export function AppOrdersScreen() {
 export function AppOrderScreen() {
   const { reference } = useLocalSearchParams<{ reference: string }>();
   const { customer } = useAuth();
+  const active = useScreenActive();
+  const { colors } = useTheme();
   const [payment, setPayment] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -80,12 +127,13 @@ export function AppOrderScreen() {
     queryKey: ["app-order", customer?.id, reference],
     queryFn: () => appOrders.detail(reference),
     refetchInterval: (query) =>
+      !active ||
       ["completed", "cancelled", "failed", "reversed"].includes(
         query.state.data?.status || "",
       )
         ? false
         : 15_000,
-    enabled: !!customer && reference?.startsWith("APP-"),
+    enabled: !!customer && active && reference?.startsWith("APP-"),
   });
   const { celebrate, endCelebration } = usePaymentSuccess(
     order.data,
@@ -159,7 +207,12 @@ export function AppOrderScreen() {
     }
   }
   return (
-    <Screen title="App order" back>
+    <Screen title="Track your cake" back>
+      <Button
+        variant="ghost"
+        label="Order notifications"
+        onPress={() => router.push("/notifications")}
+      />
       {!customer ? (
         <Button label="Sign in" onPress={() => router.push("/sign-in")} />
       ) : !reference?.startsWith("APP-") ? (
@@ -174,7 +227,15 @@ export function AppOrderScreen() {
             <Notice message="SIMULATED TEST: no Pesapal payment or real charge. This order tests kitchen and delivery tracking. KES 100 qualifying value was assigned to your normal Club by the test rule." />
           ) : null}
           <Text>{value.reference}</Text>
-          <Text>{value.status.replaceAll("_", " ")}</Text>
+          <Text
+            style={{
+              color: colors.brandStrong,
+              fontSize: 25,
+              fontWeight: "800",
+            }}
+          >
+            {orderStageLabel(value.status)}
+          </Text>
           <DeliveryComplete key={value.reference} order={value} />
           <Text>
             {money(value.total_minor / 100)} ·{" "}
@@ -190,10 +251,15 @@ export function AppOrderScreen() {
               gap: 14,
               borderRadius: 20,
               borderWidth: 1,
-              borderColor: "#ddd",
+              borderColor: colors.border,
+              backgroundColor: colors.surface,
             }}
           >
-            <Text>Track your order</Text>
+            <Text
+              style={{ color: colors.ink, fontSize: 19, fontWeight: "800" }}
+            >
+              Your cake's journey
+            </Text>
             <Text>
               Made to order. Progress updates appear here as our team prepares
               your celebration.
@@ -216,7 +282,7 @@ export function AppOrderScreen() {
             ) : null}
             {value.dispatch ? (
               <Text>
-                Delivery contact: {value.dispatch.rider_name} ?{" "}
+                Delivery contact: {value.dispatch.rider_name} ·{" "}
                 {value.dispatch.rider_phone}
               </Text>
             ) : null}
@@ -233,14 +299,44 @@ export function AppOrderScreen() {
                 ) : null}
               </View>
             ))}
-            {orderTracking(value).map((step) => (
-              <View key={step.label} style={{ gap: 4 }}>
-                <Text>
-                  {step.at ? "Done:" : "Next:"} {step.label}
-                </Text>
-                {step.at ? (
-                  <Text>{new Date(step.at).toLocaleString()}</Text>
-                ) : null}
+            {orderTracking(value).map((step, index, steps) => (
+              <View
+                key={step.label}
+                style={{ flexDirection: "row", gap: 14, minHeight: 52 }}
+              >
+                <View style={{ alignItems: "center", width: 24 }}>
+                  <Ionicons
+                    name={step.at ? "checkmark-circle" : "ellipse-outline"}
+                    size={22}
+                    color={step.at ? colors.brandStrong : colors.muted}
+                  />
+                  {index < steps.length - 1 ? (
+                    <View
+                      style={{
+                        width: 1,
+                        flex: 1,
+                        minHeight: 18,
+                        backgroundColor: colors.border,
+                      }}
+                    />
+                  ) : null}
+                </View>
+                <View style={{ flex: 1, gap: 4, paddingBottom: 14 }}>
+                  <Text
+                    style={{
+                      color: step.at ? colors.ink : colors.muted,
+                      fontWeight: step.at ? "700" : "400",
+                      fontSize: 14,
+                    }}
+                  >
+                    {step.label}
+                  </Text>
+                  {step.at ? (
+                    <Text style={{ color: colors.muted, fontSize: 11 }}>
+                      {new Date(step.at).toLocaleString()}
+                    </Text>
+                  ) : null}
+                </View>
               </View>
             ))}
             {value.payment_state !== "completed" ? (

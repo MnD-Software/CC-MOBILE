@@ -5,15 +5,18 @@ import { Pressable, StyleSheet, TextInput, View } from "react-native";
 import { GlassSurface } from "@/components/storefront/GlassSurface";
 import { tokens } from "@/theme/tokens";
 import { useTheme } from "@/theme/ThemeProvider";
+import { SearchPredictions } from "./SearchPredictions";
 
 export function HomeSearchBar() {
   const { colors } = useTheme();
   const [query, setQuery] = useState("");
-  const submit = () => {
+  const [focused, setFocused] = useState(false);
+  const submit = (value = query) => {
+    setFocused(false);
     router.navigate({
       pathname: "/(tabs)/search",
       params: {
-        search: query.trim(),
+        search: value.trim(),
         focus: "1",
         // Reapply Home's query even if the results tab was edited since this search.
         searchRequest: String(Date.now()),
@@ -34,8 +37,12 @@ export function HomeSearchBar() {
           accessibilityLabel="Search cakes, flavours and themes"
           autoCapitalize="none"
           autoCorrect={false}
-          onChangeText={setQuery}
-          onSubmitEditing={submit}
+          onChangeText={(value) => {
+            setQuery(value);
+            setFocused(true);
+          }}
+          onFocus={() => setFocused(true)}
+          onSubmitEditing={() => submit()}
           placeholder="Search cakes, flavours, themes…"
           placeholderTextColor={colors.muted}
           returnKeyType="search"
@@ -46,7 +53,7 @@ export function HomeSearchBar() {
           accessibilityLabel="Search products"
           accessibilityRole="button"
           hitSlop={4}
-          onPress={submit}
+          onPress={() => submit()}
           style={({ pressed }) => [
             styles.button,
             {
@@ -58,6 +65,7 @@ export function HomeSearchBar() {
           <Ionicons color="#FFFFFF" name="arrow-forward" size={20} />
         </Pressable>
       </View>
+      <SearchPredictions query={query} active={focused} onSearch={submit} />
     </GlassSurface>
   );
 }

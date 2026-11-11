@@ -84,4 +84,16 @@ export const logisticsApi = {
       { rider_id, destination },
       { auth: true },
     ),
+  collect: (reference: string) =>
+    api.post(
+      `/v1/logistics/orders/${encodeURIComponent(reference)}/collection`,
+      {},
+      { auth: true },
+    ),
+  manage: (task: Trip, status: string, note = "", proof = "") =>
+    api.patch(
+      `/v1/logistics/tasks/${encodeURIComponent(task.id)}`,
+      { revision: task.revision, status, note, proof },
+      { auth: true },
+    ),
 };

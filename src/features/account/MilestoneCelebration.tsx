@@ -1,3 +1,4 @@
+import { ConfettiBurst } from "@/components/ui/ConfettiBurst";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/api/client";
@@ -192,79 +193,7 @@ export function MilestoneCelebration({
       style={[StyleSheet.absoluteFill, { zIndex: 1000, elevation: 30 }]}
     >
       {burst && !reduce ? (
-        <View
-          testID="milestone-confetti"
-          pointerEvents="none"
-          accessible={false}
-          style={[StyleSheet.absoluteFill, { overflow: "hidden" }]}
-        >
-          {Array.from({ length: 48 }, (_, index) => {
-            const side = index % 2;
-            const start = (index % 8) * 0.018;
-            const particle = motion.interpolate({
-              inputRange: [start, start + 0.82],
-              outputRange: [0, 1],
-              extrapolate: "clamp",
-            });
-            const target = width * (0.18 + ((index * 17) % 65) / 100);
-            return (
-              <Animated.View
-                key={index}
-                style={{
-                  position: "absolute",
-                  left: 0,
-                  top: 0,
-                  width: index % 3 ? 7 : 9,
-                  height: index % 3 ? 13 : 9,
-                  borderRadius: index % 3 ? 2 : 5,
-                  backgroundColor: [
-                    "#EC008C",
-                    "#F2C653",
-                    "#51C4DC",
-                    "#A78BFA",
-                    "#F78DA7",
-                    "#46BFA0",
-                  ][index % 6],
-                  opacity: particle.interpolate({
-                    inputRange: [0, 0.08, 0.75, 1],
-                    outputRange: [0, 1, 1, 0],
-                  }),
-                  transform: [
-                    {
-                      translateX: particle.interpolate({
-                        inputRange: [0, 0.55, 1],
-                        outputRange: [
-                          side ? width + 20 : -20,
-                          target,
-                          target + (side ? -30 : 30),
-                        ],
-                      }),
-                    },
-                    {
-                      translateY: particle.interpolate({
-                        inputRange: [0, 0.25, 1],
-                        outputRange: [
-                          height * (0.2 + (index % 9) * 0.035),
-                          height * (0.12 + (index % 7) * 0.035),
-                          height + 30,
-                        ],
-                      }),
-                    },
-                    {
-                      rotate: particle.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [
-                          `${index * 23}deg`,
-                          `${index * 23 + (side ? -680 : 680)}deg`,
-                        ],
-                      }),
-                    },
-                  ],
-                }}
-              />
-            );
-          })}
-        </View>
+        <ConfettiBurst motion={motion} testID="milestone-confetti" />
       ) : null}
       {prompt ? (
         <Animated.View

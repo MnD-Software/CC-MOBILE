@@ -1,3 +1,4 @@
+import { useScreenActive } from "@/design/useScreenActive";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -48,6 +49,7 @@ export function MembershipCard({
   const [barcodeWidth, setBarcodeWidth] = useState(0);
   const turn = useRef(new Animated.Value(0)).current;
   const reduced = useReducedMotion();
+  const active = useScreenActive();
   useEffect(() => {
     if (!revealToken) return;
     setBack(false);
@@ -68,7 +70,7 @@ export function MembershipCard({
       : 0;
   useEffect(() => {
     shine.setValue(0);
-    if (reduced || back) return;
+    if (reduced || back || !active) return;
     const animation = Animated.loop(
       Animated.sequence([
         Animated.delay(2400),
@@ -90,7 +92,7 @@ export function MembershipCard({
     );
     animation.start();
     return () => animation.stop();
-  }, [back, reduced, shine]);
+  }, [back, reduced, shine, active]);
   const measureFace = (event: LayoutChangeEvent) => {
     // Snapshot the height before React Native releases its synthetic event.
     const measuredHeight = event.nativeEvent.layout.height;

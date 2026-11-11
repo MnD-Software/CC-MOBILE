@@ -1,3 +1,4 @@
+import { useAuth } from "@/auth/AuthProvider";
 import { Ionicons } from "@expo/vector-icons";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
@@ -24,7 +25,6 @@ import {
   ProductTile,
   Screen,
 } from "@/components/ui/Commerce";
-import { ProfileAvatarButton } from "@/components/ProfileAvatar";
 import { GlassSurface } from "@/components/storefront/GlassSurface";
 import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -37,6 +37,9 @@ import { usePreferences } from "./store";
 import { shopSorts, type ShopSort, parseBudget } from "./shop-browse";
 import { ShopOptionsSheet, type ShopSheetMode } from "./ShopOptionsSheet";
 
+import { HeaderActions } from "@/components/storefront/HeaderActions";
+import { SearchPredictions } from "./SearchPredictions";
+import { TestProductTile } from "./TestProductTile";
 import { BrandLogo } from "@/components/BrandLogo";
 import {
   shopDepartments,
@@ -44,6 +47,7 @@ import {
   matchesShopSelection,
   type ShopDepartmentId,
 } from "./shop-departments";
+type CatalogueEntry = StoreProduct | { id: "staff-test"; kind: "test" };
 const knownIds: Record<string, number> = {
   "signature cakes": 229,
   "vanilla base sponge": 169,
@@ -59,6 +63,10 @@ const knownIds: Record<string, number> = {
 
 export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
   const styles = useThemedStyles(baseStyles);
+  const { customer } = useAuth();
+  const canTest =
+    !!customer &&
+    ["admin", "staff", "ecommerce_manager"].includes(customer.role);
   const { colors } = useTheme();
   const params = useLocalSearchParams<{
     category?: string;
@@ -70,7 +78,8 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
   }>();
   const insets = useSafeAreaInsets();
   const searchInputRef = useRef<TextInputInstance>(null);
-  const listRef = useRef<FlatList<StoreProduct>>(null);
+  const listRef = useRef<FlatList<CatalogueEntry>>(null);
+  const [predicting, setPredicting] = useState(false);
   const [search, setSearch] = useState(params.search ?? "");
   useFocusEffect(
     useCallback(() => {
@@ -141,7 +150,7 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
       shopApi.browseProducts(
         {
           page: pageParam,
-          perPage: 100,
+          perPage: 24,
           search: debounced,
           categories: selectedCategories,
           sort,
@@ -191,6 +200,7 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
     setSubfilter("all");
   };
   const submitSearch = () => {
+    setPredicting(false);
     if (search.trim()) rememberSearch(search.trim());
     setDebounced(search.trim());
     if (search.trim() === debounced) void products.refetch();
@@ -200,7 +210,7 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
       scroll={false}
       header={
         <CommerceBrowseHeader
-          right={<ProfileAvatarButton />}
+          right={<HeaderActions />}
           brand={
             <View style={styles.titleRow}>
               {searchOnly ? (
@@ -230,7 +240,11 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
               <TextInput
                 ref={searchInputRef}
                 value={search}
-                onChangeText={changeSearch}
+                onChangeText={(value) => {
+                  changeSearch(value);
+                  setPredicting(true);
+                }}
+                onFocus={() => setPredicting(true)}
                 placeholder="Search cakes, flavours, occasions"
                 placeholderTextColor={colors.muted}
                 accessibilityLabel="Search Cake City"
@@ -258,6 +272,16 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
               ) : null}
             </View>
           </GlassSurface>
+          <SearchPredictions
+            query={search}
+            active={predicting}
+            onSearch={(value) => {
+              changeSearch(value);
+              setDebounced(value);
+              rememberSearch(value);
+              setPredicting(false);
+            }}
+          />
         </CommerceBrowseHeader>
       }
     >
@@ -528,17 +552,28 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
               testID="shop-products"
               ref={listRef}
               style={{ flex: 1 }}
-              data={rows}
+              data={
+                canTest &&
+                department === "all" &&
+                (!debounced || /\btest\b|testcake/i.test(debounced)) &&
+                !hasBudget
+                  ? [{ id: "staff-test", kind: "test" } as const, ...rows]
+                  : rows
+              }
               numColumns={2}
               columnWrapperStyle={{ gap: 8 }}
               keyExtractor={(item) => String(item.id)}
-              renderItem={({ item }) => (
-                <ProductTile
-                  product={item}
-                  compact
-                  width={Math.max(0, (paneWidth - 28) / 2)}
-                />
-              )}
+              renderItem={({ item }) =>
+                item.id === "staff-test" ? (
+                  <TestProductTile width={Math.max(0, (paneWidth - 28) / 2)} />
+                ) : (
+                  <ProductTile
+                    product={item as StoreProduct}
+                    compact
+                    width={Math.max(0, (paneWidth - 28) / 2)}
+                  />
+                )
+              }
               contentContainerStyle={[
                 styles.content,
                 { paddingBottom: insets.bottom + 128 },

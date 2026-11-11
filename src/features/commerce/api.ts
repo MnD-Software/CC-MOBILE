@@ -60,6 +60,7 @@ function rememberProducts(products: StoreProduct[]) {
 type CatalogueParams = {
   page?: number;
   search?: string;
+  slug?: string;
   perPage?: number;
   category?: number;
 };
@@ -89,6 +90,7 @@ async function catalogueProducts(
   const category = categoryId(params.category);
   if (category !== undefined) query.set("category", String(category));
   if (params.search?.trim()) query.set("search", params.search.trim());
+  if (params.slug) query.set("slug", params.slug);
 
   try {
     const data = await validated(
@@ -156,18 +158,38 @@ async function findProducts(
     if (cached) found.set(identifier, cached);
   }
 
-  for (let page = 1; found.size < wanted.size; page += 1) {
-    const result = await catalogueProducts(
-      { page, perPage: PRODUCT_LOOKUP_PAGE_SIZE },
-      signal,
+  const missing = [...wanted].filter((identifier) => !found.has(identifier));
+  const numeric = missing.filter((identifier) =>
+    /^[1-9][0-9]*$/.test(identifier),
+  );
+  if (numeric.length) {
+    const data = await validated(
+      api.get(
+        `/v1/catalogue/products?include=${numeric.join(",")}&per_page=100`,
+        { signal, timeoutMs: CATALOGUE_TIMEOUT_MS },
+      ),
+      z.array(storeProductSchema),
     );
-    for (const identifier of wanted) {
-      if (found.has(identifier)) continue;
-      const match = matchingProduct(result.data, identifier);
+    rememberProducts(data);
+    for (const identifier of numeric) {
+      const match = matchingProduct(data, identifier);
       if (match) found.set(identifier, match);
     }
-    if (result.data.length < PRODUCT_LOOKUP_PAGE_SIZE) break;
   }
+  // Deep links and saved cakes look up their exact slug instead of downloading
+  // every page of the catalogue before opening one product.
+  await Promise.all(
+    missing
+      .filter((identifier) => !numeric.includes(identifier))
+      .map(async (identifier) => {
+        const result = await catalogueProducts(
+          { slug: identifier, perPage: 24 },
+          signal,
+        );
+        const match = matchingProduct(result.data, identifier);
+        if (match) found.set(identifier, match);
+      }),
+  );
 
   return identifiers.flatMap((identifier) => {
     const product = found.get(identifier);
@@ -303,10 +325,8 @@ export const shopApi = {
     const cached = productCache.get(id);
     if (cached) return cached;
 
-    // The deployed catalogue currently exposes a collection endpoint only.
-    // Searching a numeric WooCommerce id as text returns an empty result, so
-    // cold deep links scan the paged live catalogue while ordinary taps are
-    // resolved immediately from the cache populated by Home/Shop.
+    // Cold deep links use a targeted ID lookup; normal taps use the records
+    // already validated by Home/Shop.
     const [product] = await findProducts([id], signal);
     if (!product)
       throw new ApiError("This cake is no longer available.", {

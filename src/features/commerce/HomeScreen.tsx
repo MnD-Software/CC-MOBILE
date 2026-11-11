@@ -1,8 +1,8 @@
 import { appMedia } from "./app-media";
-import { TestJourneyCard } from "./TestJourneyCard";
+import { HeaderActions } from "@/components/storefront/HeaderActions";
+import { ActiveOrderCard } from "./ActiveOrderCard";
 import { Ionicons } from "@expo/vector-icons";
 import { CampaignStories } from "@/features/editorial/CampaignStories";
-import { CelebrationDashboard } from "@/features/celebrations/CelebrationDashboard";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useQuery } from "@tanstack/react-query";
@@ -22,7 +22,6 @@ import { Text } from "@/components/ui/Typography";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/auth/AuthProvider";
 import { BrandLogo } from "@/components/BrandLogo";
-import { ProfileAvatarButton } from "@/components/ProfileAvatar";
 import {
   CommerceBrowseHeader,
   Feedback,
@@ -290,7 +289,7 @@ export function HomeScreen() {
       scroll={false}
       header={
         <CommerceBrowseHeader
-          right={<ProfileAvatarButton />}
+          right={<HeaderActions />}
           brand={
             <View style={styles.brandBlock}>
               <BrandLogo width={108} />
@@ -310,7 +309,7 @@ export function HomeScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <TestJourneyCard />
+        <ActiveOrderCard />
         {catalogue.isPending ? (
           <HomeSkeleton cardWidth={collectionCardWidth} />
         ) : catalogue.isError ? (
@@ -466,7 +465,6 @@ export function HomeScreen() {
                 </Pressable>
               )}
             </View>
-            <CelebrationDashboard />
           </>
         )}
       </ScrollView>

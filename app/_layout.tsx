@@ -20,6 +20,8 @@ import {
 import { observeNativeConnectivity } from "@/platform/connectivity-observer";
 import { ThemeProvider, useTheme } from "@/theme/ThemeProvider";
 import { GlassPreferencesProvider } from "@/components/storefront/GlassSurface";
+import { OrderUpdateBanner } from "@/features/account/OrderUpdates";
+import { ConfettiLayerProvider } from "@/components/ui/ConfettiLayer";
 import { MilestoneCelebrationObserver } from "@/features/account/MilestoneCelebration";
 
 const appShellModuleLoadedAt = Date.now();
@@ -82,27 +84,30 @@ function AppShell() {
                 <AndroidBackNavigator />
                 <OfflineNotice />
                 <StatusBar style={isDark ? "light" : "dark"} />
-                <View style={{ flex: 1 }}>
-                  <Stack
-                    screenOptions={{
-                      headerShown: false,
-                      contentStyle: { backgroundColor: colors.background },
-                    }}
-                  >
-                    <Stack.Screen name="(tabs)" />
-                    <Stack.Screen
-                      name="branches"
-                      options={{ presentation: "card" }}
-                    />
-                    <Stack.Screen
-                      name="cart"
-                      options={{ presentation: "card" }}
-                    />
-                  </Stack>
-                  <FloatingTabBar />
-                  <BrandEntrance />
-                  <MilestoneCelebrationObserver />
-                </View>
+                <ConfettiLayerProvider>
+                  <View style={{ flex: 1 }}>
+                    <Stack
+                      screenOptions={{
+                        headerShown: false,
+                        contentStyle: { backgroundColor: colors.background },
+                      }}
+                    >
+                      <Stack.Screen name="(tabs)" />
+                      <Stack.Screen
+                        name="branches"
+                        options={{ presentation: "card" }}
+                      />
+                      <Stack.Screen
+                        name="cart"
+                        options={{ presentation: "card" }}
+                      />
+                    </Stack>
+                    <FloatingTabBar />
+                    <BrandEntrance />
+                    <MilestoneCelebrationObserver />
+                    <OrderUpdateBanner />
+                  </View>
+                </ConfettiLayerProvider>
               </ToastProvider>
             </AuthProvider>
           </QueryProvider>

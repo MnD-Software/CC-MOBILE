@@ -14,7 +14,6 @@ import { useBag, usePreferences } from "./store";
 import { CelebrationArtwork } from "@/components/ui/CelebrationArtwork";
 import { AnimatedNumber } from "@/components/ui/Delight";
 import { CartSuggestions } from "./CartSuggestions";
-import { TestJourneyCard } from "./TestJourneyCard";
 
 export function CartScreen() {
   const styles = useThemedStyles(baseStyles);
@@ -53,7 +52,6 @@ export function CartScreen() {
       subtitle="Everything for your next celebration."
       back
     >
-      <TestJourneyCard />
       {!bag.lines.length ? (
         <>
           <View style={{ alignItems: "center", gap: 10 }}>

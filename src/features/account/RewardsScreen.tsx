@@ -1,3 +1,4 @@
+import { HeaderActions } from "@/components/storefront/HeaderActions";
 import { ClubMembership } from "./ClubMembership";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -58,11 +59,8 @@ export function RewardsScreen() {
     return () => cancelAnimationFrame(frame);
   }, [focused, milestone, memberY]);
   const { customer, restoring } = useAuth();
-  const canTest =
-    !!customer &&
-    ["admin", "staff", "ecommerce_manager"].includes(customer.role);
   const wallet = useCouponWallet(customer?.id);
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const styles = useThemedStyles(baseStyles);
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
@@ -96,46 +94,26 @@ export function RewardsScreen() {
     <Screen
       scrollRef={scrollRef}
       header={
-        <CommerceBrowseHeader brand={<BrandLogo width={105} />}>
+        <CommerceBrowseHeader
+          brand={<BrandLogo width={105} />}
+          right={<HeaderActions />}
+        >
           <Text style={{ color: colors.muted, fontSize: 12 }}>
             A little extra with every celebration
           </Text>
         </CommerceBrowseHeader>
       }
     >
-      <LinearGradient
-        colors={
-          isDark
-            ? ["#301B28", "#73203E", "#B80068"]
-            : ["#51382D", "#8F285D", "#C90078"]
-        }
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.hero}
-      >
-        <View style={styles.heroRow}>
-          <View style={styles.heroMark}>
-            <Ionicons name="ribbon" size={23} color="#FFFFFF" />
-          </View>
-          <Text style={styles.heroEyebrow}>CAKE CITY CLUB</Text>
-        </View>
-        <Text style={styles.heroTitle}>
+      <View style={{ paddingVertical: 8, gap: 4 }}>
+        <Text style={{ color: colors.ink, fontSize: 28, fontWeight: "800" }}>
+          Your Club.
+        </Text>
+        <Text style={{ color: colors.muted, fontSize: 13 }}>
           {customer?.first_name
-            ? `Your sweet era, ${customer.first_name}.`
-            : "Welcome to the sweet life."}
+            ? `${customer.first_name}, a little closer to something sweet.`
+            : "A little extra with every celebration."}
         </Text>
-        <Text style={styles.heroCopy}>
-          Collect points. Unlock your card. Make every celebration count.
-        </Text>
-      </LinearGradient>
-
-      {canTest ? (
-        <Button
-          variant="outline"
-          label="Test a KES 1 purchase"
-          onPress={() => router.push("/payment-test")}
-        />
-      ) : null}
+      </View>
       <View onLayout={(event) => setMemberY(event.nativeEvent.layout.y)}>
         <ClubMembership
           key={wallet.scope}

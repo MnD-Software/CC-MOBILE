@@ -73,7 +73,14 @@ def product_view(row):
 
 
 def products(db, params):
-    rows = [r for r in db.scalars(select(AppProduct)) if not r.payload.get("payment_test")]
+    query = select(AppProduct)
+    if params.get("slug"):
+        query = query.where(AppProduct.slug == params["slug"])
+    if params.get("include"):
+        ids = {int(i) for i in str(params["include"]).split(",") if i.isdigit()}
+        query = query.where(AppProduct.id.in_(ids))
+    query = query.where(AppProduct.parent_id.is_not(None) if params.get("type") == "variation" else AppProduct.parent_id.is_(None))
+    rows = [r for r in db.scalars(query) if not r.payload.get("payment_test")]
     if params.get("type") == "variation":
         rows = [r for r in rows if r.parent_id is not None]
     else:
