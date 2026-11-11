@@ -224,7 +224,10 @@ export function AppOrderScreen() {
       ) : value ? (
         <>
           {value.payment_test ? (
-            <Notice message="SIMULATED TEST: no Pesapal payment or real charge. This order tests kitchen and delivery tracking. KES 100 qualifying value was assigned to your normal Club by the test rule." />
+            <Text style={{ color: colors.muted, fontSize: 11, lineHeight: 18 }}>
+              Preview · no charge. Follow your order through the kitchen and
+              delivery.
+            </Text>
           ) : null}
           <Text>{value.reference}</Text>
           <Text
@@ -240,7 +243,7 @@ export function AppOrderScreen() {
           <Text>
             {money(value.total_minor / 100)} ·{" "}
             {value.payment_test
-              ? "SIMULATED TEST - no money charged"
+              ? "Preview · no charge"
               : value.environment === "sandbox"
                 ? "Sandbox"
                 : "App sale"}

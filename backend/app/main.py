@@ -34,6 +34,7 @@ from .routes_dashboard import router as dashboard_router
 from .routes_app_delivery import router as delivery_router
 from .routes_odoo import router as odoo_router
 from .routes_logistics import router as logistics_router
+from .concierge import router as concierge_router
 
 
 @asynccontextmanager
@@ -80,6 +81,7 @@ app.include_router(delivery_router)
 app.include_router(odoo_router)
 app.include_router(logistics_router)
 app.include_router(notifications_router)
+app.include_router(concierge_router)
 
 
 @app.get("/ready/db")

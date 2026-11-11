@@ -11,7 +11,7 @@ export const tokens = {
     // Canvas & surfaces
     background: "#FFFFFF",
     surface: "#FFFFFF",
-    surfaceRaised: "#FFFFFF",
+    surfaceRaised: "#FFF9FC",
     surfaceTint: "#FFEAF4",
     glass: "rgba(255, 255, 255, 0.82)",
     glassStrong: "rgba(255, 255, 255, 0.94)",
@@ -24,7 +24,7 @@ export const tokens = {
     mutedSoft: "#715F6A",
 
     // Lines
-    border: "#DCC8D2",
+    border: "#E5D7DF",
     borderStrong: "#B888A1",
 
     // Brand

@@ -10,6 +10,7 @@ from . import odoo_models
 from . import logistics_models
 from . import notification_models
 from . import club_celebrations
+from . import concierge
 
 
 def repair_catalogue_parents(bind=engine):

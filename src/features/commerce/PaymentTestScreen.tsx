@@ -200,8 +200,8 @@ function TestPurchase({
   const done = order?.payment_state === "completed";
   return (
     <Screen
-      title="Test cake checkout"
-      subtitle="Order → Club → kitchen → delivery"
+      title={done ? "Order confirmed" : "Checkout"}
+      subtitle="A little celebration, on its way"
       back
     >
       {celebrate ? (
@@ -220,7 +220,7 @@ function TestPurchase({
             letterSpacing: 1.5,
           }}
         >
-          DEMO PRODUCT • NOT A REAL CAKE
+          YOUR NEXT CELEBRATION
         </Text>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 16 }}>
           <View
@@ -233,22 +233,24 @@ function TestPurchase({
               justifyContent: "center",
             }}
           >
-            <Ionicons name="flask-outline" size={38} color="#FFFFFF" />
+            <Ionicons name="gift-outline" size={38} color="#FFFFFF" />
           </View>
           <View style={{ flex: 1, gap: 5 }}>
             <Text style={{ color: "#FFFFFF", fontSize: 24, fontWeight: "800" }}>
-              Cake City test cake
+              Celebration cake
             </Text>
             <Text style={{ color: "#FFE1F0", lineHeight: 20 }}>
-              1 test item · KES 1.00
+              1 item · KES 1.00
             </Text>
           </View>
         </View>
         <Text style={{ color: "#FFFFFF", lineHeight: 20 }}>
-          Your complete order journey, without a charge.
+          Made for your next little moment.
         </Text>
       </LinearGradient>
-      <Notice message="SIMULATED PURCHASE — no money is charged and Pesapal is not called. This is a dedicated test item, not part of your real shopping bag. No physical cake or delivery is requested." />
+      <Text style={{ color: colors.muted, fontSize: 11, lineHeight: 18 }}>
+        Preview · no charge. No physical cake or delivery will be requested.
+      </Text>
       <View
         style={{
           padding: 22,
@@ -263,15 +265,8 @@ function TestPurchase({
           KES 1.00 total
         </Text>
         <Text style={{ color: colors.ink }}>
-          Test cake × 1: KES 1 · Delivery / pickup: KES 0 · Tax: KES 0
+          Celebration cake × 1: KES 1 · Delivery / pickup: KES 0 · Tax: KES 0
         </Text>
-        <Disclosure title="How this test updates Club">
-          <Text style={{ color: colors.muted }}>
-            Counts as KES 100 qualifying spend in your normal Club, using its
-            current earning rule. This does not mean 100 points. Test activity
-            is labelled in orders and the dashboard.
-          </Text>
-        </Disclosure>
       </View>
       {!order && !attempt.current && !reviewed ? (
         <>
@@ -301,13 +296,11 @@ function TestPurchase({
           <Input
             placeholder={
               fulfilment === "pickup"
-                ? "e.g. Head Office — test pickup"
-                : "e.g. Westlands, test building, reception"
+                ? "e.g. Head Office"
+                : "e.g. Westlands, building name, reception"
             }
             label={
-              fulfilment === "pickup"
-                ? "Pickup branch (test)"
-                : "Delivery address (test)"
+              fulfilment === "pickup" ? "Pickup branch" : "Delivery address"
             }
             value={destination}
             onChangeText={setDestination}
@@ -327,7 +320,7 @@ function TestPurchase({
           }}
         >
           <Text style={{ color: colors.ink, fontSize: 19, fontWeight: "800" }}>
-            Review your test order
+            Review your order
           </Text>
           <Text style={{ color: colors.ink }}>
             {customer.first_name} {customer.last_name} · {phone}
@@ -340,7 +333,7 @@ function TestPurchase({
           </Text>
           <Button
             variant="ghost"
-            label="Edit test details"
+            label="Edit details"
             onPress={() => setReviewed(false)}
           />
         </View>
@@ -349,10 +342,10 @@ function TestPurchase({
       {done ? (
         <>
           <Notice
-            message={`Test purchase confirmed: ${order.reference}. Club is updated. Open the dashboard Kitchen module to start preparation, then Dispatch & delivery to finish the journey.`}
+            message={`Order confirmed: ${order.reference}. Your Club is updated. Follow your cake from the kitchen to your door.`}
           />
           <Button
-            label="Track this test order"
+            label="Track my order"
             onPress={() =>
               router.push({
                 pathname: "/order/[reference]",
@@ -367,18 +360,7 @@ function TestPurchase({
           />
           <Button
             variant="outline"
-            label="Continue in Kitchen"
-            onPress={() => router.push("/kitchen")}
-          />
-          <Button
-            variant="outline"
-            label="Open Dispatch"
-            onPress={() => router.push("/dispatch")}
-          />
-          <Notice message="Next: in Kitchen, find this order reference, choose a location, assign production and mark it ready. In Dispatch, select a rider and assign the items. Sign in separately at /rider-login with the assigned rider account to accept, collect and confirm delivery. Track this same reference in Your orders. Pickup orders finish through the staff collection workflow." />
-          <Button
-            variant="outline"
-            label="Run another KES 1 test"
+            label="Start another preview purchase"
             onPress={() => {
               setOrder(null);
               setReviewed(false);
@@ -390,10 +372,10 @@ function TestPurchase({
         <Button
           label={
             order || attempt.current
-              ? "Resume the same test purchase"
+              ? "Resume your purchase"
               : reviewed
-                ? "Simulate KES 1 purchase"
-                : "Review test order"
+                ? "Confirm preview purchase"
+                : "Review order"
           }
           loading={busy}
           disabled={!ready || busy}

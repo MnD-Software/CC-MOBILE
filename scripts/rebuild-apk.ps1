@@ -56,7 +56,7 @@ $dependencyHash = $sourceHash + ((Get-ChildItem -LiteralPath (Join-Path $sourceR
 $installedHash = if (Test-Path -LiteralPath $dependencyStamp) { (Get-Content -LiteralPath $dependencyStamp -Raw).Trim() } else { '' }
 # Mirror only owned source directories; never copy Git metadata, credentials,
 # backups, dependencies, or generated native outputs into the staging tree.
-foreach ($folder in @('app','src','assets','patches','scripts','tests')) {
+foreach ($folder in @('app','src','assets','patches','scripts','tests','plugins','app-intents')) {
   $from = Join-Path $sourceRoot $folder
   $to = Join-Path $root $folder
   AssertStagedPath $to

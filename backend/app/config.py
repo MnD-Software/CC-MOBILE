@@ -33,6 +33,10 @@ class Settings(BaseSettings):
     google_maps_browser_key: str = ""
     odoo_enabled: bool = False
     push_enabled: bool = False
+    concierge_enabled: bool = False
+    openai_api_key: str = ""
+    concierge_model: str = "gpt-6.1-sol"
+    concierge_daily_limit: int = Field(default=20, ge=1, le=100)
     expo_push_access_token: str = ""
     odoo_url: str = ""
     odoo_database: str = ""

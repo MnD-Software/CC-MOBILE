@@ -13,6 +13,7 @@ import { OfflineNotice } from "@/components/ui/OfflineNotice";
 import { CelebrationReminderPrivacy } from "@/native/celebration-reminders";
 import { NotificationObserver } from "@/native/NotificationObserver";
 import { PushRegistration } from "@/native/PushRegistration";
+import { ConciergeIntents } from "@/native/ConciergeIntents";
 import {
   recordPerformanceMetric,
   trackCommerceEvent,
@@ -80,6 +81,7 @@ function AppShell() {
               <ToastProvider>
                 <NotificationObserver />
                 <PushRegistration />
+                <ConciergeIntents />
                 <CelebrationReminderPrivacy />
                 <AndroidBackNavigator />
                 <OfflineNotice />

@@ -208,6 +208,7 @@ export function FloatingTabBar() {
   }, []);
   if (
     keyboardVisible ||
+    pathname === "/concierge" ||
     [
       "/rider",
       "/rider-login",

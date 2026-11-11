@@ -1,5 +1,20 @@
 # Cake City local finishing review — 10 November 2026
 
+The 11 November concierge and visual finishing pass is documented in
+[CONCIERGE.md](CONCIERGE.md). Version 0.3.1 restores the Club welcome card with
+local-time greetings, adds image skeletons and deferred web image requests,
+opens up catalogue spacing, and simplifies the no-charge preview checkout.
+The concierge includes account-scoped product, Club and order tools, bag and
+reorder proposals, reviewed voice input, and native shortcut declarations.
+AI activation needs separate API billing; ChatGPT Plus does not supply it.
+A new signed native build is required for microphone and shortcut validation.
+
+Local Chrome checks passed on 11 November at 06:38 UTC: delayed-photo skeletons,
+concierge and Club layouts at 320/390/430/1280 pixels, predictive search, preview
+checkout, kitchen readiness, rider dispatch, delivery completion and customer
+notifications. The evidence is in `artifacts/local-preview/browser-verification.json`.
+This establishes local behavior, not a Render deployment or phone push delivery.
+
 The subsequent customer-feedback pass is documented in
 [BUYING_EXPERIENCE_2026-11-10.md](BUYING_EXPERIENCE_2026-11-10.md): predictive search,
 cleaner Club, header celebration creation, inline staff test cake, customer order

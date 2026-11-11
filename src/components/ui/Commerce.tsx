@@ -778,14 +778,14 @@ export const ProductTile = memo(function ProductTile({
         <View
           style={{
             backgroundColor: colors.surface,
-            paddingHorizontal: compact ? 9 : 14,
-            paddingTop: compact ? 9 : 12,
+            paddingHorizontal: compact ? 12 : 16,
+            paddingTop: compact ? 14 : 18,
             paddingBottom: compact ? 62 : 14,
-            paddingRight: horizontal ? 10 : compact ? 9 : 14,
-            paddingLeft: horizontal ? 9 : compact ? 9 : 14,
+            paddingRight: horizontal ? 12 : compact ? 12 : 16,
+            paddingLeft: horizontal ? 12 : compact ? 12 : 16,
             flex: horizontal ? 1 : undefined,
             minWidth: 0,
-            gap: 5,
+            gap: 8,
           }}
         >
           <Text

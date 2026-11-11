@@ -43,6 +43,8 @@ def create_app():
         raise RuntimeError("Odoo integrations are forbidden in the isolated local preview")
     if get_settings().push_enabled or get_settings().expo_push_access_token:
         raise RuntimeError("Remote push delivery is forbidden in the isolated local preview")
+    if get_settings().concierge_enabled or get_settings().openai_api_key:
+        raise RuntimeError("Paid AI provider calls are forbidden in the isolated local preview")
     if any(getattr(get_settings(), key) for key in (
         "pesapal_consumer_key", "pesapal_consumer_secret", "pesapal_accounts_json",
         "pesapal_public_url", "render_external_url", "sales_ingest_secret",

@@ -105,7 +105,7 @@ export function ClubMembership({
       <Notice message="Sign in to see your Club membership and save celebrations across devices." />
     );
   return (
-    <View testID="club-membership" style={{ gap: 12 }}>
+    <View testID="club-membership" style={{ gap: 22 }}>
       {query.isPending ? (
         <Notice message="Loading your verified membership…" />
       ) : null}

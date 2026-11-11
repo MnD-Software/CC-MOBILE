@@ -33,11 +33,13 @@ export function Skeleton({
           toValue: 1,
           duration: 850,
           useNativeDriver: true,
+          isInteraction: false,
         }),
         Animated.timing(opacity, {
           toValue: 0.62,
           duration: 850,
           useNativeDriver: true,
+          isInteraction: false,
         }),
       ]),
     );
@@ -46,6 +48,7 @@ export function Skeleton({
         toValue: 1,
         duration: 1450,
         useNativeDriver: true,
+        isInteraction: false,
       }),
     );
     const start = () => {

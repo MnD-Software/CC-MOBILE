@@ -1,5 +1,6 @@
 import { HeaderActions } from "@/components/storefront/HeaderActions";
 import { ClubMembership } from "./ClubMembership";
+import { ClubWelcome } from "./ClubWelcome";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
@@ -104,16 +105,7 @@ export function RewardsScreen() {
         </CommerceBrowseHeader>
       }
     >
-      <View style={{ paddingVertical: 8, gap: 4 }}>
-        <Text style={{ color: colors.ink, fontSize: 28, fontWeight: "800" }}>
-          Your Club.
-        </Text>
-        <Text style={{ color: colors.muted, fontSize: 13 }}>
-          {customer?.first_name
-            ? `${customer.first_name}, a little closer to something sweet.`
-            : "A little extra with every celebration."}
-        </Text>
-      </View>
+      <ClubWelcome name={customer?.first_name} />
       <View onLayout={(event) => setMemberY(event.nativeEvent.layout.y)}>
         <ClubMembership
           key={wallet.scope}

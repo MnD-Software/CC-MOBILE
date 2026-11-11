@@ -43,7 +43,7 @@ export function TestProductTile({ width }: { width: number }) {
             letterSpacing: 1,
           }}
         >
-          STAFF TEST · NO CHARGE
+          PREVIEW · NO CHARGE
         </Text>
         <Text style={{ color: colors.ink, fontWeight: "700", fontSize: 13 }}>
           Test celebration cake

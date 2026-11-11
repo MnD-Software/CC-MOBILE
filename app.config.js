@@ -25,6 +25,16 @@ module.exports = ({ config }) => {
       (Array.isArray(plugin) ? plugin[0] : plugin) !== GOOGLE_SIGN_IN_PLUGIN,
   );
   if (googlePlugin) plugins.push(googlePlugin);
+  plugins.push([
+    "expo-audio",
+    {
+      microphonePermission:
+        "Cake City uses your microphone only when you record a voice command.",
+      enableBackgroundRecording: false,
+      enableBackgroundPlayback: false,
+    },
+  ]);
+  plugins.push("expo-app-intents", "./plugins/with-cakecity-shortcuts");
   if (
     !plugins.some(
       (plugin) =>
@@ -59,6 +69,18 @@ module.exports = ({ config }) => {
   return {
     ...config,
     plugins,
+    experiments: {
+      ...config.experiments,
+      inlineModules: {
+        ...config.experiments?.inlineModules,
+        watchedDirectories: [
+          ...new Set([
+            ...(config.experiments?.inlineModules?.watchedDirectories ?? []),
+            "app-intents",
+          ]),
+        ],
+      },
+    },
     extra: {
       ...config.extra,
       ...(projectId ? { eas: { ...config.extra?.eas, projectId } } : {}),

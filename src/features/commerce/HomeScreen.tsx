@@ -4,6 +4,8 @@ import { ActiveOrderCard } from "./ActiveOrderCard";
 import { Ionicons } from "@expo/vector-icons";
 import { CampaignStories } from "@/features/editorial/CampaignStories";
 import { Image } from "expo-image";
+import { LoadingImage } from "@/components/ui/LoadingImage";
+import { ConciergeEntry } from "@/features/concierge/ConciergeEntry";
 import { LinearGradient } from "expo-linear-gradient";
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
@@ -310,6 +312,7 @@ export function HomeScreen() {
         showsVerticalScrollIndicator={false}
       >
         <ActiveOrderCard />
+        <ConciergeEntry />
         {catalogue.isPending ? (
           <HomeSkeleton cardWidth={collectionCardWidth} />
         ) : catalogue.isError ? (
@@ -494,7 +497,7 @@ function DealSlide({
       style={({ pressed }) => [styles.dealHero, pressed && styles.pressed]}
     >
       {image ? (
-        <Image
+        <LoadingImage
           cachePolicy="memory-disk"
           contentFit="cover"
           source={{ uri: image }}
@@ -630,7 +633,7 @@ function OccasionRail() {
                 },
               ]}
             >
-              <Image
+              <LoadingImage
                 cachePolicy="memory-disk"
                 contentFit="cover"
                 contentPosition="center"
@@ -690,7 +693,7 @@ function CollectionGrid({ cardWidth }: { cardWidth: number }) {
               pressed && styles.pressed,
             ]}
           >
-            <Image
+            <LoadingImage
               cachePolicy="memory-disk"
               contentFit="cover"
               source={{ uri: collection.image }}
@@ -766,7 +769,7 @@ const baseStyles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 14,
     paddingBottom: 128,
-    gap: 22,
+    gap: 30,
     overflow: "hidden",
   },
   brandBlock: {

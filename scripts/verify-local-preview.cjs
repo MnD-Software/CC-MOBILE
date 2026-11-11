@@ -10,6 +10,7 @@ const apiOrigin = "http://127.0.0.1:8010";
 const checks = [];
 const errors = [];
 let checkoutReference;
+let delayPhotos = process.argv.includes("--polish");
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function main() {
@@ -122,13 +123,22 @@ async function main() {
             if (!/Invalid InterceptionId|closed/i.test(error.message))
               errors.push(error.message);
           });
-        } else
-          void send("Fetch.continueRequest", {
-            requestId: message.params.requestId,
-          }).catch((error) => {
-            if (!/Invalid InterceptionId|closed/i.test(error.message))
-              errors.push(error.message);
-          });
+        } else {
+          const resume = () =>
+            void send("Fetch.continueRequest", {
+              requestId: message.params.requestId,
+            }).catch((error) => {
+              if (!/Invalid InterceptionId|closed/i.test(error.message))
+                errors.push(error.message);
+            });
+          if (
+            delayPhotos &&
+            message.params.resourceType === "Image" &&
+            /\/v1\/(app-media|content\/assets)/.test(url.pathname)
+          )
+            setTimeout(resume, 2500);
+          else resume();
+        }
       }
     });
     async function evaluate(expression) {
@@ -230,6 +240,69 @@ async function main() {
         "authenticated navigation",
       );
       await observe(role + "-signed-in");
+      if (role === "customer" && process.argv.includes("--polish")) {
+        await send("Emulation.setDeviceMetricsOverride", {
+          width: 390,
+          height: 844,
+          deviceScaleFactor: 1,
+          mobile: true,
+        });
+        await wait(
+          `!!document.querySelector('[data-testid="photo-loading"]')`,
+          "photo skeletons while requests are delayed",
+        );
+        await capture("polish-home-loading-390");
+        delayPhotos = false;
+        await wait(
+          `!!document.querySelector('[aria-label="Open Cake City personal assistant"]')`,
+          "concierge Home entry",
+        );
+        await click("Open Cake City personal assistant");
+        await wait(
+          `document.body.innerText.includes('Your concierge is being prepared')`,
+          "unconfigured assistant fallback",
+        );
+        for (const width of [320, 390, 430, 1280]) {
+          await send("Emulation.setDeviceMetricsOverride", {
+            width,
+            height: 900,
+            deviceScaleFactor: 1,
+            mobile: width < 600,
+          });
+          await pause(150);
+          const size = await evaluate(
+            `({viewport:innerWidth,scroll:document.documentElement.scrollWidth})`,
+          );
+          assert.ok(
+            size.scroll <= size.viewport,
+            "Concierge overflow at " + width,
+          );
+          await capture("polish-concierge-" + width);
+        }
+        await click("Help me reorder my last cake");
+        assert.equal(
+          await evaluate(
+            `document.querySelector('textarea[aria-label="Message your Cake City concierge"]').value`,
+          ),
+          "Help me reorder my last cake",
+        );
+        assert.equal(
+          await evaluate(
+            `document.querySelector('[aria-label="Send message"]')?.getAttribute('aria-disabled')`,
+          ),
+          "true",
+        );
+        await click("Browse cakes");
+        await wait(
+          `location.pathname.includes('shop')`,
+          "assistant browse fallback",
+        );
+        checks.push({
+          polish:
+            "photo skeletons under delayed requests; disabled AI stays honest; shortcut draft; concierge phone and desktop layouts",
+          widths: [320, 390, 430, 1280],
+        });
+      }
       if (role === "admin" && process.argv.includes("--experience")) {
         await send("Emulation.setDeviceMetricsOverride", {
           width: 390,
@@ -358,7 +431,7 @@ async function main() {
             "Test celebration cake, KES 1, simulation only, no charge",
           );
           await wait(
-            "document.body.innerText.includes('Cake City test cake')",
+            "document.body.innerText.includes('Celebration cake') && location.pathname === '/payment-test'",
             "visible test product",
           );
           for (const width of [320, 390, 1280]) {
@@ -378,23 +451,20 @@ async function main() {
             await capture("test-checkout-" + width);
           }
           await fill("Phone", "0712345678");
-          await fill(
-            "Delivery address (test)",
-            "Westlands test building, reception",
-          );
-          await click("Review test order");
+          await fill("Delivery address", "Westlands test building, reception");
+          await click("Review order");
           await wait(
             "document.body.innerText.includes('Actual charge: KES 0.00')",
             "test review before confirmation",
           );
           await capture("test-checkout-review");
-          await click("Simulate KES 1 purchase");
+          await click("Confirm preview purchase");
           await wait(
-            "document.body.innerText.includes('Test purchase confirmed:')",
+            "document.body.innerText.includes('Order confirmed:')",
             "test checkout confirmed",
           );
           checkoutReference = await evaluate(
-            "document.body.innerText.match(/Test purchase confirmed: (APP-[A-Z0-9-]+)/)[1]",
+            "document.body.innerText.match(/Order confirmed: (APP-[A-Z0-9-]+)/)[1]",
           );
           await capture("test-checkout-confirmed");
           if (process.argv.includes("--club")) {
@@ -435,7 +505,7 @@ async function main() {
             });
             continue;
           }
-          await click("Track this test order");
+          await click("Track my order");
           await wait(
             "document.body.innerText.includes(" +
               JSON.stringify(checkoutReference) +

@@ -13,3 +13,32 @@ test("resolved Expo configuration preserves iOS extension provisioning metadata"
     ),
   );
 });
+
+test("voice and Siri modules are configured for a new native runtime", () => {
+  const resolved = configure({ config });
+  const names = resolved.plugins.map((plugin) =>
+    Array.isArray(plugin) ? plugin[0] : plugin,
+  );
+  assert.ok(names.includes("expo-audio"));
+  assert.ok(names.includes("expo-app-intents"));
+  assert.ok(names.includes("./plugins/with-cakecity-shortcuts"));
+  assert.ok(
+    resolved.experiments.inlineModules.watchedDirectories.includes(
+      "app-intents",
+    ),
+  );
+  assert.equal(resolved.version, require("../package.json").version);
+  assert.equal(resolved.runtimeVersion.policy, "appVersion");
+  const audio = resolved.plugins.find(
+    (plugin) => Array.isArray(plugin) && plugin[0] === "expo-audio",
+  )[1];
+  assert.equal(audio.enableBackgroundRecording, false);
+  const picker = resolved.plugins.find(
+    (plugin) => Array.isArray(plugin) && plugin[0] === "expo-image-picker",
+  )[1];
+  assert.equal(
+    picker.microphonePermission,
+    audio.microphonePermission,
+    "Photo picker must not remove the microphone permission used by voice commands",
+  );
+});

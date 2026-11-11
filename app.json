@@ -3,7 +3,7 @@
     "name": "Cake City",
     "slug": "cakecitymobiledev",
     "scheme": "cakecity",
-    "version": "0.3.0",
+    "version": "0.3.1",
     "orientation": "portrait",
     "icon": "./assets/cake-city-app-icon.png",
     "userInterfaceStyle": "automatic",
@@ -12,7 +12,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "ke.co.cakecity.mobile",
-      "buildNumber": "16",
+      "buildNumber": "17",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -22,7 +22,7 @@
         "backgroundColor": "#FFF5FA",
         "foregroundImage": "./assets/cake-city-icon-foreground.png"
       },
-      "versionCode": 16,
+      "versionCode": 17,
       "predictiveBackGestureEnabled": true,
       "package": "ke.co.cakecity.mobile"
     },
@@ -48,7 +48,7 @@
         {
           "photosPermission": "Cake City uses your selected photo for your profile picture or a custom cake inspiration.",
           "cameraPermission": false,
-          "microphonePermission": false,
+          "microphonePermission": "Cake City uses your microphone only when you record a voice command.",
           "colors": {
             "cropToolbarColor": "#FFF5FA",
             "cropToolbarIconColor": "#B80068",

@@ -172,6 +172,8 @@ async function main() {
     GOOGLE_MAPS_API_KEY: "",
     GOOGLE_MAPS_BROWSER_KEY: "",
     ODOO_ENABLED: "false",
+    CONCIERGE_ENABLED: "false",
+    OPENAI_API_KEY: "",
     PUSH_ENABLED: "false",
     EXPO_PUSH_ACCESS_TOKEN: "",
     ODOO_LOYALTY_AUTHORITY: "false",

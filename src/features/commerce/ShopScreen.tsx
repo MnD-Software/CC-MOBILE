@@ -561,16 +561,16 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
                   : rows
               }
               numColumns={2}
-              columnWrapperStyle={{ gap: 8 }}
+              columnWrapperStyle={{ gap: 12 }}
               keyExtractor={(item) => String(item.id)}
               renderItem={({ item }) =>
                 item.id === "staff-test" ? (
-                  <TestProductTile width={Math.max(0, (paneWidth - 28) / 2)} />
+                  <TestProductTile width={Math.max(0, (paneWidth - 40) / 2)} />
                 ) : (
                   <ProductTile
                     product={item as StoreProduct}
                     compact
-                    width={Math.max(0, (paneWidth - 28) / 2)}
+                    width={Math.max(0, (paneWidth - 40) / 2)}
                   />
                 )
               }
@@ -578,7 +578,7 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
                 styles.content,
                 { paddingBottom: insets.bottom + 128 },
               ]}
-              ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
+              ItemSeparatorComponent={() => <View style={{ height: 18 }} />}
               keyboardShouldPersistTaps="handled"
               keyboardDismissMode="on-drag"
               showsVerticalScrollIndicator={false}
@@ -759,7 +759,7 @@ const baseStyles = StyleSheet.create({
     textAlign: "center",
   },
   productPane: { flex: 1, backgroundColor: tokens.color.background },
-  content: { padding: 10, flexGrow: 1 },
+  content: { padding: 14, flexGrow: 1 },
   listHeader: {
     gap: 10,
     paddingTop: 0,
