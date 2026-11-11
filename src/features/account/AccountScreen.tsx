@@ -21,6 +21,7 @@ import {
   useToast,
 } from "@/components/ui/Commerce";
 import { Button } from "@/components/ui/Button";
+import { ProfileDetailsForm } from "./ProfileDetailsForm";
 import { usePreferences } from "@/features/commerce/store";
 import { tokens } from "@/theme/tokens";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
@@ -526,6 +527,8 @@ export function AccountScreen() {
           </Text>
           <Pressable
             accessibilityRole="button"
+            accessibilityLabel="Profile settings"
+            accessibilityState={{ expanded: editingProfile }}
             onPress={() => setEditingProfile(!editingProfile)}
             style={[
               styles.securePill,
@@ -647,10 +650,10 @@ export function AccountScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.profileDetailsTitle}>
-                  Your sign-in details
+                  Your account details
                 </Text>
                 <Text style={styles.profileDetailsCopy}>
-                  Verified by your current session
+                  Keep your name and contact information up to date
                 </Text>
               </View>
             </View>
@@ -660,12 +663,7 @@ export function AccountScreen() {
                 {customer.email}
               </Text>
             </View>
-            {customer.phone ? (
-              <View style={styles.profileDetailRow}>
-                <Text style={styles.profileDetailLabel}>Phone</Text>
-                <Text style={styles.profileDetailValue}>{customer.phone}</Text>
-              </View>
-            ) : null}
+            <ProfileDetailsForm key={customer.id} customer={customer} />
           </View>
 
           <View style={styles.avatarPanel}>

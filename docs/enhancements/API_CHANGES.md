@@ -1,5 +1,7 @@
 # API changes
 
+The account finishing increment adds `GET /v1/account/profile` and `PUT /v1/account/profile` for the authenticated member's own contact details. PUT accepts only `first_name`, `last_name` and nullable `phone`; it cannot change email, password, ID or role. Successful responses are private and non-cacheable. No schema migration is required. Legacy staff simulation endpoints now reject production, staging and unknown environments. See [contract and rollout details](PROFILE_AND_TEST_SAFETY.md).
+
 The finishing pass also corrects the web dashboard to call the existing production-assignment and logistics-task APIs used by mobile. Driver selection supplies `rider_id` to `POST /v1/logistics/orders/{reference}/tasks`; it no longer relies on the legacy name/phone-only dispatch form. Individual task revisions, kitchen readiness and delivery proof remain enforced by the backend. Legacy API routes are retained for compatibility; no dashboard control should bypass task completion.
 
 ## Current worktree changes

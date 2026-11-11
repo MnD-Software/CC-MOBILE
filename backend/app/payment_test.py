@@ -6,17 +6,26 @@ from sqlalchemy import update
 
 from .permissions import audit
 from .commerce_models import AppOrder, AppProduct
+from .config import get_settings
 
 PRODUCT_ID = 2147483000
 ROLES = {"admin", "staff", "ecommerce_manager"}
 
 
+def require_test_environment():
+    # Staff privileges must never enable simulated purchases on a production server.
+    if get_settings().environment.strip().casefold() not in {"development", "test"}:
+        raise HTTPException(403, "Simulated purchases require the isolated local review backend. Production payments cannot be simulated.")
+
+
 def require_tester(customer):
     if not customer or customer.role not in ROLES:
         raise HTTPException(403, "Payment testing is available to app commerce staff only.")
+    require_test_environment()
 
 
 def ensure_product(db):
+    require_test_environment()
     product = db.get(AppProduct, PRODUCT_ID)
     if product and not product.payload.get("payment_test"):
         raise HTTPException(409, "The reserved payment-test product ID is already in use.")

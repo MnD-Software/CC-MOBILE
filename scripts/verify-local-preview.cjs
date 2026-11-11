@@ -448,6 +448,93 @@ async function main() {
       );
       await wait(`location.pathname.includes('account')`, "Account route");
       await observe(role + "-account");
+      if (role === "customer" && process.argv.includes("--profile")) {
+        const accountSession = await (
+          await fetch(apiOrigin + "/v1/auth/mobile/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(credentials.accounts.customer),
+          })
+        ).json();
+        const headers = {
+          Authorization: "Bearer " + accountSession.access_token,
+        };
+        const original = accountSession.customer;
+        await click("Profile settings");
+        await wait(
+          `!!document.querySelector('[data-testid="profile-details-form"]')`,
+          "editable profile",
+        );
+        await fill("First name", "Local Updated");
+        await fill("Contact phone (optional)", "invalid");
+        await click("Save details");
+        await wait(
+          `document.body.innerText.includes('Enter a Kenyan phone number')`,
+          "inline contact validation",
+        );
+        assert.equal(
+          (
+            await (
+              await fetch(apiOrigin + "/v1/account/profile", { headers })
+            ).json()
+          ).first_name,
+          original.first_name,
+        );
+        await fill("Contact phone (optional)", "+254 712 345 678");
+        await click("Save details");
+        await wait(
+          `document.body.innerText.includes('Your details have been saved.')`,
+          "profile saved",
+        );
+        const saved = await (
+          await fetch(apiOrigin + "/v1/account/profile", { headers })
+        ).json();
+        assert.equal(saved.first_name, "Local Updated");
+        assert.equal(saved.phone, "+254712345678");
+        assert.equal(saved.email, original.email);
+        await fill("First name", "Unsaved name");
+        await click("Discard changes");
+        assert.equal(
+          await evaluate(
+            `document.querySelector('input[aria-label="First name"]').value`,
+          ),
+          "Local Updated",
+        );
+        for (const width of [320, 390, 430]) {
+          await send("Emulation.setDeviceMetricsOverride", {
+            width,
+            height: 900,
+            deviceScaleFactor: 1,
+            mobile: true,
+          });
+          await evaluate(
+            `document.querySelector('[data-testid="profile-details-form"]').scrollIntoView({block:'center'})`,
+          );
+          await pause(250);
+          const sizes = await evaluate(
+            `({viewport:innerWidth,scroll:document.documentElement.scrollWidth})`,
+          );
+          assert.ok(
+            sizes.scroll <= sizes.viewport,
+            "Profile overflow at " + width,
+          );
+          await capture("profile-edit-" + width);
+        }
+        await fill("First name", original.first_name);
+        await fill("Last name", original.last_name);
+        await fill("Contact phone (optional)", original.phone || "");
+        await click("Save details");
+        await wait(
+          `document.body.innerText.includes('Your details have been saved.')`,
+          "review profile restored",
+        );
+        await click("Profile settings");
+        checks.push({
+          profile:
+            "real self-service save, validation, normalized phone, discard, persisted API read and original restored",
+          widths: [320, 390, 430],
+        });
+      }
       if (role === "customer") {
         await click("Cake City for business");
         await wait(

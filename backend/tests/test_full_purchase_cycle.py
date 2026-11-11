@@ -2,6 +2,7 @@
 from copy import deepcopy
 from types import SimpleNamespace
 from uuid import uuid4
+import pytest
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -119,3 +120,19 @@ def test_simulation_cannot_confirm_an_ordinary_order_or_another_staff_members_or
         response=s["client"].patch(f"/v1/admin/app-orders/{order['reference']}",json={"status":state})
         assert response.status_code == 200, response.text
     assert s["client"].get(f"/v1/app-orders/{order['reference']}").json()["status"] == "completed"
+
+
+@pytest.mark.parametrize("environment", ["production", "PRODUCTION", "staging", "unknown"])
+def test_staff_simulations_cannot_run_on_production_or_unapproved_servers(system, monkeypatch, environment):
+    s = system
+    role(s, "admin")
+    order, payload = create(s, "pickup")
+    monkeypatch.setattr(get_settings(), "environment", environment)
+    assert s["client"].post("/v1/admin/payment-test/product", json={}).status_code == 403
+    assert s["client"].post("/v1/app-checkout/quote", json=payload).status_code == 403
+    assert s["client"].post(f"/v1/admin/payment-test/orders/{order['reference']}/complete", json={}).status_code == 403
+    with Session(s["engine"]) as db:
+        stored = db.scalar(select(AppOrder).where(AppOrder.reference == order["reference"]))
+        assert stored.payment_state == "not_started"
+        assert db.get(ClubAccount, "buyer") is None
+        assert not list(db.scalars(select(SalesRecord)))

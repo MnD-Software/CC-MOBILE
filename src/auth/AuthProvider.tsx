@@ -36,6 +36,9 @@ type AuthContextValue = {
   login(email: string, password: string): Promise<void>;
   register(input: Parameters<typeof authApi.register>[0]): Promise<void>;
   completeGoogle(idToken: string): Promise<void>;
+  updateProfile(
+    input: Parameters<typeof authApi.updateProfile>[0],
+  ): Promise<void>;
   continueAsGuest(): void;
   logout(): Promise<void>;
 };
@@ -155,6 +158,27 @@ export function AuthProvider({ children }: PropsWithChildren) {
         signIn(() => authApi.login(email.trim().toLowerCase(), password)),
       register: (input) => signIn(() => authApi.register(input)),
       completeGoogle: (token) => signIn(() => authApi.google(token)),
+      updateProfile: async (input) => {
+        const expected = generation.current;
+        const owner = sessionOwner.current;
+        if (!owner) throw new Error("Please sign in to edit your profile.");
+        const updated = await authApi.updateProfile(input);
+        // A refresh started before the save may return older contact details.
+        // Let it finish before applying the server-confirmed profile.
+        if (flight.current) await flight.current.catch(() => undefined);
+        if (
+          expected !== generation.current ||
+          owner !== sessionOwner.current ||
+          updated.id !== owner
+        )
+          throw new Error("Your account changed. Open your profile again.");
+        setSession((current) =>
+          current?.customer.id === owner
+            ? { ...current, customer: updated }
+            : current,
+        );
+        void cache.invalidateQueries({ queryKey: ["club"] });
+      },
       continueAsGuest: () => undefined,
       logout: async () => {
         ++signInAttempt.current;

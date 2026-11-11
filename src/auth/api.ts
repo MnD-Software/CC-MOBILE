@@ -17,6 +17,7 @@ const sessionSchema = z.object({
 });
 export type Customer = z.infer<typeof customerSchema>;
 export type MobileSession = z.infer<typeof sessionSchema>;
+export type ProfileInput = Pick<Customer, "first_name" | "last_name" | "phone">;
 const AUTH_TIMEOUT_MS = 45_000;
 
 async function session(path: string, body: unknown) {
@@ -25,6 +26,10 @@ async function session(path: string, body: unknown) {
   );
 }
 export const authApi = {
+  updateProfile: async (input: ProfileInput) =>
+    customerSchema.parse(
+      await api.put<unknown>("/v1/account/profile", input, { auth: true }),
+    ),
   login: (email: string, password: string) =>
     session("/v1/auth/mobile/login", { email, password }),
   register: (input: {

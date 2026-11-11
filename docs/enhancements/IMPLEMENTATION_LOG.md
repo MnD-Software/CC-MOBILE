@@ -1,5 +1,12 @@
 # Implementation log
 
+## 11 November 2026 - Account details and production simulation guard
+
+- Checked the newly supplied super-app master brief against the existing source and retained the completed tracking/Shop work.
+- Completed self-service name/contact editing in Account with authenticated, strict backend validation and a private response contract. Protected session identity against late saves and older refreshes.
+- Added an environment guard to the legacy staff simulation: production, staging and unknown environments cannot provision the test cake, quote it or simulate payment completion. Local development/test review remains available.
+- No database migration, new package, paid AI activation or live payment was required. See [profile and test safety](PROFILE_AND_TEST_SAFETY.md) for the implementation and rollout boundary.
+
 ## 11 November 2026 - Finish tracking, driver allocation and focused UI refinement
 
 - Reviewed both supplied enhancement briefs and the current uncommitted work; preserved the separately committed gated password-recovery implementation.

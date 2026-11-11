@@ -28,6 +28,8 @@ local test record, not a deployment or store sign-off.
 
 ## Current evidence
 
+The account increment adds validated self-service name/contact editing and rejects legacy staff simulations outside development/test environments. Its full frontend suite passes 191 tests; focused account/backend tests pass. No schema change is required. Deploy backend profile support before the updated mobile form. Keep the simulation guard when rolling back. See [account increment](PROFILE_AND_TEST_SAFETY.md).
+
 The finishing pass passed 185 frontend tests and 68 focused backend tests, including dashboard, logistics, tracking, payment and recovery checks. Shop/category/navigation refinements and driver-account allocation are part of version 0.3.2. See [UI changes](../ui-ux-enhancement/SCREEN_IMPROVEMENTS.md) and [tracking/deployment boundaries](../LIVE_ORDER_TRACKING.md). These results do not close the production and native gates above.
 
 TypeScript, 185 frontend tests, focused tracking and password-recovery backend

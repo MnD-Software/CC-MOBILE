@@ -1,5 +1,16 @@
 # Test results
 
+## Account finishing increment
+
+- `npm test`: **191 passed, 0 failed** after adding profile validation and session-race coverage.
+- Focused frontend profile/auth checks: **10 passed**.
+- From `backend`, `pytest tests/test_profile.py tests/test_addresses.py tests/test_password_recovery.py tests/test_auth_races.py -q`: **16 passed**.
+- From `backend`, `pytest tests/test_full_purchase_cycle.py -q`: **7 passed**, including production, uppercase production, staging and unknown-environment simulation rejection.
+- Backend checks reported the existing Starlette/AnyIO deprecation warning. No external payment, email, production database or paid provider was used.
+- Combined final backend regression (`test_profile`, `test_addresses`, `test_password_recovery`, `test_auth_races`, `test_full_purchase_cycle`, `test_live_tracking`, `test_logistics`): **37 passed**, one existing deprecation warning.
+- TypeScript and scoped Prettier checks passed. `node scripts/verify-local-preview.cjs --profile` passed at **13:40 UTC** with no browser errors: actual form save, rejected invalid phone, normalized phone, discard, persisted API read and restoration of the local review account at 320/390/430 pixels. Screenshots: `artifacts/local-preview/profile-edit-{320,390,430}.png`; the 320-pixel capture was visually reviewed. These are local web checks, not signed-device acceptance.
+- See [account and test safety](PROFILE_AND_TEST_SAFETY.md) for contract and release scope.
+
 Local validation recorded on 11 November 2026 for the current worktree:
 
 Finishing-pass verification:

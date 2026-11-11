@@ -37,7 +37,8 @@ function load(storageOverrides = {}, apiOverrides = {}) {
       return [
         slots[index],
         (value) => {
-          slots[index] = value;
+          slots[index] =
+            typeof value === "function" ? value(slots[index]) : value;
         },
       ];
     },
@@ -59,7 +60,9 @@ function load(storageOverrides = {}, apiOverrides = {}) {
       if (name === "react-native")
         return { AppState: { addEventListener: () => ({ remove() {} }) } };
       if (name === "@tanstack/react-query")
-        return { useQueryClient: () => ({}) };
+        return {
+          useQueryClient: () => ({ invalidateQueries: async () => {} }),
+        };
       if (name === "@/api/client")
         return {
           ApiError: class extends Error {},
@@ -196,4 +199,89 @@ test("logout during a login write cannot resurrect the previous session", async 
   await Promise.all([login, logout]);
   assert.equal(value.render().customer, null);
   assert.equal(value.token(), null);
+});
+
+test("profile save updates the current account without changing its tokens", async () => {
+  const value = load(
+    {},
+    { updateProfile: async (input) => ({ id: "first", ...input }) },
+  );
+  await value.render().login("first", "password");
+  await value
+    .render()
+    .updateProfile({ first_name: "Amina", last_name: "Owner", phone: null });
+  assert.equal(value.render().customer.first_name, "Amina");
+  assert.equal(value.storage.get("cakecity.refresh-token"), "refresh-first");
+  assert.equal(value.token(), "access-first");
+});
+
+test("a failed profile save preserves the current identity", async () => {
+  const value = load(
+    {},
+    {
+      updateProfile: async () => {
+        throw new Error("Offline");
+      },
+    },
+  );
+  await value.render().login("first", "password");
+  await assert.rejects(
+    value.render().updateProfile({
+      first_name: "Changed",
+      last_name: "Owner",
+      phone: null,
+    }),
+    /Offline/,
+  );
+  assert.deepEqual(value.render().customer, { id: "first" });
+});
+
+test("a profile response after an account switch cannot alter the new member", async () => {
+  let finish;
+  const value = load(
+    {},
+    {
+      updateProfile: () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    },
+  );
+  await value.render().login("first", "password");
+  const save = value
+    .render()
+    .updateProfile({ first_name: "Changed", last_name: "Owner", phone: null });
+  await value.render().login("second", "password");
+  finish({ id: "first", first_name: "Changed" });
+  await assert.rejects(save, /account changed/);
+  assert.equal(value.render().customer.id, "second");
+  assert.equal(value.token(), "access-second");
+});
+
+test("an older in-flight refresh cannot overwrite a confirmed profile save", async () => {
+  let finishRefresh;
+  const value = load(
+    {},
+    {
+      refresh: () =>
+        new Promise((resolve) => {
+          finishRefresh = resolve;
+        }),
+      updateProfile: async (input) => ({ id: "first", ...input }),
+    },
+  );
+  await value.render().login("first", "password");
+  value.render();
+  value.effects[0]();
+  await turn();
+  const save = value
+    .render()
+    .updateProfile({ first_name: "New name", last_name: "Owner", phone: null });
+  await turn();
+  finishRefresh({
+    ...session("first"),
+    customer: { id: "first", first_name: "Old name" },
+  });
+  await save;
+  assert.equal(value.render().customer.first_name, "New name");
 });
