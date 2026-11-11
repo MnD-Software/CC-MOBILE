@@ -186,6 +186,12 @@ export const usePreferences = create<Preferences>()(
       // v3 drops the old negative-ID reference favourites rather than letting
       // presentation-only catalogue data appear as customer content.
       name: "cakecity.preferences.v3",
+      version: 1,
+      // Discard history recorded by background detail screens; preserve all other preferences.
+      migrate: (saved) => ({
+        ...(saved as Record<string, unknown>),
+        recentSlugsByOwner: {},
+      }),
       storage: createJSONStorage(() => AsyncStorage),
     },
   ),

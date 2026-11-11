@@ -188,7 +188,7 @@ def task_view(db, task, history=False):
 
 
 def task_event(db, task, actor_id, status, note="", proof=""):
-    db.add(LogisticsEvent(id=str(uuid4()), task_id=task.id, actor_id=actor_id, status=status, note=note, proof=proof))
+    db.add(LogisticsEvent(id=str(uuid4()), task_id=task.id, actor_id=actor_id, status=status, note=note, proof=proof, created_at=datetime.now(UTC)))
     from .odoo_sync import enqueue
     order = db.get(AppOrder, task.order_id)
     from .notifications import rider_event
@@ -246,6 +246,11 @@ def update_task(db, actor, identity, data):
         raise HTTPException(409, "This task changed. Refresh before updating it.")
     db.refresh(task)
     task_event(db, task, actor.id if actor else None, data.status, data.note, data.proof)
+    if data.status not in {"collected", "in_transit"}:
+        from .logistics_models import RiderPosition
+        position = db.get(RiderPosition, identity)
+        if position:
+            db.delete(position)
     if data.status == "in_transit" and task.service_type == "delivery":
         order.state = "out_for_delivery"
         commerce.record_event(db, order, "fulfilment_out_for_delivery", actor_id=actor.id if actor else None)

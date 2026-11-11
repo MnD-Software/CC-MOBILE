@@ -305,12 +305,17 @@ export function FloatingTabBar() {
                     pressed && !reduceMotion && styles.pressed,
                   ]}
                 >
-                  <View style={[styles.tabContent, isClub && styles.clubFace]}>
+                  <View
+                    style={[
+                      styles.tabContent,
+                      isClub && focused && styles.clubFace,
+                    ]}
+                  >
                     <Ionicons
                       name={focused ? destination.active : destination.icon}
                       size={isClub ? 23 : 22}
                       color={
-                        isClub
+                        isClub && focused
                           ? "#FFFFFF"
                           : focused
                             ? colors.brand
@@ -321,7 +326,7 @@ export function FloatingTabBar() {
                       style={[
                         styles.label,
                         focused && styles.activeLabel,
-                        isClub && styles.clubLabel,
+                        isClub && focused && styles.clubLabel,
                       ]}
                     >
                       {destination.label}

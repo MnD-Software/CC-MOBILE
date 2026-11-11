@@ -123,7 +123,8 @@ export function Button({
           backgroundColor: v.bg,
           borderColor: v.border ?? "transparent",
           borderWidth: variant === "ghost" ? 0 : 1,
-          height: s.height,
+          minHeight: s.height,
+          paddingVertical: size === "sm" ? 9 : 12,
           paddingHorizontal: s.paddingH,
           borderRadius: s.radius,
         },
@@ -143,9 +144,16 @@ export function Button({
         <>
           {icon}
           <Text
-            numberOfLines={1}
+            numberOfLines={2}
             ellipsizeMode="tail"
-            style={[styles.label, { color: v.text, fontSize: s.fontSize }]}
+            style={[
+              styles.label,
+              {
+                color: v.text,
+                fontSize: s.fontSize,
+                lineHeight: Math.ceil(s.fontSize * 1.35),
+              },
+            ]}
           >
             {label}
           </Text>
@@ -162,6 +170,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 8,
     minWidth: 0,
+    alignSelf: "stretch",
     maxWidth: "100%",
     overflow: "hidden",
   },

@@ -39,6 +39,22 @@ export type WorkOrder = z.infer<typeof workSchema>;
 const privateGet = (path: string, signal?: AbortSignal) =>
   api.get(path, { auth: true, signal });
 export const logisticsApi = {
+  shareLocation: (
+    id: string,
+    point: {
+      latitude: number;
+      longitude: number;
+      accuracy: number;
+      recorded_at: string;
+    },
+  ) =>
+    api.put(`/v1/rider/tasks/${encodeURIComponent(id)}/location`, point, {
+      auth: true,
+    }),
+  stopLocation: (id: string) =>
+    api.delete(`/v1/rider/tasks/${encodeURIComponent(id)}/location`, {
+      auth: true,
+    }),
   locations: async (signal?: AbortSignal) =>
     z
       .array(z.object({ id: z.string(), name: z.string() }))

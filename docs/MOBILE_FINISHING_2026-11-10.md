@@ -1,5 +1,11 @@
 # Cake City local finishing review — 10 November 2026
 
+11 November final review: version 0.3.2 passed 185 frontend tests, 68 focused backend tests, TypeScript and the complete local browser journey at 11:18 UTC. This includes full-width Shop/category sheets, corrected inactive Club styling, real dashboard driver allocation, customer GPS movement, notification links and delivery feedback. See [current verification](enhancements/TEST_RESULTS.md) and [UI refinement](ui-ux-enhancement/SCREEN_IMPROVEMENTS.md). Signed-device acceptance and hosted rollout remain separate release gates.
+
+The latest 0.3.2 pass is documented in [LIVE_ORDER_TRACKING.md](LIVE_ORDER_TRACKING.md):
+concierge hidden, redesigned customer tracking, trip-scoped rider GPS, dispatch
+retry/loading improvements, corrected viewing history and button wrapping.
+
 The 11 November concierge and visual finishing pass is documented in
 [CONCIERGE.md](CONCIERGE.md). Version 0.3.1 restores the Club welcome card with
 local-time greetings, adds image skeletons and deferred web image requests,

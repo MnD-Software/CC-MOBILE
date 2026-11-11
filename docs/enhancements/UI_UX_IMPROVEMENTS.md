@@ -1,5 +1,7 @@
 # UI/UX improvements
 
+The current finishing increment removes the fixed Shop rail, reuses the existing category/filter sheets, enlarges wrapping product titles, introduces subtle catalogue elevation, and corrects the inactive Club tab styling. Orders reuse the accepted concierge visual direction. The concierge entry remains hidden. See [screen improvements](../ui-ux-enhancement/SCREEN_IMPROVEMENTS.md) for the concrete scope and remaining limitations.
+
 ## Existing foundations
 
 - Shared theme tokens, reusable commerce components, responsive screen

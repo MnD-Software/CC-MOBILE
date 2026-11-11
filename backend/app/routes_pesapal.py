@@ -4,7 +4,7 @@ from decimal import Decimal, InvalidOperation
 from urllib.parse import urlsplit
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response
 from fastapi.responses import HTMLResponse
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
@@ -89,7 +89,8 @@ def recovery(request_key: str = Query(min_length=16, max_length=80), customer: C
 
 
 @router.get("/v1/app-orders/{reference}")
-def order_detail(reference: str, customer: Customer = Depends(member), db: Session = Depends(get_db)):
+def order_detail(reference: str, response: Response, customer: Customer = Depends(member), db: Session = Depends(get_db)):
+    response.headers["Cache-Control"] = "private, no-store"
     return commerce.tracked_order_view(db, owned(db, reference, customer.id))
 
 

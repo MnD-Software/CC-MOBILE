@@ -29,6 +29,20 @@ export const appOrderSchema = z.object({
         service_type: z.string(),
         scheduled_at: z.string().nullable(),
         slot: z.string(),
+        destination_matches_checkout: z.boolean().default(false),
+        position: z
+          .object({
+            latitude: z.number(),
+            longitude: z.number(),
+            accuracy: z.number(),
+            recorded_at: z.string(),
+            stale: z.boolean(),
+          })
+          .nullable()
+          .optional(),
+        events: z
+          .array(z.object({ status: z.string(), at: z.string() }))
+          .default([]),
       }),
     )
     .optional(),

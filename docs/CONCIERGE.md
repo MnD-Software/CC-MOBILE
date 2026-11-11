@@ -1,5 +1,7 @@
 # Cake City personal concierge
 
+**Paused in version 0.3.2:** the concierge entry is hidden and its route redirects to Orders. AI can be re-enabled in a future release. The earlier implementation and activation details below remain for that work. See [live order tracking](LIVE_ORDER_TRACKING.md) for the current customer experience.
+
 The app now has a personal concierge entry on Home and `/concierge`. It can search the app catalogue, read current products and variations, explain published app information, read the signed-in customer's Club balance, track their orders, and prepare a reviewable bag or reorder using current prices and availability. It uses the same independent app backend; Odoo remains optional.
 
 The assistant never creates an order or starts payment directly. The customer explicitly adds the proposed selections to their bag, reviews fulfilment and the server quote, and approves payment through the existing checkout. Kitchen, dispatch and delivery notifications continue through that order's existing notification flow. Reordering never reuses an old payment or silently accepts an old price.

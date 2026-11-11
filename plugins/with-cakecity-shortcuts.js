@@ -35,11 +35,7 @@ module.exports = function withCakeCityShortcuts(config) {
       );
       await fs.mkdir(path.join(directory, "xml"), { recursive: true });
       await fs.mkdir(path.join(directory, "values"), { recursive: true });
-      const actions = [
-        ["talk", "Talk to Cake City"],
-        ["reorder", "Reorder my cake"],
-        ["track", "Track my orders"],
-      ];
+      const actions = [["track", "Track my orders"]];
       const intents = actions
         .map(
           ([id]) =>

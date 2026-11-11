@@ -62,7 +62,14 @@ async function main() {
       "--no-default-browser-check",
       "about:blank",
     ],
-    { windowsHide: true, stdio: "ignore" },
+    {
+      windowsHide: true,
+      stdio: [
+        "ignore",
+        "ignore",
+        fs.openSync(path.join(directory, "browser-startup.log"), "w"),
+      ],
+    },
   );
   let socket;
   let send;
@@ -70,9 +77,17 @@ async function main() {
     let target;
     for (let i = 0; i < 120; i++) {
       try {
-        target = (
-          await (await fetch("http://127.0.0.1:9349/json/list")).json()
-        ).find((tab) => tab.type === "page" && !tab.url.startsWith("edge://"));
+        let response;
+        for (const host of ["127.0.0.1", "[::1]"]) {
+          try {
+            response = await fetch(`http://${host}:9349/json/list`);
+            if (response.ok) break;
+          } catch {}
+        }
+        if (response?.ok)
+          target = (await response.json()).find(
+            (tab) => tab.type === "page" && !tab.url.startsWith("edge://"),
+          );
       } catch {}
       if (target) break;
       await pause(500);
@@ -85,7 +100,7 @@ async function main() {
     });
     let sequence = 0;
     const pending = new Map();
-    send = (method, params = {}) =>
+    send = (method, params = {}, sessionId) =>
       new Promise((resolve, reject) => {
         const id = ++sequence;
         const timeout = setTimeout(() => {
@@ -93,7 +108,14 @@ async function main() {
           reject(new Error("Browser timeout: " + method));
         }, 30000);
         pending.set(id, { resolve, reject, timeout });
-        socket.send(JSON.stringify({ id, method, params }));
+        socket.send(
+          JSON.stringify({
+            id,
+            method,
+            params,
+            ...(sessionId ? { sessionId } : {}),
+          }),
+        );
       });
     socket.addEventListener("message", (event) => {
       const message = JSON.parse(event.data);
@@ -181,15 +203,19 @@ async function main() {
           ". See artifacts/local-preview/browser-failure.json",
       );
     }
-    async function fill(label, value) {
+    async function fill(label, value, scope) {
       const state = await observe("browser-latest");
       assert.equal(
-        state.inputs.filter((item) => item.label === label).length,
+        scope
+          ? await evaluate(
+              `Array.from(document.querySelector(${JSON.stringify(scope)}).querySelectorAll('input,textarea')).filter(n=>n.getAttribute('aria-label')===${JSON.stringify(label)}).length`,
+            )
+          : state.inputs.filter((item) => item.label === label).length,
         1,
         "Input must be unique: " + label,
       );
       await evaluate(
-        `(()=>{const n=Array.from(document.querySelectorAll('input,textarea')).find(n=>n.getAttribute('aria-label')===${JSON.stringify(label)});const p=n.tagName==='TEXTAREA'?HTMLTextAreaElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(p,'value').set.call(n,${JSON.stringify(value)});n.dispatchEvent(new Event('input',{bubbles:true}));})()`,
+        `(()=>{const root=${scope ? `document.querySelector(${JSON.stringify(scope)})` : "document"};const n=Array.from(root.querySelectorAll('input,textarea')).find(n=>n.getAttribute('aria-label')===${JSON.stringify(label)});const p=n.tagName==='TEXTAREA'?HTMLTextAreaElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(p,'value').set.call(n,${JSON.stringify(value)});n.dispatchEvent(new Event('input',{bubbles:true}));})()`,
       );
       await pause(100);
     }
@@ -253,54 +279,70 @@ async function main() {
         );
         await capture("polish-home-loading-390");
         delayPhotos = false;
-        await wait(
-          `!!document.querySelector('[aria-label="Open Cake City personal assistant"]')`,
-          "concierge Home entry",
+        assert.equal(
+          await evaluate(
+            `!!document.querySelector('[aria-label="Open Cake City personal assistant"]')`,
+          ),
+          false,
+          "Concierge stays hidden",
         );
-        await click("Open Cake City personal assistant");
+        checks.push({ polish: "photo skeletons and hidden concierge" });
+      }
+
+      if (role === "admin" && process.argv.includes("--layout")) {
+        const shopTab = `document.querySelector('[role="tab"][aria-label="Shop"]')`;
+        await wait(`!!(${shopTab})`, "Shop navigation");
+        await evaluate(`(${shopTab}).click()`);
         await wait(
-          `document.body.innerText.includes('Your concierge is being prepared')`,
-          "unconfigured assistant fallback",
+          `!!document.querySelector('[data-testid="shop-products"]')`,
+          "full-width product grid",
         );
-        for (const width of [320, 390, 430, 1280]) {
+        await click("Choose categories");
+        await wait(
+          `!!document.querySelector('[role="radio"][aria-label="Vanilla"]')`,
+          "category sheet",
+        );
+        await evaluate(
+          `document.querySelector('[role="radio"][aria-label="Vanilla"]').click()`,
+        );
+        await click("Apply");
+        await wait(
+          `!!document.querySelector('[aria-label="Choose categories"][aria-selected="true"]')`,
+          "category selection applied",
+        );
+        await click("Choose categories");
+        await click("Clear");
+        await click("Apply");
+        for (const width of [320, 375, 390, 430, 1280]) {
           await send("Emulation.setDeviceMetricsOverride", {
             width,
             height: 900,
             deviceScaleFactor: 1,
             mobile: width < 600,
           });
-          await pause(150);
-          const size = await evaluate(
-            `({viewport:innerWidth,scroll:document.documentElement.scrollWidth})`,
+          await pause(700);
+          const metrics = await evaluate(
+            `({viewport:innerWidth, scroll:document.documentElement.scrollWidth, grid:document.querySelector('[data-testid="shop-products"]').getBoundingClientRect().width, active:Array.from(document.querySelectorAll('[role="tab"][aria-selected="true"]')).filter(n=>n.checkVisibility() && ['Home','Shop','Cake City Club','Orders','Profile'].includes(n.getAttribute('aria-label'))).length})`,
           );
           assert.ok(
-            size.scroll <= size.viewport,
-            "Concierge overflow at " + width,
+            metrics.scroll <= metrics.viewport,
+            "Shop overflow at " + width,
           );
-          await capture("polish-concierge-" + width);
+          assert.ok(
+            metrics.grid >= Math.min(width, 800) - 48,
+            "Product grid should use the available width",
+          );
+          assert.equal(
+            metrics.active,
+            1,
+            "Exactly one navigation destination is selected",
+          );
+          await capture("shop-refined-" + width);
         }
-        await click("Help me reorder my last cake");
-        assert.equal(
-          await evaluate(
-            `document.querySelector('textarea[aria-label="Message your Cake City concierge"]').value`,
-          ),
-          "Help me reorder my last cake",
-        );
-        assert.equal(
-          await evaluate(
-            `document.querySelector('[aria-label="Send message"]')?.getAttribute('aria-disabled')`,
-          ),
-          "true",
-        );
-        await click("Browse cakes");
-        await wait(
-          `location.pathname.includes('shop')`,
-          "assistant browse fallback",
-        );
         checks.push({
-          polish:
-            "photo skeletons under delayed requests; disabled AI stays honest; shortcut draft; concierge phone and desktop layouts",
-          widths: [320, 390, 430, 1280],
+          layout:
+            "full-width Shop, category sheet apply/clear, single selected tab",
+          widths: [320, 375, 390, 430, 1280],
         });
       }
       if (role === "admin" && process.argv.includes("--experience")) {
@@ -631,7 +673,10 @@ async function main() {
       const workSelector = `[data-testid="work-${order.reference}"]`;
       const scopedClick = async (selector, label) => {
         const expression = `Array.from(document.querySelector(${JSON.stringify(selector)})?.querySelectorAll('[role="button"],button')||[]).find(n=>(n.getAttribute('aria-label')||n.innerText?.trim())===${JSON.stringify(label)})`;
-        await wait(`!!(${expression})`, label);
+        await wait(
+          `!!(${expression}) && (${expression}).getAttribute('aria-disabled') !== 'true' && !(${expression}).disabled`,
+          label,
+        );
         await evaluate(`(${expression}).click()`);
         await pause(300);
       };
@@ -692,11 +737,143 @@ async function main() {
         `document.querySelector('input[aria-label="Delivery confirmation"]')`,
         "delivery confirmation input",
       );
+      if (process.argv.includes("--live-tracking")) {
+        await send("Browser.grantPermissions", {
+          origin,
+          permissions: ["geolocation"],
+        });
+        await send("Emulation.setGeolocationOverride", {
+          latitude: -1.267,
+          longitude: 36.81,
+          accuracy: 12,
+        });
+        await scopedClick(tripSelector, "Share live delivery location");
+        await wait(
+          `document.querySelector(${JSON.stringify(tripSelector)}).innerText.includes('Location shared at')`,
+          "rider GPS reaches backend",
+        );
+        const shared = await localCall(
+          "/v1/app-orders/" + order.reference,
+          adminToken,
+        );
+        assert.equal(
+          shared.deliveries.find((t) => t.id === trip.id).position.latitude,
+          -1.267,
+        );
+        await capture("tracking-rider-sharing-390");
+        await signIn("admin", "/notifications");
+        // The rider page stops sharing on logout. Use explicit local fixture fixes
+        // to exercise a second customer session without operating a real device.
+        const locationPath = `/v1/rider/tasks/${trip.id}/location`;
+        await localCall(
+          locationPath,
+          sessions.rider.access_token,
+          {
+            latitude: -1.267,
+            longitude: 36.81,
+            accuracy: 12,
+            recorded_at: new Date().toISOString(),
+          },
+          "PUT",
+        );
+        const alerts = await localCall("/v1/account/notifications", adminToken);
+        const alert = alerts.find(
+          (item) =>
+            item.data.reference === order.reference &&
+            item.kind === "fulfilment_out_for_delivery",
+        );
+        assert.ok(alert, "Out-for-delivery notification");
+        const alertButton = `Array.from(document.querySelectorAll('[role="button"]')).filter(n=>n.getAttribute('aria-label')==='View order').find(n=>n.parentElement.innerText.includes(${JSON.stringify(alert.title)}))`;
+        await wait(`!!(${alertButton})`, "delivery alert");
+        await evaluate(`(${alertButton}).click()`);
+        await wait(
+          `document.body.innerText.includes('Follow your delivery') && !!document.querySelector('iframe[title="Live delivery map"]')`,
+          "customer live map",
+        );
+        let mapTarget;
+        for (let attempt = 0; attempt < 40 && !mapTarget; attempt++) {
+          const { targetInfos } = await send("Target.getTargets");
+          mapTarget = targetInfos.find(
+            (target) =>
+              target.type === "iframe" &&
+              target.url.includes("/v1/delivery-tracking/map"),
+          );
+          if (!mapTarget) await pause(250);
+        }
+        await capture("tracking-map-loading-390");
+        assert.ok(mapTarget, "Map frame loaded");
+        const mapSession = await send("Target.attachToTarget", {
+          targetId: mapTarget.targetId,
+          flatten: true,
+        });
+        let marker;
+        for (let attempt = 0; attempt < 60; attempt++) {
+          marker = await send(
+            "Runtime.evaluate",
+            {
+              expression: `!!document.querySelector('.rider')`,
+              returnByValue: true,
+            },
+            mapSession.sessionId,
+          );
+          if (marker.result.value) break;
+          await pause(250);
+        }
+        assert.equal(marker.result.value, true, "Real map marker rendered");
+        await pause(3500);
+        for (const width of [320, 390, 430, 1280]) {
+          await send("Emulation.setDeviceMetricsOverride", {
+            width,
+            height: 900,
+            deviceScaleFactor: 1,
+            mobile: width < 600,
+          });
+          await pause(900);
+          const size = await evaluate(
+            `({viewport:innerWidth,scroll:document.documentElement.scrollWidth})`,
+          );
+          assert.ok(
+            size.scroll <= size.viewport,
+            "Tracking overflow at " + width,
+          );
+          await capture("tracking-live-" + width);
+        }
+        await localCall(
+          locationPath,
+          sessions.rider.access_token,
+          {
+            latitude: -1.268,
+            longitude: 36.812,
+            accuracy: 12,
+            recorded_at: new Date().toISOString(),
+          },
+          "PUT",
+        );
+        await click("Refresh tracking");
+        await wait(
+          `document.body.innerText.includes('Location updated')`,
+          "updated GPS fix",
+        );
+        await capture("tracking-live-updated-390");
+        await signIn("rider", "/rider");
+        await wait(
+          `!!document.querySelector('input[aria-label="Delivery confirmation"]')`,
+          "return to rider confirmation",
+        );
+        checks.push({
+          liveTracking:
+            "rider browser GPS, private backend, customer map marker, second location fix",
+          syntheticCoordinates: true,
+          widths: [320, 390, 430, 1280],
+        });
+      }
       await fill(
         "Delivery confirmation",
         "Local recipient confirmed receipt (simulation)",
+        tripSelector,
       );
       await scopedClick(tripSelector, "Confirm delivery");
+      await click("Completed deliveries");
       await wait(
         `document.querySelector(${JSON.stringify(tripSelector)}).innerText.includes('delivered')`,
         "delivered trip",
@@ -719,6 +896,133 @@ async function main() {
         readyBeforeCollection: true,
         customerOrderCompleted: true,
       });
+      if (process.argv.includes("--dashboard")) {
+        const product = await localCall(
+          "/v1/admin/payment-test/product",
+          adminToken,
+          {},
+        );
+        const quote = await localCall("/v1/app-checkout/quote", adminToken, {
+          items: [{ product_id: product.id, quantity: 1 }],
+          fulfilment: "delivery",
+          billing: {
+            first_name: "Local",
+            last_name: "Dashboard",
+            email: "local@example.com",
+            phone: "0712345678",
+            address: "Local dashboard destination",
+          },
+        });
+        const response = await fetch(apiOrigin + "/v1/app-orders", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + adminToken,
+            "Idempotency-Key": "local-dashboard-" + Date.now(),
+          },
+          body: JSON.stringify({ quote_id: quote.id }),
+        });
+        assert.ok(response.ok);
+        const dashboardOrder = await response.json();
+        const reference = dashboardOrder.reference;
+        await localCall(
+          `/v1/admin/payment-test/orders/${reference}/complete`,
+          adminToken,
+          {},
+        );
+        await send("Page.navigate", { url: apiOrigin + "/admin" });
+        await wait(
+          `typeof document.querySelector('#signin')?.onsubmit === 'function'`,
+          "dashboard login",
+        );
+        // Use the native setter so this remains a real form submission.
+        await evaluate(
+          `document.querySelector('#signin input[name="email"]').value=${JSON.stringify(credentials.accounts.admin.email)};document.querySelector('#signin input[name="password"]').value=${JSON.stringify(credentials.accounts.admin.password)};document.querySelector('#signin').requestSubmit(document.querySelector('#signin button'))`,
+        );
+        await wait(
+          `!document.querySelector('#workspace').hidden`,
+          "dashboard authenticated",
+        );
+        const press = async (selector) => {
+          await wait(
+            `!!document.querySelector(${JSON.stringify(selector)}) && !document.querySelector(${JSON.stringify(selector)}).disabled`,
+            "dashboard control " + selector,
+          );
+          await evaluate(
+            `document.querySelector(${JSON.stringify(selector)}).click()`,
+          );
+        };
+        const saved = () =>
+          wait(
+            `!document.querySelector('#editor').open`,
+            "dashboard form saved",
+          );
+        await press('[data-nav="kitchen"]');
+        await press(`[data-kitchen-assign="${reference}"]`);
+        await wait(
+          `document.querySelector('#editor').open`,
+          "production location dialog",
+        );
+        await press("#save");
+        await saved();
+        await press(
+          `[data-kitchen-order="${reference}"][data-status="preparing"]`,
+        );
+        await press(`[data-kitchen-order="${reference}"][data-status="ready"]`);
+        await wait(
+          `document.querySelector('[data-work="${reference}"]').innerText.includes('ready')`,
+          "dashboard kitchen ready",
+        );
+        await press('[data-nav="dispatch"]');
+        await press(`[data-assign="${reference}"]`);
+        await wait(
+          `document.querySelector('#editor').open`,
+          "rider account dialog",
+        );
+        await evaluate(
+          `document.querySelector('#fields select').value=${JSON.stringify(sessions.rider.customer.id)}`,
+        );
+        await press("#save");
+        await saved();
+        const assigned = (
+          await localCall("/v1/rider/tasks", sessions.rider.access_token)
+        ).find((t) => t.reference === reference);
+        assert.ok(
+          assigned,
+          "Dashboard assignment must create a task in the rider's login",
+        );
+        for (const status of ["accepted", "collected", "in_transit"])
+          await press(`[data-trip="${assigned.id}"][data-status="${status}"]`);
+        await press(`[data-trip="${assigned.id}"][data-status="delivered"]`);
+        await wait(
+          `document.querySelector('#editor').open`,
+          "delivery proof dialog",
+        );
+        await evaluate(
+          `document.querySelector('#fields input[name="proof"]').value='Local dashboard recipient confirmed receipt';`,
+        );
+        await press("#save");
+        await saved();
+        assert.equal(
+          (await localCall("/v1/app-orders/" + reference, adminToken)).status,
+          "completed",
+        );
+        for (const width of [390, 1280]) {
+          await send("Emulation.setDeviceMetricsOverride", {
+            width,
+            height: 900,
+            deviceScaleFactor: 1,
+            mobile: width < 600,
+          });
+          await capture("dashboard-dispatch-" + width);
+        }
+        checks.push({
+          dashboard:
+            "real production assignment, rider-account task, handover, transit, delivery proof",
+          reference,
+          simulated: true,
+        });
+      }
       if (process.argv.includes("--notifications")) {
         await signIn("admin", "/notifications");
         await wait(
@@ -739,11 +1043,11 @@ async function main() {
           "Completed delivery must appear in the customer's inbox",
         );
         await capture("notification-inbox-390");
-        const cardButton = `Array.from(document.querySelectorAll('[role="button"]')).filter(n=>n.getAttribute('aria-label')==='View order').find(n=>n.parentElement.innerText.includes(${JSON.stringify(completedAlert.title)}))`;
+        const cardButton = `document.querySelector(${JSON.stringify(`[data-testid="notification-${completedAlert.id}"] [aria-label="View order"]`)})`;
         await wait(`!!(${cardButton})`, "completed notification card");
         await evaluate(`(${cardButton}).click()`);
         await wait(
-          "document.body.innerText.includes('Test journey complete!')",
+          `location.pathname.includes(${JSON.stringify(order.reference)}) && document.body.innerText.includes('Test journey complete!')`,
           "completed-order confirmation",
         );
         await wait(
@@ -856,6 +1160,10 @@ async function main() {
         await signIn("admin", "/dispatch");
         const pickupWork = `[data-testid="work-${pickup.reference}"]`;
         await scopedClick(pickupWork, "Confirm customer collected");
+        await wait(
+          `!document.querySelector(${JSON.stringify(pickupWork)})?.innerText.includes('Confirm customer collected')`,
+          "customer collection saved",
+        );
         const result = await localCall(
           "/v1/app-orders/" + pickup.reference,
           adminToken,

@@ -707,4 +707,12 @@ dialog::backdrop {
   flex-wrap: wrap;
   gap: 10px;
   margin-top: 16px;
+  align-items: stretch;
+}
+
+.workflow-actions button {
+  flex: 1 1 160px;
+  min-height: 46px;
+  white-space: normal;
+  line-height: 1.4;
 }

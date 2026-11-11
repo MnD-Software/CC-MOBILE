@@ -306,41 +306,70 @@ async function show(next = tab) {
 const stat = (label, value, note) =>
   `<div class="stat"><small>${esc(label)}</small><strong>${esc(value)}</strong><span>${esc(note)}</span></div>`;
 function orderActions(o) {
-  const next =
-    {
-      paid: ["preparing"],
-      preparing: ["ready"],
-      ready:
-        o.snapshot?.checkout?.fulfilment === "delivery"
-          ? ["out_for_delivery"]
-          : ["completed"],
-      out_for_delivery: ["completed"],
-    }[o.status] || [];
-  return o.payment_state === "completed"
-    ? next
-        .filter((status) =>
-          session.customer.role === "branch_manager"
-            ? status === "completed" &&
-              o.snapshot?.checkout?.fulfilment === "pickup"
-            : ["preparing", "ready"].includes(status)
-              ? canKitchen()
-              : canDispatch(),
-        )
-        .map(
-          (status) =>
-            `<button data-order="${esc(o.reference)}" data-status="${status}">${{ preparing: "Start preparation", ready: "Mark ready", out_for_delivery: "Dispatch order", completed: o.snapshot?.checkout?.fulfilment === "delivery" ? "Confirm delivered" : "Confirm collected" }[status]}</button>`,
-        )
-        .join(" ")
-    : "Awaiting payment";
+  if (o.payment_state !== "completed") return "Awaiting payment";
+  const kitchen = ["paid", "preparing"].includes(o.status);
+  if (
+    !(kitchen ? canKitchen() : canDispatch()) ||
+    !["paid", "preparing", "ready", "out_for_delivery"].includes(o.status)
+  )
+    return "";
+  return `<button data-nav="${kitchen ? "kitchen" : "dispatch"}">Open ${kitchen ? "kitchen" : "dispatch"}</button>`;
 }
 async function workflowBoard(stage) {
-  const all = await request("/v1/admin/app-orders");
-  const states =
-    stage === "kitchen" ? ["paid", "preparing"] : ["ready", "out_for_delivery"];
-  const rows = all.filter(
-    (o) => o.payment_state === "completed" && states.includes(o.status),
+  const kitchen = stage === "kitchen";
+  const [all, tasks] = await Promise.all([
+    request(kitchen ? "/v1/kitchen/orders" : "/v1/logistics/orders"),
+    kitchen ? Promise.resolve([]) : request("/v1/logistics/tasks"),
+  ]);
+  const rows = all.filter((o) =>
+    (kitchen
+      ? ["paid", "preparing", "ready"]
+      : ["ready", "out_for_delivery"]
+    ).includes(o.status),
   );
-  return `<button data-action="retry">Refresh queue</button><p>Test orders are labelled. No physical production or delivery is needed for simulations.</p><div class="cards">${rows.map((o) => `<section class="panel"><span>${pill(o.status, true)} ${o.payment_test ? pill("SIMULATED TEST") : ""}</span><h2>${esc(o.reference)}</h2><p>${esc(date(o.created_at))} / ${esc(o.snapshot?.checkout?.fulfilment)}</p>${(o.snapshot?.lines || []).map((l) => `<h3>${esc(l.quantity)} x ${esc(l.name)}</h3><p>${esc(l.selection?.size || "")} ${(l.selection?.variation_attributes || []).map((a) => `${esc(a.attribute)}: ${esc(a.value)}`).join(" / ")}</p><p>${esc(l.selection?.message || "")}</p>`).join("")}<p>${esc(o.snapshot?.checkout?.notes || "")}</p><button data-order-details="${esc(o.reference)}">Customer details & tracking</button>${stage === "dispatch" && o.snapshot?.checkout?.fulfilment === "delivery" && session.customer.role !== "branch_manager" ? `<button data-assign="${esc(o.reference)}">Assign / update rider</button>` : ""}<div class="workflow-actions">${orderActions(o)}</div></section>`).join("") || empty("Queue is clear", "Orders appear here when they reach this stage.")}</div>`;
+  const cards = rows
+    .map((o) => {
+      const trips = tasks.filter(
+        (t) => t.reference === o.reference && t.status !== "cancelled",
+      );
+      const allocated = trips.reduce(
+        (sum, t) => sum + t.items.reduce((n, i) => n + i.quantity, 0),
+        0,
+      );
+      const remaining = o.items.reduce((n, i) => n + i.quantity, 0) - allocated;
+      let actions = "";
+      if (kitchen) {
+        if (!o.assigned_to)
+          actions += `<button data-kitchen-assign="${esc(o.reference)}">Assign production to me</button>`;
+        else if (["paid", "preparing"].includes(o.status))
+          actions += `<button data-kitchen-order="${esc(o.reference)}" data-status="${o.status === "paid" ? "preparing" : "ready"}">${o.status === "paid" ? "Start preparation" : "Kitchen complete — ready for dispatch"}</button>`;
+      } else if (o.fulfilment === "pickup") {
+        actions += `<button data-collection="${esc(o.reference)}">Confirm customer collected</button>`;
+      } else if (remaining > 0) {
+        actions += o.plant
+          ? `<button data-assign="${esc(o.reference)}">Assign remaining items to rider</button>`
+          : `<p>Confirm the production location in Kitchen before assigning a rider.</p>`;
+      }
+      return `<section class="panel" data-work="${esc(o.reference)}">${pill(o.status, true)} ${o.payment_test ? pill("SIMULATED TEST") : ""}<h2>${esc(o.reference)}</h2><p>${esc(date(o.created_at))} / ${esc(o.fulfilment)} / ${esc(o.plant || "Production unassigned")}</p>${o.items.map((l) => `<h3>${esc(l.quantity)} × ${esc(l.name)}</h3><p>${esc(l.selection?.size || "")} ${(l.selection?.variation_attributes || []).map((a) => `${esc(a.attribute)}: ${esc(a.value)}`).join(" / ")}</p><p>${esc(l.selection?.message || "")}</p>`).join("")}<div class="workflow-actions"><button data-order-details="${esc(o.reference)}">Customer details & tracking</button>${actions}</div></section>`;
+    })
+    .join("");
+  const next = {
+    assigned: ["accepted", "Accept assignment"],
+    rescheduled: ["accepted", "Accept rescheduled trip"],
+    accepted: ["collected", "Confirm kitchen handover"],
+    collected: ["in_transit", "Mark on the way"],
+    in_transit: ["delivered", "Confirm delivery"],
+  };
+  const tripCards = tasks
+    .filter((t) => !["delivered", "cancelled"].includes(t.status))
+    .map((t) => {
+      const action = next[t.status];
+      const button = (status, label) =>
+        `<button data-trip="${esc(t.id)}" data-revision="${t.revision}" data-status="${status}">${label}</button>`;
+      return `<section class="panel" data-trip-card="${esc(t.id)}">${pill(t.status)}<h2>${esc(t.reference)}</h2><p>${esc(t.rider_name)} / ${esc(t.destination)}</p><p>${esc(t.recipient)} / ${esc(t.phone)}</p><div class="workflow-actions">${action ? button(...action) : ""}${t.status === "failed" ? button("rescheduled", "Retry delivery") : button("failed", "Report delivery issue")}${["assigned", "accepted", "rescheduled", "failed"].includes(t.status) ? button("cancelled", "Cancel trip") : ""}</div></section>`;
+    })
+    .join("");
+  return `<button data-action="retry">Refresh queue</button><p>Assignments reach the rider's login. Customer tracking and notifications update as the kitchen and rider progress.</p><div class="cards">${cards || empty("Queue is clear", "Orders appear here when they reach this stage.")}</div>${!kitchen ? `<h2>Active rider trips</h2><div class="cards">${tripCards || empty("No active trips", "Assign a provisioned rider to begin dispatch.")}</div>` : ""}`;
 }
 const views = {
   async kitchen() {
@@ -912,18 +941,87 @@ document.addEventListener("click", async (e) => {
       notice(error.message, true);
     }
   }
-  if (d.assign) {
-    openEditor(
-      "Assign delivery rider",
-      `<div class="form-grid">${input("rider_name", "Rider name", "", "text", "required maxlength=120")}${input("rider_phone", "Rider phone", "", "tel", 'required pattern="(\\+?254|0)[17][0-9]{8}"')}${area("note", "Dispatch notes")}</div>`,
-      async (f) => {
-        await request(
-          `/v1/admin/app-orders/${encodeURIComponent(d.assign)}/dispatch`,
-          "PUT",
-          Object.fromEntries(f),
+  if (d.kitchenAssign || d.assign) {
+    b.disabled = true;
+    try {
+      const kitchen = !!d.kitchenAssign;
+      const choices = await request(
+        kitchen ? "/v1/kitchen/locations" : "/v1/logistics/riders",
+      );
+      if (!choices.length)
+        throw Error(
+          kitchen
+            ? "No production locations are assigned to your account."
+            : "No rider accounts are available. Ask your administrator to provision a rider login first.",
         );
-      },
+      openEditor(
+        kitchen ? "Assign production" : "Assign delivery rider",
+        `<label>${kitchen ? "Production location" : "Rider account"}<select required name="selection">${choices.map((c) => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join("")}</select></label><p>${kitchen ? "Assign this order to your kitchen login at the selected location." : "The task will appear in this rider's login. The delivery address comes from checkout."}</p>`,
+        (f) =>
+          request(
+            kitchen
+              ? `/v1/kitchen/orders/${encodeURIComponent(d.kitchenAssign)}/assignment`
+              : `/v1/logistics/orders/${encodeURIComponent(d.assign)}/tasks`,
+            kitchen ? "PUT" : "POST",
+            kitchen
+              ? { plant: f.get("selection"), assigned_to: session.customer.id }
+              : { rider_id: f.get("selection") },
+          ),
+      );
+    } catch (error) {
+      notice(error.message, true);
+    } finally {
+      b.disabled = false;
+    }
+    return;
+  }
+  if (
+    d.trip &&
+    ["delivered", "failed", "rescheduled", "cancelled"].includes(d.status)
+  ) {
+    const delivered = d.status === "delivered";
+    openEditor(
+      delivered ? "Confirm delivery" : "Dispatch update",
+      input(
+        delivered ? "proof" : "note",
+        delivered ? "Delivery confirmation" : "Reason for update",
+        "",
+        "text",
+        `required minlength="${delivered ? 3 : 5}" maxlength="500"`,
+      ),
+      (f) =>
+        request(`/v1/logistics/tasks/${encodeURIComponent(d.trip)}`, "PATCH", {
+          revision: Number(d.revision),
+          status: d.status,
+          [delivered ? "proof" : "note"]: f.get(delivered ? "proof" : "note"),
+        }),
     );
+    return;
+  }
+  if (d.kitchenOrder || d.collection || d.trip) {
+    b.disabled = true;
+    try {
+      await request(
+        d.kitchenOrder
+          ? `/v1/kitchen/orders/${encodeURIComponent(d.kitchenOrder)}/status`
+          : d.collection
+            ? `/v1/logistics/orders/${encodeURIComponent(d.collection)}/collection`
+            : `/v1/logistics/tasks/${encodeURIComponent(d.trip)}`,
+        d.collection ? "POST" : "PATCH",
+        d.collection
+          ? {}
+          : {
+              status: d.status,
+              ...(d.trip ? { revision: Number(d.revision) } : {}),
+            },
+      );
+      await show();
+      notice("Order progress updated.");
+    } catch (error) {
+      notice(error.message, true);
+      b.disabled = false;
+    }
+    return;
   }
   if (d.order || d.issue) {
     b.disabled = true;

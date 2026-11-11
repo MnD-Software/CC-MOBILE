@@ -188,6 +188,7 @@ export function NotificationsScreen() {
             items.map((item) => (
               <View
                 key={item.id}
+                testID={`notification-${item.id}`}
                 style={{
                   padding: 18,
                   gap: 9,
@@ -208,6 +209,18 @@ export function NotificationsScreen() {
                 <Text style={{ color: colors.muted, lineHeight: 21 }}>
                   {item.body}
                 </Text>
+                {typeof item.data.reference === "string" ? (
+                  <Text
+                    selectable
+                    style={{
+                      color: colors.muted,
+                      fontSize: 12,
+                      lineHeight: 18,
+                    }}
+                  >
+                    Order {item.data.reference}
+                  </Text>
+                ) : null}
                 <Text style={{ color: colors.muted, fontSize: 12 }}>
                   {new Date(item.created_at).toLocaleString()}
                 </Text>

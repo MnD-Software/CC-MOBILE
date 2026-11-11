@@ -1,5 +1,14 @@
 # Implementation log
 
+## 11 November 2026 - Finish tracking, driver allocation and focused UI refinement
+
+- Reviewed both supplied enhancement briefs and the current uncommitted work; preserved the separately committed gated password-recovery implementation.
+- Finished the concierge-styled order journey, private foreground GPS sharing/map, recent-history correction and shared button alignment. Concierge remains hidden under the prior direct instruction.
+- Found that the web dashboard's rider form saved contact details without creating a logistics task. Replaced it with provisioned rider/driver selection and real task creation. Kitchen now records production assignment before progressing; dispatch uses task handover, transit, proof and exception APIs.
+- Removed Shop's fixed 74-pixel category rail in favour of its existing category sheet. Product names wrap with larger text; catalogue surfaces use subtle elevation; Club's pink tab face appears only when selected.
+- Added the requested UI documentation under `docs/ui-ux-enhancement/`, with native and wider business-feature limitations explicit. No paid AI or live charge was activated.
+- Validation is recorded in [TEST_RESULTS.md](TEST_RESULTS.md). The full master brief is still a staged programme, not an all-features completion claim.
+
 ## 11 November 2026 - Baseline review and reporting
 
 ### Scope

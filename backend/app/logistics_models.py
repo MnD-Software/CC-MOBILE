@@ -1,7 +1,7 @@
 """App-owned kitchen assignments and individual dispatch tasks, independent of Odoo."""
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, JSON, String, Text, UniqueConstraint, func
+from sqlalchemy import DateTime, Float, ForeignKey, Integer, JSON, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .db import Base
@@ -52,3 +52,15 @@ class LogisticsEvent(Base):
     note: Mapped[str] = mapped_column(Text, default="")
     proof: Mapped[str] = mapped_column(String(1000), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class RiderPosition(Base):
+    """Only the latest position per trip; removed when sharing or the trip ends."""
+    __tablename__ = "rider_positions"
+    task_id: Mapped[str] = mapped_column(ForeignKey("logistics_tasks.id"), primary_key=True)
+    rider_id: Mapped[str] = mapped_column(ForeignKey("customers.id"))
+    latitude: Mapped[float] = mapped_column(Float)
+    longitude: Mapped[float] = mapped_column(Float)
+    accuracy: Mapped[float] = mapped_column(Float)
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

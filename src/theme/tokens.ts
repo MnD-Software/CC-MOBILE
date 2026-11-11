@@ -87,6 +87,13 @@ export const tokens = {
     pill: 9999,
   },
   shadow: {
+    subtle: {
+      shadowColor: "#51382D",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.05,
+      shadowRadius: 6,
+      elevation: 1,
+    },
     card: {
       shadowColor: "#51382D",
       shadowOffset: { width: 0, height: 4 },

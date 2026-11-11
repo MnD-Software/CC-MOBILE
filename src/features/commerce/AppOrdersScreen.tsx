@@ -1,4 +1,6 @@
-import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
+import { tokens } from "@/theme/tokens";
+import { OrderJourney } from "./OrderJourney";
 import { useScreenActive } from "@/design/useScreenActive";
 import { useTheme } from "@/theme/ThemeProvider";
 import { orderStageLabel } from "./ActiveOrderCard";
@@ -8,12 +10,12 @@ import { useEffect, useState } from "react";
 import { View } from "react-native";
 import { useAuth } from "@/auth/AuthProvider";
 import { Button } from "@/components/ui/Button";
-import { Feedback, Notice, Screen } from "@/components/ui/Commerce";
+import { Feedback, Notice, Screen, IconButton } from "@/components/ui/Commerce";
 import { Text } from "@/components/ui/Typography";
 import { usePaymentSuccess } from "./usePaymentSuccess";
 import { PaymentConfetti } from "./PaymentConfetti";
 import { isVerifiedPayment } from "./checkout-success";
-import { orderTracking } from "./order-tracking";
+import { Disclosure } from "@/components/ui/Disclosure";
 import { appOrders } from "./app-orders";
 import { InAppPayment } from "./InAppPayment";
 import { money } from "./contracts";
@@ -43,6 +45,41 @@ export function AppOrdersScreen() {
       subtitle="From our kitchen to your celebration."
       back
     >
+      <LinearGradient
+        colors={["#32172D", "#672445", "#9E245F"]}
+        style={{
+          padding: 26,
+          borderRadius: 30,
+          gap: 18,
+          ...tokens.shadow.card,
+        }}
+      >
+        <Text
+          style={{
+            color: "#F6C9DC",
+            fontSize: 9,
+            letterSpacing: 1.6,
+            fontWeight: "700",
+          }}
+        >
+          FROM OUR KITCHEN, WITH LOVE
+        </Text>
+        <Text
+          style={{
+            color: "#FFFFFF",
+            fontSize: 30,
+            lineHeight: 37,
+            fontWeight: "700",
+            letterSpacing: -0.8,
+          }}
+        >
+          Every celebration.{"\n"}Every little update.
+        </Text>
+        <Text style={{ color: "#F7DFE8", fontSize: 13, lineHeight: 22 }}>
+          Follow your cake from its first finishing touch to the moment it
+          reaches you.
+        </Text>
+      </LinearGradient>
       <Button
         variant="ghost"
         label="Order notifications"
@@ -132,7 +169,10 @@ export function AppOrderScreen() {
         query.state.data?.status || "",
       )
         ? false
-        : 15_000,
+        : query.state.data?.status === "out_for_delivery" ||
+            query.state.data?.status === "ready"
+          ? 5_000
+          : 15_000,
     enabled: !!customer && active && reference?.startsWith("APP-"),
   });
   const { celebrate, endCelebration } = usePaymentSuccess(
@@ -207,12 +247,17 @@ export function AppOrderScreen() {
     }
   }
   return (
-    <Screen title="Track your cake" back>
-      <Button
-        variant="ghost"
-        label="Order notifications"
-        onPress={() => router.push("/notifications")}
-      />
+    <Screen
+      title="Track your cake"
+      back
+      right={
+        <IconButton
+          name="notifications-outline"
+          label="Order notifications"
+          onPress={() => router.push("/notifications")}
+        />
+      }
+    >
       {!customer ? (
         <Button label="Sign in" onPress={() => router.push("/sign-in")} />
       ) : !reference?.startsWith("APP-") ? (
@@ -229,160 +274,44 @@ export function AppOrderScreen() {
               delivery.
             </Text>
           ) : null}
-          <Text>{value.reference}</Text>
-          <Text
-            style={{
-              color: colors.brandStrong,
-              fontSize: 25,
-              fontWeight: "800",
-            }}
-          >
-            {orderStageLabel(value.status)}
-          </Text>
+          <OrderJourney
+            order={value}
+            refresh={() => void order.refetch()}
+            refreshing={order.isFetching}
+          />
           <DeliveryComplete key={value.reference} order={value} />
-          <Text>
-            {money(value.total_minor / 100)} ·{" "}
-            {value.payment_test
-              ? "Preview · no charge"
-              : value.environment === "sandbox"
-                ? "Sandbox"
-                : "App sale"}
+          <Text style={{ color: colors.muted, fontSize: 12 }}>
+            {money(value.total_minor / 100)}
+            {value.payment_test ? " · Preview · no charge" : ""}
           </Text>
-          <View
-            style={{
-              padding: 20,
-              gap: 14,
-              borderRadius: 20,
-              borderWidth: 1,
-              borderColor: colors.border,
-              backgroundColor: colors.surface,
-            }}
-          >
-            <Text
-              style={{ color: colors.ink, fontSize: 19, fontWeight: "800" }}
-            >
-              Your cake's journey
-            </Text>
-            <Text>
-              Made to order. Progress updates appear here as our team prepares
-              your celebration.
-            </Text>
-            {value.snapshot?.route ? (
-              <>
-                <Text>Prepared at {value.snapshot.route.origin_name}</Text>
-                <Text>
-                  {value.snapshot.route.destination_name}
-                  {value.snapshot.route.destination_address
-                    ? `: ${value.snapshot.route.destination_address}`
-                    : `: ${value.snapshot.route.destination.latitude.toFixed(5)}, ${value.snapshot.route.destination.longitude.toFixed(5)}`}
-                </Text>
-                <Text>
-                  {value.snapshot.route.distance_meters / 1000} km by road.{" "}
-                  {value.snapshot.route.rate}. Transport:{" "}
-                  {money(value.snapshot.route.fee_minor / 100)}.
-                </Text>
-              </>
-            ) : null}
-            {value.dispatch ? (
-              <Text>
-                Delivery contact: {value.dispatch.rider_name} ·{" "}
-                {value.dispatch.rider_phone}
+          <Disclosure title="Order details & receipt">
+            {value.snapshot?.lines.map((line, i) => (
+              <Text key={i}>
+                {line.quantity} × {line.name} — {money(line.line_minor / 100)}
+                {Array.isArray(line.selection.variation_attributes)
+                  ? line.selection.variation_attributes
+                      .map(
+                        (a: { attribute: string; value: string }) =>
+                          ` / ${a.attribute}: ${a.value}`,
+                      )
+                      .join("")
+                  : ""}
               </Text>
-            ) : null}
-            {value.deliveries?.map((delivery, index) => (
-              <View key={delivery.id} style={{ gap: 4 }}>
-                <Text>
-                  Delivery {index + 1}: {delivery.status.replaceAll("_", " ")}
-                </Text>
-                {delivery.scheduled_at ? (
-                  <Text>
-                    {new Date(delivery.scheduled_at).toLocaleString()}
-                    {delivery.slot ? ` · ${delivery.slot}` : ""}
-                  </Text>
-                ) : null}
-              </View>
             ))}
-            {orderTracking(value).map((step, index, steps) => (
-              <View
-                key={step.label}
-                style={{ flexDirection: "row", gap: 14, minHeight: 52 }}
-              >
-                <View style={{ alignItems: "center", width: 24 }}>
-                  <Ionicons
-                    name={step.at ? "checkmark-circle" : "ellipse-outline"}
-                    size={22}
-                    color={step.at ? colors.brandStrong : colors.muted}
-                  />
-                  {index < steps.length - 1 ? (
-                    <View
-                      style={{
-                        width: 1,
-                        flex: 1,
-                        minHeight: 18,
-                        backgroundColor: colors.border,
-                      }}
-                    />
-                  ) : null}
-                </View>
-                <View style={{ flex: 1, gap: 4, paddingBottom: 14 }}>
-                  <Text
-                    style={{
-                      color: step.at ? colors.ink : colors.muted,
-                      fontWeight: step.at ? "700" : "400",
-                      fontSize: 14,
-                    }}
-                  >
-                    {step.label}
-                  </Text>
-                  {step.at ? (
-                    <Text style={{ color: colors.muted, fontSize: 11 }}>
-                      {new Date(step.at).toLocaleString()}
-                    </Text>
-                  ) : null}
-                </View>
-              </View>
-            ))}
-            {value.payment_state !== "completed" ? (
+            {value.paid_at ? (
               <Notice
-                message={`Payment status: ${value.payment_state.replaceAll("_", " ")}. Preparation starts after verified payment.`}
+                message={`${value.payment_test ? "SIMULATED TEST receipt (no charge)" : "Payment receipt"}: RCPT-${value.reference}. ${value.payment_test ? "Confirmed" : "Paid"} ${new Date(value.paid_at).toLocaleString()}. ${value.payment_state === "reversed" ? "Payment reversed; contact support." : ""} This is not an eTIMS tax invoice.`}
               />
             ) : null}
-            {value.snapshot?.checkout.fulfilment === "pickup" &&
-            typeof value.snapshot.pickup_instructions === "string" ? (
-              <Text>{value.snapshot.pickup_instructions}</Text>
+            {value.paid_at ? (
+              <Button
+                variant="outline"
+                label="Share receipt PDF"
+                disabled={busy}
+                onPress={() => void shareReceipt()}
+              />
             ) : null}
-            <Button
-              variant="outline"
-              label="Refresh tracking"
-              onPress={() => void order.refetch()}
-            />
-          </View>
-          {value.snapshot?.lines.map((line, i) => (
-            <Text key={i}>
-              {line.quantity} × {line.name} — {money(line.line_minor / 100)}
-              {Array.isArray(line.selection.variation_attributes)
-                ? line.selection.variation_attributes
-                    .map(
-                      (a: { attribute: string; value: string }) =>
-                        ` / ${a.attribute}: ${a.value}`,
-                    )
-                    .join("")
-                : ""}
-            </Text>
-          ))}
-          {value.paid_at ? (
-            <Notice
-              message={`${value.payment_test ? "SIMULATED TEST receipt (no charge)" : "Payment receipt"}: RCPT-${value.reference}. ${value.payment_test ? "Confirmed" : "Paid"} ${new Date(value.paid_at).toLocaleString()}. ${value.payment_state === "reversed" ? "Payment reversed; contact support." : ""} This is not an eTIMS tax invoice.`}
-            />
-          ) : null}
-          {value.paid_at ? (
-            <Button
-              variant="outline"
-              label="Share receipt PDF"
-              disabled={busy}
-              onPress={() => void shareReceipt()}
-            />
-          ) : null}
+          </Disclosure>
           {error ? <Notice error message={error} /> : null}
           {!value.payment_test &&
           ["not_started", "pending"].includes(value.payment_state) ? (
@@ -392,12 +321,14 @@ export function AppOrderScreen() {
               onPress={() => void pay()}
             />
           ) : null}
-          <Button
-            variant="outline"
-            label="Check payment status"
-            disabled={busy}
-            onPress={() => void verify()}
-          />
+          {!value.paid_at && !value.payment_test ? (
+            <Button
+              variant="outline"
+              label="Check payment status"
+              disabled={busy}
+              onPress={() => void verify()}
+            />
+          ) : null}
           <Button
             variant="outline"
             label="Get order support"

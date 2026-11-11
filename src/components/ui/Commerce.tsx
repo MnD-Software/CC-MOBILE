@@ -725,7 +725,7 @@ export const ProductTile = memo(function ProductTile({
         borderColor: colors.border,
         backgroundColor: colors.surface,
         borderRadius: compact ? 16 : 26,
-        ...tokens.shadow.card,
+        ...tokens.shadow.subtle,
       }}
     >
       <Pressable
@@ -802,13 +802,12 @@ export const ProductTile = memo(function ProductTile({
             {product.on_sale ? "Special price" : category}
           </Text>
           <Text
-            numberOfLines={2}
             style={{
               color: colors.ink,
               fontWeight: "700",
               minHeight: compact ? 36 : 40,
-              fontSize: horizontal ? 13 : compact ? 13 : 14,
-              lineHeight: horizontal ? 18 : compact ? 18 : 20,
+              fontSize: horizontal ? 14 : 15,
+              lineHeight: horizontal ? 20 : 22,
               letterSpacing: -0.15,
             }}
           >

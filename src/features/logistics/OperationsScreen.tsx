@@ -14,6 +14,8 @@ import {
 } from "@/components/ui/Commerce";
 import { useThemedStyles } from "@/theme/ThemeProvider";
 import { logisticsApi, type WorkOrder, type Trip } from "./api";
+import { useScreenActive } from "@/design/useScreenActive";
+import { Disclosure } from "@/components/ui/Disclosure";
 
 export function OperationsScreen({ kitchen }: { kitchen: boolean }) {
   const { customer, logout } = useAuth();
@@ -55,16 +57,18 @@ export function OperationsScreen({ kitchen }: { kitchen: boolean }) {
   );
 }
 function Queue({ owner, kitchen }: { owner: string; kitchen: boolean }) {
+  const active = useScreenActive();
   const query = useQuery({
     queryKey: ["logistics-orders", owner, kitchen],
     queryFn: ({ signal }) => logisticsApi.orders(kitchen, signal),
-    refetchInterval: 15_000,
+    refetchInterval: active ? 15_000 : false,
+    enabled: active,
   });
   const tasks = useQuery({
     queryKey: ["dispatch-tasks", owner],
     queryFn: ({ signal }) => logisticsApi.tasks(signal),
-    enabled: !kitchen,
-    refetchInterval: 15_000,
+    enabled: !kitchen && active,
+    refetchInterval: active ? 15_000 : false,
   });
   return (
     <>
@@ -76,10 +80,16 @@ function Queue({ owner, kitchen }: { owner: string; kitchen: boolean }) {
           if (!kitchen) void tasks.refetch();
         }}
       />
-      {query.isPending ? (
+      {query.isPending || (!kitchen && tasks.isPending) ? (
         <Feedback loading />
-      ) : query.isError ? (
-        <Feedback error={query.error} onRetry={() => void query.refetch()} />
+      ) : query.isError || (!kitchen && tasks.isError) ? (
+        <Feedback
+          error={query.error || tasks.error}
+          onRetry={() => {
+            void query.refetch();
+            if (!kitchen) void tasks.refetch();
+          }}
+        />
       ) : !query.data.length ? (
         <Notice message="No active paid orders are waiting in this workspace." />
       ) : (
@@ -112,9 +122,20 @@ function Queue({ owner, kitchen }: { owner: string; kitchen: boolean }) {
       {!kitchen && tasks.data?.length ? (
         <>
           <Text>Dispatch activity</Text>
-          {tasks.data.map((task) => (
-            <DispatchTask key={task.id} task={task} />
-          ))}
+          {tasks.data
+            .filter((task) => !["delivered", "cancelled"].includes(task.status))
+            .map((task) => (
+              <DispatchTask key={task.id} task={task} />
+            ))}
+          <Disclosure title="Completed dispatch activity">
+            {tasks.data
+              .filter((task) =>
+                ["delivered", "cancelled"].includes(task.status),
+              )
+              .map((task) => (
+                <DispatchTask key={task.id} task={task} />
+              ))}
+          </Disclosure>
         </>
       ) : null}
       {tasks.isError && !kitchen ? (
@@ -164,6 +185,10 @@ function WorkCard({
       await cache.invalidateQueries({ queryKey: ["app-orders"] });
       await cache.invalidateQueries({ queryKey: ["app-order"] });
       await cache.invalidateQueries({ queryKey: ["order-updates"] });
+    },
+    onError: () => {
+      void cache.invalidateQueries({ queryKey: ["logistics-orders"] });
+      void cache.invalidateQueries({ queryKey: ["dispatch-tasks"] });
     },
   });
   return (
@@ -279,7 +304,14 @@ function WorkCard({
             />
           ))}
           {riders.isError ? (
-            <Notice error message={riders.error.message} />
+            <>
+              <Notice error message={riders.error.message} />
+              <Button
+                variant="outline"
+                label="Reload riders"
+                onPress={() => void riders.refetch()}
+              />
+            </>
           ) : !riders.isPending && !riders.data?.length ? (
             <Notice message="Provision a rider account before assigning a trip." />
           ) : null}
@@ -330,6 +362,10 @@ function DispatchTask({ task }: { task: Trip }) {
         ["order-updates"],
       ])
         await cache.invalidateQueries({ queryKey });
+    },
+    onError: () => {
+      void cache.invalidateQueries({ queryKey: ["dispatch-tasks"] });
+      void cache.invalidateQueries({ queryKey: ["logistics-orders"] });
     },
   });
   return (

@@ -1,7 +1,6 @@
 import { useAuth } from "@/auth/AuthProvider";
 import { Ionicons } from "@expo/vector-icons";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import { Image } from "expo-image";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -287,48 +286,6 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
     >
       <View style={styles.shell}>
         <View style={styles.body}>
-          {!searchOnly && !debounced ? (
-            <ScrollView
-              style={styles.sidebar}
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={{ paddingBottom: insets.bottom + 112 }}
-            >
-              {shopDepartments.map((item) => {
-                const selected = item.id === department;
-                return (
-                  <Pressable
-                    key={item.id}
-                    accessibilityRole="button"
-                    accessibilityLabel={item.name}
-                    accessibilityState={{ selected }}
-                    aria-selected={selected}
-                    onPress={() => selectDepartment(item.id)}
-                    style={[styles.railItem, selected && styles.railSelected]}
-                  >
-                    <Image
-                      source={{ uri: item.image }}
-                      contentFit="cover"
-                      cachePolicy="memory-disk"
-                      style={styles.categoryImage}
-                      accessibilityLabel={item.name}
-                    />
-                    <Text
-                      numberOfLines={3}
-                      style={[
-                        styles.railText,
-                        selected && {
-                          color: colors.brandStrong,
-                          fontWeight: "700",
-                        },
-                      ]}
-                    >
-                      {item.id === "cheesecakes" ? "Cheese cakes" : item.name}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-          ) : null}
           <View
             style={styles.productPane}
             onLayout={(event) => setPaneWidth(event.nativeEvent.layout.width)}
@@ -353,7 +310,8 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
                       },
                       {
                         id: "categories",
-                        label: "Categories",
+                        label:
+                          department === "all" ? "Categories" : selection.name,
                         icon: "grid-outline",
                         active: department !== "all",
                       },
@@ -436,7 +394,7 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
                   ))}
                 </ScrollView>
 
-                {!debounced ? (
+                {!debounced && selection.filters.length > 1 ? (
                   <ScrollView
                     horizontal
                     showsHorizontalScrollIndicator={false}
@@ -459,7 +417,7 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
                         style={{
                           paddingHorizontal: 19,
                           paddingVertical: 10,
-                          minHeight: 56,
+                          minHeight: 44,
                           maxWidth: 155,
                           justifyContent: "center",
                           alignItems: "center",
@@ -578,7 +536,9 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
                 styles.content,
                 { paddingBottom: insets.bottom + 128 },
               ]}
-              ItemSeparatorComponent={() => <View style={{ height: 18 }} />}
+              ItemSeparatorComponent={() => (
+                <View style={{ height: tokens.space.xl }} />
+              )}
               keyboardShouldPersistTaps="handled"
               keyboardDismissMode="on-drag"
               showsVerticalScrollIndicator={false}
@@ -718,46 +678,7 @@ const baseStyles = StyleSheet.create({
     fontSize: 13,
     color: tokens.color.ink,
   },
-  departments: {
-    paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: tokens.color.border,
-  },
-  departmentContent: { paddingHorizontal: 12, gap: 8 },
   body: { flex: 1, flexDirection: "row" },
-  sidebar: {
-    width: 74,
-    flexGrow: 0,
-    backgroundColor: tokens.color.surface,
-    borderRightWidth: StyleSheet.hairlineWidth,
-    borderRightColor: tokens.color.border,
-  },
-  categoryImage: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: "#FFFFFF",
-  },
-  railItem: {
-    minHeight: 86,
-    paddingVertical: 10,
-    paddingHorizontal: 5,
-    gap: 7,
-    alignItems: "center",
-    justifyContent: "center",
-    borderLeftWidth: 3,
-    borderLeftColor: "transparent",
-  },
-  railSelected: {
-    borderLeftColor: tokens.color.brandStrong,
-    backgroundColor: tokens.color.brandLight,
-  },
-  railText: {
-    fontSize: 11,
-    lineHeight: 14,
-    color: tokens.color.muted,
-    textAlign: "center",
-  },
   productPane: { flex: 1, backgroundColor: tokens.color.background },
   content: { padding: 14, flexGrow: 1 },
   listHeader: {

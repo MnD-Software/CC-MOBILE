@@ -1,6 +1,6 @@
 {
   "name": "cakecity-mobile-app",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "main": "expo-router/entry",
   "dependencies": {
     "@expo/ui": "~58.0.22",

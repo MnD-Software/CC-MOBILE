@@ -16,17 +16,7 @@ function ReadyIntents() {
         continue;
       }
       // Navigation only. Cold launches never order or pay without a review.
-      router.navigate(
-        action === "track"
-          ? "/(tabs)/orders"
-          : {
-              pathname: "/concierge",
-              params: {
-                action: String(action),
-                prompt: typeof prompt === "string" ? prompt.slice(0, 1500) : "",
-              },
-            },
-      );
+      router.navigate(action === "track" ? "/(tabs)/orders" : "/(tabs)/shop");
       await AppIntents.removePendingInvocationAsync(invocation.id);
     }
   });

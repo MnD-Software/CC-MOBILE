@@ -305,13 +305,20 @@ def tracked_order_view(db, order):
     if dispatch:
         result["dispatch"] = {k: dispatch.details[k] for k in ("rider_name", "rider_phone") if k in dispatch.details}
     result["events"].sort(key=lambda event: (event["created_at"], visible.index(event["kind"])))
-    from .logistics_models import LogisticsTask
+    from .logistics_models import LogisticsTask, LogisticsEvent
     tasks = list(db.scalars(select(LogisticsTask).where(LogisticsTask.order_id == order.id)
         .order_by(LogisticsTask.created_at)))
     if tasks:
+        from .live_tracking import customer_position
         result["deliveries"] = [{"id": task.id, "status": task.status, "service_type": task.service_type,
             "scheduled_at": utc(task.scheduled_at).isoformat() if task.scheduled_at else None,
-            "slot": task.slot} for task in tasks]
+              "slot": task.slot, "destination_matches_checkout": bool(order.snapshot.get("route") and task.destination == order.snapshot["route"].get("destination_address")),
+              "position": customer_position(db, task) if order.state not in {"completed", "cancelled", "review_required"} and order.payment_state == "completed" else None,
+              "events": [{"status": event.status, "at": utc(event.created_at).isoformat()}
+                         for event in db.scalars(select(LogisticsEvent)
+                         .where(LogisticsEvent.task_id == task.id)
+                         .order_by(LogisticsEvent.created_at))]}
+              for task in tasks if task.status != "cancelled"]
         active = next((task for task in reversed(tasks) if task.rider_id and task.status not in ("cancelled", "delivered")), None)
         if active:
             from .models import Customer

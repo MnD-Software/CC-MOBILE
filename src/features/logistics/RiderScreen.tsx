@@ -14,6 +14,9 @@ import {
 } from "@/components/ui/Commerce";
 import { useThemedStyles } from "@/theme/ThemeProvider";
 import { logisticsApi, type Trip } from "./api";
+import { RiderLocationSharing } from "./RiderLocationSharing";
+import { useScreenActive } from "@/design/useScreenActive";
+import { Disclosure } from "@/components/ui/Disclosure";
 
 export function RiderScreen() {
   const { customer, logout } = useAuth();
@@ -46,10 +49,12 @@ export function RiderScreen() {
   );
 }
 function RiderQueue({ owner }: { owner: string }) {
+  const active = useScreenActive();
   const query = useQuery({
     queryKey: ["rider-tasks", owner],
     queryFn: ({ signal }) => logisticsApi.riderTasks(signal),
-    refetchInterval: 15_000,
+    refetchInterval: active ? 15_000 : false,
+    enabled: active,
   });
   return (
     <>
@@ -66,7 +71,22 @@ function RiderQueue({ owner }: { owner: string }) {
       ) : !query.data.length ? (
         <Notice message="No deliveries have been assigned to you yet." />
       ) : (
-        query.data.map((task) => <TripCard key={task.id} task={task} />)
+        <>
+          {query.data
+            .filter((task) => !["delivered", "cancelled"].includes(task.status))
+            .map((task) => (
+              <TripCard key={task.id} task={task} />
+            ))}
+          <Disclosure title="Completed deliveries">
+            {query.data
+              .filter((task) =>
+                ["delivered", "cancelled"].includes(task.status),
+              )
+              .map((task) => (
+                <TripCard key={task.id} task={task} />
+              ))}
+          </Disclosure>
+        </>
       )}
     </>
   );
@@ -82,6 +102,9 @@ function TripCard({ task }: { task: Trip }) {
     onSuccess: async () => {
       await cache.invalidateQueries({ queryKey: ["rider-tasks"] });
       await cache.invalidateQueries({ queryKey: ["app-order"] });
+    },
+    onError: () => {
+      void cache.invalidateQueries({ queryKey: ["rider-tasks"] });
     },
   });
   const next: Record<string, [string, string]> = {
@@ -110,6 +133,7 @@ function TripCard({ task }: { task: Trip }) {
       </Text>
       <Text>{task.recipient}</Text>
       <Text>{task.destination}</Text>
+      <RiderLocationSharing taskId={task.id} status={task.status} />
       <Text style={ui.body}>
         {task.items.reduce((total, item) => total + item.quantity, 0)} item(s)
       </Text>
@@ -149,6 +173,10 @@ function TripCard({ task }: { task: Trip }) {
       {action ? (
         <Button
           label={action[1]}
+          disabled={
+            mutation.isPending ||
+            (task.status === "in_transit" && proof.trim().length < 3)
+          }
           loading={mutation.isPending}
           onPress={() => mutation.mutate(action[0])}
         />

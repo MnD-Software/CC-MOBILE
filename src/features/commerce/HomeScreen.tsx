@@ -5,7 +5,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { CampaignStories } from "@/features/editorial/CampaignStories";
 import { Image } from "expo-image";
 import { LoadingImage } from "@/components/ui/LoadingImage";
-import { ConciergeEntry } from "@/features/concierge/ConciergeEntry";
 import { LinearGradient } from "expo-linear-gradient";
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
@@ -312,7 +311,6 @@ export function HomeScreen() {
         showsVerticalScrollIndicator={false}
       >
         <ActiveOrderCard />
-        <ConciergeEntry />
         {catalogue.isPending ? (
           <HomeSkeleton cardWidth={collectionCardWidth} />
         ) : catalogue.isError ? (

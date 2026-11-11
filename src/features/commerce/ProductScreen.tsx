@@ -1,4 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useScreenActive } from "@/design/useScreenActive";
+import { shouldRememberProduct } from "./recently-viewed";
 import { LoadingImage as Image } from "@/components/ui/LoadingImage";
 import { useQuery } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
@@ -109,6 +111,7 @@ async function livePairings(product: StoreProduct, signal?: AbortSignal) {
 }
 
 export function ProductScreen() {
+  const active = useScreenActive();
   const styles = useThemedStyles(baseStyles);
   const { colors } = useTheme();
   const { id, slug } = useLocalSearchParams<{ id: string; slug?: string }>();
@@ -185,14 +188,17 @@ export function ProductScreen() {
     setVariationOpen(false);
     setSelectedVariationId(null);
     setSelectedPairingIds([]);
-    if (cake) {
+  }, [cake?.slug]);
+
+  useEffect(() => {
+    if (cake && shouldRememberProduct(active, lookup, cake)) {
       remember(customer?.id ? String(customer.id) : null, cake.slug);
       trackCommerceEvent("product_viewed", {
         product_id: cake.id,
         source: "product_detail",
       });
     }
-  }, [cake?.slug, customer?.id, remember]);
+  }, [active, lookup, cake?.slug, customer?.id, remember]);
 
   useEffect(() => {
     setPairingsReady(false);

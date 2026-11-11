@@ -1,19 +1,21 @@
 # API changes
 
+The finishing pass also corrects the web dashboard to call the existing production-assignment and logistics-task APIs used by mobile. Driver selection supplies `rider_id` to `POST /v1/logistics/orders/{reference}/tasks`; it no longer relies on the legacy name/phone-only dispatch form. Individual task revisions, kitchen readiness and delivery proof remain enforced by the backend. Legacy API routes are retained for compatibility; no dashboard control should bypass task completion.
+
 ## Current worktree changes
 
 The following additive behavior exists in the current, uncommitted worktree.
 Review and deploy the backend and client together; the committed branch alone
 does not contain this entire change set.
 
-| Contract | Behavior | Guard / validation |
-| --- | --- | --- |
-| `PUT /v1/rider/tasks/{identity}/location` | Accepts a rider GPS fix for one delivery task. | Authenticated assigned rider; active collected/in-transit task; paid order; latitude/longitude/accuracy bounds; timezone-aware timestamp and freshness checks; older fixes ignored. |
-| `DELETE /v1/rider/tasks/{identity}/location` | Stops sharing and removes the current trip position. | Authenticated assigned rider only. |
-| `GET /v1/app-orders/{reference}` | Adds delivery status events and an optional current rider position. | Authenticated order owner; response is `Cache-Control: private, no-store`; no staff notes or proof exposed. |
-| `GET /v1/delivery-tracking/map` | Returns a static map shell. | Contains no private coordinates; map tiles require network access. |
-| `POST /v1/auth/forgot-password` | Creates a time-limited password-reset request and queues SMTP delivery after returning. | Feature flag; fixed redirect allowlist; account-enumeration-safe response; 15-minute cooldown; raw token is not persisted. |
-| `POST /v1/auth/reset-password` | Consumes a single-use token and changes the password. | Atomic token claim, expiry check, refresh-token revocation, push-device disablement and invalidation of other active reset links. |
+| Contract                                     | Behavior                                                                                | Guard / validation                                                                                                                                                                  |
+| -------------------------------------------- | --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PUT /v1/rider/tasks/{identity}/location`    | Accepts a rider GPS fix for one delivery task.                                          | Authenticated assigned rider; active collected/in-transit task; paid order; latitude/longitude/accuracy bounds; timezone-aware timestamp and freshness checks; older fixes ignored. |
+| `DELETE /v1/rider/tasks/{identity}/location` | Stops sharing and removes the current trip position.                                    | Authenticated assigned rider only.                                                                                                                                                  |
+| `GET /v1/app-orders/{reference}`             | Adds delivery status events and an optional current rider position.                     | Authenticated order owner; response is `Cache-Control: private, no-store`; no staff notes or proof exposed.                                                                         |
+| `GET /v1/delivery-tracking/map`              | Returns a static map shell.                                                             | Contains no private coordinates; map tiles require network access.                                                                                                                  |
+| `POST /v1/auth/forgot-password`              | Creates a time-limited password-reset request and queues SMTP delivery after returning. | Feature flag; fixed redirect allowlist; account-enumeration-safe response; 15-minute cooldown; raw token is not persisted.                                                          |
+| `POST /v1/auth/reset-password`               | Consumes a single-use token and changes the password.                                   | Atomic token claim, expiry check, refresh-token revocation, push-device disablement and invalidation of other active reset links.                                                   |
 
 The backend retains at most one position per trip, returns stale positions only
 for a bounded period, and removes positions when sharing stops or task state

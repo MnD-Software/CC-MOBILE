@@ -1,5 +1,7 @@
 """Independent kitchen, dispatch and rider APIs. Odoo is optional."""
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import HTMLResponse
+from pathlib import Path
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -13,6 +15,12 @@ from .permissions import audit
 from .routes_club import member
 
 router = APIRouter(tags=["kitchen-and-logistics"])
+
+
+@router.get("/v1/delivery-tracking/map", response_class=HTMLResponse)
+def tracking_map():
+    # Static shell only; private coordinates arrive from the authenticated app, never URLs.
+    return HTMLResponse(Path(__file__).with_name("tracking-map.html").read_text(encoding="utf-8"), headers={"Cache-Control": "public, max-age=3600", "Referrer-Policy": "strict-origin-when-cross-origin"})
 
 
 def kitchen(customer: Customer = Depends(member)):
@@ -135,6 +143,21 @@ def my_tasks(actor: Customer = Depends(rider), db: Session = Depends(get_db)):
 @router.patch("/v1/rider/tasks/{identity}")
 def rider_progress(identity: str, data: service.TaskUpdate, actor: Customer = Depends(rider), db: Session = Depends(get_db)):
     return service.update_task(db, actor, identity, data)
+
+
+from .live_tracking import Position
+
+
+@router.put("/v1/rider/tasks/{identity}/location")
+def rider_location(identity: str, data: Position, actor: Customer = Depends(rider), db: Session = Depends(get_db)):
+    from .live_tracking import publish
+    return publish(db, actor, identity, data)
+
+
+@router.delete("/v1/rider/tasks/{identity}/location", status_code=204)
+def stop_location(identity: str, actor: Customer = Depends(rider), db: Session = Depends(get_db)):
+    from .live_tracking import stop
+    stop(db, actor, identity)
 
 
 class Scope(BaseModel):
