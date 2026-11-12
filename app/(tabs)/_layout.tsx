@@ -1,6 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import { Tabs } from "expo-router";
+import { Redirect } from "expo-router";
+import { useAuth } from "@/auth/AuthProvider";
+import { isStaffRole } from "@/auth/staff-routing";
 import { Platform, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { tokens } from "@/theme/tokens";
@@ -22,12 +25,15 @@ const tabIcons = {
  * navigation, including the Cake Studio route opened through JavaScript.
  */
 export default function TabLayout() {
+  const { customer, restoring } = useAuth();
   const insets = useSafeAreaInsets();
   const bottomInset = Math.max(
     insets.bottom,
     Platform.OS === "android" ? 7 : 8,
   );
 
+  if (restoring) return null;
+  if (isStaffRole(customer?.role)) return <Redirect href="/workspace" />;
   return (
     <Tabs
       tabBar={() => null}

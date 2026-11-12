@@ -44,7 +44,8 @@ const localTime = (s) => {
     .toISOString()
     .slice(0, 16);
 };
-let session = null,
+let staffOverview = null,
+  session = null,
   refreshPromise = null,
   tab = "overview",
   page = 1,
@@ -72,7 +73,7 @@ const fulfilmentRoles = [
 ];
 const canFulfil = () => fulfilmentRoles.includes(session?.customer.role);
 const canKitchen = () =>
-  ["admin", "staff", "ecommerce_manager", "production"].includes(
+  ["admin", "staff", "ecommerce_manager", "production", "head_chef"].includes(
     session?.customer.role,
   );
 const canDispatch = () =>
@@ -81,6 +82,7 @@ const canDispatch = () =>
     "staff",
     "ecommerce_manager",
     "dispatch",
+    "branch_dispatch",
     "branch_manager",
   ].includes(session?.customer.role);
 const canOperate = () => operatorRoles.includes(session?.customer.role);
@@ -133,6 +135,7 @@ async function request(path, method = "GET", body, retry = true) {
   return response.status === 204 ? null : response.json();
 }
 function signedOut() {
+  staffOverview = null;
   session = null;
   generation++;
   $("workspace").hidden = true;
@@ -153,18 +156,13 @@ $("signin").onsubmit = async (e) => {
       "POST",
       Object.fromEntries(f),
     );
-    if (
-      !readerRoles.includes(session.customer.role) &&
-      !canReport() &&
-      !canFulfil()
-    ) {
+    try {
+      staffOverview = await request("/v1/staff/overview");
+    } catch (error) {
       await request("/v1/auth/mobile/logout", "POST", {
         refresh_token: session.refresh_token,
-      });
-      session = null;
-      throw Error(
-        "This account does not have dashboard access. Ask your administrator to assign a staff role.",
-      );
+      }).catch(() => {});
+      throw error;
     }
     $("signin").reset();
     $("login").hidden = true;
@@ -244,16 +242,9 @@ const sections = {
   issues: ["◎", "Issues", "Track app and website issues separately."],
 };
 function navigation() {
-  const allowed = [
-    "overview",
-    ...(canOperate() ? ["products"] : []),
-    ...(readerRoles.includes(session.customer.role) ? ["campaigns"] : []),
-    ...(canOperate() ? ["promotions", "delivery", "payments", "club"] : []),
-    ...(canFulfil() ? ["orders"] : []),
-    ...(canKitchen() ? ["kitchen"] : []),
-    ...(canDispatch() ? ["dispatch"] : []),
-    ...(canReport() ? ["sales", "issues"] : []),
-  ];
+  const allowed = (staffOverview?.modules || [])
+    .map((module) => module.id)
+    .filter((id) => sections[id]);
   document.querySelector("nav").innerHTML = allowed
     .map(
       (key) =>
@@ -266,7 +257,11 @@ function notice(text, error = false) {
   $("notice").className = error ? "error" : "";
   $("notice").textContent = text;
 }
-async function show(next = tab) {
+async function show(next = tab, quiet = false) {
+  if (!staffOverview?.modules.some((module) => module.id === next)) {
+    notice("This section is outside your workspace.", true);
+    return;
+  }
   tab = next;
   const current = ++generation;
   $("title").textContent = sections[tab][1];
@@ -288,7 +283,8 @@ async function show(next = tab) {
     n.classList.toggle("active", n.dataset.nav === tab);
     n.setAttribute("aria-current", n.dataset.nav === tab ? "page" : "false");
   });
-  $("content").innerHTML = '<div class="loading">Loading workspace…</div>';
+  if (!quiet)
+    $("content").innerHTML = '<div class="loading">Loading workspace…</div>';
   try {
     const html = await views[tab]();
     if (current === generation) $("content").innerHTML = html;
@@ -350,7 +346,7 @@ async function workflowBoard(stage) {
           ? `<button data-assign="${esc(o.reference)}">Assign remaining items to rider</button>`
           : `<p>Confirm the production location in Kitchen before assigning a rider.</p>`;
       }
-      return `<section class="panel" data-work="${esc(o.reference)}">${pill(o.status, true)} ${o.payment_test ? pill("SIMULATED TEST") : ""}<h2>${esc(o.reference)}</h2><p>${esc(date(o.created_at))} / ${esc(o.fulfilment)} / ${esc(o.plant || "Production unassigned")}</p>${o.items.map((l) => `<h3>${esc(l.quantity)} × ${esc(l.name)}</h3><p>${esc(l.selection?.size || "")} ${(l.selection?.variation_attributes || []).map((a) => `${esc(a.attribute)}: ${esc(a.value)}`).join(" / ")}</p><p>${esc(l.selection?.message || "")}</p>`).join("")}<div class="workflow-actions"><button data-order-details="${esc(o.reference)}">Customer details & tracking</button>${actions}</div></section>`;
+      return `<section class="panel" data-work="${esc(o.reference)}">${pill(o.status, true)} ${o.payment_test ? pill("SIMULATED TEST") : ""}<h2>${esc(o.reference)}</h2><p>${esc(date(o.created_at))} / ${esc(o.fulfilment)} / ${esc(o.plant || "Production unassigned")}</p>${o.items.map((l) => `<h3>${esc(l.quantity)} × ${esc(l.name)}</h3><p>${esc(l.selection?.size || "")} ${(l.selection?.variation_attributes || []).map((a) => `${esc(a.attribute)}: ${esc(a.value)}`).join(" / ")}</p><p>${esc(l.selection?.message || "")}</p>`).join("")}<div class="workflow-actions">${canOperate() ? `<button data-order-details="${esc(o.reference)}">Customer details & tracking</button>` : ""}${actions}</div></section>`;
     })
     .join("");
   const next = {
@@ -408,26 +404,7 @@ const views = {
     return `<section class="panel"><h2>App payments and HQ fulfilment</h2><p>All app orders are produced and dispatched from HQ. Confirm the HQ pin, delivery boundary and price/tax treatment before accepting payments.</p><div class="stats">${stat("Route service", d.maps_ready ? "Configured" : "Key needed", "GOOGLE_MAPS_API_KEY on Render")}${stat("Map picker", d.map_picker_ready ? "Configured" : "Key needed", "GOOGLE_MAPS_BROWSER_KEY on Render")}${stat("Checkout", p.enabled && p.pricing_confirmed ? "Enabled" : "Awaiting confirmation", "Live payment also requires the Pesapal merchant account")}</div><button data-payment-check="true">Check Pesapal account and callback setup</button><h3>Confirmed rate card</h3><p>Doorstep: KES 100 + KES 30/km by road from HQ. Same-store HQ collection: free. Transfers to another pickup store: 50% of the applicable delivery fee.</p><small>${esc(d.source)}</small><h3>${esc(d.origin_name)}</h3><p>${esc(d.origin_address)}</p><p>${d.origin ? `${esc(d.origin.latitude)}, ${esc(d.origin.longitude)}` : "HQ pin not confirmed"}. Boundary: ${d.radius_km ? `${esc(d.radius_km)} km radius` : "not confirmed"}.</p><button data-delivery-config="hq">Configure HQ and delivery area</button><button data-checkout-config="true">Configure checkout and tax</button><h3>Additional pickup stores</h3><p>HQ collection is free. Additional stores require a quoted transfer from HQ.</p>${(d.pickup_stores || []).map((s) => `<p>${esc(s.name)} - ${esc(s.address)} <button data-edit-pickup="${esc(s.id)}">Edit branch</button><button data-remove-pickup="${esc(s.id)}">Remove store</button></p>`).join("")}<button data-delivery-config="store">Add pickup store</button></section>`;
   },
   async overview() {
-    if (!canOperate() && canFulfil())
-      return workflowBoard(canKitchen() ? "kitchen" : "dispatch");
-    const results = await Promise.all([
-      canOperate() ? request("/v1/admin/dashboard/products?per_page=1") : null,
-      readerRoles.includes(session.customer.role)
-        ? request("/v1/admin/content")
-        : null,
-      canOperate() ? request("/v1/admin/dashboard/promotions") : null,
-      canReport() ? request("/v1/admin/channel-sales") : null,
-    ]);
-    const [catalogue, content, codes, sales] = results;
-    const live = (content || []).filter(
-      (c) =>
-        c.kind === "campaign" &&
-        c.published &&
-        Date.parse(c.starts_at) <= Date.now() &&
-        Date.parse(c.ends_at) > Date.now(),
-    );
-    const app = (sales?.channels || []).find((c) => c.channel === "app");
-    return `<div class="stats">${catalogue ? stat("Catalogue records", catalogue.total, "Includes products and variations") : ""}${content ? stat("Live campaigns", live.length, "Published and within schedule") : ""}${codes ? stat("Available promotion codes", codes.filter((c) => !c.customer_id && c.enabled && (!c.expires_at || Date.parse(c.expires_at) > Date.now()) && c.uses + c.reserved < c.usage_limit).length, "General app discount codes") : ""}${sales ? stat("App net sales", money(app?.net_minor), "Verified live payments") : ""}</div><div class="split"><section class="panel"><h2>Your app, ready for the next occasion</h2><p>Keep your range current, tell your story and give customers a reason to celebrate.</p>${canOperate() ? `<div class="action-row"><div><strong>Manage your range</strong><p>Products, variations, images, prices and made-to-order availability.</p></div><button data-nav="products">Open catalogue →</button></div>` : ""}${readerRoles.includes(session.customer.role) ? `<div class="action-row"><div><strong>Plan your next campaign</strong><p>Artwork, linked cakes, schedules and publishing.</p></div><button data-nav="campaigns">View campaigns →</button></div>` : ""}${canOperate() ? `<div class="action-row"><div><strong>Create an app promotion</strong><p>Discount value, minimum spend and redemption limits.</p></div><button data-nav="promotions">Manage codes →</button></div>` : ""}</section><section class="panel"><span class="eyebrow">INDEPENDENT COMMERCE</span><h2>One brand. Clear accountability.</h2><p>This workspace manages the app’s own catalogue, campaigns and checkout discounts. Changes persist in the app backend.</p><div class="action-row"><div><strong>App order references</strong><p>APP-prefixed orders stay traceable to the app.</p></div>${pill("App channel", true)}</div><div class="action-row"><div><strong>Website reporting</strong><p>Website totals appear only when imported by the separate reporting integration.</p></div></div><small>Campaign stories promote an offer. Create its discount code under Promotions so checkout can apply it.</small></section></div>`;
+    return workspaceOverview();
   },
   async products() {
     const result = await request(

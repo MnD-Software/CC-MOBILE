@@ -4,20 +4,19 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#af0063" />
-    <title>Cake City · App management</title>
+    <title>Cake City | Operations workspace</title>
     <link rel="stylesheet" href="/admin/assets/dashboard.css" />
     <script defer src="/admin/assets/dashboard.js"></script>
+    <script defer src="/admin/assets/workspace.js"></script>
   </head>
   <body>
     <div id="login" class="login">
       <div class="login-story">
-        <a class="brand" href="/admin">cake city<span>APP MANAGEMENT</span></a>
+        <a class="brand" href="/admin">cake city<span>OPERATIONS</span></a>
         <div>
           <span class="eyebrow">YOUR STORE, IN YOUR HANDS</span>
           <h1>Make every<br />occasion count.</h1>
-          <p>
-            Manage your app’s products, campaigns and promotions from one place.
-          </p>
+          <p>One connected team. From the first order to the final handover.</p>
         </div>
         <small>Cake City · Independent app commerce</small>
       </div>
@@ -49,12 +48,12 @@
     </div>
     <div id="workspace" hidden>
       <aside>
-        <a class="brand" href="/admin">cake city<span>APP MANAGEMENT</span></a
+        <a class="brand" href="/admin">cake city<span>OPERATIONS</span></a
         ><span class="nav-label">WORKSPACE</span>
         <nav aria-label="Main navigation"></nav>
         <div class="sidebar-bottom">
           <span class="status-dot"></span> App-owned commerce
-          <p>Changes here manage the app catalogue.</p>
+          <p id="workspace-department">Your role. Your operational view.</p>
           <button id="signout" class="quiet">Sign out</button>
         </div>
       </aside>
@@ -66,7 +65,7 @@
         <main>
           <div class="page-heading">
             <div>
-              <span class="eyebrow">STORE MANAGEMENT</span>
+              <span class="eyebrow">CAKE CITY OPERATIONS</span>
               <h1 id="title">Overview</h1>
               <p id="subtitle"></p>
             </div>
@@ -85,7 +84,7 @@
       <form id="edit-form">
         <div class="dialog-head">
           <div>
-            <span class="eyebrow">APP MANAGEMENT</span>
+            <span class="eyebrow">OPERATIONS</span>
             <h2 id="editor-title"></h2>
           </div>
           <button

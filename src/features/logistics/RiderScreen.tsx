@@ -17,6 +17,7 @@ import { logisticsApi, type Trip } from "./api";
 import { RiderLocationSharing } from "./RiderLocationSharing";
 import { useScreenActive } from "@/design/useScreenActive";
 import { Disclosure } from "@/components/ui/Disclosure";
+import { StaffDepartmentMetrics } from "@/features/staff/StaffDepartmentMetrics";
 
 export function RiderScreen() {
   const { customer, logout } = useAuth();
@@ -25,6 +26,14 @@ export function RiderScreen() {
       title="Your deliveries"
       subtitle="Collection, route and delivery updates"
       back
+      right={
+        <Button
+          label="Overview"
+          size="sm"
+          variant="ghost"
+          onPress={() => router.replace("/workspace")}
+        />
+      }
     >
       {customer ? (
         <Button
@@ -58,6 +67,7 @@ function RiderQueue({ owner }: { owner: string }) {
   });
   return (
     <>
+      <StaffDepartmentMetrics />
       <Notice message="Assigned work refreshes every 15 seconds while this screen is open. Collection is available after Kitchen confirms readiness." />
       <Button
         label="Refresh assignments"

@@ -16,6 +16,7 @@ import { useThemedStyles } from "@/theme/ThemeProvider";
 import { logisticsApi, type WorkOrder, type Trip } from "./api";
 import { useScreenActive } from "@/design/useScreenActive";
 import { Disclosure } from "@/components/ui/Disclosure";
+import { StaffDepartmentMetrics } from "@/features/staff/StaffDepartmentMetrics";
 
 export function OperationsScreen({ kitchen }: { kitchen: boolean }) {
   const { customer, logout } = useAuth();
@@ -38,6 +39,14 @@ export function OperationsScreen({ kitchen }: { kitchen: boolean }) {
           : "Order-linked rider assignments"
       }
       back
+      right={
+        <Button
+          label="Overview"
+          size="sm"
+          variant="ghost"
+          onPress={() => router.replace("/workspace")}
+        />
+      }
     >
       {customer ? (
         <Button
@@ -72,6 +81,7 @@ function Queue({ owner, kitchen }: { owner: string; kitchen: boolean }) {
   });
   return (
     <>
+      <StaffDepartmentMetrics />
       <Button
         label="Refresh work"
         variant="outline"

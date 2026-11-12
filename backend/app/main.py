@@ -40,6 +40,7 @@ from .rider_tracking import router as rider_tracking_router
 from .release_readiness import router as release_router
 from .checkout_coupons import router as checkout_coupons_router
 from .order_home import router as order_home_router
+from .staff_workspace import router as staff_workspace_router
 from .concierge import router as concierge_router
 
 
@@ -92,6 +93,7 @@ app.include_router(rider_tracking_router)
 app.include_router(release_router)
 app.include_router(checkout_coupons_router)
 app.include_router(order_home_router)
+app.include_router(staff_workspace_router)
 app.include_router(notifications_router)
 app.include_router(concierge_router)
 

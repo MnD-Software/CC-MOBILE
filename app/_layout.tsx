@@ -8,6 +8,9 @@ import { FloatingTabBar } from "@/components/storefront/FloatingTabBar";
 import { BrandEntrance } from "@/components/ui/BrandEntrance";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider } from "@/auth/AuthProvider";
+import { useAuth } from "@/auth/AuthProvider";
+import { isStaffRole } from "@/auth/staff-routing";
+import { StaffRouteBoundary } from "@/auth/StaffRouteBoundary";
 import { QueryProvider } from "@/providers/QueryProvider";
 import { AppErrorBoundary, ToastProvider } from "@/components/ui/Commerce";
 import { OfflineNotice } from "@/components/ui/OfflineNotice";
@@ -34,6 +37,7 @@ const appShellModuleLoadedAt = Date.now();
  * Back press on Home keeps the normal Android behaviour.
  */
 function AndroidBackNavigator() {
+  const { customer } = useAuth();
   const pathname = usePathname();
 
   useEffect(() => {
@@ -43,17 +47,17 @@ function AndroidBackNavigator() {
         router.back();
         return true;
       }
-      const onHome = ["/", "/index", "/(tabs)", "/(tabs)/index"].includes(
-        pathname,
-      );
+      const onHome = isStaffRole(customer?.role)
+        ? pathname === "/workspace"
+        : ["/", "/index", "/(tabs)", "/(tabs)/index"].includes(pathname);
       if (!onHome) {
-        router.navigate("/(tabs)");
+        router.navigate(isStaffRole(customer?.role) ? "/workspace" : "/(tabs)");
         return true;
       }
       return false;
     });
     return () => listener.remove();
-  }, [pathname]);
+  }, [pathname, customer?.role]);
 
   return null;
 }
@@ -88,7 +92,7 @@ function AppShell() {
                 <OfflineNotice />
                 <StatusBar style={isDark ? "light" : "dark"} />
                 <ConfettiLayerProvider>
-                  <View style={{ flex: 1 }}>
+                  <StaffRouteBoundary>
                     <Stack
                       screenOptions={{
                         headerShown: false,
@@ -107,9 +111,8 @@ function AppShell() {
                     </Stack>
                     <FloatingTabBar />
                     <BrandEntrance />
-                    <MilestoneCelebrationObserver />
-                    <OrderUpdateBanner />
-                  </View>
+                    <CustomerUpdates />
+                  </StaffRouteBoundary>
                 </ConfettiLayerProvider>
               </ToastProvider>
             </AuthProvider>
@@ -117,6 +120,17 @@ function AppShell() {
         </AppErrorBoundary>
       </GlassPreferencesProvider>
     </SafeAreaProvider>
+  );
+}
+
+function CustomerUpdates() {
+  const { customer, restoring } = useAuth();
+  if (restoring || isStaffRole(customer?.role)) return null;
+  return (
+    <>
+      <MilestoneCelebrationObserver />
+      <OrderUpdateBanner />
+    </>
   );
 }
 

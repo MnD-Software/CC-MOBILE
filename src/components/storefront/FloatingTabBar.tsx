@@ -1,3 +1,5 @@
+import { useAuth } from "@/auth/AuthProvider";
+import { isStaffRole } from "@/auth/staff-routing";
 import { Ionicons } from "@expo/vector-icons";
 import { usePathname, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
@@ -39,6 +41,7 @@ const destinations = [
 ] as const;
 
 export function FloatingTabBar() {
+  const { customer, restoring } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const styles = useThemedStyles(baseStyles);
@@ -208,6 +211,8 @@ export function FloatingTabBar() {
     };
   }, []);
   if (
+    restoring ||
+    isStaffRole(customer?.role) ||
     keyboardVisible ||
     [
       "/concierge",

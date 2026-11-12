@@ -27,7 +27,7 @@ def promotion_input(**overrides):
 def test_dashboard_static_shell_and_no_arbitrary_files(system):
     client=system["client"]
     response=client.get("/admin")
-    assert response.status_code == 200 and "APP MANAGEMENT" in response.text
+    assert response.status_code == 200 and "OPERATIONS" in response.text
     assert "frame-ancestors 'none'" in response.headers["content-security-policy"]
     assert client.get("/admin/assets/dashboard.js").status_code == 200
     assert client.get("/admin/assets/config.py").status_code == 404

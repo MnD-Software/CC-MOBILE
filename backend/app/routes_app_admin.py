@@ -146,16 +146,29 @@ def page(slug: str, data: PageInput, actor: Customer = Depends(operator), db: Se
 
 
 @router.get("/v1/admin/app-orders")
-def orders(_: Customer = Depends(fulfilment_operator), db: Session = Depends(get_db)):
-    return [commerce.order_view(r) for r in db.scalars(select(AppOrder).order_by(AppOrder.id.desc()).limit(200))]
+def orders(actor: Customer = Depends(fulfilment_operator), db: Session = Depends(get_db)):
+    from .staff_workspace import MANAGERS, scoped_orders
+    query = select(AppOrder) if actor.role in MANAGERS | {"customer_service"} else scoped_orders(actor)
+    if actor.role not in MANAGERS | {"customer_service"}:
+        query = query.where(AppOrder.payment_state == "completed")
+    return [department_order_view(r, actor) for r in db.scalars(query.order_by(AppOrder.id.desc()).limit(200))]
+
+
+def department_order_view(row, actor):
+    if actor.role in {"admin", "staff", "ecommerce_manager", "customer_service"}:
+        return commerce.order_view(row)
+    view = commerce.order_view(row, private=False)
+    return {key: view[key] for key in ("reference", "channel", "payment_test", "environment", "status", "payment_state", "created_at", "paid_at", "items")}
 
 
 @router.get("/v1/admin/app-orders/{reference}")
-def order_detail(reference: str, _: Customer = Depends(fulfilment_operator), db: Session = Depends(get_db)):
-    row = db.scalar(select(AppOrder).where(AppOrder.reference == reference))
+def order_detail(reference: str, actor: Customer = Depends(fulfilment_operator), db: Session = Depends(get_db)):
+    from .staff_workspace import MANAGERS, scoped_orders
+    query = select(AppOrder) if actor.role in MANAGERS | {"customer_service"} else scoped_orders(actor)
+    row = db.scalar(query.where(AppOrder.reference == reference))
     if not row:
         raise HTTPException(404, "App order not found.")
-    return commerce.tracked_order_view(db, row)
+    return commerce.tracked_order_view(db, row) if actor.role in MANAGERS | {"customer_service"} else department_order_view(row, actor)
 
 
 class FulfilmentInput(BaseModel):
@@ -172,8 +185,8 @@ def fulfil(reference: str, data: FulfilmentInput, actor: Customer = Depends(fulf
     from .logistics_models import ProductionTask, LogisticsTask
     from .logistics import require_plant
     production = db.get(ProductionTask, row.id)
+    require_plant(db, actor, production.plant if production else "hq")
     if production:
-        require_plant(db, actor, production.plant)
         if actor.role == "production" and production.assigned_to != actor.id:
             raise HTTPException(403, "This kitchen task belongs to another team member.")
     trips = list(db.scalars(select(LogisticsTask).where(LogisticsTask.order_id == row.id)))
@@ -192,7 +205,7 @@ def fulfil(reference: str, data: FulfilmentInput, actor: Customer = Depends(fulf
     commerce.record_event(db, row, "fulfilment_" + data.status, actor_id=actor.id, note=data.note)
     audit(db, actor.id, "app_order_fulfilment", reference, status=data.status)
     db.commit()
-    return commerce.order_view(row)
+    return department_order_view(row, actor)
 
 
 @router.get("/v1/admin/channel-sales")
@@ -289,6 +302,10 @@ def assign_dispatch(reference: str, data: DispatchInput, actor: Customer = Depen
             or row.snapshot.get("checkout", {}).get("fulfilment") != "delivery"):
         raise HTTPException(409, "Only an active paid delivery order can be assigned.")
     # Assignment changes are append-only and retain their operator identity.
+    from .logistics_models import ProductionTask
+    from .logistics import require_plant
+    production = db.get(ProductionTask, row.id)
+    require_plant(db, actor, production.plant if production else "hq")
     db.add(AppOrderEvent(id=str(uuid4()), order_id=row.id, event_key=f"{row.reference}:dispatch:{uuid4().hex}",
         kind="dispatch_assigned", details={**data.model_dump(), "actor_id": actor.id}))
     audit(db, actor.id, "app_dispatch_assigned", reference)

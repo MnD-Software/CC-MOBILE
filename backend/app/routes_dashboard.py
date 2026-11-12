@@ -31,7 +31,7 @@ def dashboard():
 
 @router.get("/admin/assets/{name}", include_in_schema=False)
 def dashboard_asset(name: str):
-    if name not in ("dashboard.js", "dashboard.css"):
+    if name not in ("dashboard.js", "dashboard.css", "workspace.js"):
         raise HTTPException(404)
     return FileResponse(STATIC / name, headers={"Cache-Control": "no-cache", "X-Content-Type-Options": "nosniff"})
 

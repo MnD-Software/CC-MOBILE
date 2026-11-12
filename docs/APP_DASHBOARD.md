@@ -1,5 +1,11 @@
 # Cake City app web dashboard
 
+The November 12 department ecosystem extends this console with role-specific
+landing pages, shared web/mobile statistics and native staff routing. Read
+[ECOSYSTEM_HANDOFF_2026-11-12.md](ECOSYSTEM_HANDOFF_2026-11-12.md) for the current
+implementation, financial definitions, role matrix, validation and deployment
+acceptance checklist. Odoo activation remains paused.
+
 Order-linked mobile Kitchen, Dispatch and rider workspaces are documented in
 [LOGISTICS.md](LOGISTICS.md). The rider workspace is separate from this staff web
 dashboard. Optional ERP installation and API-key setup: [ODOO19_SETUP.md](ODOO19_SETUP.md).
