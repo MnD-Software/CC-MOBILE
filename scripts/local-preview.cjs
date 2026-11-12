@@ -132,14 +132,21 @@ async function main() {
     mode: 0o600,
   });
   const loginNotes = [
-    "LOCAL REVIEW ACCOUNTS — this computer only",
+    credentials.primary_login
+      ? "YOUR LOCAL REVIEW SIGN-IN — this computer only"
+      : "LOCAL REVIEW ACCOUNTS — this computer only",
     "",
-    ...Object.entries(credentials.accounts).flatMap(([role, account]) => [
-      role,
-      `Email: ${account.email}`,
-      `Password: ${account.password}`,
-      "",
-    ]),
+    ...Object.entries(credentials.accounts)
+      .filter(
+        ([role]) =>
+          !credentials.primary_login || role === credentials.primary_login,
+      )
+      .flatMap(([role, account]) => [
+        role,
+        `Email: ${account.email}`,
+        `Password: ${account.password}`,
+        "",
+      ]),
   ].join("\n");
   fs.writeFileSync(path.join(directory, "LOGIN.txt"), loginNotes, {
     mode: 0o600,
