@@ -311,21 +311,38 @@ export function FloatingTabBar() {
                       isClub && focused && styles.clubFace,
                     ]}
                   >
-                    <Ionicons
-                      name={focused ? destination.active : destination.icon}
-                      size={isClub ? 23 : 22}
-                      color={
-                        isClub && focused
-                          ? "#FFFFFF"
-                          : focused
-                            ? colors.brand
-                            : colors.cocoa
-                      }
-                    />
+                    {isClub ? (
+                      <View style={styles.tabIcon}>
+                        <View pointerEvents="none" style={styles.clubHalo} />
+                        <LinearGradient
+                          colors={["#FF72BF", "#EC008C", "#AD0064"]}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                          style={styles.clubJewel}
+                        >
+                          <Ionicons name="ribbon" size={22} color="#FFFFFF" />
+                        </LinearGradient>
+                        <Ionicons
+                          name="sparkles"
+                          size={9}
+                          color={focused ? "#FFFFFF" : "#B80068"}
+                          style={styles.clubSparkle}
+                        />
+                      </View>
+                    ) : (
+                      <View style={styles.tabIcon}>
+                        <Ionicons
+                          name={focused ? destination.active : destination.icon}
+                          size={22}
+                          color={focused ? colors.brand : colors.cocoa}
+                        />
+                      </View>
+                    )}
                     <Text
                       style={[
                         styles.label,
                         focused && styles.activeLabel,
+                        isClub && styles.clubIdleLabel,
                         isClub && focused && styles.clubLabel,
                       ]}
                     >
@@ -406,8 +423,36 @@ const baseStyles = StyleSheet.create({
     borderRadius: 25,
     backgroundColor: tokens.color.brand,
   },
+  tabIcon: {
+    width: 32,
+    height: 28,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  clubHalo: {
+    position: "absolute",
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(236,0,140,0.10)",
+    shadowColor: "#EC008C",
+    shadowOpacity: 0.55,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  clubJewel: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.75)",
+  },
+  clubSparkle: { position: "absolute", right: -4, top: -2 },
   pressed: { transform: [{ scale: 0.96 }] },
   label: { fontSize: 11, fontWeight: "600", color: tokens.color.cocoa },
   activeLabel: { fontWeight: "800", color: tokens.color.brandStrong },
+  clubIdleLabel: { color: tokens.color.brandStrong, fontWeight: "800" },
   clubLabel: { color: "#FFFFFF", fontWeight: "800" },
 });
