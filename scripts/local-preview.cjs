@@ -76,8 +76,9 @@ async function ready(url, timeoutMs, validate = () => true) {
 }
 
 async function main() {
+  const apiOnly = process.argv.includes("--api-only");
   await available(8010);
-  await available(8082, "localhost");
+  if (!apiOnly) await available(8082, "localhost");
   fs.mkdirSync(directory, { recursive: true });
   const candidates = [];
   if (process.env.CAKECITY_PREVIEW_PYTHON)
@@ -215,6 +216,25 @@ async function main() {
     180000,
     async (response) => (await response.json()).local_preview === true,
   );
+  if (apiOnly) {
+    fs.writeFileSync(
+      path.join(directory, "RUNNING.json"),
+      JSON.stringify(
+        {
+          startedAt: new Date().toISOString(),
+          apiUrl,
+          webUrl: null,
+          pid: process.pid,
+        },
+        null,
+        2,
+      ),
+    );
+    process.stdout.write(
+      "Isolated test backend ready. Private sign-in: artifacts/local-preview/LOGIN.txt\n",
+    );
+    return;
+  }
   const webLog = fs.openSync(path.join(directory, "web.log"), "a");
   launch(
     process.execPath,
