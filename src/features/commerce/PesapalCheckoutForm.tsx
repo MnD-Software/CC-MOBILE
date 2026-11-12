@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Image } from "expo-image";
+import { LoadingImage as Image } from "@/components/ui/LoadingImage";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { randomUUID } from "expo-crypto";
@@ -35,6 +35,7 @@ import { money, type CheckoutInput } from "./contracts";
 import { distanceOptionsSchema, type DeliveryRouteQuote } from "./app-delivery";
 import { HqDeliveryPicker } from "./HqDeliveryPicker";
 import { CheckoutProgress } from "@/components/storefront/CheckoutProgress";
+import { CheckoutCoupons } from "./CheckoutCoupons";
 
 const quoteSchema = z.object({
   id: z.string(),
@@ -520,10 +521,11 @@ function AppCheckout({ owner }: { owner: string }) {
             />
           </>
         ) : (
-          <>
+          <View style={checkoutStyles.actionRow}>
             {["pending", "not_started"].includes(order.payment_state) ? (
               <Button
                 label="Pay securely inside the app"
+                style={checkoutStyles.action}
                 disabled={busy}
                 onPress={() => void pay()}
               />
@@ -531,35 +533,46 @@ function AppCheckout({ owner }: { owner: string }) {
             <Button
               variant="outline"
               label="Check payment status"
+              style={checkoutStyles.action}
               disabled={busy}
               onPress={() => void verify()}
             />
-          </>
+          </View>
         )}
-        <Button
-          variant="outline"
-          label="View app order and receipt"
-          onPress={() =>
-            void (
-              isVerifiedPayment(order)
-                ? deleteStorageItem(key)
-                : Promise.resolve()
-            ).then(() =>
-              router.push({
-                pathname: "/order/[reference]",
-                params: { reference: order.reference },
-              }),
-            )
-          }
-        />
-        <Button
-          variant="outline"
-          label="Order support"
-          onPress={() => router.push("/requests")}
-        />
-        {order.payment_state === "not_started" ? (
+        <View style={checkoutStyles.actionRow}>
           <Button
             variant="outline"
+            label="Order & receipt"
+            accessibilityLabel="View app order and receipt"
+            style={checkoutStyles.action}
+            onPress={() =>
+              void (
+                isVerifiedPayment(order)
+                  ? deleteStorageItem(key)
+                  : Promise.resolve()
+              ).then(() =>
+                router.push({
+                  pathname: "/order/[reference]",
+                  params: { reference: order.reference },
+                }),
+              )
+            }
+          />
+          <Button
+            variant="outline"
+            label="Order support"
+            style={checkoutStyles.action}
+            onPress={() =>
+              router.push({
+                pathname: "/requests",
+                params: { kind: "support", reference: order.reference },
+              })
+            }
+          />
+        </View>
+        {order.payment_state === "not_started" ? (
+          <Button
+            variant="ghost"
             label="Cancel this unpaid order"
             disabled={busy}
             onPress={() => {
@@ -604,17 +617,21 @@ function AppCheckout({ owner }: { owner: string }) {
       <View style={{ gap: 16 }}>
         <Notice message="Your order request has been saved. Recover that same request before starting another checkout." />
         {error ? <Notice error message={error} /> : null}
-        <Button
-          label="Recover existing order request"
-          disabled={busy}
-          loading={busy}
-          onPress={() => void resumeCreation()}
-        />
-        <Button
-          variant="outline"
-          label="View app orders"
-          onPress={() => router.push("/orders")}
-        />
+        <View style={checkoutStyles.actionRow}>
+          <Button
+            label="Recover existing order request"
+            style={checkoutStyles.action}
+            disabled={busy}
+            loading={busy}
+            onPress={() => void resumeCreation()}
+          />
+          <Button
+            variant="outline"
+            label="View app orders"
+            style={checkoutStyles.action}
+            onPress={() => router.push("/orders")}
+          />
+        </View>
       </View>
     );
   return (
@@ -879,9 +896,16 @@ function AppCheckout({ owner }: { owner: string }) {
             />
             <Input label="Order notes" value={notes} onChangeText={setNotes} />
           </Disclosure>
-          <Disclosure title="Have a promotion code?">
-            <Input label="App coupon" value={coupon} onChangeText={setCoupon} />
-          </Disclosure>
+          <CheckoutCoupons
+            owner={owner}
+            subtotalMinor={Math.round(
+              lines.reduce((sum, line) => sum + line.price * line.quantity, 0) *
+                100,
+            )}
+            code={coupon}
+            onChange={setCoupon}
+            disabled={busy}
+          />
         </View>
         <View style={checkoutStyles.summaryColumn}>
           <CheckoutSection
@@ -926,11 +950,6 @@ function AppCheckout({ owner }: { owner: string }) {
                 </View>
               </View>
             ))}
-            <Button
-              variant="ghost"
-              label="Edit shopping bag"
-              onPress={() => router.push("/cart")}
-            />
           </CheckoutSection>
           {error ? <Notice error message={error} /> : null}
           <CheckoutSection
@@ -1266,6 +1285,19 @@ const checkoutStyles = StyleSheet.create({
     borderRadius: 16,
   },
   payButton: { borderRadius: 16 },
+  actionRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    alignItems: "stretch",
+  },
+  action: {
+    flex: 1,
+    minWidth: 110,
+    borderRadius: 16,
+    minHeight: 52,
+    paddingHorizontal: 12,
+  },
   eyebrow: {
     fontSize: 10,
     letterSpacing: 1.8,

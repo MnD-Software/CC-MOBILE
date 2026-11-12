@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Image } from "expo-image";
+import { LoadingImage as Image } from "@/components/ui/LoadingImage";
 import { router } from "expo-router";
 import { View, ScrollView } from "react-native";
 import { Text } from "@/components/ui/Typography";

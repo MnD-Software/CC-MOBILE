@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { AppState, Pressable, ScrollView, View } from "react-native";
-import { Image } from "expo-image";
+import { LoadingImage as Image } from "@/components/ui/LoadingImage";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useQuery } from "@tanstack/react-query";

@@ -152,6 +152,8 @@ function checkout() {
       CheckoutProgress: "Progress",
     },
     "./PaymentConfetti": { PaymentConfetti: "Confetti" },
+    "./CheckoutCoupons": { CheckoutCoupons: "Coupons" },
+    "@/components/ui/LoadingImage": { LoadingImage: "Image" },
     "./InAppPayment": { InAppPayment: "Payment" },
     "@/theme/ThemeProvider": { useTheme: () => ({ colors: {} }) },
   };

@@ -9,6 +9,11 @@ function photo() {
     cursor = 0,
     identity,
     tree;
+  let effects = [],
+    pending = [],
+    timers = new Map(),
+    nextTimer = 0;
+  let appStateListener;
   const jsx = (type, props, key) => ({ type, props, key });
   const modules = {
     react: {
@@ -20,7 +25,16 @@ function photo() {
           children: children.length === 1 ? children[0] : children,
         },
       }),
-      useEffect() {},
+      useEffect(callback, deps) {
+        const index = cursor++;
+        const previous = effects[index];
+        if (previous && deps?.every((value, i) => value === previous.deps?.[i]))
+          return;
+        pending.push(() => {
+          previous?.cleanup?.();
+          effects[index] = { deps, cleanup: callback() };
+        });
+      },
       useRef: () => ({ current: null }),
       useState: (initial) => {
         const target = states,
@@ -39,6 +53,12 @@ function photo() {
     "expo-image": { Image: "Image" },
     "react-native": {
       Platform: { OS: "ios" },
+      AppState: {
+        addEventListener: (_, callback) => {
+          appStateListener = callback;
+          return { remove() {} };
+        },
+      },
       Pressable: "Pressable",
       View: "View",
       StyleSheet: { absoluteFill: { position: "absolute" } },
@@ -47,9 +67,20 @@ function photo() {
     "./Skeleton": { Skeleton: "Skeleton" },
     "./Typography": { Text: "Text" },
     "@/theme/ThemeProvider": { useTheme: () => ({ colors: {} }) },
+    "@/platform/connectivity": {
+      subscribeToConnectivity: () => () => {},
+      connectivityState: () => "online",
+    },
+    "@/features/commerce/app-media": { appMedia: (value) => value },
   };
   const context = {
     exports: {},
+    setTimeout: (callback) => {
+      const id = ++nextTimer;
+      timers.set(id, callback);
+      return id;
+    },
+    clearTimeout: (id) => timers.delete(id),
     require: (name) => {
       assert.ok(name in modules, name);
       return modules[name];
@@ -71,11 +102,15 @@ function photo() {
   function render(props) {
     const request = context.exports.LoadingImage(props);
     if (identity !== request.key) {
+      for (const effect of effects) effect?.cleanup?.();
+      effects = [];
       states = [];
       identity = request.key;
     }
     cursor = 0;
     tree = request.type(request.props);
+    for (const callback of pending) callback();
+    pending = [];
   }
   function find(predicate, node = tree) {
     if (!node || typeof node !== "object") return null;
@@ -87,7 +122,16 @@ function photo() {
     }
     return null;
   }
-  return { render, find };
+  return {
+    render,
+    find,
+    resume: () => appStateListener?.("active"),
+    retry: () => {
+      const callbacks = [...timers.values()];
+      timers.clear();
+      callbacks.forEach((callback) => callback());
+    },
+  };
 }
 test("a pending photo shows a skeleton until it is displayed", () => {
   const ui = photo(),
@@ -105,20 +149,22 @@ test("a pending photo shows a skeleton until it is displayed", () => {
     null,
   );
 });
-test("failed photos offer an explicit retry and a known missing photo is never an endless loader", () => {
+test("failed photos retry automatically beneath the skeleton without a customer retry button", () => {
   const ui = photo(),
     props = { source: "https://images.example.com/cake.jpg" };
   ui.render(props);
   ui.find((n) => n.type === "Image").props.onError({});
   ui.render(props);
-  const retry = ui.find(
-    (n) => n.props?.accessibilityLabel === "Retry loading photo",
+  assert.equal(
+    ui.find((n) => n.type === "Pressable"),
+    null,
   );
-  assert.ok(retry);
-  retry.props.onPress();
+  assert.ok(ui.find((n) => n.props?.testID === "photo-loading"));
+  ui.retry();
   ui.render(props);
   assert.ok(ui.find((n) => n.props?.testID === "photo-loading"));
   assert.equal(ui.find((n) => n.type === "Image").key, 1);
+  assert.equal(ui.find((n) => n.type === "Image").props.cachePolicy, "none");
   ui.render({ source: null });
   assert.equal(
     ui.find((n) => n.props?.testID === "photo-loading"),
@@ -127,6 +173,33 @@ test("failed photos offer an explicit retry and a known missing photo is never a
   assert.ok(
     ui.find((n) => n.props?.accessibilityLabel === "Photo coming soon"),
   );
+});
+
+test("permanent image failures stop the shimmer after bounded retries and resume automatically on foreground", () => {
+  const ui = photo(),
+    props = { source: "https://images.example.com/missing.jpg" };
+  ui.render(props);
+  for (let attempt = 0; attempt < 4; attempt++) {
+    ui.find((n) => n.type === "Image").props.onError({});
+    ui.render(props);
+    if (attempt < 3) {
+      ui.retry();
+      ui.render(props);
+    }
+  }
+  assert.equal(
+    ui.find((n) => n.props?.testID === "photo-loading"),
+    null,
+  );
+  assert.ok(
+    ui.find(
+      (n) => n.props?.accessibilityLabel === "Photo temporarily unavailable",
+    ),
+  );
+  ui.resume();
+  ui.render(props);
+  assert.ok(ui.find((n) => n.type === "Image"));
+  assert.ok(ui.find((n) => n.props?.testID === "photo-loading"));
 });
 test("recycled image views ignore a late display callback from the previous product", () => {
   const ui = photo();

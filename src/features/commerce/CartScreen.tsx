@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Image } from "expo-image";
+import { LoadingImage as Image } from "@/components/ui/LoadingImage";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { Linking, Pressable, StyleSheet, View } from "react-native";

@@ -9,11 +9,12 @@ if (Platform.OS !== "web")
 export { BrandSplash } from "./BrandSplashArtwork";
 import { BrandSplash } from "./BrandSplashArtwork";
 
-/** Brief cold-launch welcome; never waits for a network request. */
+/** A readable 5.5-second cold-launch welcome, independent of network requests. */
 export function BrandEntrance() {
   const preference = useMotionAccessibilityPreference();
   const [visible, setVisible] = useState(Platform.OS !== "web");
   const progress = useRef(new Animated.Value(0)).current;
+  const startedAt = useRef(Date.now()).current;
   useEffect(() => {
     if (!preference.isResolved) return;
     if (Platform.OS === "web") {
@@ -21,11 +22,14 @@ export function BrandEntrance() {
       return;
     }
     if (preference.reduceMotion) {
-      const timer = setTimeout(() => setVisible(false), 250);
+      const timer = setTimeout(
+        () => setVisible(false),
+        Math.max(0, 5500 - (Date.now() - startedAt)),
+      );
       return () => clearTimeout(timer);
     }
     const animation = Animated.sequence([
-      Animated.delay(650),
+      Animated.delay(Math.max(0, 5150 - (Date.now() - startedAt))),
       Animated.timing(progress, {
         toValue: 1,
         duration: 350,
@@ -36,9 +40,9 @@ export function BrandEntrance() {
       if (finished) setVisible(false);
     });
     return () => animation.stop();
-  }, [preference.isResolved, preference.reduceMotion, progress]);
+  }, [preference.isResolved, preference.reduceMotion, progress, startedAt]);
   useEffect(() => {
-    const timer = setTimeout(() => setVisible(false), 1600);
+    const timer = setTimeout(() => setVisible(false), 6000);
     return () => clearTimeout(timer);
   }, []);
   if (!visible) return null;

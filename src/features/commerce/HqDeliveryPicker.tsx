@@ -187,12 +187,6 @@ export function HqDeliveryPicker({
             KES 100 + KES 30/km by road from HQ. Available within the configured{" "}
             {options.radius_km} km delivery area.
           </Text>
-          <Button
-            variant="outline"
-            label="Use my current location"
-            loading={busy}
-            onPress={() => void locate()}
-          />
           <Input
             label="Search for your building, road or landmark"
             value={search}
@@ -203,16 +197,27 @@ export function HqDeliveryPicker({
             returnKeyType="search"
             onSubmitEditing={findLocations}
           />
-          <Button
-            variant="outline"
-            label="Find destination"
-            disabled={busy || search.trim().length < 3 || !options.maps_ready}
-            onPress={findLocations}
-          />
+          <View style={{ flexDirection: "row", gap: 10 }}>
+            <Button
+              variant="outline"
+              label="Use my location"
+              accessibilityLabel="Use my current location"
+              style={{ flex: 1, paddingHorizontal: 10 }}
+              loading={busy}
+              onPress={() => void locate()}
+            />
+            <Button
+              variant="outline"
+              label="Find destination"
+              style={{ flex: 1, paddingHorizontal: 10 }}
+              disabled={busy || search.trim().length < 3 || !options.maps_ready}
+              onPress={findLocations}
+            />
+          </View>
           {results.map((value, i) => (
             <Button
               key={i}
-              variant="outline"
+              variant="ghost"
               label={value.address}
               onPress={() => {
                 changeDestination(value, value.address, true);

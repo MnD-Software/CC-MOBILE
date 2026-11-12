@@ -1,12 +1,13 @@
 """Independent app orders and Pesapal payments. No WooCommerce or website requests."""
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, time, timedelta, timezone
+from typing import Literal
 from decimal import Decimal, InvalidOperation
 from urllib.parse import urlsplit
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response
 from fastapi.responses import HTMLResponse
-from sqlalchemy import select, update
+from sqlalchemy import select, update, or_, cast, String, func
 from sqlalchemy.orm import Session
 
 from . import app_commerce as commerce
@@ -73,11 +74,36 @@ async def create_order(data: commerce.PlaceOrder,
 
 @router.get("/v1/app-orders")
 def orders(before: int | None = Query(default=None, gt=0), limit: int = Query(default=30, ge=1, le=100),
+           scope: Literal["all", "active", "past"] = "all", from_date: date | None = None,
+           to_date: date | None = None, cake: str | None = Query(default=None, max_length=100),
            customer: Customer = Depends(member), db: Session = Depends(get_db)):
     query = select(AppOrder).where(AppOrder.customer_id == customer.id)
+    terminal = or_(AppOrder.state.in_(["completed", "cancelled", "payment_failed", "failed", "reversed"]),
+                   AppOrder.payment_state.in_(["failed", "cancelled", "reversed"]))
+    if scope != "all":
+        query = query.where(terminal if scope == "past" else ~terminal)
+    if from_date and to_date and from_date > to_date:
+        raise HTTPException(422, "Choose an end date on or after the start date.")
+    kenya = timezone(timedelta(hours=3))
+    if from_date:
+        query = query.where(AppOrder.created_at >= datetime.combine(from_date, time.min, kenya).astimezone(UTC))
+    if to_date:
+        # Inclusive Kenyan calendar date, exclusive next midnight.
+        end = datetime.combine(to_date, time.max, kenya).astimezone(UTC)
+        query = query.where(AppOrder.created_at <= end)
+    term = (cake or "").strip().casefold()
+    if term:
+        query = query.where(func.lower(cast(AppOrder.snapshot["lines"], String)).contains(term, autoescape=True))
     if before:
         query = query.where(AppOrder.id < before)
-    rows = list(db.scalars(query.order_by(AppOrder.id.desc()).limit(limit+1)))
+    rows = []
+    for row in db.scalars(query.order_by(AppOrder.id.desc()).execution_options(yield_per=100)):
+        # Search recorded product names, never billing, addresses or gift messages.
+        if term and not any(term in str(line.get("name", "")).casefold() for line in row.snapshot.get("lines", [])):
+            continue
+        rows.append(row)
+        if len(rows) > limit:
+            break
     return {"data": [commerce.order_view(r, private=False) for r in rows[:limit]],
             "next_cursor": rows[limit-1].id if len(rows) > limit else None}
 

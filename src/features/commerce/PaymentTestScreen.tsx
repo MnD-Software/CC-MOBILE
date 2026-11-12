@@ -344,22 +344,26 @@ function TestPurchase({
           <Notice
             message={`Order confirmed: ${order.reference}. Your Club is updated. Follow your cake from the kitchen to your door.`}
           />
+          <View style={{ flexDirection: "row", gap: 10 }}>
+            <Button
+              style={{ flex: 1, paddingHorizontal: 12 }}
+              label="Track my order"
+              onPress={() =>
+                router.push({
+                  pathname: "/order/[reference]",
+                  params: { reference: order.reference },
+                })
+              }
+            />
+            <Button
+              variant="outline"
+              label="View my Club"
+              style={{ flex: 1, paddingHorizontal: 12 }}
+              onPress={() => router.push("/(tabs)/loyalty")}
+            />
+          </View>
           <Button
-            label="Track my order"
-            onPress={() =>
-              router.push({
-                pathname: "/order/[reference]",
-                params: { reference: order.reference },
-              })
-            }
-          />
-          <Button
-            variant="outline"
-            label="View my Club"
-            onPress={() => router.push("/(tabs)/loyalty")}
-          />
-          <Button
-            variant="outline"
+            variant="ghost"
             label="Start another preview purchase"
             onPress={() => {
               setOrder(null);

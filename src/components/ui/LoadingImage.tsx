@@ -1,10 +1,34 @@
-import { Image, type ImageProps } from "expo-image";
+import { Image, type ImageProps, type ImageSource } from "expo-image";
 import { useEffect, useRef, useState, type ComponentRef } from "react";
-import { Platform, Pressable, StyleSheet, View } from "react-native";
+import { AppState, Platform, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Skeleton } from "./Skeleton";
-import { Text } from "./Typography";
+import {
+  subscribeToConnectivity,
+  connectivityState,
+} from "@/platform/connectivity";
 import { useTheme } from "@/theme/ThemeProvider";
+import { appMedia } from "@/features/commerce/app-media";
+
+function currentSource(source: ImageProps["source"]): ImageProps["source"] {
+  if (typeof source === "string") return appMedia(source);
+  if (Array.isArray(source)) {
+    if (typeof source[0] === "string")
+      return (source as string[]).map(appMedia);
+    return (source as ImageSource[]).map((image) => ({
+      ...image,
+      uri: image.uri ? appMedia(image.uri) : image.uri,
+    }));
+  }
+  if (
+    source &&
+    typeof source === "object" &&
+    "uri" in source &&
+    typeof source.uri === "string"
+  )
+    return { ...source, uri: appMedia(source.uri) };
+  return source;
+}
 
 /** Keying the request prevents late events from a recycled photo hiding its successor's skeleton. */
 export function LoadingImage(props: ImageProps) {
@@ -22,6 +46,34 @@ function ImageRequest({ style, onDisplay, onError, ...props }: ImageProps) {
   const [displayed, setDisplayed] = useState(false);
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
+  const retryDelays = [800, 2000, 5000];
+  const exhausted = failed && attempt >= retryDelays.length;
+  useEffect(() => {
+    if (!visible || !failed || attempt >= retryDelays.length) return;
+    const timer = setTimeout(() => {
+      setFailed(false);
+      setAttempt((value) => value + 1);
+    }, retryDelays[attempt]);
+    return () => clearTimeout(timer);
+  }, [visible, failed, attempt]);
+  useEffect(() => {
+    const recover = () => {
+      if (!failed) return;
+      setAttempt(0);
+      setFailed(false);
+      setDisplayed(false);
+    };
+    const listener = AppState.addEventListener("change", (state) => {
+      if (state === "active") recover();
+    });
+    const unsubscribe = subscribeToConnectivity(() => {
+      if (connectivityState() === "online") recover();
+    });
+    return () => {
+      listener.remove();
+      unsubscribe();
+    };
+  }, [failed]);
   useEffect(() => {
     if (Platform.OS !== "web") return;
     if (typeof IntersectionObserver === "undefined" || !container.current) {
@@ -59,7 +111,7 @@ function ImageRequest({ style, onDisplay, onError, ...props }: ImageProps) {
   }
   return (
     <View ref={container} style={[style, { overflow: "hidden" }]}>
-      {!displayed && !failed ? (
+      {!displayed && !exhausted ? (
         <View
           testID="photo-loading"
           accessibilityRole="progressbar"
@@ -76,29 +128,25 @@ function ImageRequest({ style, onDisplay, onError, ...props }: ImageProps) {
       {visible && !failed ? (
         <Image
           {...props}
+          source={currentSource(props.source)}
           key={attempt}
           style={StyleSheet.absoluteFill}
-          cachePolicy={props.cachePolicy ?? "memory-disk"}
+          cachePolicy={attempt ? "none" : (props.cachePolicy ?? "memory-disk")}
           transition={props.transition ?? 180}
           onDisplay={() => {
             setDisplayed(true);
             onDisplay?.();
           }}
           onError={(event) => {
+            setDisplayed(false);
             setFailed(true);
             onError?.(event);
           }}
         />
       ) : null}
-      {failed ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Retry loading photo"
-          onPress={() => {
-            setFailed(false);
-            setDisplayed(false);
-            setAttempt((value) => value + 1);
-          }}
+      {exhausted ? (
+        <View
+          accessibilityLabel="Photo temporarily unavailable"
           style={[
             StyleSheet.absoluteFill,
             {
@@ -109,11 +157,8 @@ function ImageRequest({ style, onDisplay, onError, ...props }: ImageProps) {
             },
           ]}
         >
-          <Ionicons name="refresh-outline" size={20} color={colors.muted} />
-          <Text style={{ color: colors.muted, fontSize: 10 }}>
-            Tap to load photo
-          </Text>
-        </Pressable>
+          <Ionicons name="image-outline" size={20} color={colors.muted} />
+        </View>
       ) : null}
     </View>
   );

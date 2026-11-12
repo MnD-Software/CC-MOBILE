@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ActivityIndicator, Pressable, Switch, View } from "react-native";
-import { Image } from "expo-image";
+import { LoadingImage as Image } from "@/components/ui/LoadingImage";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/Button";

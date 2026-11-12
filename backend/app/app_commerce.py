@@ -290,6 +290,10 @@ def order_view(order, private=True):
               "payment_account": order.account_id, "status": order.state, "payment_state": order.payment_state,
               "total_minor": order.total_minor, "currency": "KES", "created_at": utc(order.created_at).isoformat(),
               "paid_at": utc(order.paid_at).isoformat() if order.paid_at else None}
+    result["items"] = [{"product_id": line.get("product_id"), "slug": line.get("slug", ""),
+                        "name": line.get("name", ""), "quantity": line.get("quantity", 1),
+                        "size": str(line.get("selection", {}).get("size", ""))}
+                       for line in order.snapshot.get("lines", [])]
     if private:
         result.update(snapshot=order.snapshot, payment_url=order.payment_url if order.payment_state == "pending" else None,
                       tracking_id=order.tracking_id, receipt_label="Payment receipt — not an eTIMS tax invoice")

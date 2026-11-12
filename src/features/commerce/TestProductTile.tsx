@@ -1,5 +1,5 @@
 import { Pressable, View } from "react-native";
-import { Image } from "expo-image";
+import { LoadingImage as Image } from "@/components/ui/LoadingImage";
 import { router } from "expo-router";
 import { useAuth } from "@/auth/AuthProvider";
 import { Text } from "@/components/ui/Typography";

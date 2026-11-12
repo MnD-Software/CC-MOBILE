@@ -6,6 +6,9 @@ from urllib.request import urlopen
 
 
 REQUIRED_ROUTES = {
+    "/v1/account/home-orders": {"get"},
+    "/v1/app-orders/{reference}/received": {"post"},
+    "/v1/account/coupons/available": {"post"},
     "/v1/account/export": {"get"},
     "/v1/account/close": {"post"},
     "/v1/account/notifications/test": {"post"},

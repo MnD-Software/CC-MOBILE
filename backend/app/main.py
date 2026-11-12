@@ -38,6 +38,8 @@ from .routes_odoo import router as odoo_router
 from .routes_logistics import router as logistics_router
 from .rider_tracking import router as rider_tracking_router
 from .release_readiness import router as release_router
+from .checkout_coupons import router as checkout_coupons_router
+from .order_home import router as order_home_router
 from .concierge import router as concierge_router
 
 
@@ -88,6 +90,8 @@ app.include_router(odoo_router)
 app.include_router(logistics_router)
 app.include_router(rider_tracking_router)
 app.include_router(release_router)
+app.include_router(checkout_coupons_router)
+app.include_router(order_home_router)
 app.include_router(notifications_router)
 app.include_router(concierge_router)
 

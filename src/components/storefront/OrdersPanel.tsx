@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
+import { LoadingImage as Image } from '@/components/ui/LoadingImage';
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from "react-native";
 import { Text } from "@/components/ui/Typography";

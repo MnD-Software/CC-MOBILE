@@ -14,6 +14,7 @@ from . import concierge
 from . import customer_lifecycle
 from . import routes_enquiries
 from . import rider_tracking
+from . import order_home
 
 
 def repair_catalogue_parents(bind=engine):

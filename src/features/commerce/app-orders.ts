@@ -12,6 +12,17 @@ export const appOrderSchema = z.object({
   total_minor: z.number().int(),
   currency: z.literal("KES"),
   created_at: z.string(),
+  items: z
+    .array(
+      z.object({
+        product_id: z.number().nullable(),
+        slug: z.string(),
+        name: z.string(),
+        quantity: z.number(),
+        size: z.string(),
+      }),
+    )
+    .optional(),
   paid_at: z.string().nullable(),
   payment_url: z.string().nullable().optional(),
   tracking_id: z.string().nullable().optional(),
@@ -87,7 +98,19 @@ export const appOrderSchema = z.object({
 });
 export type AppOrder = z.infer<typeof appOrderSchema>;
 export const appOrders = {
-  async page(cursor?: number) {
+  async page(
+    cursor?: number,
+    filters: {
+      scope?: "active" | "past";
+      from_date?: string;
+      to_date?: string;
+      cake?: string;
+    } = {},
+  ) {
+    const params = new URLSearchParams();
+    if (cursor !== undefined) params.set("before", String(cursor));
+    for (const [key, value] of Object.entries(filters))
+      if (value) params.set(key, value);
     return z
       .object({
         data: z.array(appOrderSchema),
@@ -95,8 +118,10 @@ export const appOrders = {
       })
       .parse(
         await api.get(
-          `/v1/app-orders${cursor === undefined ? "" : `?before=${cursor}`}`,
-          { auth: true },
+          `/v1/app-orders${params.toString() ? `?${params.toString()}` : ""}`,
+          {
+            auth: true,
+          },
         ),
       );
   },

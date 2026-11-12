@@ -75,6 +75,7 @@ export function FloatingTabBar() {
     0,
     (railWidth - 2 * (destinations.length - 1)) / destinations.length,
   );
+  const clubSelected = destinations[activeIndex]?.name === "loyalty";
   const settle = (position: number, velocity = 0) => {
     highlightX.stopAnimation();
     if (reduceMotion) {
@@ -273,11 +274,15 @@ export function FloatingTabBar() {
                   <View style={styles.highlightTint} />
                   <LinearGradient
                     pointerEvents="none"
-                    colors={[
-                      "rgba(255,255,255,0.60)",
-                      "rgba(255,255,255,0.02)",
-                      "rgba(236,0,140,0.09)",
-                    ]}
+                    colors={
+                      clubSelected
+                        ? ["#F73CA3", "#EC008C", "#BA006C"]
+                        : [
+                            "rgba(255,255,255,0.60)",
+                            "rgba(255,255,255,0.02)",
+                            "rgba(236,0,140,0.09)",
+                          ]
+                    }
                     locations={[0, 0.45, 1]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
@@ -305,12 +310,7 @@ export function FloatingTabBar() {
                     pressed && !reduceMotion && styles.pressed,
                   ]}
                 >
-                  <View
-                    style={[
-                      styles.tabContent,
-                      isClub && focused && styles.clubFace,
-                    ]}
-                  >
+                  <View style={styles.tabContent}>
                     {isClub ? (
                       <View style={styles.tabIcon}>
                         <View pointerEvents="none" style={styles.clubHalo} />
@@ -418,14 +418,9 @@ const baseStyles = StyleSheet.create({
     justifyContent: "center",
     gap: 4,
   },
-  clubFace: {
-    marginHorizontal: 4,
-    borderRadius: 25,
-    backgroundColor: tokens.color.brand,
-  },
   tabIcon: {
     width: 32,
-    height: 28,
+    height: 32,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -451,7 +446,12 @@ const baseStyles = StyleSheet.create({
   },
   clubSparkle: { position: "absolute", right: -4, top: -2 },
   pressed: { transform: [{ scale: 0.96 }] },
-  label: { fontSize: 11, fontWeight: "600", color: tokens.color.cocoa },
+  label: {
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: "600",
+    color: tokens.color.cocoa,
+  },
   activeLabel: { fontWeight: "800", color: tokens.color.brandStrong },
   clubIdleLabel: { color: tokens.color.brandStrong, fontWeight: "800" },
   clubLabel: { color: "#FFFFFF", fontWeight: "800" },

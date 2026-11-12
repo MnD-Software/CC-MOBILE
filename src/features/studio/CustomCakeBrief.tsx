@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { Image } from "expo-image";
+import { LoadingImage as Image } from "@/components/ui/LoadingImage";
 import * as ImagePicker from "expo-image-picker";
 import * as Sharing from "expo-sharing";
 import { useEffect, useState } from "react";

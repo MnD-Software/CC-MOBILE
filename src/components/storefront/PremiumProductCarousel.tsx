@@ -1,4 +1,4 @@
-import { Image } from "expo-image";
+import { LoadingImage as Image } from "@/components/ui/LoadingImage";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   AccessibilityInfo,

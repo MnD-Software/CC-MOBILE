@@ -1,10 +1,7 @@
-import { LinearGradient } from "expo-linear-gradient";
-import { tokens } from "@/theme/tokens";
 import { OrderJourney } from "./OrderJourney";
 import { useScreenActive } from "@/design/useScreenActive";
 import { useTheme } from "@/theme/ThemeProvider";
-import { orderStageLabel } from "./ActiveOrderCard";
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { View } from "react-native";
@@ -17,6 +14,7 @@ import { PaymentConfetti } from "./PaymentConfetti";
 import { isVerifiedPayment } from "./checkout-success";
 import { Disclosure } from "@/components/ui/Disclosure";
 import { appOrders } from "./app-orders";
+import { isPastOrder } from "./order-history";
 import { InAppPayment } from "./InAppPayment";
 import { money } from "./contracts";
 import { api } from "@/api/client";
@@ -26,131 +24,7 @@ import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import { DeliveryComplete } from "./DeliveryComplete";
 
-export function AppOrdersScreen() {
-  const { customer } = useAuth();
-  const active = useScreenActive();
-  const { colors } = useTheme();
-  const orders = useInfiniteQuery({
-    queryKey: ["app-orders", customer?.id, "history"],
-    initialPageParam: undefined as number | undefined,
-    queryFn: ({ pageParam }) => appOrders.page(pageParam),
-    getNextPageParam: (page) => page.next_cursor ?? undefined,
-    refetchInterval: active ? 20_000 : false,
-    staleTime: 10_000,
-    enabled: !!customer && active,
-  });
-  return (
-    <Screen
-      title="Your orders"
-      subtitle="From our kitchen to your celebration."
-      back
-    >
-      <LinearGradient
-        colors={["#32172D", "#672445", "#9E245F"]}
-        style={{
-          padding: 26,
-          borderRadius: 30,
-          gap: 18,
-          ...tokens.shadow.card,
-        }}
-      >
-        <Text
-          style={{
-            color: "#F6C9DC",
-            fontSize: 9,
-            letterSpacing: 1.6,
-            fontWeight: "700",
-          }}
-        >
-          FROM OUR KITCHEN, WITH LOVE
-        </Text>
-        <Text
-          style={{
-            color: "#FFFFFF",
-            fontSize: 30,
-            lineHeight: 37,
-            fontWeight: "700",
-            letterSpacing: -0.8,
-          }}
-        >
-          Every celebration.{"\n"}Every little update.
-        </Text>
-        <Text style={{ color: "#F7DFE8", fontSize: 13, lineHeight: 22 }}>
-          Follow your cake from its first finishing touch to the moment it
-          reaches you.
-        </Text>
-      </LinearGradient>
-      <Button
-        variant="ghost"
-        label="Order notifications"
-        onPress={() => router.push("/notifications")}
-      />
-      {!customer ? (
-        <Button
-          label="Sign in to view orders"
-          onPress={() => router.push("/sign-in")}
-        />
-      ) : orders.isPending ? (
-        <Feedback loading />
-      ) : orders.isError ? (
-        <Feedback error={orders.error} onRetry={() => void orders.refetch()} />
-      ) : !orders.data?.pages.flatMap((page) => page.data).length ? (
-        <Notice message="Orders you place in the app will appear here." />
-      ) : (
-        orders.data.pages
-          .flatMap((page) => page.data)
-          .map((order) => (
-            <View
-              key={order.reference}
-              style={{
-                padding: 20,
-                gap: 12,
-                borderRadius: 22,
-                backgroundColor: colors.surface,
-                borderWidth: 1,
-                borderColor: colors.border,
-              }}
-            >
-              <Text
-                style={{
-                  color: colors.brandStrong,
-                  fontSize: 18,
-                  fontWeight: "800",
-                }}
-              >
-                {orderStageLabel(order.status)}
-              </Text>
-              <Text style={{ color: colors.muted, fontSize: 11 }}>
-                {order.reference}
-              </Text>
-              <Text>
-                {order.status.replaceAll("_", " ")} ·{" "}
-                {money(order.total_minor / 100)}
-              </Text>
-              <Button
-                variant="outline"
-                label="Track order"
-                onPress={() =>
-                  router.push({
-                    pathname: "/order/[reference]",
-                    params: { reference: order.reference },
-                  })
-                }
-              />
-            </View>
-          ))
-      )}
-      {orders.hasNextPage ? (
-        <Button
-          label="Load earlier orders"
-          variant="outline"
-          loading={orders.isFetchingNextPage}
-          onPress={() => void orders.fetchNextPage()}
-        />
-      ) : null}
-    </Screen>
-  );
-}
+export { OrdersHistoryScreen as AppOrdersScreen } from "./OrdersHistoryScreen";
 
 export function AppOrderScreen() {
   const { reference } = useLocalSearchParams<{ reference: string }>();
@@ -248,7 +122,7 @@ export function AppOrderScreen() {
   }
   return (
     <Screen
-      title="Track your cake"
+      title={value && isPastOrder(value) ? "Order details" : "Track your cake"}
       back
       right={
         <IconButton
@@ -274,11 +148,21 @@ export function AppOrderScreen() {
               delivery.
             </Text>
           ) : null}
-          <OrderJourney
-            order={value}
-            refresh={() => void order.refetch()}
-            refreshing={order.isFetching}
-          />
+          {isPastOrder(value) ? (
+            <Disclosure title="Preparation & delivery history">
+              <OrderJourney
+                order={value}
+                refresh={() => void order.refetch()}
+                refreshing={order.isFetching}
+              />
+            </Disclosure>
+          ) : (
+            <OrderJourney
+              order={value}
+              refresh={() => void order.refetch()}
+              refreshing={order.isFetching}
+            />
+          )}
           <DeliveryComplete key={value.reference} order={value} />
           <Text style={{ color: colors.muted, fontSize: 12 }}>
             {money(value.total_minor / 100)}

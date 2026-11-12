@@ -4,12 +4,13 @@
  * was omitted. `EXPO_PUBLIC_API_URL` is still useful for a deliberate staging
  * build, but only a valid HTTP(S) origin can replace this production endpoint.
  */
-import Constants from "expo-constants";
-
 export const CAKE_CITY_API_URL = "https://cc-mobile-1.onrender.com";
 
 function reviewTunnelUrl() {
   if (!__DEV__ || process.env.EXPO_PUBLIC_REVIEW_TUNNEL !== "1") return "";
+  const Constants = (
+    require("expo-constants") as typeof import("expo-constants")
+  ).default;
   const host = Constants.expoConfig?.hostUri;
   if (!host || !/^[a-zA-Z0-9.:-]+$/.test(host))
     throw new Error(

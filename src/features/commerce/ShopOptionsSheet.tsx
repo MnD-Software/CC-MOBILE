@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Image } from "expo-image";
+import { LoadingImage as Image } from "@/components/ui/LoadingImage";
 import { useState } from "react";
 import { Pressable, View } from "react-native";
 import { BottomSheet } from "@/components/ui/BottomSheet";
