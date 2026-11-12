@@ -26,7 +26,7 @@ export const orderStageLabel = (status: string) =>
     }) as Record<string, string>
   )[status] ?? status.replaceAll("_", " ");
 
-export function ActiveOrderCard() {
+export function ActiveOrderCard({ compact = false }: { compact?: boolean }) {
   const { customer } = useAuth();
   const active = useScreenActive();
   const { colors } = useTheme();
@@ -70,14 +70,14 @@ export function ActiveOrderCard() {
     "A little magic in the kitchen.",
     pickup ? "Ready when you are." : "Freshly finished. Ready to go.",
     "Your cake is on its way.",
-    pickup ? "Collected. Let?s celebrate." : "Your celebration has arrived.",
+    pickup ? "Collected. Let's celebrate." : "Your celebration has arrived.",
   ];
   const subtitle = delivered
     ? "Everything arrived? Let us know below."
     : order.items
         ?.map((item) => item.name)
         .slice(0, 2)
-        .join(" ? ") || "Follow every little milestone.";
+        .join(" / ") || "Follow every little milestone.";
   const open = () =>
     router.push({
       pathname: "/order/[reference]",
@@ -113,7 +113,7 @@ export function ActiveOrderCard() {
       style={{
         borderRadius: 24,
         paddingHorizontal: 18,
-        paddingTop: 18,
+        paddingTop: compact ? 12 : 18,
         overflow: "hidden",
         marginVertical: 8,
       }}
@@ -122,7 +122,7 @@ export function ActiveOrderCard() {
         accessibilityRole="button"
         accessibilityLabel={`${delivered ? "View order" : "Track order"}. ${labels[stage]}`}
         onPress={open}
-        style={{ gap: 10, minHeight: 90 }}
+        style={{ gap: compact ? 6 : 10, minHeight: compact ? 44 : 90 }}
       >
         <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
           <View
@@ -164,19 +164,21 @@ export function ActiveOrderCard() {
           </View>
           <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
         </View>
+        {!compact ? (
+          <Text
+            style={{
+              color: "#FFFFFF",
+              fontSize: 20,
+              lineHeight: 26,
+              fontWeight: "800",
+              letterSpacing: -0.3,
+            }}
+          >
+            {titles[stage]}
+          </Text>
+        ) : null}
         <Text
-          style={{
-            color: "#FFFFFF",
-            fontSize: 20,
-            lineHeight: 26,
-            fontWeight: "800",
-            letterSpacing: -0.3,
-          }}
-        >
-          {titles[stage]}
-        </Text>
-        <Text
-          numberOfLines={2}
+          numberOfLines={compact ? 1 : 2}
           style={{ color: "#F7DFE8", fontSize: 12, lineHeight: 18 }}
         >
           {subtitle}
@@ -186,7 +188,7 @@ export function ActiveOrderCard() {
         style={{
           flexDirection: "row",
           gap: 5,
-          marginTop: 14,
+          marginTop: compact ? 10 : 14,
           marginBottom: 10,
         }}
       >
@@ -198,7 +200,11 @@ export function ActiveOrderCard() {
               height: 3,
               borderRadius: 2,
               backgroundColor:
-                step <= stage ? "#FFFFFF" : "rgba(255,255,255,0.22)",
+                step < stage || delivered
+                  ? "#86EFAC"
+                  : step === stage
+                    ? "#FFFFFF"
+                    : "rgba(255,255,255,0.22)",
             }}
           />
         ))}
@@ -248,7 +254,7 @@ export function ActiveOrderCard() {
             style={{ padding: 8 }}
           >
             <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 12 }}>
-              Next update ?
+              Next update
             </Text>
           </Pressable>
         </View>

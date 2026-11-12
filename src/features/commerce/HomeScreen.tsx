@@ -309,8 +309,14 @@ export function HomeScreen() {
         keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
+        stickyHeaderIndices={[0]}
       >
-        <ActiveOrderCard />
+        <View
+          collapsable={false}
+          style={{ backgroundColor: colors.background }}
+        >
+          <ActiveOrderCard compact />
+        </View>
         {catalogue.isPending ? (
           <HomeSkeleton cardWidth={collectionCardWidth} />
         ) : catalogue.isError ? (

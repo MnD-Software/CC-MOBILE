@@ -43,30 +43,41 @@ export function OrderMilestoneMarquee({
       onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
       style={{ flexDirection: "row", gap: 16, paddingRight: 16 }}
     >
-      {labels.map((label, index) => (
-        <View
-          key={label}
-          style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
-        >
+      {labels.map((label, index) => {
+        const complete = index < stage || stage === labels.length - 1;
+        return (
           <View
-            style={{
-              width: 5,
-              height: 5,
-              borderRadius: 3,
-              backgroundColor: index <= stage ? "#FFC7E6" : "#AD7292",
-            }}
-          />
-          <Text
-            style={{
-              color: index === stage ? "#FFFFFF" : "#F5CBE2",
-              fontWeight: index === stage ? "800" : "500",
-              fontSize: 11,
-            }}
+            key={label}
+            style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
           >
-            {label}
-          </Text>
-        </View>
-      ))}
+            <View
+              style={{
+                width: 5,
+                height: 5,
+                borderRadius: 3,
+                backgroundColor: complete
+                  ? "#86EFAC"
+                  : index === stage
+                    ? "#FFFFFF"
+                    : "#AD7292",
+              }}
+            />
+            <Text
+              style={{
+                color: complete
+                  ? "#86EFAC"
+                  : index === stage
+                    ? "#FFFFFF"
+                    : "#F5CBE2",
+                fontWeight: complete || index === stage ? "800" : "500",
+                fontSize: 11,
+              }}
+            >
+              {complete ? `\u2713 ${label}` : label}
+            </Text>
+          </View>
+        );
+      })}
     </View>
   );
   return (
@@ -80,7 +91,13 @@ export function OrderMilestoneMarquee({
       }}
     >
       {reduceMotion || !isResolved ? (
-        <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 12 }}>
+        <Text
+          style={{
+            color: stage === labels.length - 1 ? "#86EFAC" : "#FFFFFF",
+            fontWeight: "700",
+            fontSize: 12,
+          }}
+        >
           {labels[stage]}
         </Text>
       ) : (
