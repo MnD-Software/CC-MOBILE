@@ -56,6 +56,9 @@ export function OrderJourney({
     ? trackingDestination(order)
     : null;
   const completed = order.status === "completed";
+  const currentStep = completed
+    ? -1
+    : steps.reduce((latest, step, index) => (step.at ? index : latest), -1);
   const needsHelp = trips.some((trip) =>
     ["failed", "rescheduled"].includes(trip.status),
   );
@@ -76,7 +79,11 @@ export function OrderJourney({
     <View testID="order-journey" style={{ gap: 24 }}>
       <View style={{ borderRadius: 30, ...tokens.shadow.floating }}>
         <LinearGradient
-          colors={["#32172D", "#672445", "#9E245F"]}
+          colors={
+            completed
+              ? ["#193F36", "#28634B", "#367552"]
+              : ["#32172D", "#672445", "#9E245F"]
+          }
           style={styles.hero}
         >
           <View style={styles.top}>
@@ -91,7 +98,7 @@ export function OrderJourney({
                       : "gift-outline"
                 }
                 size={25}
-                color="#FFE1A8"
+                color={completed ? "#86EFAC" : "#FFE1A8"}
               />
             </View>
           </View>
@@ -102,15 +109,18 @@ export function OrderJourney({
           </Text>
           <Text style={styles.copy}>{copy}</Text>
           <View style={styles.pips}>
-            {steps.map((step) => (
+            {steps.map((step, index) => (
               <View
                 key={step.label}
                 style={[
                   styles.pip,
                   {
-                    backgroundColor: step.at
-                      ? "#FFE1A8"
-                      : "rgba(255,255,255,0.18)",
+                    backgroundColor:
+                      step.at && index !== currentStep
+                        ? "#86EFAC"
+                        : index === currentStep
+                          ? "#FFFFFF"
+                          : "rgba(255,255,255,0.18)",
                   },
                 ]}
               />
@@ -228,16 +238,31 @@ export function OrderJourney({
           >
             <View style={{ alignItems: "center", width: 24 }}>
               <Ionicons
-                name={step.at ? "checkmark-circle" : "ellipse-outline"}
+                name={
+                  step.at && index !== currentStep
+                    ? "checkmark-circle"
+                    : index === currentStep
+                      ? "radio-button-on"
+                      : "ellipse-outline"
+                }
                 size={23}
-                color={step.at ? colors.brandStrong : colors.borderStrong}
+                color={
+                  step.at && index !== currentStep
+                    ? colors.success
+                    : index === currentStep
+                      ? colors.brandStrong
+                      : colors.borderStrong
+                }
               />
               {index < steps.length - 1 ? (
                 <View
                   style={{
                     width: 1,
                     flex: 1,
-                    backgroundColor: colors.border,
+                    backgroundColor:
+                      step.at && steps[index + 1]?.at
+                        ? colors.success
+                        : colors.border,
                     marginVertical: 5,
                   }}
                 />
@@ -246,7 +271,12 @@ export function OrderJourney({
             <View style={{ flex: 1, gap: 5, paddingBottom: 22 }}>
               <Text
                 style={{
-                  color: step.at ? colors.ink : colors.muted,
+                  color:
+                    step.at && index !== currentStep
+                      ? colors.success
+                      : index === currentStep
+                        ? colors.brandStrong
+                        : colors.muted,
                   fontWeight: step.at ? "700" : "400",
                   fontSize: 14,
                 }}

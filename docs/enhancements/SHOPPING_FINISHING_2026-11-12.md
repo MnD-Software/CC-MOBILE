@@ -14,6 +14,8 @@
 
 - The pinned order header now paints an opaque background across both page gutters, hiding scrolling content around the card's rounded edges. The marquee sits in a full-width footer band with matching gradient fades at both ends instead of abruptly clipped text. Green completed steps and the fixed progress lines are preserved. This follow-up passed the 11 targeted order tests; native scrolling appearance still needs device acceptance.
 
+- Orders now uses green completion indicators too: recorded completed milestones have green labels, checkmarks and progress segments; the current recorded milestone remains distinct and future steps remain muted. Completed purchases in Past orders show a green status/checkmark, and their tracking hero uses the delivery-complete green palette. Cancelled, failed and reversed purchases do not receive the completed-order treatment. Only recorded milestones are colored; missing events are not invented.
+
 ## Image source limitation
 
 The local archive held 368 valid image copies; all decoded successfully with an AVIF-capable decoder. The audit found 84 additional unique image sources referenced by the app. Explicit operator repair recovered one, leaving **83 unavailable sources**. Their public sources returned errors; retry UI cannot reconstruct a missing image. No unrelated cake photo was substituted. The remaining URLs are listed in `MISSING_IMAGE_SOURCES_2026-11-12.md` for asset replacement.

@@ -238,20 +238,40 @@ export function OrdersHistoryScreen() {
                   width: 42,
                   height: 42,
                   borderRadius: 14,
-                  backgroundColor: colors.brandLight,
+                  backgroundColor:
+                    order.status === "completed"
+                      ? colors.successLight
+                      : colors.brandLight,
                   alignItems: "center",
                   justifyContent: "center",
                 }}
               >
                 <Ionicons
-                  name={tab === "past" ? "receipt-outline" : "gift-outline"}
+                  name={
+                    order.status === "completed"
+                      ? "checkmark-circle-outline"
+                      : tab === "past"
+                        ? "receipt-outline"
+                        : "gift-outline"
+                  }
                   size={22}
-                  color={colors.brandStrong}
+                  color={
+                    order.status === "completed"
+                      ? colors.success
+                      : colors.brandStrong
+                  }
                 />
               </View>
               <View style={{ flex: 1, gap: 4 }}>
                 <Text
-                  style={{ color: colors.ink, fontWeight: "800", fontSize: 16 }}
+                  style={{
+                    color:
+                      order.status === "completed"
+                        ? colors.success
+                        : colors.ink,
+                    fontWeight: "800",
+                    fontSize: 16,
+                  }}
                 >
                   {orderStageLabel(order.status)}
                 </Text>
