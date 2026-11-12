@@ -144,6 +144,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
       const expected = ++generation.current;
       const next = await operation();
       if (expected !== generation.current) return;
+      await import("@/native/rider-background")
+        .then((m) => m.stopBackgroundSharing())
+        .catch(() => undefined);
+      if (expected !== generation.current) return;
       clearPrivateQueryCache(cache);
       await accept(next, expected);
     },
@@ -188,6 +192,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
         setSession(null);
         expiry.current = 0;
         clearPrivateQueryCache(cache);
+        void import("@/native/rider-background")
+          .then((m) => m.stopBackgroundSharing())
+          .catch(() => undefined);
         const token = await withStorage(async () => {
           const stored = await getStorageItem(REFRESH_KEY).catch(() => null);
           await Promise.all([

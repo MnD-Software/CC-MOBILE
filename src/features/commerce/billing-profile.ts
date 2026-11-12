@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { getStorageItem, setStorageItem } from "@/auth/secure-storage";
+import {
+  getStorageItem,
+  setStorageItem,
+  deleteStorageItem,
+} from "@/auth/secure-storage";
 
 const PROFILE_PREFIX = "cakecity.billing-profile.v1";
 
@@ -56,6 +60,10 @@ export function validateBillingProfile(
 
 function profileKey(customerId: string) {
   return `${PROFILE_PREFIX}.${encodeURIComponent(customerId)}`;
+}
+
+export async function clearBillingProfile(customerId: string) {
+  await deleteStorageItem(profileKey(customerId));
 }
 
 /**

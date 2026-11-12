@@ -150,7 +150,7 @@ export function ProductScreen() {
   const editorial = useQuery({
     queryKey: ["product-editorial", cake?.id],
     queryFn: ({ signal }) => contentApi.product(cake!.id, signal),
-    enabled: !!cake && pairingsReady,
+    enabled: active && !!cake && pairingsReady,
     staleTime: 60_000,
     retry: false,
   });
@@ -159,7 +159,7 @@ export function ProductScreen() {
   const liveVariations = useQuery({
     queryKey: ["product-variations", cake?.id ?? lookup, variationIds],
     queryFn: ({ signal }) => fetchLiveVariations(variationIds, signal),
-    enabled: variationIds.length > 0,
+    enabled: active && variationIds.length > 0,
     staleTime: CATALOGUE_STALE_TIME_MS,
     gcTime: CATALOGUE_GC_TIME_MS,
     retry: 1,
@@ -172,7 +172,7 @@ export function ProductScreen() {
     queryFn: ({ signal }) => (cake ? livePairings(cake, signal) : []),
     // Pairings are a secondary merchandising request. Let the first image,
     // price and add-to-bag controls win the network and render budget.
-    enabled: !!cake && pairingsReady,
+    enabled: active && !!cake && pairingsReady,
     staleTime: CATALOGUE_STALE_TIME_MS,
     gcTime: CATALOGUE_GC_TIME_MS,
     retry: 1,

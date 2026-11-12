@@ -3,7 +3,7 @@
     "name": "Cake City",
     "slug": "cakecitymobiledev",
     "scheme": "cakecity",
-    "version": "0.3.2",
+    "version": "0.3.3",
     "orientation": "portrait",
     "icon": "./assets/cake-city-app-icon.png",
     "userInterfaceStyle": "automatic",
@@ -12,7 +12,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "ke.co.cakecity.mobile",
-      "buildNumber": "18",
+      "buildNumber": "19",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -22,7 +22,7 @@
         "backgroundColor": "#FFF5FA",
         "foregroundImage": "./assets/cake-city-icon-foreground.png"
       },
-      "versionCode": 18,
+      "versionCode": 19,
       "predictiveBackGestureEnabled": true,
       "package": "ke.co.cakecity.mobile"
     },
@@ -74,7 +74,11 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Cake City uses your location to suggest your delivery address, or to share your position during an assigned delivery when you choose to enable rider tracking."
+          "locationWhenInUsePermission": "Cake City uses your location to suggest your delivery address, or to share your position during an assigned delivery when you choose to enable rider tracking.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true,
+          "locationAlwaysAndWhenInUsePermission": "Cake City shares your position with your delivery customer while you navigate or lock the phone, only when you enable background sharing for an assigned trip."
         }
       ],
       [

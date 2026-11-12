@@ -869,6 +869,15 @@ export function AccountScreen() {
       <Disclosure title="Appearance">
         <AppearanceSelector />
       </Disclosure>
+      <AccountRow
+        link={{
+          id: "account-privacy",
+          title: "Privacy & account",
+          detail: "Download your data or delete your account",
+          icon: "shield-checkmark-outline",
+          href: "/account-privacy",
+        }}
+      />
       <Section title="Here to help" />
       <View style={styles.accountList}>
         {[

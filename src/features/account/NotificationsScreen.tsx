@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/Button";
 import { Feedback, Notice, Screen } from "@/components/ui/Commerce";
 import { Text } from "@/components/ui/Typography";
 import { useTheme } from "@/theme/ThemeProvider";
+import { useScreenActive } from "@/design/useScreenActive";
 import {
   registerNotifications,
   notificationRoute,
@@ -32,6 +33,7 @@ const preferenceSchema = z.object({
 });
 
 export function NotificationsScreen() {
+  const active = useScreenActive();
   const { customer } = useAuth();
   const { colors } = useTheme();
   const cache = useQueryClient();
@@ -41,7 +43,7 @@ export function NotificationsScreen() {
   const key = ["notifications", customer?.id];
   const inbox = useInfiniteQuery({
     queryKey: key,
-    enabled: !!customer,
+    enabled: !!customer && active,
     initialPageParam: "",
     queryFn: async ({ pageParam }) =>
       z
@@ -55,7 +57,7 @@ export function NotificationsScreen() {
         ),
     getNextPageParam: (page) =>
       page.length === 30 ? page[page.length - 1].id : undefined,
-    refetchInterval: 30_000,
+    refetchInterval: active ? 30_000 : false,
   });
   const preferences = useQuery({
     queryKey: ["notification-preferences", customer?.id],
@@ -170,6 +172,24 @@ export function NotificationsScreen() {
           </View>
           {error ? <Notice error message={error} /> : null}
           {message ? <Notice message={message} /> : null}
+          {Platform.OS !== "web" ? (
+            <Button
+              variant="outline"
+              label="Send a test notification"
+              disabled={busy || !preferences.data?.push_service_enabled}
+              onPress={() =>
+                void perform(async () => {
+                  await registerNotifications();
+                  await api.post(
+                    "/v1/account/notifications/test",
+                    {},
+                    { auth: true },
+                  );
+                  await inbox.refetch();
+                }, "Test queued. Put the app in the background to check phone delivery.")
+              }
+            />
+          ) : null}
           <Button
             variant="ghost"
             label="Refresh notifications"

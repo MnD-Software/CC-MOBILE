@@ -11,6 +11,7 @@ function profileClient(storage = new Map(), failure) {
       if (name === "@/auth/secure-storage")
         return {
           getStorageItem: async (key) => storage.get(key) ?? null,
+          deleteStorageItem: async (key) => storage.delete(key),
           setStorageItem: async (key, value) => {
             assert.match(key, /^[A-Za-z0-9._-]+$/);
             if (failure) throw failure;
@@ -44,6 +45,17 @@ const fields = {
   city: " Nairobi ",
   postcode: " 00100 ",
 };
+test("account deletion clears only that customer's private billing cache", async () => {
+  const client = profileClient();
+  await client.saveBillingProfile("buyer-1", fields);
+  await client.saveBillingProfile("buyer-2", fields);
+  await client.clearBillingProfile("buyer-1");
+  assert.equal(await client.loadBillingProfile("buyer-1"), null);
+  assert.equal(
+    (await client.loadBillingProfile("buyer-2")).email,
+    "buyer@example.com",
+  );
+});
 test("billing saves without payment and restores the same account's normalized details", async () => {
   const store = new Map();
   await profileClient(store).saveBillingProfile("buyer-1", fields);

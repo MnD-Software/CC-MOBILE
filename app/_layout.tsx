@@ -1,4 +1,5 @@
 import "react-native-gesture-handler";
+import "@/native/rider-background";
 import { router, Stack, usePathname } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";

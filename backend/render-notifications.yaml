@@ -1,0 +1,22 @@
+# Optional additional worker. Connect to the SAME private database as the API.
+# Deploy the API/migrations before starting this worker. See docs/enhancements/SEVEN_AREA_COMPLETION_2026-11-12.md.
+services:
+  - type: worker
+    name: cakecity-notifications
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m app.notification_worker --loop
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: PUSH_ENABLED
+        value: "false"
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: EXPO_PUSH_ACCESS_TOKEN
+        sync: false

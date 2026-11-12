@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/Input";
 import { Notice, Screen, ui as baseUi } from "@/components/ui/Commerce";
 import { money } from "@/features/commerce/contracts";
 import { useThemedStyles } from "@/theme/ThemeProvider";
+import { useScreenActive } from "@/design/useScreenActive";
 
 const enquiry = z.object({
   id: z.string(),
@@ -27,6 +28,7 @@ const enquiry = z.object({
 
 export function RequestsScreen() {
   const { customer } = useAuth();
+  const { reference } = useLocalSearchParams<{ reference?: string }>();
   return (
     <Screen
       title="Requests & support"
@@ -34,7 +36,10 @@ export function RequestsScreen() {
       back
     >
       {customer ? (
-        <RequestForm key={customer.id} owner={customer.id} />
+        <RequestForm
+          key={`${customer.id}:${reference ?? "general"}`}
+          owner={customer.id}
+        />
       ) : (
         <>
           <Notice message="Sign in to send a request and follow replies from Cake City." />
@@ -46,7 +51,20 @@ export function RequestsScreen() {
 }
 
 function RequestForm({ owner }: { owner: string }) {
-  const initial = useLocalSearchParams<{ kind?: string; details?: string }>();
+  const active = useScreenActive();
+  const initial = useLocalSearchParams<{
+    kind?: string;
+    details?: string;
+    reference?: string;
+  }>();
+  const reference =
+    typeof initial.reference === "string" &&
+    /^APP-[A-Za-z0-9-]+$/.test(initial.reference)
+      ? initial.reference
+      : null;
+  const [category, setCategory] = useState<"question" | "delivery" | "refund">(
+    "question",
+  );
   const ui = useThemedStyles(baseUi);
   const client = useQueryClient();
   const key = ["enquiries", owner];
@@ -58,6 +76,8 @@ function RequestForm({ owner }: { owner: string }) {
   const [details, setDetails] = useState(initial.details?.slice(0, 4000) || "");
   const [notice, setNotice] = useState("");
   const query = useQuery({
+    enabled: active,
+    refetchInterval: active ? 30_000 : false,
     queryKey: key,
     queryFn: async ({ signal }) =>
       enquiry
@@ -69,13 +89,21 @@ function RequestForm({ owner }: { owner: string }) {
     mutationFn: async () =>
       enquiry.parse(
         await api.post(
-          "/v1/account/enquiries",
-          {
-            kind,
-            subject: subject.trim(),
-            details: details.trim(),
-            request_key: requestKey.current,
-          },
+          reference
+            ? `/v1/app-orders/${encodeURIComponent(reference)}/support`
+            : "/v1/account/enquiries",
+          reference
+            ? {
+                category,
+                details: details.trim(),
+                request_key: requestKey.current,
+              }
+            : {
+                kind,
+                subject: subject.trim(),
+                details: details.trim(),
+                request_key: requestKey.current,
+              },
           { auth: true },
         ),
       ),
@@ -110,36 +138,66 @@ function RequestForm({ owner }: { owner: string }) {
         servings, flavour and budget. For support, include your order number. Do
         not send passwords or payment credentials.
       </Text>
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-        {(
-          [
-            ["custom_cake", "Custom cake"],
-            ["corporate", "Corporate / event"],
-            ["support", "Order support"],
-          ] as const
-        ).map(([value, label]) => (
-          <Button
-            key={value}
-            variant={kind === value ? "secondary" : "outline"}
-            label={label}
-            disabled={submit.isPending}
-            onPress={() => {
-              setKind(value);
-              requestKey.current = randomUUID();
-            }}
+      {reference ? (
+        <>
+          <Notice
+            message={`Help with ${reference}. Refund requests are reviewed by our team; submitting one does not reverse a payment.`}
           />
-        ))}
-      </View>
-      <Input
-        label="Subject"
-        value={subject}
-        onChangeText={(value) => {
-          setSubject(value);
-          requestKey.current = randomUUID();
-        }}
-        editable={!submit.isPending}
-        maxLength={160}
-      />
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+            {(
+              [
+                ["question", "Order or payment help"],
+                ["delivery", "Delivery issue"],
+                ["refund", "Request refund review"],
+              ] as const
+            ).map(([value, label]) => (
+              <Button
+                key={value}
+                label={label}
+                variant={category === value ? "primary" : "outline"}
+                disabled={submit.isPending}
+                onPress={() => {
+                  setCategory(value);
+                  requestKey.current = randomUUID();
+                }}
+              />
+            ))}
+          </View>
+        </>
+      ) : (
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+          {(
+            [
+              ["custom_cake", "Custom cake"],
+              ["corporate", "Corporate / event"],
+              ["support", "Order support"],
+            ] as const
+          ).map(([value, label]) => (
+            <Button
+              key={value}
+              variant={kind === value ? "secondary" : "outline"}
+              label={label}
+              disabled={submit.isPending}
+              onPress={() => {
+                setKind(value);
+                requestKey.current = randomUUID();
+              }}
+            />
+          ))}
+        </View>
+      )}
+      {!reference ? (
+        <Input
+          label="Subject"
+          value={subject}
+          onChangeText={(value) => {
+            setSubject(value);
+            requestKey.current = randomUUID();
+          }}
+          editable={!submit.isPending}
+          maxLength={160}
+        />
+      ) : null}
       <Input
         label="Request details"
         value={details}
@@ -155,7 +213,7 @@ function RequestForm({ owner }: { owner: string }) {
         label="Send request"
         loading={submit.isPending}
         disabled={
-          subject.trim().length < 3 ||
+          (!reference && subject.trim().length < 3) ||
           details.trim().length < 10 ||
           submit.isPending
         }
@@ -164,7 +222,11 @@ function RequestForm({ owner }: { owner: string }) {
       {submit.isError ? (
         <Notice
           error
-          message="Could not confirm your request. Retry without editing to recover the same submission."
+          message={
+            submit.error instanceof Error
+              ? submit.error.message
+              : "Could not confirm your request. Retry without editing to recover the same submission."
+          }
         />
       ) : null}
       {accept.isError ? (

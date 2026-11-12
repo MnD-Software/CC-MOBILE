@@ -298,7 +298,15 @@ test("search, account identity and checkout location stay customer-controlled", 
     locationPicker,
     /requestBackgroundPermissionsAsync|startGeofencingAsync/,
   );
-  assert.doesNotMatch(appConfig, /BackgroundLocationEnabled/);
+  const locationPlugin = JSON.parse(appConfig).expo.plugins.find(
+    (plugin) => Array.isArray(plugin) && plugin[0] === "expo-location",
+  );
+  assert.equal(locationPlugin[1].isIosBackgroundLocationEnabled, true);
+  assert.equal(locationPlugin[1].isAndroidBackgroundLocationEnabled, true);
+  assert.match(
+    read("src", "native", "rider-background.ts"),
+    /requestBackgroundPermissionsAsync/,
+  );
   assert.match(tabs, /import \{ Tabs \} from "expo-router"/);
   assert.match(
     tabs,

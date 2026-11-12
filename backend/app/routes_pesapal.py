@@ -121,6 +121,11 @@ def receipt(reference: str, customer: Customer = Depends(member), db: Session = 
 
 @router.post(PREFIX + "/orders/{reference}/start")
 async def start_payment(reference: str, customer: Customer = Depends(member), db: Session = Depends(get_db)):
+    # Serialize payment claims with account closure and order creation.
+    db.scalar(select(Customer).where(Customer.id == customer.id).with_for_update())
+    from .customer_lifecycle import ClosedAccount
+    if db.get(ClosedAccount, customer.id):
+        raise HTTPException(401, "This account is closed.")
     order = owned(db, reference, customer.id)
     if order.channel == "app_test":
         raise HTTPException(409, "Use the labelled simulation for this test order; Pesapal is not called.")

@@ -4,15 +4,55 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, model_validator
-from sqlalchemy import select, update
-from sqlalchemy.orm import Session
+from sqlalchemy import ForeignKey, String, select, update
+from sqlalchemy.orm import Mapped, mapped_column, Session
 
-from .db import get_db
+from .db import Base, get_db
 from .models import Customer, Enquiry, OrganizationEnquiry, OrganizationMember
 from .permissions import require, audit
 from .routes_club import account, member
 
 router = APIRouter(tags=["enquiries"])
+
+
+class OrderSupportLink(Base):
+    __tablename__ = "order_support_links"
+    enquiry_id: Mapped[str] = mapped_column(ForeignKey("enquiries.id"), primary_key=True)
+    order_id: Mapped[int] = mapped_column(ForeignKey("app_orders.id"), index=True)
+    category: Mapped[str] = mapped_column(String(30))
+
+
+class OrderHelp(BaseModel):
+    request_key: str = Field(min_length=16, max_length=80, pattern=r"^[a-zA-Z0-9-]+$")
+    category: Literal["question", "delivery", "refund"]
+    details: str = Field(min_length=10, max_length=4000)
+
+
+@router.post("/v1/app-orders/{reference}/support", status_code=201)
+def order_help(reference: str, data: OrderHelp, customer=Depends(member), db: Session = Depends(get_db)):
+    from .commerce_models import AppOrder
+    order = db.scalar(select(AppOrder).where(AppOrder.reference == reference, AppOrder.customer_id == customer.id).with_for_update())
+    if not order:
+        raise HTTPException(404, "Order not found")
+    details = data.details.strip()
+    if len(details) < 10:
+        raise HTTPException(422, "Describe your request in at least 10 characters.")
+    if data.category == "refund" and order.payment_state not in {"completed", "reversed"}:
+        raise HTTPException(409, "A refund review requires a confirmed payment. Choose payment help for a pending payment.")
+    subject = f"{data.category.title()} request: {order.reference}"
+    old = db.scalar(select(Enquiry).where(Enquiry.customer_id == customer.id, Enquiry.request_key == data.request_key))
+    if old:
+        link = db.get(OrderSupportLink, old.id)
+        if not link or link.order_id != order.id or link.category != data.category or old.details != details:
+            raise HTTPException(409, "This request key already belongs to another request.")
+        return output(old)
+    record = Enquiry(id=str(uuid4()), customer_id=customer.id, request_key=data.request_key, kind="support", subject=subject, details=details)
+    db.add(record)
+    db.flush()
+    db.add(OrderSupportLink(enquiry_id=record.id, order_id=order.id, category=data.category))
+    audit(db, customer.id, "order_support_requested", order.reference, category=data.category)
+    db.commit()
+    return output(record)
 
 
 def staff(customer: Customer = Depends(member)):
@@ -95,6 +135,9 @@ def reply(identity: str, data: StaffReply, actor: Customer = Depends(require("en
     if changed.rowcount != 1:
         raise HTTPException(409, "Request changed. Reload before replying.")
     audit(db, actor.id, "enquiry.replied", identity, status=data.status, revision=data.revision + 1)
+    from .notifications import enqueue
+    enqueue(db, record.customer_id, f"support:{identity}:{data.revision + 1}", "support_reply",
+        "Your request has an update", "Our team has replied. Open Your requests to read the response.", {"url": "/requests"})
     db.commit()
     db.refresh(record)
     return output(record)

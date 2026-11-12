@@ -18,6 +18,7 @@ from .routes import router as platform_router
 from .routes_auth import router as auth_router
 from .routes_addresses import router as addresses_router
 from .routes_profile import router as profile_router
+from .customer_lifecycle import router as lifecycle_router
 from .routes_tracking import router as tracking_router
 from .routes_club import router as club_router
 from .routes_club_benefits import router as club_benefits_router
@@ -35,6 +36,8 @@ from .routes_dashboard import router as dashboard_router
 from .routes_app_delivery import router as delivery_router
 from .routes_odoo import router as odoo_router
 from .routes_logistics import router as logistics_router
+from .rider_tracking import router as rider_tracking_router
+from .release_readiness import router as release_router
 from .concierge import router as concierge_router
 
 
@@ -65,6 +68,7 @@ app.include_router(platform_router)
 app.include_router(auth_router)
 app.include_router(addresses_router)
 app.include_router(profile_router)
+app.include_router(lifecycle_router)
 # Legacy website order tracking is not part of the independent app runtime.
 app.include_router(club_router)
 app.include_router(club_benefits_router)
@@ -82,6 +86,8 @@ app.include_router(dashboard_router)
 app.include_router(delivery_router)
 app.include_router(odoo_router)
 app.include_router(logistics_router)
+app.include_router(rider_tracking_router)
+app.include_router(release_router)
 app.include_router(notifications_router)
 app.include_router(concierge_router)
 

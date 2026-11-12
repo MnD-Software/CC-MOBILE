@@ -6,6 +6,13 @@ from urllib.request import urlopen
 
 
 REQUIRED_ROUTES = {
+    "/v1/account/export": {"get"},
+    "/v1/account/close": {"post"},
+    "/v1/account/notifications/test": {"post"},
+    "/v1/app-orders/{reference}/support": {"post"},
+    "/v1/rider/tasks/{identity}/tracking-session": {"post"},
+    "/v1/rider/tracking/location": {"put", "delete"},
+    "/v1/admin/release-readiness": {"get"},
     "/v1/club/celebrations/{identity}/ack": {"post"},
     "/v1/account/notifications": {"get"},
     "/v1/account/notifications/devices": {"post", "delete"},

@@ -30,6 +30,7 @@ import { router, useFocusEffect } from "expo-router";
 import { milestoneProgress } from "./milestones";
 import { MilestoneProgressBar } from "./MilestoneProgressBar";
 import { ClubJourney } from "./ClubJourney";
+import { BottomSheet } from "@/components/ui/BottomSheet";
 
 export function ClubMembership({
   walletScope,
@@ -49,6 +50,7 @@ export function ClubMembership({
   const [celebrationTrigger, setCelebrationTrigger] = useState(0);
   const previousPoints = useRef<{ owner: string; points: number } | null>(null);
   const [transactionsOpen, setTransactionsOpen] = useState(false);
+  const [reviewReward, setReviewReward] = useState(false);
   const [panel, setPanel] = useState<
     "rewards" | "perks" | "celebrations" | null
   >(null);
@@ -146,6 +148,98 @@ export function ClubMembership({
             }
           />
           <SuccessBurst trigger={celebrationTrigger} />
+          <View
+            style={{ gap: 12, paddingVertical: 12 }}
+            testID="club-next-reward"
+          >
+            <Text
+              style={{ color: colors.ink, fontSize: 18, fontWeight: "700" }}
+            >
+              Your next treat
+            </Text>
+            <Text style={{ color: colors.muted, fontSize: 14, lineHeight: 21 }}>
+              {data.points >= data.rules.minimum_redemption
+                ? `${money(data.rules.minimum_redemption * data.rules.point_value_kes)} reward available with ${data.rules.minimum_redemption} points`
+                : `${Math.max(0, data.rules.minimum_redemption - data.points)} points to a ${money(data.rules.minimum_redemption * data.rules.point_value_kes)} reward`}
+            </Text>
+            <MilestoneProgressBar
+              current={Math.min(data.points, data.rules.minimum_redemption)}
+              total={data.rules.minimum_redemption}
+              color={colors.brandStrong}
+              trackColor={colors.brandLight}
+              label="Points to next reward"
+              height={6}
+            />
+            <Button
+              label={
+                data.points >= data.rules.minimum_redemption
+                  ? "Review my reward"
+                  : "Explore my rewards"
+              }
+              variant="outline"
+              onPress={() =>
+                data.points >= data.rules.minimum_redemption
+                  ? setReviewReward(true)
+                  : setPanel("rewards")
+              }
+            />
+          </View>
+          {reviewReward ? (
+            <BottomSheet
+              visible
+              title="Your Club reward"
+              onClose={() => !redeem.isPending && setReviewReward(false)}
+              footer={
+                <Button
+                  label={`Use ${data.rules.minimum_redemption} points`}
+                  loading={redeem.isPending}
+                  disabled={
+                    !data.redemption_available ||
+                    data.review_required ||
+                    data.debt > 0 ||
+                    data.points < data.rules.minimum_redemption ||
+                    data.coupons.some((c) => c.status === "pending")
+                  }
+                  onPress={() =>
+                    redeem.mutate(
+                      {
+                        points: data.rules.minimum_redemption,
+                        requestKey: identity.current.key,
+                      },
+                      { onSuccess: () => setReviewReward(false) },
+                    )
+                  }
+                />
+              }
+            >
+              <Text style={text}>
+                Exchange {data.rules.minimum_redemption} points for a{" "}
+                {money(
+                  data.rules.minimum_redemption * data.rules.point_value_kes,
+                )}{" "}
+                coupon. Minimum order:{" "}
+                {money(
+                  data.rules.minimum_redemption *
+                    data.rules.point_value_kes *
+                    data.rules.minimum_order_multiple,
+                )}
+                .
+              </Text>
+              <Text style={text}>
+                The coupon is saved to your wallet. Checkout confirms
+                eligibility before payment. Issued coupons expire after 90 days
+                and cannot be combined.
+              </Text>
+              {!data.redemption_available ||
+              data.review_required ||
+              data.debt > 0 ? (
+                <Notice message="Reward redemption is currently unavailable. Your points remain visible; contact our team for help." />
+              ) : null}
+              {redeem.isError ? (
+                <Notice error message={redeem.error.message} />
+              ) : null}
+            </BottomSheet>
+          ) : null}
           {data.journey ? (
             <ClubJourney
               points={data.points}
@@ -423,12 +517,7 @@ export function ClubMembership({
                     redeem.isPending ||
                     data.coupons.some((c) => c.status === "pending")
                   }
-                  onPress={() =>
-                    redeem.mutate({
-                      points: 100,
-                      requestKey: identity.current.key,
-                    })
-                  }
+                  onPress={() => setReviewReward(true)}
                 />
               </>
             )}

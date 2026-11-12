@@ -192,6 +192,11 @@ def issue(db, reference, kind, channel="app"):
 
 
 def place(db, customer_id, quote_id, request_key, account_id, environment):
+    from .models import Customer
+    from .customer_lifecycle import ClosedAccount
+    db.scalar(select(Customer).where(Customer.id == customer_id).with_for_update())
+    if db.get(ClosedAccount, customer_id):
+        raise HTTPException(401, "This account is closed.")
     from .pesapal import account as payment_account
     old = db.scalar(select(AppOrder).where(AppOrder.customer_id == customer_id, AppOrder.request_key == request_key))
     if old:

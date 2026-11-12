@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { View } from "react-native";
+import { Platform, View } from "react-native";
+import {
+  backgroundTrip,
+  startBackgroundSharing,
+  stopBackgroundSharing,
+} from "@/native/rider-background";
 import * as Location from "expo-location";
 import { Button } from "@/components/ui/Button";
 import { Text } from "@/components/ui/Typography";
@@ -7,7 +12,7 @@ import { useScreenActive } from "@/design/useScreenActive";
 import { useTheme } from "@/theme/ThemeProvider";
 import { logisticsApi } from "./api";
 
-/** Explicit, trip-scoped sharing. Never watches an off-duty or backgrounded rider. */
+/** Explicit, assigned-trip sharing; background sharing requires a separate opt-in. */
 export function RiderLocationSharing({
   taskId,
   status,
@@ -20,9 +25,23 @@ export function RiderLocationSharing({
   const [enabled, setEnabled] = useState(false);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [background, setBackground] = useState(false);
   const stopped = useRef(false);
   const allowed = ["collected", "in_transit"].includes(status);
   const lastSent = useRef(0);
+  useEffect(() => {
+    if (!active) return;
+    let current = true;
+    void backgroundTrip()
+      .then(async (id) => {
+        if (id === taskId && !allowed) await stopBackgroundSharing();
+        if (current) setBackground(id === taskId && allowed);
+      })
+      .catch(() => undefined);
+    return () => {
+      current = false;
+    };
+  }, [active, taskId, allowed]);
   useEffect(() => {
     if (!allowed) setEnabled(false);
   }, [allowed]);
@@ -152,7 +171,50 @@ export function RiderLocationSharing({
         loading={busy}
         variant={enabled ? "outline" : "primary"}
         onPress={() => void toggle()}
+        disabled={background}
       />
+      {Platform.OS !== "web" ? (
+        <>
+          <Text style={{ color: colors.muted, fontSize: 12, lineHeight: 19 }}>
+            For navigation or a locked screen, enable background sharing and
+            choose Always allow. Your location is shared only for this trip, for
+            up to eight hours. Closing the app or phone battery restrictions can
+            stop updates.
+          </Text>
+          <Button
+            label={
+              background ? "Stop background sharing" : "Share while navigating"
+            }
+            variant="outline"
+            loading={busy}
+            onPress={() => {
+              setBusy(true);
+              void (
+                background
+                  ? stopBackgroundSharing()
+                  : startBackgroundSharing(taskId)
+              )
+                .then(() => {
+                  setBackground(!background);
+                  setEnabled(false);
+                  setMessage(
+                    background
+                      ? "Background sharing stopped."
+                      : "Background delivery sharing is active.",
+                  );
+                })
+                .catch((reason) =>
+                  setMessage(
+                    reason instanceof Error
+                      ? reason.message
+                      : "Could not update background sharing.",
+                  ),
+                )
+                .finally(() => setBusy(false));
+            }}
+          />
+        </>
+      ) : null}
       {message ? (
         <Text
           accessibilityLiveRegion="polite"

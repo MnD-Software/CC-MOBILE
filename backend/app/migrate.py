@@ -11,6 +11,9 @@ from . import logistics_models
 from . import notification_models
 from . import club_celebrations
 from . import concierge
+from . import customer_lifecycle
+from . import routes_enquiries
+from . import rider_tracking
 
 
 def repair_catalogue_parents(bind=engine):

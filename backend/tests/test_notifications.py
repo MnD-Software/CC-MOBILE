@@ -17,6 +17,23 @@ from app.security import create_session, rotate_refresh_token, token_hash
 TOKEN = "ExpoPushToken[notifications-test-device-123]"
 
 
+def test_phone_delivery_self_test_is_gated_owned_and_idempotent(system, monkeypatch):
+    s = system
+    monkeypatch.setattr(get_settings(), "push_enabled", False)
+    assert s["client"].post("/v1/account/notifications/test").status_code == 503
+    monkeypatch.setattr(get_settings(), "push_enabled", True)
+    assert s["client"].post("/v1/account/notifications/test").status_code == 409
+    register(s)
+    for _ in range(2):
+        result = s["client"].post("/v1/account/notifications/test")
+        assert result.status_code == 200, result.text
+        assert result.json() == {"queued": True, "delivery_confirmed": False}
+    with Session(s["engine"]) as db:
+        assert len(list(db.scalars(select(PushJob)))) == 1
+    actor("other", "customer")
+    assert s["client"].get("/v1/account/notifications").json() == []
+
+
 def register(s, owner="buyer", token=TOKEN):
     actor(owner, "customer")
     with Session(s["engine"]) as db:

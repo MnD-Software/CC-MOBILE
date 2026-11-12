@@ -35,6 +35,8 @@ export function notificationRoute(data: Record<string, unknown>): Href | null {
   if (match)
     return { pathname: "/order/[reference]", params: { reference: match[1] } };
   const routes: Record<string, Href> = {
+    "/requests": "/requests",
+    "/notifications": "/notifications",
     "/account/rewards": "/rewards",
     "/account/moments": "/moments",
     "/offers": "/offers",

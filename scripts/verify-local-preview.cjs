@@ -535,6 +535,67 @@ async function main() {
           widths: [320, 390, 430],
         });
       }
+      if (role === "customer" && process.argv.includes("--privacy")) {
+        await click("Privacy & account");
+        await wait(
+          `document.body.innerText.includes('Download my account data')`,
+          "account privacy",
+        );
+        await click("Download my account data");
+        await wait(
+          `document.body.innerText.includes('Your account export is ready')`,
+          "private account export",
+        );
+        await click("Delete my account");
+        await wait(
+          `!!document.querySelector('input[aria-label="Current password"]')`,
+          "password-confirmed closure",
+        );
+        assert.equal(
+          await evaluate(
+            `document.querySelector('[aria-label="Permanently delete my account"]').getAttribute('aria-disabled')`,
+          ),
+          "true",
+        );
+        for (const width of [320, 390, 430]) {
+          await send("Emulation.setDeviceMetricsOverride", {
+            width,
+            height: 900,
+            deviceScaleFactor: 1,
+            mobile: true,
+          });
+          assert.ok(
+            await evaluate(
+              `document.documentElement.scrollWidth <= innerWidth`,
+            ),
+            "Privacy screen overflow",
+          );
+          await capture("account-privacy-" + width);
+        }
+        await click("Contact privacy support");
+        await wait(
+          `!!document.querySelector('textarea[aria-label="Request details"]')`,
+          "privacy support request",
+        );
+        await fill("Subject", "Local account privacy acceptance");
+        await click("Send request");
+        await wait(
+          `document.body.innerText.includes('Local account privacy acceptance') && !document.querySelector('[aria-label="Subject"]')?.value`,
+          "persisted support request",
+        );
+        await capture("account-privacy-support-390");
+        checks.push({
+          privacy: "private export, deletion confirmation, support submission",
+          widths: [320, 390, 430],
+          accountNotDeleted: true,
+        });
+        const account = `Array.from(document.querySelectorAll('[aria-label]')).find(n=>/^(Profile|Account)$/.test(n.getAttribute('aria-label')) && ['button','tab','link'].includes(n.getAttribute('role')))`;
+        await evaluate(`(${account}).click()`);
+        await wait(
+          `location.pathname.includes('account')`,
+          "return to account",
+        );
+      }
       if (role === "customer") {
         await click("Cake City for business");
         await wait(
@@ -1351,6 +1412,31 @@ async function main() {
       }
     }
     assert.deepEqual(errors, [], "Unexpected runtime failures/external writes");
+    const localTimings = await evaluate(
+      `performance.getEntriesByType('resource').filter(r=>r.name.startsWith(${JSON.stringify(apiOrigin)}) && r.duration>0).map(r=>({path:new URL(r.name).pathname, ms:Math.round(r.duration)}))`,
+    );
+    const durations = localTimings.map((r) => r.ms).sort((a, b) => a - b);
+    fs.writeFileSync(
+      path.join(directory, "browser-performance.json"),
+      JSON.stringify(
+        {
+          at: new Date().toISOString(),
+          source: "local development browser; not a native release benchmark",
+          samples: durations.length,
+          median_ms: durations[Math.floor(durations.length / 2)] ?? null,
+          p95_ms:
+            durations[
+              Math.min(
+                durations.length - 1,
+                Math.floor(durations.length * 0.95),
+              )
+            ] ?? null,
+          requests: localTimings,
+        },
+        null,
+        2,
+      ),
+    );
     fs.writeFileSync(
       path.join(directory, "browser-verification.json"),
       JSON.stringify(

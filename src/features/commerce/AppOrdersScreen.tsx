@@ -332,7 +332,12 @@ export function AppOrderScreen() {
           <Button
             variant="outline"
             label="Get order support"
-            onPress={() => router.push("/requests")}
+            onPress={() =>
+              router.push({
+                pathname: "/requests",
+                params: { kind: "support", reference: value.reference },
+              })
+            }
           />
         </>
       ) : null}

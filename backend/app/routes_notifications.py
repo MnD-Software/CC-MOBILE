@@ -19,6 +19,26 @@ from .routes_enquiries import staff
 router = APIRouter(tags=["notifications-and-reviews"])
 
 
+@router.post("/v1/account/notifications/test")
+def test_notification(actor=Depends(member), db: Session = Depends(get_db)):
+    if not get_settings().push_enabled:
+        raise HTTPException(503, "Phone notification delivery is not enabled on the server yet.")
+    # Serialize this account's requests so repeated taps enqueue at most once per minute.
+    from .models import Customer
+    from .notifications import enqueue
+    db.scalar(select(Customer).where(Customer.id == actor.id).with_for_update())
+    preference = db.get(NotificationPreference, actor.id)
+    if preference and not preference.order_updates:
+        raise HTTPException(409, "Enable order push alerts first.")
+    if not db.scalar(select(PushDevice.id).where(PushDevice.customer_id == actor.id, PushDevice.enabled.is_(True)).limit(1)):
+        raise HTTPException(409, "Enable phone notifications on this device first.")
+    minute = datetime.now(UTC).strftime("%Y%m%d%H%M")
+    enqueue(db, actor.id, f"push-test:{actor.id}:{minute}", "delivery_test",
+            "You're connected to Cake City", "Your phone can receive Cake City updates.", {"url": "/notifications"})
+    db.commit()
+    return {"queued": True, "delivery_confirmed": False}
+
+
 @router.get("/v1/admin/notifications/status")
 def push_status(actor=Depends(staff), db: Session = Depends(get_db)):
     from sqlalchemy import func

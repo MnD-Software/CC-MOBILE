@@ -58,6 +58,9 @@ def create_session(db: Session, customer: Customer, previous_hash: str | None = 
         from .notification_models import PushDevice
         db.execute(update(PushDevice).where(PushDevice.session_hash == previous_hash, PushDevice.customer_id == customer.id)
                    .values(session_hash=token_hash(raw_refresh)))
+        from .rider_tracking import TrackingGrant
+        db.execute(update(TrackingGrant).where(TrackingGrant.session_hash == previous_hash, TrackingGrant.customer_id == customer.id)
+                   .values(session_hash=token_hash(raw_refresh)))
     db.commit()
     return {
         "access_token": create_access_token(customer),
@@ -90,6 +93,9 @@ def customer_from_access_token(db: Session, authorization: str | None) -> Custom
     customer = db.get(Customer, customer_id)
     if not customer:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Customer not found")
+    from .customer_lifecycle import ClosedAccount
+    if db.get(ClosedAccount, customer.id):
+        raise HTTPException(401, "This account is closed.")
     return customer
 
 
