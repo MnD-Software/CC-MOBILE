@@ -4,6 +4,8 @@ const path = require("node:path");
 const env = { ...process.env };
 delete env.EXPO_PUBLIC_LOCAL_REVIEW;
 delete env.EXPO_PUBLIC_PURCHASE_TEST_URL;
+delete env.EXPO_PUBLIC_REVIEW_TUNNEL;
+delete env.CAKECITY_REVIEW_PROXY;
 const child = spawn(
   process.execPath,
   [path.join(__dirname, "expo.cjs"), "start", "--go", ...process.argv.slice(2)],

@@ -10,6 +10,8 @@ test("Expo Go tunnel launches without conflicting LAN mode or review settings", 
     EXPO_PUBLIC_LOCAL_REVIEW: "1",
     EXPO_PUBLIC_PURCHASE_TEST_URL: "http://localhost:8010",
     EXPO_PUBLIC_API_URL: "https://example.com",
+    EXPO_PUBLIC_REVIEW_TUNNEL: "1",
+    CAKECITY_REVIEW_PROXY: "1",
   };
   vm.runInNewContext(fs.readFileSync("scripts/start-go.cjs", "utf8"), {
     __dirname: path.resolve("scripts"),
@@ -38,6 +40,8 @@ test("Expo Go tunnel launches without conflicting LAN mode or review settings", 
   ]);
   assert.equal(launch.options.env.EXPO_PUBLIC_LOCAL_REVIEW, undefined);
   assert.equal(launch.options.env.EXPO_PUBLIC_PURCHASE_TEST_URL, undefined);
+  assert.equal(launch.options.env.EXPO_PUBLIC_REVIEW_TUNNEL, undefined);
+  assert.equal(launch.options.env.CAKECITY_REVIEW_PROXY, undefined);
   assert.equal(launch.options.env.EXPO_PUBLIC_API_URL, env.EXPO_PUBLIC_API_URL);
   assert.equal(env.EXPO_PUBLIC_LOCAL_REVIEW, "1");
 });

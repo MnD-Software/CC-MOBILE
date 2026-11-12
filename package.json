@@ -67,6 +67,7 @@
     "start": "node scripts/expo.cjs start",
     "start:go": "node scripts/start-go.cjs",
     "start:go:tunnel": "node scripts/start-go.cjs --tunnel",
+    "start:go:review": "node scripts/start-go-review.cjs",
     "start:usb": "node scripts/expo.cjs start --dev-client --lan",
     "android": "expo run:android",
     "android:device": "expo run:android --device",

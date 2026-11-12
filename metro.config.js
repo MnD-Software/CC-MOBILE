@@ -22,4 +22,10 @@ config.resolver.blockList = [
   ...(Array.isArray(existing) ? existing : existing ? [existing] : []),
   ...generated,
 ];
+if (process.env.CAKECITY_REVIEW_PROXY === "1") {
+  const { reviewApiProxy } = require("./scripts/review-api-proxy.cjs");
+  const previous = config.server.enhanceMiddleware;
+  config.server.enhanceMiddleware = (middleware, server) =>
+    reviewApiProxy(previous ? previous(middleware, server) : middleware);
+}
 module.exports = config;
