@@ -60,7 +60,7 @@ Design: a calm operational console, Cake City plum/pink branding, clear typograp
 - [x] Implement department-first mobile login/restoration and staff overview.
 - [x] Upgrade the existing web workspace with the same data and responsive UI; visual device/browser acceptance remains pending.
 - [x] Verify permissions, sales calculations, department actions and customer regression tests with automated checks.
-- [ ] Record exact checks, remaining acceptance items, commit and remote push evidence.
+- [x] Record exact checks, remaining acceptance items, commit and remote push evidence.
 
 ## Current state and next action
 
@@ -79,11 +79,14 @@ Next operational actions: deploy the backend commit to Render, restart the local
 
 ## Validation and deployment evidence
 
+Implementation commit: `bb88d4c86cc4488689dbf35007cfc28f36df39b2`, pushed to `origin/master` at `https://github.com/MnD-Software/CC-MOBILE.git`. `git ls-remote origin refs/heads/master` confirmed that exact implementation SHA before this documentation-only follow-up. The later documentation commit can be identified with `git log`; it does not change the implementation. No Render deployment was verified. Unrelated untracked APK/WooCommerce directories were preserved.
+
 Verified automated checks:
 
 - `npm test`: **211 passed**, including new staff route and web rendering/data escaping tests. The first broad run caught two import-format assertions; both were fixed and the full suite reran successfully.
 - `npm run typecheck`: passed after correcting the error-color theme token.
 - From `backend`: `..\.venv\Scripts\python.exe -m pytest tests/test_staff_workspace.py tests/test_dashboard.py tests/test_logistics.py tests/test_full_purchase_cycle.py -q`: **50 passed**, one existing Starlette/AnyIO deprecation warning. Covers all provisionable roles, customer denial, finance isolation, Kenyan date boundaries, ledger reversals/comparison, simulation and website exclusion, branch scope, rider ownership, static asset access and kitchen/dispatch lifecycle.
+- After the final legacy fulfilment-response privacy change, reran `tests/test_dashboard.py::test_dashboard_static_shell_and_no_arbitrary_files tests/test_full_purchase_cycle.py tests/test_staff_workspace.py`: **31 passed**, with the same deprecation warning. After the overview's account/session race guard, the two dashboard renderer tests passed again.
 - Dashboard JavaScript syntax checked with `node --check` for both scripts. Formatting and `git diff --check` are required before staging.
 - No live payment was initiated, no production account or role was changed, no Odoo connection was activated, and no live deployment is claimed.
 - Browser visual QA unavailable: this session has no Node REPL JavaScript tool for the prescribed browser runtime. Dashboard renderer tests are not screenshots or native phone verification. Do not bypass the previous preview-launch approval rejection from the earlier shopping task.
