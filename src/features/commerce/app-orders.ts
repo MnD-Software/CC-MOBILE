@@ -105,12 +105,13 @@ export const appOrders = {
       from_date?: string;
       to_date?: string;
       cake?: string;
+      awaiting_receipt?: boolean;
     } = {},
   ) {
     const params = new URLSearchParams();
     if (cursor !== undefined) params.set("before", String(cursor));
     for (const [key, value] of Object.entries(filters))
-      if (value) params.set(key, value);
+      if (value) params.set(key, String(value));
     return z
       .object({
         data: z.array(appOrderSchema),

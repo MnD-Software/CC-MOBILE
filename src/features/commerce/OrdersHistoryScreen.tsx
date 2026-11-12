@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Pressable, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAuth } from "@/auth/AuthProvider";
 import { useTheme } from "@/theme/ThemeProvider";
@@ -17,37 +17,72 @@ import { orderStageLabel } from "./ActiveOrderCard";
 import { orderHistoryAction } from "./order-history";
 import { OrderDateField } from "./OrderDateField";
 import { money } from "./contracts";
+import { useHomeOrders, useAcknowledgeOrder } from "./useHomeOrders";
 
 type Filters = { from_date?: string; to_date?: string; cake?: string };
 export function OrdersHistoryScreen() {
   const { customer } = useAuth();
   const { colors } = useTheme();
   const active = useScreenActive();
-  const [tab, setTab] = useState<"active" | "past">("active");
+  const params = useLocalSearchParams<{ awaiting_receipt?: string }>();
+  const [tab, setTab] = useState<"active" | "past">(
+    params.awaiting_receipt === "1" ? "past" : "active",
+  );
+  const [awaitingReceipt, setAwaitingReceipt] = useState(
+    params.awaiting_receipt === "1",
+  );
+  const homeOrders = useHomeOrders();
+  const acknowledge = useAcknowledgeOrder();
+  const awaitingCount = homeOrders.data?.awaiting_receipt_count ?? 0;
   const [filters, setFilters] = useState<Filters>({});
   const [cake, setCake] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [error, setError] = useState("");
   const orders = useInfiniteQuery({
-    queryKey: ["app-orders", customer?.id, "history", tab, filters],
+    queryKey: [
+      "app-orders",
+      customer?.id,
+      "history",
+      tab,
+      filters,
+      awaitingReceipt,
+    ],
     enabled: !!customer && active,
     initialPageParam: undefined as number | undefined,
     queryFn: ({ pageParam }) =>
-      appOrders.page(pageParam, { ...filters, scope: tab }),
+      appOrders.page(pageParam, {
+        ...filters,
+        scope: tab,
+        awaiting_receipt: awaitingReceipt,
+      }),
     getNextPageParam: (page) => page.next_cursor ?? undefined,
     staleTime: 10_000,
-    refetchInterval: active && tab === "active" ? 20_000 : false,
+    refetchInterval:
+      active && (tab === "active" || awaitingReceipt) ? 20_000 : false,
   });
   const rows = orders.data?.pages.flatMap((page) => page.data) ?? [];
-  const filtered = !!(filters.from_date || filters.to_date || filters.cake);
+  const filtered = !!(
+    awaitingReceipt ||
+    filters.from_date ||
+    filters.to_date ||
+    filters.cake
+  );
   function reset() {
     setFilters({});
     setCake("");
     setFrom("");
     setTo("");
     setError("");
+    setAwaitingReceipt(false);
   }
+  useEffect(() => {
+    if (params.awaiting_receipt !== "1") return;
+    reset();
+    setTab("past");
+    setAwaitingReceipt(true);
+    router.setParams({ awaiting_receipt: undefined });
+  }, [params.awaiting_receipt]);
   return (
     <Screen
       title="Your orders"
@@ -93,6 +128,54 @@ export function OrdersHistoryScreen() {
       </LinearGradient>
       {customer ? (
         <>
+          {awaitingCount > 0 ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`${awaitingCount} orders awaiting receipt confirmation. View orders.`}
+              onPress={() => {
+                reset();
+                setTab("past");
+                setAwaitingReceipt(true);
+              }}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 12,
+                padding: 16,
+                borderRadius: 18,
+                backgroundColor: colors.successLight,
+              }}
+            >
+              <Text
+                style={{
+                  color: colors.success,
+                  fontSize: 24,
+                  fontWeight: "800",
+                }}
+              >
+                {awaitingCount}
+              </Text>
+              <View style={{ flex: 1, gap: 4 }}>
+                <Text
+                  style={{
+                    color: colors.success,
+                    fontWeight: "800",
+                    fontSize: 14,
+                  }}
+                >
+                  Awaiting your confirmation
+                </Text>
+                <Text style={{ color: colors.ink, fontSize: 12 }}>
+                  Delivered or collected. Tap to confirm receipt.
+                </Text>
+              </View>
+              <Ionicons
+                name="chevron-forward"
+                color={colors.success}
+                size={20}
+              />
+            </Pressable>
+          ) : null}
           <View
             accessibilityRole="tablist"
             accessibilityLabel="Order history"
@@ -112,7 +195,10 @@ export function OrdersHistoryScreen() {
                   value === "active" ? "Active orders" : "Past orders"
                 }
                 accessibilityState={{ selected: tab === value }}
-                onPress={() => setTab(value)}
+                onPress={() => {
+                  setTab(value);
+                  setAwaitingReceipt(false);
+                }}
                 style={{
                   flex: 1,
                   minHeight: 48,
@@ -185,6 +271,7 @@ export function OrdersHistoryScreen() {
             >
               <Text style={{ flex: 1, color: colors.muted, fontSize: 12 }}>
                 {[
+                  awaitingReceipt && "Awaiting receipt confirmation",
                   filters.cake,
                   filters.from_date && `From ${filters.from_date}`,
                   filters.to_date && `To ${filters.to_date}`,
@@ -196,6 +283,9 @@ export function OrdersHistoryScreen() {
             </View>
           ) : null}
         </>
+      ) : null}
+      {acknowledge.isError ? (
+        <Notice error message={acknowledge.error.message} />
       ) : null}
       {!customer ? (
         <Button
@@ -209,11 +299,13 @@ export function OrdersHistoryScreen() {
       ) : !rows.length ? (
         <Notice
           message={
-            filtered
-              ? "No orders match these filters. Try another date or cake."
-              : tab === "active"
-                ? "No active orders. Your completed celebrations are in Past orders."
-                : "Your completed and closed orders will appear here."
+            awaitingReceipt
+              ? "No orders are awaiting receipt confirmation."
+              : filtered
+                ? "No orders match these filters. Try another date or cake."
+                : tab === "active"
+                  ? "No active orders. Your completed celebrations are in Past orders."
+                  : "Your completed and closed orders will appear here."
           }
         />
       ) : (
@@ -311,16 +403,32 @@ export function OrdersHistoryScreen() {
             <Text style={{ color: colors.muted, fontSize: 11 }}>
               {order.reference}
             </Text>
-            <Button
-              variant={tab === "past" ? "outline" : "primary"}
-              label={orderHistoryAction(order)}
-              onPress={() =>
-                router.push({
-                  pathname: "/order/[reference]",
-                  params: { reference: order.reference },
-                })
-              }
-            />
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
+              <Button
+                variant={tab === "past" ? "outline" : "primary"}
+                style={{ flex: 1, minWidth: 130 }}
+                label={orderHistoryAction(order)}
+                onPress={() =>
+                  router.push({
+                    pathname: "/order/[reference]",
+                    params: { reference: order.reference },
+                  })
+                }
+              />
+              {awaitingReceipt ? (
+                <Button
+                  label="Received, thank you"
+                  variant="secondary"
+                  style={{ flex: 1, minWidth: 130 }}
+                  disabled={acknowledge.isPending}
+                  loading={
+                    acknowledge.isPending &&
+                    acknowledge.variables === order.reference
+                  }
+                  onPress={() => acknowledge.mutate(order.reference)}
+                />
+              ) : null}
+            </View>
           </View>
         ))
       )}

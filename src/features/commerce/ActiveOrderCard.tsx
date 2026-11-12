@@ -1,10 +1,9 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { LinearGradient } from "expo-linear-gradient";
-import { z } from "zod";
 import { api } from "@/api/client";
 import { Button } from "@/components/ui/Button";
-import { appOrderSchema } from "./app-orders";
+import { useHomeOrders } from "./useHomeOrders";
 import { OrderMilestoneMarquee } from "./OrderMilestoneMarquee";
 import { router } from "expo-router";
 import { Pressable, View } from "react-native";
@@ -34,19 +33,7 @@ export function ActiveOrderCard({ compact = false }: { compact?: boolean }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const cache = useQueryClient();
-  const orders = useQuery({
-    queryKey: ["app-orders", customer?.id, "home-milestones"],
-    queryFn: async () =>
-      z
-        .object({
-          data: z.array(appOrderSchema.extend({ fulfilment: z.string() })),
-        })
-        .parse(await api.get("/v1/account/home-orders", { auth: true })),
-    enabled: !!customer && active,
-    staleTime: 5_000,
-    refetchInterval: active ? 10_000 : false,
-    retry: false,
-  });
+  const orders = useHomeOrders();
   const items = orders.data?.data ?? [];
   const order = items[Math.min(index, Math.max(0, items.length - 1))];
   if (!customer || !order) return null;
@@ -94,7 +81,7 @@ export function ActiveOrderCard({ compact = false }: { compact?: boolean }) {
         { auth: true },
       );
       await cache.invalidateQueries({
-        queryKey: ["app-orders", customer?.id, "home-milestones"],
+        queryKey: ["app-orders"],
       });
       setIndex(0);
     } catch (reason) {
@@ -235,6 +222,41 @@ export function ActiveOrderCard({ compact = false }: { compact?: boolean }) {
           />
         </View>
       ) : null}
+      {(orders.data?.awaiting_receipt_count ?? 0) > 0 ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`${orders.data!.awaiting_receipt_count} orders awaiting receipt confirmation. View orders.`}
+          onPress={() =>
+            router.push({
+              pathname: "/(tabs)/orders",
+              params: { awaiting_receipt: "1" },
+            })
+          }
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 8,
+            paddingVertical: 12,
+          }}
+        >
+          <Ionicons
+            name="checkmark-done-circle-outline"
+            color="#86EFAC"
+            size={20}
+          />
+          <Text
+            style={{
+              flex: 1,
+              color: "#86EFAC",
+              fontSize: 12,
+              fontWeight: "800",
+            }}
+          >
+            {orders.data!.awaiting_receipt_count} awaiting receipt confirmation
+          </Text>
+          <Ionicons name="chevron-forward" size={16} color="#FFFFFF" />
+        </Pressable>
+      ) : null}
       {items.length > 1 ? (
         <View
           style={{
@@ -245,7 +267,10 @@ export function ActiveOrderCard({ compact = false }: { compact?: boolean }) {
           }}
         >
           <Text style={{ color: "#F8D6E8", fontSize: 11 }}>
-            Order {Math.min(index + 1, items.length)} of {items.length}
+            Update {Math.min(index + 1, items.length)} of {items.length}
+            {(orders.data?.total ?? 0) > items.length
+              ? " (latest)"
+              : ""}
           </Text>
           <Pressable
             accessibilityRole="button"

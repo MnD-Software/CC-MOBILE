@@ -76,8 +76,13 @@ async def create_order(data: commerce.PlaceOrder,
 def orders(before: int | None = Query(default=None, gt=0), limit: int = Query(default=30, ge=1, le=100),
            scope: Literal["all", "active", "past"] = "all", from_date: date | None = None,
            to_date: date | None = None, cake: str | None = Query(default=None, max_length=100),
+           awaiting_receipt: bool = False,
            customer: Customer = Depends(member), db: Session = Depends(get_db)):
     query = select(AppOrder).where(AppOrder.customer_id == customer.id)
+    if awaiting_receipt:
+        from .order_home import OrderAcknowledgement
+        query = query.where(AppOrder.state == "completed", AppOrder.payment_state == "completed",
+                            AppOrder.id.notin_(select(OrderAcknowledgement.order_id)))
     terminal = or_(AppOrder.state.in_(["completed", "cancelled", "payment_failed", "failed", "reversed"]),
                    AppOrder.payment_state.in_(["failed", "cancelled", "reversed"]))
     if scope != "all":

@@ -1,7 +1,7 @@
 """Customer-owned home milestones and idempotent receipt acknowledgement."""
 from datetime import UTC, datetime
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import DateTime, ForeignKey, select
+from fastapi import APIRouter, Depends, HTTPException, Response
+from sqlalchemy import DateTime, ForeignKey, select, func
 from sqlalchemy.orm import Mapped, mapped_column, Session
 from .db import Base, get_db
 from .routes_club import member
@@ -19,14 +19,20 @@ router = APIRouter(tags=["home-order-milestones"])
 
 
 @router.get("/v1/account/home-orders")
-def home_orders(actor=Depends(member), db: Session = Depends(get_db)):
+def home_orders(response: Response, actor=Depends(member), db: Session = Depends(get_db)):
+    response.headers["Cache-Control"] = "private, no-store"
     acknowledged = select(OrderAcknowledgement.order_id)
-    rows = db.scalars(select(AppOrder).where(AppOrder.customer_id == actor.id,
+    query = select(AppOrder).where(AppOrder.customer_id == actor.id,
         AppOrder.payment_state == "completed",
         AppOrder.state.in_(["paid", "preparing", "ready", "out_for_delivery", "completed"]),
-        AppOrder.id.notin_(acknowledged)).order_by(AppOrder.id.desc()).limit(5))
+        AppOrder.id.notin_(acknowledged))
+    total = db.scalar(select(func.count()).select_from(query.subquery()))
+    awaiting_receipt = db.scalar(select(func.count()).select_from(
+        query.where(AppOrder.state == "completed").subquery()))
+    rows = db.scalars(query.order_by(AppOrder.id.desc()).limit(5))
     return {"data": [{**order_view(order, private=False),
-        "fulfilment": order.snapshot.get("checkout", {}).get("fulfilment", "delivery")} for order in rows]}
+        "fulfilment": order.snapshot.get("checkout", {}).get("fulfilment", "delivery")} for order in rows],
+        "total": total, "awaiting_receipt_count": awaiting_receipt}
 
 
 @router.post("/v1/app-orders/{reference}/received")
