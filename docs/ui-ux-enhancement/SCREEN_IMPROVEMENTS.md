@@ -1,5 +1,7 @@
 # Screen improvements
 
+**12 November correction:** Shop now uses its restored category sidebar and product grid, following the owner's Oraimo/Carrefour reference direction. The full-width redesign described below has been reverted. See [current Shop direction](SHOP_DIRECTION_2026-11-12.md).
+
 - **Notifications:** each order update now shows its order reference, making updates for multiple simultaneous purchases distinguishable. The browser check opens the exact notification identity rather than matching a shared title.
 
 - **Shop:** removed the fixed category rail; categories remain available in the existing sheet. Products gain the released width, with fewer stacked controls in the All view and more row spacing.

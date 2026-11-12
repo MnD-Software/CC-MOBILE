@@ -1,5 +1,7 @@
 # UI review — 11 November 2026
 
+**12 November correction:** the owner rejected removing the Shop category rail. The previous sidebar/grid screen is restored; the Shop observations and changes below are historical and do not define the accepted direction. See [owner's Shop direction](SHOP_DIRECTION_2026-11-12.md).
+
 Reviewed the two supplied master/design briefs against the existing Expo SDK 58 application and the current changes. This increment preserves the existing architecture, payments, catalogue, Club ledger and independent operations. The briefs describe a broader programme, not a completed release checklist.
 
 Observed defects: Shop permanently reserved 74 pixels for a category rail alongside category/filter controls; product titles were limited to two small lines; Club stayed bright pink while inactive; dashboard rider assignment saved contact details without creating a rider task; dashboard kitchen actions omitted production assignment. Orders had less hierarchy than the accepted concierge design, and retained product screens could contaminate viewing history.

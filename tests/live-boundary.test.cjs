@@ -271,7 +271,7 @@ test("search, account identity and checkout location stay customer-controlled", 
   assert.match(shop, /shopApi\.browseProducts/);
   assert.match(shop, /getNextPageParam:.*last\.nextPage/);
   assert.match(shop, /numColumns=\{2\}/);
-  assert.doesNotMatch(shop, /styles\.sidebar/);
+  assert.match(shop, /styles\.sidebar/);
   assert.match(shop, /ShopOptionsSheet/);
   assert.match(shop, /initialNumToRender=\{6\}/);
   assert.match(shop, /maxToRenderPerBatch=\{6\}/);

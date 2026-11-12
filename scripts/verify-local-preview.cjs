@@ -295,7 +295,7 @@ async function main() {
         await evaluate(`(${shopTab}).click()`);
         await wait(
           `!!document.querySelector('[data-testid="shop-products"]')`,
-          "full-width product grid",
+          "category-based product grid",
         );
         await click("Choose categories");
         await wait(
@@ -329,8 +329,8 @@ async function main() {
             "Shop overflow at " + width,
           );
           assert.ok(
-            metrics.grid >= Math.min(width, 800) - 48,
-            "Product grid should use the available width",
+            metrics.grid >= Math.min(width, 800) - 122,
+            "Product grid should fit beside the category sidebar",
           );
           assert.equal(
             metrics.active,
@@ -341,7 +341,7 @@ async function main() {
         }
         checks.push({
           layout:
-            "full-width Shop, category sheet apply/clear, single selected tab",
+            "category sidebar and product grid, category sheet apply/clear, single selected tab",
           widths: [320, 375, 390, 430, 1280],
         });
       }
