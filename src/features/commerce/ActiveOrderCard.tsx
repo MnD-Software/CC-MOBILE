@@ -264,7 +264,14 @@ export function ActiveOrderCard({ compact = false }: { compact?: boolean }) {
           {error}
         </Text>
       ) : null}
-      <OrderMilestoneMarquee labels={labels} stage={stage} active={active} />
+      <View style={{ marginHorizontal: -18 }}>
+        <OrderMilestoneMarquee
+          labels={labels}
+          stage={stage}
+          active={active}
+          backgroundColor={delivered ? "#28634B" : "#76244F"}
+        />
+      </View>
     </LinearGradient>
   );
 }

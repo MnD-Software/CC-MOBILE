@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Animated, Platform, View } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { Text } from "@/components/ui/Typography";
 import { useMotionAccessibilityPreference } from "@/design";
 
@@ -7,10 +8,12 @@ export function OrderMilestoneMarquee({
   labels,
   stage,
   active,
+  backgroundColor,
 }: {
   labels: string[];
   stage: number;
   active: boolean;
+  backgroundColor: string;
 }) {
   const { isResolved, reduceMotion } = useMotionAccessibilityPreference();
   const offset = useRef(new Animated.Value(0)).current;
@@ -85,6 +88,8 @@ export function OrderMilestoneMarquee({
       accessibilityLabel={`Order milestones. Current stage: ${labels[stage]}`}
       style={{
         overflow: "hidden",
+        backgroundColor,
+        paddingHorizontal: 18,
         paddingVertical: 12,
         borderTopWidth: 1,
         borderTopColor: "rgba(255,255,255,0.15)",
@@ -113,6 +118,36 @@ export function OrderMilestoneMarquee({
           {run}
         </Animated.View>
       )}
+      {!reduceMotion && isResolved ? (
+        <>
+          <LinearGradient
+            pointerEvents="none"
+            colors={[backgroundColor, `${backgroundColor}00`]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={{
+              position: "absolute",
+              left: 0,
+              top: 1,
+              bottom: 0,
+              width: 24,
+            }}
+          />
+          <LinearGradient
+            pointerEvents="none"
+            colors={[`${backgroundColor}00`, backgroundColor]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={{
+              position: "absolute",
+              right: 0,
+              top: 1,
+              bottom: 0,
+              width: 24,
+            }}
+          />
+        </>
+      ) : null}
     </View>
   );
 }

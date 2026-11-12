@@ -313,7 +313,14 @@ export function HomeScreen() {
       >
         <View
           collapsable={false}
-          style={{ backgroundColor: colors.background }}
+          style={{
+            backgroundColor: colors.background,
+            // Cover the page gutters too, so scrolling rails cannot show
+            // beside the rounded card while this header is pinned.
+            marginHorizontal: -16,
+            paddingHorizontal: 16,
+            overflow: "hidden",
+          }}
         >
           <ActiveOrderCard compact />
         </View>

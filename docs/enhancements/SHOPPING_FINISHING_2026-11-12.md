@@ -12,6 +12,8 @@
 
 - Home's compact order update stays pinned below the browse header while scrolling. Progress lines stay stationary while the milestone text moves underneath. Completed milestone labels and lines turn green; labels also show a checkmark. The current step stays white, future steps stay muted, and the final delivered/collected state makes every step green. Reduced-motion users retain the static label. Validation for this follow-up: TypeScript passed using the direct compiler, and all 11 targeted order tests passed. Phone visual acceptance remains pending.
 
+- The pinned order header now paints an opaque background across both page gutters, hiding scrolling content around the card's rounded edges. The marquee sits in a full-width footer band with matching gradient fades at both ends instead of abruptly clipped text. Green completed steps and the fixed progress lines are preserved. This follow-up passed the 11 targeted order tests; native scrolling appearance still needs device acceptance.
+
 ## Image source limitation
 
 The local archive held 368 valid image copies; all decoded successfully with an AVIF-capable decoder. The audit found 84 additional unique image sources referenced by the app. Explicit operator repair recovered one, leaving **83 unavailable sources**. Their public sources returned errors; retry UI cannot reconstruct a missing image. No unrelated cake photo was substituted. The remaining URLs are listed in `MISSING_IMAGE_SOURCES_2026-11-12.md` for asset replacement.
