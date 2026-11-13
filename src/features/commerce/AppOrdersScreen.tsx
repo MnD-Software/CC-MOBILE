@@ -142,7 +142,7 @@ export function AppOrderScreen() {
         <Feedback error={order.error} onRetry={() => void order.refetch()} />
       ) : value ? (
         <>
-          {value.payment_test ? (
+          {value.payment_test && !value.review_checkout ? (
             <Text style={{ color: colors.muted, fontSize: 11, lineHeight: 18 }}>
               Preview · no charge. Follow your order through the kitchen and
               delivery.
@@ -166,7 +166,9 @@ export function AppOrderScreen() {
           <DeliveryComplete key={value.reference} order={value} />
           <Text style={{ color: colors.muted, fontSize: 12 }}>
             {money(value.total_minor / 100)}
-            {value.payment_test ? " · Preview · no charge" : ""}
+            {value.payment_test && !value.review_checkout
+              ? " · Preview · no charge"
+              : ""}
           </Text>
           <Disclosure title="Order details & receipt">
             {value.snapshot?.lines.map((line, i) => (
@@ -184,7 +186,7 @@ export function AppOrderScreen() {
             ))}
             {value.paid_at ? (
               <Notice
-                message={`${value.payment_test ? "SIMULATED TEST receipt (no charge)" : "Payment receipt"}: RCPT-${value.reference}. ${value.payment_test ? "Confirmed" : "Paid"} ${new Date(value.paid_at).toLocaleString()}. ${value.payment_state === "reversed" ? "Payment reversed; contact support." : ""} This is not an eTIMS tax invoice.`}
+                message={`${value.payment_test && !value.review_checkout ? "SIMULATED TEST receipt (no charge)" : "Payment receipt"}: RCPT-${value.reference}. ${value.payment_test && !value.review_checkout ? "Confirmed" : "Paid"} ${new Date(value.paid_at).toLocaleString()}. ${value.payment_state === "reversed" ? "Payment reversed; contact support." : ""} This is not an eTIMS tax invoice.`}
               />
             ) : null}
             {value.paid_at ? (
@@ -205,7 +207,7 @@ export function AppOrderScreen() {
               onPress={() => void pay()}
             />
           ) : null}
-          {!value.paid_at && !value.payment_test ? (
+          {!value.paid_at && !(value.payment_test && !value.review_checkout) ? (
             <Button
               variant="outline"
               label="Check payment status"

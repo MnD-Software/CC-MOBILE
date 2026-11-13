@@ -16,7 +16,16 @@ export const tripSchema = z.object({
   scheduled_at: z.string().nullable(),
   slot: z.string(),
   payment_test: z.boolean(),
-  items: z.array(z.object({ sku_id: z.number(), quantity: z.number() })),
+  review_checkout: z.boolean().optional(),
+  delivery_notes: z.string().optional(),
+  items: z.array(
+    z.object({
+      sku_id: z.number(),
+      quantity: z.number(),
+      name: z.string().optional(),
+      selection: z.record(z.string(), z.unknown()).optional(),
+    }),
+  ),
 });
 export type Trip = z.infer<typeof tripSchema>;
 export const workSchema = z.object({
@@ -27,6 +36,7 @@ export const workSchema = z.object({
   attention: z.string(),
   fulfilment: z.string(),
   payment_test: z.boolean(),
+  review_checkout: z.boolean().optional(),
   items: z.array(
     z.object({
       name: z.string(),

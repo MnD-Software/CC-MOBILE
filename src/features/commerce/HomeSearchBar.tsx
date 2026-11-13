@@ -1,7 +1,15 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { useState } from "react";
-import { Pressable, StyleSheet, TextInput, View } from "react-native";
+import { useRef, useState } from "react";
+import {
+  Keyboard,
+  Pressable,
+  StyleSheet,
+  TextInput,
+  View,
+  type TextInputInstance,
+} from "react-native";
+import { Text } from "@/components/ui/Typography";
 import { GlassSurface } from "@/components/storefront/GlassSurface";
 import { tokens } from "@/theme/tokens";
 import { useTheme } from "@/theme/ThemeProvider";
@@ -11,6 +19,7 @@ export function HomeSearchBar() {
   const { colors } = useTheme();
   const [query, setQuery] = useState("");
   const [focused, setFocused] = useState(false);
+  const input = useRef<TextInputInstance>(null);
   const submit = (value = query) => {
     setFocused(false);
     router.navigate({
@@ -34,6 +43,7 @@ export function HomeSearchBar() {
           size={20}
         />
         <TextInput
+          ref={input}
           accessibilityLabel="Search cakes, flavours and themes"
           autoCapitalize="none"
           autoCorrect={false}
@@ -49,6 +59,33 @@ export function HomeSearchBar() {
           style={[styles.input, { color: colors.cocoa }]}
           value={query}
         />
+        {focused || query ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Cancel search"
+            onPress={() => {
+              setQuery("");
+              setFocused(false);
+              input.current?.blur();
+              Keyboard.dismiss();
+            }}
+            style={{
+              paddingHorizontal: 8,
+              minHeight: 44,
+              justifyContent: "center",
+            }}
+          >
+            <Text
+              style={{
+                color: colors.brandStrong,
+                fontSize: 12,
+                fontWeight: "700",
+              }}
+            >
+              Cancel
+            </Text>
+          </Pressable>
+        ) : null}
         <Pressable
           accessibilityLabel="Search products"
           accessibilityRole="button"

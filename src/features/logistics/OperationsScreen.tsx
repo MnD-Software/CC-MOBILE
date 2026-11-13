@@ -82,6 +82,18 @@ function Queue({ owner, kitchen }: { owner: string; kitchen: boolean }) {
   return (
     <>
       <StaffDepartmentMetrics />
+      {!kitchen ? (
+        <Button
+          label="Rider accounts / create rider"
+          variant="secondary"
+          onPress={() =>
+            router.push({
+              pathname: "/workspace",
+              params: { module: "riders" },
+            })
+          }
+        />
+      ) : null}
       <Button
         label="Refresh work"
         variant="outline"
@@ -205,7 +217,7 @@ function WorkCard({
     <View style={ui.panel} testID={`work-${order.reference}`}>
       <Text style={ui.heading}>{order.reference}</Text>
       <Text style={ui.eyebrow}>{order.status.replaceAll("_", " ")}</Text>
-      {order.payment_test ? (
+      {order.payment_test && !order.review_checkout ? (
         <Notice message="SIMULATED TEST — no payment or physical fulfilment is required." />
       ) : null}
       {order.items.map((item, index) => (

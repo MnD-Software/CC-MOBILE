@@ -175,7 +175,7 @@ export function MilestoneCelebration({
     setBurst(true);
     const animation = Animated.timing(motion, {
       toValue: 1,
-      duration: 3400,
+      duration: 4800,
       easing: Easing.linear,
       useNativeDriver: Platform.OS !== "web",
     });

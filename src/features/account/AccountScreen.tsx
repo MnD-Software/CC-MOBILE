@@ -328,11 +328,15 @@ export function AccountScreen() {
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images"],
+      base64: true,
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.72,
     });
-    const photo = result.canceled ? undefined : result.assets?.[0]?.uri;
+    const asset = result.canceled ? undefined : result.assets?.[0];
+    const photo = asset?.base64
+      ? `data:image/jpeg;base64,${asset.base64}`
+      : asset?.uri;
     if (!photo) return;
     setAvatar(customer.id, { kind: "photo", value: photo });
     toast("Profile photo updated everywhere in Cake City.");

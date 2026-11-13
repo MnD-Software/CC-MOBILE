@@ -35,10 +35,13 @@ def modules(role):
     def add(identity, label, href="/workspace"):
         result.append({"id": identity, "label": label, "href": href})
     if role in KITCHEN: add("kitchen", "Kitchen & production", "/kitchen")
-    if role in DISPATCH: add("dispatch", "Dispatch & delivery", "/dispatch")
+    if role in DISPATCH:
+        add("dispatch", "Dispatch & delivery", "/dispatch")
+        add("riders", "Rider accounts")
     if role in RIDERS: add("rider", "My deliveries", "/rider")
     if role in REPORTERS: add("sales", "Sales intelligence")
     if role in MANAGERS or role == "customer_service": add("orders", "Order desk")
+    if role in MANAGERS or role == "customer_service": add("reviews", "Customer satisfaction")
     if role in MANAGERS:
         for identity, label in [("products", "Catalogue management"), ("promotions", "Promotions"),
                                 ("payments", "Payments"), ("club", "Customers & Club"),

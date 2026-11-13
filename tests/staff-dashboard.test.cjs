@@ -5,6 +5,7 @@ const vm = require("node:vm");
 
 function harness(fixture) {
   const elements = new Map();
+  const listeners = [];
   const element = (id) => {
     if (!elements.has(id))
       elements.set(id, {
@@ -31,7 +32,9 @@ function harness(fixture) {
       getElementById: element,
       querySelector: element,
       querySelectorAll: () => [],
-      addEventListener() {},
+      addEventListener(type, callback) {
+        listeners.push({ type, callback });
+      },
     },
   });
   for (const path of [
@@ -43,7 +46,7 @@ function harness(fixture) {
     'session = { customer: { first_name: "<script>alert(1)</script>", role: fixture.role } }; request = async () => fixture;',
     ctx,
   );
-  return { ctx, element };
+  return { ctx, element, listeners };
 }
 function overview(role) {
   return {
@@ -99,4 +102,37 @@ test("web sales graph preserves zero days, ledger values and escaped product nam
   assert.match(html, /View daily figures/);
   assert.match(html, /&lt;img onerror=/);
   assert.doesNotMatch(html, /<img onerror=/);
+});
+
+test("web data view uses accessible segmented controls and refreshes the overview", async () => {
+  const { ctx, listeners } = harness(overview("admin"));
+  const html = await vm.runInContext("workspaceOverview()", ctx);
+  assert.match(html, /data-workspace-mode="live" aria-pressed="true"/);
+  assert.doesNotMatch(html, /id="workspace-mode"/);
+  vm.runInContext("show = async (tab) => {fixture.lastTab = tab}", ctx);
+  for (const listener of listeners.filter((l) => l.type === "click")) {
+    await listener.callback({
+      target: {
+        closest: (selector) =>
+          selector === "[data-workspace-mode]"
+            ? { dataset: { workspaceMode: "simulation" } }
+            : null,
+      },
+    });
+  }
+  assert.equal(vm.runInContext("workspaceMode", ctx), "simulation");
+  assert.equal(vm.runInContext("fixture.lastTab", ctx), "overview");
+});
+
+test("workflow counts reflect authorized queue data and escape order content", async () => {
+  const { ctx } = harness(overview("admin"));
+  vm.runInContext(
+    'request = async () => [{reference: "APP-1", status: "ready", fulfilment: "pickup", created_at: "2026-11-13T06:00:00Z", items: [{quantity: 1, name: "<script>cake</script>"}]}]',
+    ctx,
+  );
+  const html = await vm.runInContext('workflowBoard("kitchen")', ctx);
+  assert.match(html, /queue-pulse/);
+  assert.match(html, /<strong>1<\/strong><span>Kitchen complete/);
+  assert.match(html, /&lt;script&gt;cake/);
+  assert.doesNotMatch(html, /<script>cake/);
 });

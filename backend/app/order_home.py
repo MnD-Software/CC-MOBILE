@@ -1,7 +1,7 @@
 """Customer-owned home milestones and idempotent receipt acknowledgement."""
 from datetime import UTC, datetime
 from fastapi import APIRouter, Depends, HTTPException, Response
-from sqlalchemy import DateTime, ForeignKey, select, func
+from sqlalchemy import DateTime, ForeignKey, select, func, update
 from sqlalchemy.orm import Mapped, mapped_column, Session
 from .db import Base, get_db
 from .routes_club import member
@@ -40,11 +40,19 @@ def received(reference: str, actor=Depends(member), db: Session = Depends(get_db
     order = db.scalar(select(AppOrder).where(AppOrder.reference == reference, AppOrder.customer_id == actor.id).with_for_update())
     if not order:
         raise HTTPException(404, "Order not found")
+    db.execute(update(AppOrder).where(AppOrder.id == order.id).values(reference=order.reference))
+    db.refresh(order)
     if order.state != "completed" or order.payment_state != "completed":
         raise HTTPException(409, "You can acknowledge your order after delivery or collection is completed.")
     acknowledgement = db.get(OrderAcknowledgement, order.id)
     if not acknowledgement:
         acknowledgement = OrderAcknowledgement(order_id=order.id, received_at=datetime.now(UTC))
         db.add(acknowledgement)
+        from .notifications import enqueue
+        from .permissions import audit
+        audit(db, actor.id, "customer_receipt_confirmed", order.reference)
+        enqueue(db, actor.id, f"satisfaction:{order.id}", "satisfaction_request",
+            "How was your cake?", "Your cake, your celebration. Share a quick rating when you're ready.",
+            {"reference": order.reference}, remote=order.channel != "app_test" and order.environment == "live")
         db.commit()
     return {"reference": reference, "received": True, "received_at": acknowledgement.received_at}

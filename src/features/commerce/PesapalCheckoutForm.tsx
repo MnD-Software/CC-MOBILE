@@ -1,3 +1,4 @@
+import { env } from "@/config/env";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -336,7 +337,7 @@ function AppCheckout({ owner }: { owner: string }) {
     try {
       const current = appOrderSchema.parse(
         await api.post(
-          "/v1/app-orders",
+          env.reviewCheckout ? "/v1/review-checkout/orders" : "/v1/app-orders",
           { quote_id: attempt.current.quote_id },
           { auth: true, headers: { "Idempotency-Key": attempt.current.key } },
         ),
@@ -418,7 +419,9 @@ function AppCheckout({ owner }: { owner: string }) {
         setUnresolvedCreation(true);
         current = appOrderSchema.parse(
           await api.post(
-            "/v1/app-orders",
+            env.reviewCheckout
+              ? "/v1/review-checkout/orders"
+              : "/v1/app-orders",
             { quote_id: attempt.current.quote_id },
             { auth: true, headers: { "Idempotency-Key": attempt.current.key } },
           ),
@@ -436,6 +439,7 @@ function AppCheckout({ owner }: { owner: string }) {
           }),
         );
       }
+      if (current.payment_state === "completed") return;
       const result = await appOrders.start(current.reference);
       if (!alive.current) return;
       setOrder(result);
@@ -483,7 +487,11 @@ function AppCheckout({ owner }: { owner: string }) {
             />
           </View>
           <Text style={checkoutStyles.eyebrow}>
-            {isVerifiedPayment(order) ? "PAYMENT CONFIRMED" : "YOUR APP ORDER"}
+            {order.review_checkout
+              ? "ORDER CONFIRMED"
+              : isVerifiedPayment(order)
+                ? "PAYMENT CONFIRMED"
+                : "YOUR APP ORDER"}
           </Text>
           <Text style={[checkoutStyles.heroTitle, { color: colors.ink }]}>
             {isVerifiedPayment(order)
@@ -505,7 +513,13 @@ function AppCheckout({ owner }: { owner: string }) {
         {error ? <Notice error message={error} /> : null}
         {isVerifiedPayment(order) ? (
           <>
-            <Notice message="Thank you! Your cake is made to order. Follow preparation and fulfilment in Your orders, where your payment receipt is saved." />
+            <Notice
+              message={
+                order.review_checkout
+                  ? "Thank you! Your order is confirmed. Follow preparation and delivery in Your orders, where your order confirmation is saved."
+                  : "Thank you! Your cake is made to order. Follow preparation and fulfilment in Your orders, where your payment receipt is saved."
+              }
+            />
             <Button
               label="Continue shopping"
               onPress={() => {
@@ -679,7 +693,11 @@ function AppCheckout({ owner }: { owner: string }) {
           </View>
           <View style={checkoutStyles.secure}>
             <Ionicons name="lock-closed-outline" color="#FFFFFF" size={14} />
-            <Text style={checkoutStyles.heroMeta}>Secured by Pesapal</Text>
+            <Text style={checkoutStyles.heroMeta}>
+              {env.reviewCheckout
+                ? "Your next celebration starts here"
+                : "Secured by Pesapal"}
+            </Text>
           </View>
         </View>
       </LinearGradient>
@@ -1042,7 +1060,9 @@ function AppCheckout({ owner }: { owner: string }) {
               }
               label={
                 quote
-                  ? `Pay ${money(quote.total_minor / 100)}`
+                  ? env.reviewCheckout
+                    ? "Place order / KES 0 due now"
+                    : `Pay ${money(quote.total_minor / 100)}`
                   : "Review confirmed total"
               }
               loading={busy}

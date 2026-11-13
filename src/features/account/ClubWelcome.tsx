@@ -22,7 +22,7 @@ export function ClubWelcome({ name }: { name?: string }) {
   return (
     <View style={styles.shadow}>
       <LinearGradient
-        colors={["#32172D", "#672445", "#9E245F"]}
+        colors={["#261A34", "#6E255B", "#BD4885"]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.card}
@@ -36,7 +36,7 @@ export function ClubWelcome({ name }: { name?: string }) {
         </View>
         <Text style={styles.greeting}>
           {greeting}
-          {name?.trim() ? `,\n${name.trim()}.` : "."}
+          {name?.trim() ? `, ${name.trim()}.` : "."}
         </Text>
         <Text style={styles.copy}>
           Your celebrations. A little more rewarding.
@@ -56,7 +56,7 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     ...tokens.shadow.floating,
   },
-  card: { overflow: "hidden", borderRadius: 30, padding: 25, gap: 20 },
+  card: { overflow: "hidden", borderRadius: 30, padding: 22, gap: 12 },
   top: { flexDirection: "row", alignItems: "center", gap: 12 },
   eyebrow: {
     flex: 1,
@@ -77,8 +77,8 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.16)",
   },
   greeting: {
-    fontSize: 30,
-    lineHeight: 37,
+    fontSize: 26,
+    lineHeight: 33,
     fontWeight: "700",
     color: "#FFFFFF",
     letterSpacing: -0.8,

@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { LoadingImage as Image } from "@/components/ui/LoadingImage";
+import { Image } from "expo-image";
 import { router } from "expo-router";
 import { Pressable, StyleSheet, View } from "react-native";
 import { Text } from "@/components/ui/Typography";
@@ -43,7 +43,7 @@ export function ProfileAvatar({ size = 42 }: { size?: number }) {
     >
       {avatar?.kind === "photo" ? (
         <Image
-          cachePolicy="memory-disk"
+          cachePolicy="memory"
           contentFit="cover"
           source={{ uri: avatar.value }}
           style={[styles.photo, { borderRadius: radius - 2 }]}

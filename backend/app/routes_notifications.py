@@ -50,7 +50,9 @@ def push_status(actor=Depends(staff), db: Session = Depends(get_db)):
 
 @router.get("/v1/admin/order-reviews")
 def reviews(before: int | None = Query(default=None, gt=0), limit: int = Query(default=30, ge=1, le=100),
-            actor=Depends(staff), db: Session = Depends(get_db)):
+            actor=Depends(member), db: Session = Depends(get_db)):
+    if actor.role not in {"admin", "staff", "ecommerce_manager", "customer_service"}:
+        raise HTTPException(403, "Customer feedback access required.")
     query = select(OrderReview, AppOrder.reference).join(AppOrder, OrderReview.order_id == AppOrder.id)
     if before:
         query = query.where(OrderReview.order_id < before)
@@ -179,6 +181,9 @@ def submit_review(reference: str, data: ReviewInput, actor=Depends(member), db: 
         if row.rating != data.rating or row.comment != data.comment.strip():
             raise HTTPException(409, "Your review has already been submitted.")
         return review_view(row)
+    from .order_home import OrderAcknowledgement
+    if not db.get(OrderAcknowledgement, order.id):
+        raise HTTPException(409, "Confirm you have received your cake before sharing feedback.")
     row = OrderReview(order_id=order.id, customer_id=actor.id, rating=data.rating, comment=data.comment.strip(),
                       simulated=order.channel == "app_test" or order.environment != "live")
     db.add(row)

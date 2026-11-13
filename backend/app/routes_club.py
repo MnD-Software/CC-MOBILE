@@ -97,6 +97,13 @@ async def overview(customer: Customer = Depends(member), db: Session = Depends(g
             "created_at": e.created_at.isoformat(), **({"receipt_reference": e.order_id} if e.order_id and e.order_id.startswith("APP-") else {})} for e in entries],
         "coupons": [{"id": c.id, "points": c.points, "code": c.code if c.status == "issued" else None,
             "status": c.status, "request_key": c.request_key} for c in coupons]}
+    from .review_checkout import require_local_review, count_purchases
+    try:
+        require_local_review()
+    except HTTPException:
+        pass
+    else:
+        payload["journey"].update(purchase_count=count_purchases(db, customer.id), purchases_per_milestone=3)
     db.commit()
     return payload
 

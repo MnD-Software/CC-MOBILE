@@ -179,7 +179,11 @@ def task_view(db, task, history=False):
         "scheduled_at": commerce.utc(task.scheduled_at).isoformat() if task.scheduled_at else None,
         "slot": task.slot, "rider_id": task.rider_id,
         "rider_name": " ".join([rider.first_name, rider.last_name]) if rider else None,
-        "payment_test": order.channel == "app_test"}
+        "payment_test": order.channel == "app_test", "review_checkout": bool(order.snapshot.get("review_checkout")),
+        "delivery_notes": str(order.snapshot.get("checkout", {}).get("notes", ""))}
+    lines = {line.get("sku_id"): line for line in order.snapshot.get("lines", [])}
+    result["items"] = [{**item, "name": lines.get(item.get("sku_id"), {}).get("name", "Cake"),
+        "selection": lines.get(item.get("sku_id"), {}).get("selection", {})} for item in task.items]
     if history:
         result["events"] = [{"status": e.status, "note": e.note, "proof": e.proof,
             "at": commerce.utc(e.created_at).isoformat()} for e in db.scalars(select(LogisticsEvent).where(

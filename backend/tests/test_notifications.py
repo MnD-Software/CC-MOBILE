@@ -168,11 +168,24 @@ def test_review_requires_completed_owned_order_and_is_idempotent(delivery):
     assert s["client"].post(path, json={"rating": 5}).status_code == 404
     actor("buyer", "customer")
     assert s["client"].post(path, json={"rating": 6}).status_code == 422
+    assert s["client"].post(path, json={"rating": 5}).status_code == 409
+    received_path = f"/v1/app-orders/{s['reference']}/received"
+    assert s["client"].post(received_path).status_code == 200
+    assert s["client"].post(received_path).status_code == 200
+    detail = s["client"].get(f"/v1/app-orders/{s['reference']}").json()
+    assert detail["received_at"]
+    inbox = s["client"].get("/v1/account/notifications").json()
+    assert len([n for n in inbox if n["kind"] == "satisfaction_request"]) == 1
     for _ in range(2):
         result = s["client"].post(path, json={"rating": 5, "comment": " Lovely cake "})
         assert result.status_code == 200, result.text
         assert result.json()["rating"] == 5 and result.json()["comment"] == "Lovely cake"
     assert s["client"].post(path, json={"rating": 1}).status_code == 409
+    assert s["client"].get("/v1/admin/order-reviews").status_code == 403
+    actor("buyer", "customer_service")
+    assert s["client"].get("/v1/admin/order-reviews").json()[0]["rating"] == 5
+    actor("buyer", "dispatch")
+    assert s["client"].get("/v1/admin/order-reviews").status_code == 403
 
 
 def test_inbox_cursor_is_owner_scoped_with_same_second_events(system):

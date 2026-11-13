@@ -95,7 +95,7 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
   const [subfilter, setSubfilter] = useState("all");
   const [paneWidth, setPaneWidth] = useState(0);
   const [category, setCategory] = useState<number | undefined>();
-  const [sort, setSort] = useState<ShopSort>("popular");
+  const [sort, setSort] = useState<ShopSort>("price-asc");
   const [sheet, setSheet] = useState<ShopSheetMode | null>(null);
   const [budget, setBudget] = useState<Partial<ReturnType<typeof parseBudget>>>(
     {},
@@ -134,16 +134,24 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
   }, [search]);
 
   const selection = shopDepartments.find((item) => item.id === department)!;
-  const selectedCategories = debounced
-    ? undefined
-    : category
-      ? [category]
-      : selection.categories;
+  const selectedCategories =
+    debounced || department === "accessories"
+      ? undefined
+      : category
+        ? [category]
+        : selection.categories;
   const products = useInfiniteQuery({
     queryKey: [
       "catalogue",
       "shop-browse",
-      { search: debounced, categories: selectedCategories, sort, ...budget },
+      {
+        search: debounced,
+        categories: selectedCategories,
+        sort,
+        excludeAccessories: department === "all" && !debounced,
+        accessoriesOnly: department === "accessories",
+        ...budget,
+      },
     ],
     initialPageParam: 1,
     queryFn: ({ pageParam, signal }) =>
@@ -154,6 +162,8 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
           search: debounced,
           categories: selectedCategories,
           sort,
+          excludeAccessories: department === "all" && !debounced,
+          accessoriesOnly: department === "accessories",
           ...budget,
         },
         signal,
@@ -364,10 +374,10 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
                         active: sort !== "popular",
                       },
                       {
-                        id: "offers",
-                        label: "Offers",
+                        id: "deals",
+                        label: "Deals & Steals",
                         icon: "pricetag-outline",
-                        active: department === "offers",
+                        active: department === "deals",
                       },
                     ] as const
                   ).map((item) => (
@@ -381,14 +391,14 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
                             ? "Sort cakes"
                             : item.id === "categories"
                               ? "Choose categories"
-                              : "Browse offers"
+                              : "Browse deals & steals"
                       }
                       accessibilityState={{ selected: item.active }}
                       aria-selected={item.active}
                       onPress={() =>
-                        item.id === "offers"
+                        item.id === "deals"
                           ? selectDepartment(
-                              department === "offers" ? "all" : "offers",
+                              department === "deals" ? "all" : "deals",
                             )
                           : setSheet(item.id)
                       }

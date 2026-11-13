@@ -78,7 +78,13 @@ function Workspace({ owner }: { owner: string }) {
     </View>
   );
 }
-function Queue({ owner, canReply }: { owner: string; canReply: boolean }) {
+export function Queue({
+  owner,
+  canReply,
+}: {
+  owner: string;
+  canReply: boolean;
+}) {
   const ui = useThemedStyles(baseUi);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");

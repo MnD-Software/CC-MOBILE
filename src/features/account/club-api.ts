@@ -34,6 +34,8 @@ const club = z.object({
   journey: z
     .object({
       qualifying_spend_kes: z.number().nonnegative(),
+      purchase_count: z.number().int().nonnegative().optional(),
+      purchases_per_milestone: z.number().int().positive().optional(),
       lifetime_points: z.number().int().nonnegative(),
       milestones: z.array(
         z.object({ name: z.string(), spend_kes: z.number().nonnegative() }),

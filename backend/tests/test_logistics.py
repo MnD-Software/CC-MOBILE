@@ -202,3 +202,46 @@ def test_odoo_task_import_assigns_only_explicitly_linked_rider(delivery, monkeyp
     actor("rider", "rider")
     tasks = delivery["client"].get("/v1/rider/tasks").json()
     assert len(tasks) == 1 and tasks[0]["reference"] == delivery["reference"]
+
+
+def test_dispatch_can_create_scoped_rider_without_escalating_accounts(system):
+    from app.security import verify_password
+    actor("buyer", "customer")
+    payload = dict(email="new-rider@example.com", first_name="New", last_name="Rider", phone="0712345678", password="RiderReviewPassword!", role="admin")
+    assert system["client"].post("/v1/logistics/riders", json=payload).status_code == 403
+    actor("buyer", "dispatch")
+    response = system["client"].post("/v1/logistics/riders", json=payload)
+    assert response.status_code == 201, response.text
+    result = response.json()
+    assert set(result) == {"id", "name", "role"} and result["role"] == "rider"
+    with Session(system["engine"]) as db:
+        created = db.get(Customer, result["id"])
+        assert verify_password(payload["password"], created.password_hash)
+        assert created.password_hash != payload["password"]
+        assert list(db.scalars(select(LogisticsScope.plant).where(LogisticsScope.customer_id == created.id))) == ["hq"]
+        assert db.get(Customer, "buyer").role == "customer"
+    assert system["client"].post("/v1/logistics/riders", json=payload).status_code == 409
+    payload["email"] = "buyer@example.com"
+    assert system["client"].post("/v1/logistics/riders", json=payload).status_code == 409
+    actor("buyer", "branch_dispatch")
+    payload["email"] = "unscoped@example.com"
+    assert system["client"].post("/v1/logistics/riders", json=payload).status_code == 403
+
+
+def test_created_rider_accepts_only_their_assigned_delivery(delivery):
+    s = delivery
+    assign(s)
+    actor("buyer", "dispatch")
+    response = s["client"].post("/v1/logistics/riders", json=dict(email="assigned-rider@example.com", first_name="Assigned", last_name="Rider", phone="0712345678", password="AssignedRiderPassword!"))
+    assert response.status_code == 201, response.text
+    rider_id = response.json()["id"]
+    response = s["client"].post(f"/v1/logistics/orders/{s['reference']}/tasks", json={"rider_id": rider_id})
+    assert response.status_code == 201, response.text
+    task = response.json()
+    actor(rider_id, "rider")
+    rows = s["client"].get("/v1/rider/tasks").json()
+    assert len(rows) == 1 and rows[0]["items"][0]["name"] == "Test cake"
+    assert rows[0]["destination"] and rows[0]["recipient"] and rows[0]["phone"]
+    accepted = s["client"].patch(f"/v1/rider/tasks/{task['id']}", json={"revision": task["revision"], "status": "accepted"})
+    assert accepted.status_code == 200 and accepted.json()["status"] == "accepted"
+    assert s["client"].get("/v1/logistics/riders").status_code == 403

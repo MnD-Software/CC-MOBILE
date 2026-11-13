@@ -5,7 +5,7 @@ import re
 import unicodedata
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 
 from .commerce_models import AppMedia, AppPage, AppProduct
@@ -72,6 +72,14 @@ def product_view(row):
     return value
 
 
+def is_accessory(row):
+    import re
+    categories = row.payload.get("categories", [])
+    if any(c.get("id") == 109 or re.search(r"accessor|party item|candle|balloon|decor|topper|tableware", str(c.get("name", "")), re.I) for c in categories):
+        return True
+    return bool(re.search(r"candle|sparkler|balloon|topper|napkin|paper plate|party banner|confetti|cutlery", str(row.payload.get("name", "")), re.I))
+
+
 def products(db, params):
     query = select(AppProduct)
     if params.get("slug"):
@@ -81,6 +89,10 @@ def products(db, params):
         query = query.where(AppProduct.id.in_(ids))
     query = query.where(AppProduct.parent_id.is_not(None) if params.get("type") == "variation" else AppProduct.parent_id.is_(None))
     rows = [r for r in db.scalars(query) if not r.payload.get("payment_test")]
+    if str(params.get("exclude_accessories", "")).lower() == "true":
+        rows = [row for row in rows if not is_accessory(row)]
+    if str(params.get("accessories_only", "")).lower() == "true":
+        rows = [row for row in rows if is_accessory(row)]
     if params.get("type") == "variation":
         rows = [r for r in rows if r.parent_id is not None]
     else:
@@ -100,7 +112,9 @@ def products(db, params):
             rows = [r for r in rows if r.price_minor is not None and predicate(r.price_minor, int(params[name]))]
     orderby = params.get("orderby", "id")
     if orderby == "price":
-        key = lambda r: (r.price_minor if r.price_minor is not None else 2_000_000_000, r.id)
+        child_prices = dict(db.execute(select(AppProduct.parent_id, func.min(AppProduct.price_minor)).where(
+            AppProduct.parent_id.is_not(None), AppProduct.enabled.is_(True), AppProduct.price_minor.is_not(None)).group_by(AppProduct.parent_id)).all())
+        key = lambda r: (r.price_minor if r.price_minor is not None else child_prices.get(r.id, 2_000_000_000), r.id)
     elif orderby == "title":
         key = lambda r: (str(r.payload.get("name", "")).casefold(), r.id)
     elif orderby == "popularity":

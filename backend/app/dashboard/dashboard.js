@@ -346,7 +346,7 @@ async function workflowBoard(stage) {
           ? `<button data-assign="${esc(o.reference)}">Assign remaining items to rider</button>`
           : `<p>Confirm the production location in Kitchen before assigning a rider.</p>`;
       }
-      return `<section class="panel" data-work="${esc(o.reference)}">${pill(o.status, true)} ${o.payment_test ? pill("SIMULATED TEST") : ""}<h2>${esc(o.reference)}</h2><p>${esc(date(o.created_at))} / ${esc(o.fulfilment)} / ${esc(o.plant || "Production unassigned")}</p>${o.items.map((l) => `<h3>${esc(l.quantity)} × ${esc(l.name)}</h3><p>${esc(l.selection?.size || "")} ${(l.selection?.variation_attributes || []).map((a) => `${esc(a.attribute)}: ${esc(a.value)}`).join(" / ")}</p><p>${esc(l.selection?.message || "")}</p>`).join("")}<div class="workflow-actions">${canOperate() ? `<button data-order-details="${esc(o.reference)}">Customer details & tracking</button>` : ""}${actions}</div></section>`;
+      return `<section class="panel workflow-card" data-state="${esc(o.status)}" data-work="${esc(o.reference)}">${pill(o.status, true)} ${o.payment_test && !o.review_checkout ? pill("SIMULATED TEST") : ""}<h2>${esc(o.reference)}</h2><p>${esc(date(o.created_at))} / ${esc(o.fulfilment)} / ${esc(o.plant || "Production unassigned")}</p>${o.items.map((l) => `<h3>${esc(l.quantity)} × ${esc(l.name)}</h3><p>${esc(l.selection?.size || "")} ${(l.selection?.variation_attributes || []).map((a) => `${esc(a.attribute)}: ${esc(a.value)}`).join(" / ")}</p><p>${esc(l.selection?.message || "")}</p>`).join("")}<div class="workflow-actions">${canOperate() ? `<button data-order-details="${esc(o.reference)}">Customer details & tracking</button>` : ""}${actions}</div></section>`;
     })
     .join("");
   const next = {
@@ -362,10 +362,21 @@ async function workflowBoard(stage) {
       const action = next[t.status];
       const button = (status, label) =>
         `<button data-trip="${esc(t.id)}" data-revision="${t.revision}" data-status="${status}">${label}</button>`;
-      return `<section class="panel" data-trip-card="${esc(t.id)}">${pill(t.status)}<h2>${esc(t.reference)}</h2><p>${esc(t.rider_name)} / ${esc(t.destination)}</p><p>${esc(t.recipient)} / ${esc(t.phone)}</p><div class="workflow-actions">${action ? button(...action) : ""}${t.status === "failed" ? button("rescheduled", "Retry delivery") : button("failed", "Report delivery issue")}${["assigned", "accepted", "rescheduled", "failed"].includes(t.status) ? button("cancelled", "Cancel trip") : ""}</div></section>`;
+      return `<section class="panel workflow-card trip-card" data-state="${esc(t.status)}" data-trip-card="${esc(t.id)}">${pill(t.status)}<h2>${esc(t.reference)}</h2><p>${esc(t.rider_name)} / ${esc(t.destination)}</p><p>${esc(t.recipient)} / ${esc(t.phone)}</p><div class="workflow-actions">${action ? button(...action) : ""}${t.status === "failed" ? button("rescheduled", "Retry delivery") : button("failed", "Report delivery issue")}${["assigned", "accepted", "rescheduled", "failed"].includes(t.status) ? button("cancelled", "Cancel trip") : ""}</div></section>`;
     })
     .join("");
-  return `<button data-action="retry">Refresh queue</button><p>Assignments reach the rider's login. Customer tracking and notifications update as the kitchen and rider progress.</p><div class="cards">${cards || empty("Queue is clear", "Orders appear here when they reach this stage.")}</div>${!kitchen ? `<h2>Active rider trips</h2><div class="cards">${tripCards || empty("No active trips", "Assign a provisioned rider to begin dispatch.")}</div>` : ""}`;
+  const stages = kitchen
+    ? [
+        ["paid", "Awaiting preparation"],
+        ["preparing", "In the kitchen"],
+        ["ready", "Kitchen complete"],
+      ]
+    : [
+        ["ready", "Ready for handover"],
+        ["out_for_delivery", "On the road"],
+      ];
+  const pulse = `<div class="queue-pulse">${stages.map(([status, label], i) => `<div><span class="queue-step">0${i + 1}</span><strong>${rows.filter((o) => o.status === status).length}</strong><span>${label}</span></div>`).join("")}${!kitchen ? `<div><span class="queue-step">LIVE</span><strong>${tasks.filter((t) => !["delivered", "cancelled"].includes(t.status)).length}</strong><span>Active rider trips</span></div>` : ""}</div>`;
+  return `<section class="queue-heading"><div><span class="eyebrow">${kitchen ? "CRAFT & CARE" : "THE LAST MILE"}</span><h2>${kitchen ? "Every cake, made with care." : "Great moments. Delivered."}</h2><p>${rows.length} orders in this queue, ready for the next step.</p></div><button class="primary" data-action="retry">Refresh queue</button></section>${pulse}<p>Assignments reach the rider's login. Customer tracking and notifications update as the kitchen and rider progress.</p><div class="cards">${cards || empty("Queue is clear", "Orders appear here when they reach this stage.")}</div>${!kitchen ? `<h2>Active rider trips</h2><div class="cards">${tripCards || empty("No active trips", "Assign a provisioned rider to begin dispatch.")}</div>` : ""}`;
 }
 const views = {
   async kitchen() {
@@ -380,7 +391,7 @@ const views = {
       ["Reference", "Kind", "Total", "State", ""],
       orders.map(
         (o) =>
-          `<tr><td>${esc(o.reference)}</td><td>${o.payment_test ? pill("SIMULATED - NO CHARGE") : esc(o.environment)}</td><td>${money(o.total_minor)}</td><td>${pill(o.payment_state, o.payment_state === "completed")}</td><td><button data-order-details="${esc(o.reference)}">View details</button></td></tr>`,
+          `<tr><td>${esc(o.reference)}</td><td>${o.payment_test && !o.review_checkout ? pill("SIMULATED - NO CHARGE") : esc(o.environment)}</td><td>${money(o.total_minor)}</td><td>${pill(o.payment_state, o.payment_state === "completed")}</td><td><button data-order-details="${esc(o.reference)}">View details</button></td></tr>`,
       ),
     );
   },
@@ -491,7 +502,7 @@ const views = {
         ? table(
             ["App order", "Total", "Payment", "Fulfilment", ""],
             rows.map((o) => {
-              return `<tr><td><strong>${esc(o.reference)}</strong>${o.payment_test ? pill("SIMULATED TEST") : ""}<button data-order-details="${esc(o.reference)}">View details and tracking</button><small>${esc(date(o.created_at))}</small></td><td>${money(o.total_minor)}</td><td>${pill(o.payment_state, o.payment_state === "completed")}</td><td>${pill(o.status)}</td><td>${orderActions(o)}</td></tr>`;
+              return `<tr><td><strong>${esc(o.reference)}</strong>${o.payment_test && !o.review_checkout ? pill("SIMULATED TEST") : ""}<button data-order-details="${esc(o.reference)}">View details and tracking</button><small>${esc(date(o.created_at))}</small></td><td>${money(o.total_minor)}</td><td>${pill(o.payment_state, o.payment_state === "completed")}</td><td>${pill(o.status)}</td><td>${orderActions(o)}</td></tr>`;
             }),
           )
         : empty(
@@ -910,7 +921,7 @@ document.addEventListener("click", async (e) => {
           .join("");
       openEditor(
         o.reference,
-        `<div class="full"><h3>${esc(o.status.replaceAll("_", " "))} - ${money(o.total_minor)}</h3><p>Payment: ${esc(o.payment_state)} / ${o.payment_test ? "SIMULATED TEST - NO MONEY CHARGED" : esc(o.environment)}</p>${o.dispatch ? `<h3>Assigned rider</h3>${entries(o.dispatch)}` : ""}<h3>Customer and fulfilment</h3>${entries(o.snapshot?.checkout || {})}<h3>Products and variations</h3>${(o.snapshot?.lines || []).map((l) => `<section class="panel"><strong>${esc(l.quantity)} x ${esc(l.name)}</strong><p>Product ${esc(l.product_id)} / SKU ${esc(l.sku_id)} / ${money(l.line_minor)}</p>${entries(l.selection || {})}</section>`).join("")}<h3>Delivery route and charge</h3>${entries(o.snapshot?.route || {})}<h3>Tracking history</h3><p>Order received / ${esc(date(o.created_at))}</p>${(o.events || []).map((e) => `<p>${esc(e.kind.replaceAll("_", " "))} / ${esc(date(e.created_at))}</p>`).join("")}</div>`,
+        `<div class="full"><h3>${esc(o.status.replaceAll("_", " "))} - ${money(o.total_minor)}</h3><p>Payment: ${esc(o.payment_state)} / ${o.review_checkout ? "KES 0 collected" : o.payment_test ? "SIMULATED TEST - NO MONEY CHARGED" : esc(o.environment)}</p>${o.dispatch ? `<h3>Assigned rider</h3>${entries(o.dispatch)}` : ""}<h3>Customer and fulfilment</h3>${entries(o.snapshot?.checkout || {})}<h3>Products and variations</h3>${(o.snapshot?.lines || []).map((l) => `<section class="panel"><strong>${esc(l.quantity)} x ${esc(l.name)}</strong><p>Product ${esc(l.product_id)} / SKU ${esc(l.sku_id)} / ${money(l.line_minor)}</p>${entries(l.selection || {})}</section>`).join("")}<h3>Delivery route and charge</h3>${entries(o.snapshot?.route || {})}<h3>Customer receipt</h3><p>${o.received_at ? `Confirmed ${esc(date(o.received_at))}` : "Awaiting customer acknowledgement"}</p><h3>Tracking history</h3><p>Order placed / ${esc(date(o.created_at))}</p>${(o.events || []).map((e) => `<p>${esc(e.kind.replaceAll("_", " "))} / ${esc(date(e.created_at))}</p>`).join("")}</div>`,
         null,
         true,
       );

@@ -59,10 +59,14 @@ async def catalogue_products(
     max_price: int | None = Query(default=None, ge=0),
     on_sale: str | None = Query(default=None, pattern="^(true|false)$"),
     category_operator: str | None = Query(default=None, pattern="^in$"),
+    exclude_accessories: bool = False,
+    accessories_only: bool = False,
     accept_encoding: str = Header(default=""),
     db: Session = Depends(get_db),
 ):
     params: dict[str, str | int] = {"page": page, "per_page": per_page}
+    if exclude_accessories: params["exclude_accessories"] = "true"
+    if accessories_only: params["accessories_only"] = "true"
     if category is not None:
         params["category"] = category
     if search:

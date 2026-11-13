@@ -12,6 +12,7 @@ function homeSearch() {
   const jsx = (type, props) => ({ type, props });
   const modules = {
     react: {
+      useRef: () => ({ current: { blur() {} } }),
       useState: (initial) =>
         typeof initial === "boolean"
           ? [false, () => {}]
@@ -25,11 +26,13 @@ function homeSearch() {
     "./SearchPredictions": { SearchPredictions: "Predictions" },
     "react/jsx-runtime": { jsx, jsxs: jsx },
     "react-native": {
+      Keyboard: { dismiss() {} },
       Pressable: "Pressable",
       TextInput: "TextInput",
       View: "View",
       StyleSheet: { create: (styles) => styles },
     },
+    "@/components/ui/Typography": { Text: "Text" },
     "@expo/vector-icons": { Ionicons: "Icon" },
     "expo-router": { router: { navigate: (route) => routes.push(route) } },
     "@/components/storefront/GlassSurface": { GlassSurface: "Surface" },
@@ -56,11 +59,15 @@ function homeSearch() {
     ).outputText,
     context,
   );
-  function find(node, type) {
+  function find(node, type, label) {
     if (!node || typeof node !== "object") return undefined;
-    if (node.type === type) return node;
+    if (
+      node.type === type &&
+      (!label || node.props.accessibilityLabel === label)
+    )
+      return node;
     for (const child of [node.props?.children].flat()) {
-      const found = find(child, type);
+      const found = find(child, type, label);
       if (found) return found;
     }
   }
@@ -75,7 +82,11 @@ function homeSearch() {
       find(tree, "TextInput").props.onChangeText(value);
       render();
     },
-    press: () => find(tree, "Pressable").props.onPress(),
+    press: () => find(tree, "Pressable", "Search products").props.onPress(),
+    cancel: () => {
+      find(tree, "Pressable", "Cancel search").props.onPress();
+      render();
+    },
   };
 }
 
@@ -103,4 +114,12 @@ test("Home search button opens results, clears a previous query and supports rep
   ui.press();
   assert.equal(ui.routes[2].params.search, "");
   assert.equal(ui.routes[2].params.focus, "1");
+});
+
+test("Cancel search clears the query without navigating", () => {
+  const ui = homeSearch();
+  ui.type("Vanilla");
+  ui.cancel();
+  assert.equal(ui.input().value, "");
+  assert.equal(ui.routes.length, 0);
 });

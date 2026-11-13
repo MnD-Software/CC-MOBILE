@@ -132,7 +132,7 @@ test("opening a category shows its whole range before applying flavour subfilter
   );
 });
 
-test("original custom, pound and deals categories keep their exact category selection", () => {
+test("custom and pound retain their categories while Deals & Steals includes offers", () => {
   for (const [category, department] of [
     [123, "custom"],
     [170, "pound"],
@@ -141,7 +141,7 @@ test("original custom, pound and deals categories keep their exact category sele
     assert.equal(departmentForCategory(category), department);
     assert.deepEqual(
       shopDepartments.find((d) => d.id === department).categories,
-      [category],
+      department === "deals" ? [206, 98] : [category],
     );
     assert.equal(
       matchesShopSelection(product("Cake", [category]), department, "all"),
@@ -154,6 +154,6 @@ test("original custom, pound and deals categories keep their exact category sele
   }
   assert.equal(
     matchesShopSelection(product("Other offer", [98]), "deals", "all"),
-    false,
+    true,
   );
 });

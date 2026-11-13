@@ -222,6 +222,7 @@ export function OrdersHistoryScreen() {
             ))}
           </View>
           <Disclosure
+            closeOnChange={filters}
             title={
               filtered ? "Filters applied · change" : "Filter by date or cake"
             }
@@ -425,7 +426,15 @@ export function OrdersHistoryScreen() {
                     acknowledge.isPending &&
                     acknowledge.variables === order.reference
                   }
-                  onPress={() => acknowledge.mutate(order.reference)}
+                  onPress={() =>
+                    acknowledge.mutate(order.reference, {
+                      onSuccess: () =>
+                        router.push({
+                          pathname: "/order/[reference]",
+                          params: { reference: order.reference },
+                        }),
+                    })
+                  }
                 />
               ) : null}
             </View>

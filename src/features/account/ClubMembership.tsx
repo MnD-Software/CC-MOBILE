@@ -149,7 +149,7 @@ export function ClubMembership({
           />
           <SuccessBurst trigger={celebrationTrigger} />
           <View
-            style={{ gap: 12, paddingVertical: 12 }}
+            style={{ gap: 12, padding: 20, borderRadius: 24, backgroundColor: colors.surfaceRaised }}
             testID="club-next-reward"
           >
             <Text

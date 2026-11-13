@@ -4,6 +4,8 @@ Updated: 12 November 2026, Africa/Nairobi. Owner request: independent Cake City 
 
 ## Read this first when continuing
 
+See `docs/UPGRADE_HANDOFF_2026-11-13.md` for the newer native module completion, local no-charge review, authorized local dispatch account provisioning, customer receipt/satisfaction follow-up and current validation evidence.
+
 1. Read this file, `AGENTS.md`, `docs/APP_DASHBOARD.md`, and the latest git diff/status. Do not overwrite work in progress.
 2. Read https://docs.expo.dev/versions/v57.0.0/ before changing Expo code, as required by the repository. Check the installed versions rather than assuming the docs reference is the installed SDK.
 3. Preserve customer Shop layout, checkout, Pesapal reconciliation, order receipt confirmation, Club and tracking. Never initiate a real charge to test changes. Keep simulation revenue separate from verified real sales.

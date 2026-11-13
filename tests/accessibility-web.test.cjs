@@ -66,7 +66,16 @@ test("appearance and disclosure expose checked and expanded state through the re
   const Disclosure = component(
     "src/components/ui/Disclosure.tsx",
     "Disclosure",
-    { useTheme: () => ({ colors: {} }) },
+    {
+      useTheme: () => ({ colors: {} }),
+      useSafeAreaInsets: () => ({ bottom: 0 }),
+      useRef: React.useRef,
+      useEffect: React.useEffect,
+      Modal: () => null,
+      KeyboardAvoidingView: View,
+      ScrollView: View,
+      Platform: { OS: "web" },
+    },
   );
   assert.match(
     renderToStaticMarkup(

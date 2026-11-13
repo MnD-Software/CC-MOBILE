@@ -22,7 +22,7 @@ export function PaymentConfetti({ onComplete }: { onComplete: () => void }) {
     }
     const animation = Animated.timing(motion, {
       toValue: 1,
-      duration: 2600,
+      duration: 4400,
       easing: Easing.linear,
       useNativeDriver: Platform.OS !== "web",
       isInteraction: false,

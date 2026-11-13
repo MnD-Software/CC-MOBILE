@@ -68,4 +68,7 @@ def create_app():
     def status():
         return {"local_preview": True, "database": "isolated", "live_integrations": False}
 
+    from .review_checkout import router as review_router
+    app.include_router(review_router)
+
     return app

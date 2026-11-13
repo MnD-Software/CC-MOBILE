@@ -99,20 +99,26 @@ export const shopDepartments = [
   {
     id: "deals",
     name: "Deals & Steals",
-    categories: [206],
+    categories: [206, 98],
     image: appMedia(
       "https://i0.wp.com/cakecity.co.ke/wp-content/uploads/2026/10/WhatsApp-Image-2026-10-06-at-13.24.30.webp?fit=1254%2C1254&ssl=1",
     ),
     filters: [{ id: "all", label: "All deals & steals" }],
   },
   {
-    id: "offers",
-    name: "Offers",
-    categories: [206, 98],
+    id: "accessories",
+    name: "Accessories",
+    categories: [],
     image: appMedia(
-      "https://i0.wp.com/cakecity.co.ke/wp-content/uploads/2026/10/WhatsApp-Image-2026-10-06-at-13.24.30.webp?fit=1254%2C1254&ssl=1",
+      "https://i0.wp.com/cakecity.co.ke/wp-content/uploads/2024/08/party.jpg?fit=520%2C520&ssl=1",
     ),
-    filters: [{ id: "all", label: "All offers" }],
+    filters: [
+      { id: "all", label: "Party essentials" },
+      { id: "candles", label: "Candles & sparklers" },
+      { id: "toppers", label: "Cake toppers" },
+      { id: "balloons", label: "Balloons & decor" },
+      { id: "tableware", label: "Party tableware" },
+    ],
   },
 ] as const;
 export type ShopDepartmentId = (typeof shopDepartments)[number]["id"];
@@ -129,7 +135,8 @@ export function departmentForCategory(id?: number): ShopDepartmentId {
         171: "cheesecakes",
         110: "cupcakes",
         206: "deals",
-        98: "offers",
+        98: "deals",
+        109: "accessories",
       } as Record<number, ShopDepartmentId>
     )[id ?? 0] ?? "all"
   );
@@ -178,8 +185,21 @@ export function matchesShopSelection(
       has(110) &&
       (filter === "all" || new RegExp(`\\b${filter}\\b`, "i").test(details))
     );
-  if (department === "offers") return has(206) || has(98);
-  if (department === "deals") return has(206);
+  if (department === "deals") return has(206) || has(98);
+  if (department === "accessories")
+    return (
+      filter === "all" ||
+      new RegExp(
+        filter === "candles"
+          ? "candle|sparkler"
+          : filter === "toppers"
+            ? "topper"
+            : filter === "balloons"
+              ? "balloon|banner|decor"
+              : "plate|cup|napkin|table|cutlery",
+        "i",
+      ).test(details)
+    );
   if (department === "custom") return has(123);
   if (department === "pound") return has(170);
   return true;

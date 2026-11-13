@@ -1,3 +1,4 @@
+import { MomentHero } from "@/components/storefront/MomentHero";
 import { useEffect, useRef, useState } from "react";
 import { View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -280,25 +281,11 @@ export default function CelebrationBuilder() {
     Number(guests) <= 999;
   return (
     <Screen back>
-      <View style={{ flexDirection: "row", gap: 14, alignItems: "center" }}>
-        <CelebrationArtwork size={88} />
-        <View style={{ flex: 1, gap: 5 }}>
-          <Text style={{ color: colors.ink, fontSize: 25, fontWeight: "800" }}>
-            {params.name ? `For ${params.name}` : "Build a happy moment"}
-          </Text>
-          <Text style={{ color: colors.muted }}>
-            Your cake. Your budget. A little magic.
-          </Text>
-        </View>
-      </View>
-      <Text style={{ color: colors.brandStrong, fontWeight: "700" }}>
-        Step {selected ? 3 : step + 1} of 3 ·{" "}
-        {selected
-          ? "Make it yours"
-          : step
-            ? "Choose your cake"
-            : "Your occasion"}
-      </Text>
+      <MomentHero
+        name={params.name}
+        step={selected ? 2 : step}
+        title="Build a happy moment"
+      />
       {!step ? (
         <>
           <Section title="What are we celebrating?" />

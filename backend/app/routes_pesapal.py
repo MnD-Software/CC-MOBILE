@@ -146,7 +146,7 @@ def receipt(reference: str, customer: Customer = Depends(member), db: Session = 
     if not order.paid_at:
         raise HTTPException(409, "A receipt is available only after verified payment.")
     return {**commerce.order_view(order), "receipt_reference": "RCPT-" + order.reference,
-            "notice": "SIMULATED TEST receipt. No money charged." if order.channel == "app_test" else "Payment receipt. Fiscal tax invoicing is a separate integration.",
+            "notice": "Order confirmation. Amount collected: KES 0." if order.snapshot.get("review_checkout") else "SIMULATED TEST receipt. No money charged." if order.channel == "app_test" else "Payment receipt. Fiscal tax invoicing is a separate integration.",
             "payment_reversed": order.payment_state == "reversed"}
 
 

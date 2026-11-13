@@ -8,9 +8,11 @@ export function orderTracking(order: AppOrder) {
   return [
     { label: "Order received", at: order.created_at },
     {
-      label: order.payment_test
-        ? "Test purchase confirmed (no charge)"
-        : "Payment verified",
+      label: order.review_checkout
+        ? "Order confirmed"
+        : order.payment_test
+          ? "Test purchase confirmed (no charge)"
+          : "Payment verified",
       at: order.paid_at,
     },
     { label: "Preparing your order", at: events.get("fulfilment_preparing") },

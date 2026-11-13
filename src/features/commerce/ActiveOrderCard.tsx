@@ -84,6 +84,7 @@ export function ActiveOrderCard({ compact = false }: { compact?: boolean }) {
         queryKey: ["app-orders"],
       });
       setIndex(0);
+      open();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Please try again.");
     } finally {
@@ -268,9 +269,7 @@ export function ActiveOrderCard({ compact = false }: { compact?: boolean }) {
         >
           <Text style={{ color: "#F8D6E8", fontSize: 11 }}>
             Update {Math.min(index + 1, items.length)} of {items.length}
-            {(orders.data?.total ?? 0) > items.length
-              ? " (latest)"
-              : ""}
+            {(orders.data?.total ?? 0) > items.length ? " (latest)" : ""}
           </Text>
           <Pressable
             accessibilityRole="button"

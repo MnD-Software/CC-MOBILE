@@ -1,6 +1,6 @@
-import { useState } from "react";
-import { Linking, Pressable, ScrollView, View } from "react-native";
-import { Redirect, router } from "expo-router";
+import { useEffect, useState } from "react";
+import { BackHandler, Pressable, ScrollView, View } from "react-native";
+import { Redirect, router, useLocalSearchParams } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
@@ -11,13 +11,14 @@ import { Text } from "@/components/ui/Typography";
 import { Feedback, Notice, Screen } from "@/components/ui/Commerce";
 import { useTheme } from "@/theme/ThemeProvider";
 import { useScreenActive } from "@/design/useScreenActive";
-import { env } from "@/config/env";
 import {
   getStaffOverview,
   staffDateRange,
   type StaffOverview,
 } from "./contracts";
 import { StaffRecords } from "./StaffRecords";
+import { env } from "@/config/env";
+import { NativeStaffModule } from "./NativeStaffModule";
 
 const cash = (minor: number) =>
   `KES ${(minor / 100).toLocaleString("en-KE", { maximumFractionDigits: 2 })}`;
@@ -37,8 +38,25 @@ export function StaffWorkspaceScreen() {
   const { colors } = useTheme();
   const active = useScreenActive();
   const [days, setDays] = useState(7);
-  const [mode, setMode] = useState<"live" | "simulation">("live");
+  const [mode, setMode] = useState<"live" | "simulation">(
+    env.reviewCheckout ? "simulation" : "live",
+  );
   const [section, setSection] = useState("overview");
+  const params = useLocalSearchParams<{ module?: string }>();
+  useEffect(() => {
+    if (params.module) {
+      setSection(params.module);
+      router.setParams({ module: undefined });
+    }
+  }, [params.module]);
+  useEffect(() => {
+    if (section === "overview") return;
+    const listener = BackHandler.addEventListener("hardwareBackPress", () => {
+      setSection("overview");
+      return true;
+    });
+    return () => listener.remove();
+  }, [section]);
   const range = staffDateRange(days);
   const query = useQuery({
     queryKey: ["staff-overview", customer?.id, range, mode],
@@ -52,8 +70,6 @@ export function StaffWorkspaceScreen() {
   if (customer && !isStaffRole(customer.role))
     return <Redirect href="/(tabs)" />;
   const data = query.data;
-  const openWeb = () =>
-    void Linking.openURL(`${env.apiUrl.replace(/\/$/, "")}/admin`);
   const open = (id: string) => {
     if (["kitchen", "dispatch", "rider"].includes(id)) {
       router.push(
@@ -79,9 +95,30 @@ export function StaffWorkspaceScreen() {
     ) {
       setSection(id);
     } else {
-      openWeb();
+      setSection(id);
     }
   };
+  if (section !== "overview" && section !== "sales")
+    return (
+      <Screen
+        title={
+          data?.modules.find((m) => m.id === section)?.label ?? "Workspace"
+        }
+        right={
+          <Button
+            label="Overview"
+            size="sm"
+            variant="ghost"
+            onPress={() => setSection("overview")}
+          />
+        }
+      >
+        <NativeStaffModule
+          key={`${customer?.id}-${section}`}
+          module={section}
+        />
+      </Screen>
+    );
   return (
     <Screen
       title="Cake City workspace"
@@ -161,14 +198,14 @@ export function StaffWorkspaceScreen() {
           onPress={() => setMode("live")}
         />
         <Button
-          label="Simulation review"
+          label="Review orders"
           size="sm"
           variant={mode === "simulation" ? "secondary" : "ghost"}
           onPress={() => setMode("simulation")}
         />
       </View>
       {mode === "simulation" ? (
-        <Notice message="Simulation workload only. No simulation purchases are counted as live sales." />
+        <Notice message="Orders in review / KES 0 collected. These are separate from live sales." />
       ) : null}
       {query.isPending || restoring ? (
         <Feedback loading />
@@ -412,15 +449,9 @@ export function StaffWorkspaceScreen() {
           )}
         </>
       ) : null}
-      <Button
-        label="Open full web console"
-        variant="outline"
-        onPress={openWeb}
-      />
       <Text style={{ color: colors.muted, fontSize: 11, lineHeight: 18 }}>
-        Mobile and web use the same operational data. The web console requires
-        its own sign-in with your staff account. Periods use Kenyan time; queues
-        show the current backlog.
+        All department tools open here in the app. Periods use Kenyan time;
+        queues show your current workload.
       </Text>
     </Screen>
   );

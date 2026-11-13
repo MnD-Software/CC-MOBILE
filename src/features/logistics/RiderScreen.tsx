@@ -129,7 +129,7 @@ function TripCard({ task }: { task: Trip }) {
     <View style={ui.panel} testID={`trip-${task.id}`}>
       <Text style={ui.heading}>{task.reference}</Text>
       <Text style={ui.eyebrow}>{task.status.replaceAll("_", " ")}</Text>
-      {task.payment_test ? (
+      {task.payment_test && !task.review_checkout ? (
         <Notice message="SIMULATED TEST — no physical delivery or payment is required." />
       ) : null}
       <Text style={ui.body}>
@@ -143,6 +143,20 @@ function TripCard({ task }: { task: Trip }) {
       </Text>
       <Text>{task.recipient}</Text>
       <Text>{task.destination}</Text>
+      {task.delivery_notes ? (
+        <Text style={ui.body}>{task.delivery_notes}</Text>
+      ) : null}
+      {task.items.map((item, index) => (
+        <View key={index} style={{ gap: 5, paddingVertical: 12 }}>
+          <Text style={ui.heading}>
+            {item.quantity} x {item.name ?? "Cake"}
+          </Text>
+          <Text style={ui.body}>
+            {String(item.selection?.size ?? "")}{" "}
+            {String(item.selection?.message ?? "")}
+          </Text>
+        </View>
+      ))}
       <RiderLocationSharing taskId={task.id} status={task.status} />
       <Text style={ui.body}>
         {task.items.reduce((total, item) => total + item.quantity, 0)} item(s)

@@ -191,7 +191,10 @@ def issue(db, reference, kind, channel="app"):
         db.add(CommerceIssue(id=str(uuid4()), reference=reference, kind=kind, channel=channel))
 
 
-def place(db, customer_id, quote_id, request_key, account_id, environment):
+def place(db, customer_id, quote_id, request_key, account_id, environment, *, review=False):
+    if review:
+        from .review_checkout import require_local_review
+        require_local_review()
     from .models import Customer
     from .customer_lifecycle import ClosedAccount
     db.scalar(select(Customer).where(Customer.id == customer_id).with_for_update())
@@ -209,6 +212,8 @@ def place(db, customer_id, quote_id, request_key, account_id, environment):
     current = calculate(db, customer_id, CheckoutData.model_validate(saved.snapshot["checkout"]))
     if digest(current) != saved.request_digest:
         raise HTTPException(409, "Prices, stock or delivery rules changed. Review a new quote before paying.")
+    if review:
+        current = {**current, "review_checkout": True, "payment_test": True}
     # Conditional atomic updates work on PostgreSQL and SQLite and prevent overselling.
     try:
         for identity, quantity in sorted(current["quantities"].items(), key=lambda item: int(item[0])):
@@ -229,7 +234,7 @@ def place(db, customer_id, quote_id, request_key, account_id, environment):
                 AppCoupon.uses+AppCoupon.reserved < AppCoupon.usage_limit).values(reserved=AppCoupon.reserved+1))
             if result.rowcount != 1:
                 raise HTTPException(409, "This coupon has just been used.")
-        reference = ("APP-TEST-" if current.get("payment_test") else "APP-") + datetime.now(UTC).strftime("%Y%m%d") + "-" + uuid4().hex[:16].upper()
+        reference = ("APP-TEST-" if current.get("payment_test") and not review else "APP-") + datetime.now(UTC).strftime("%Y%m%d") + "-" + uuid4().hex[:16].upper()
         order = AppOrder(reference=reference, customer_id=customer_id, request_key=request_key,
                          request_digest=digest({"quote_id": quote_id}), account_id=account_id, environment=environment,
                          account_fingerprint=digest("simulation" if current.get("payment_test") else payment_account(account_id)["consumer_key"]),
@@ -294,6 +299,8 @@ def order_view(order, private=True):
                         "name": line.get("name", ""), "quantity": line.get("quantity", 1),
                         "size": str(line.get("selection", {}).get("size", ""))}
                        for line in order.snapshot.get("lines", [])]
+    if order.snapshot.get("review_checkout"):
+        result.update(review_checkout=True, due_now_minor=0)
     if private:
         result.update(snapshot=order.snapshot, payment_url=order.payment_url if order.payment_state == "pending" else None,
                       tracking_id=order.tracking_id, receipt_label="Payment receipt — not an eTIMS tax invoice")
@@ -303,6 +310,9 @@ def order_view(order, private=True):
 def tracked_order_view(db, order):
     """Customer-safe progress history; never expose internal event details."""
     result = order_view(order)
+    from .order_home import OrderAcknowledgement
+    acknowledgement = db.get(OrderAcknowledgement, order.id)
+    result["received_at"] = utc(acknowledgement.received_at).isoformat() if acknowledgement else None
     visible = ["payment_completed", "fulfilment_preparing", "fulfilment_ready",
                "fulfilment_out_for_delivery", "fulfilment_completed"]
     result["events"] = [{"kind": event.kind, "created_at": utc(event.created_at).isoformat()}

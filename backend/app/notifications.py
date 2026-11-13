@@ -45,7 +45,7 @@ def order_event(db, order, kind):
     if kind == "fulfilment_completed" and order.snapshot.get("checkout", {}).get("fulfilment") == "pickup":
         title, body = "Your cake has been collected! 🎂", "Enjoy your celebration. Tell us how your Cake City experience went."
     simulated = order.channel == "app_test" or order.environment != "live"
-    if simulated:
+    if simulated and not order.snapshot.get("review_checkout"):
         title = "Test: " + title
         body = "Simulation only — no real payment or delivery. " + body
     enqueue(db, order.customer_id, f"order:{order.reference}:{kind}", kind, title, body,

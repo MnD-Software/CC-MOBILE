@@ -17,6 +17,8 @@ export function ClubJourney({
   journey: {
     qualifying_spend_kes: number;
     lifetime_points: number;
+    purchase_count?: number;
+    purchases_per_milestone?: number;
     milestones: { name: string; spend_kes: number }[];
   };
 }) {
@@ -44,7 +46,9 @@ export function ClubJourney({
             </Text>
             <Text style={{ color: colors.muted, fontSize: 12 }}>
               {next
-                ? `${money(next.spend_kes - journey.qualifying_spend_kes)} qualifying spend to your next card`
+                ? journey.purchases_per_milestone
+                  ? `${journey.purchases_per_milestone - ((journey.purchase_count ?? 0) % journey.purchases_per_milestone)} more purchases to your ${next.name} card`
+                  : `${money(next.spend_kes - journey.qualifying_spend_kes)} qualifying spend to your next card`
                 : "Enjoy your highest Club tier"}
             </Text>
           </View>
@@ -60,6 +64,111 @@ export function ClubJourney({
           height={5}
         />
       </View>
+      <View
+        style={{
+          flexDirection: "row",
+          gap: 8,
+          padding: 16,
+          borderRadius: 24,
+          backgroundColor: colors.surfaceRaised,
+        }}
+      >
+        {journey.milestones.map((step, index) => {
+          const unlocked = journey.qualifying_spend_kes >= step.spend_kes;
+          return (
+            <View
+              key={step.name}
+              style={{ flex: 1, alignItems: "center", gap: 8 }}
+            >
+              <View
+                style={{
+                  width: 38,
+                  height: 38,
+                  borderRadius: 15,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backgroundColor: unlocked
+                    ? colors.successLight
+                    : colors.surface,
+                }}
+              >
+                <Ionicons
+                  name={
+                    unlocked
+                      ? "checkmark"
+                      : index === journey.milestones.length - 1
+                        ? "diamond-outline"
+                        : "ribbon-outline"
+                  }
+                  color={unlocked ? colors.success : colors.muted}
+                  size={20}
+                />
+              </View>
+              <Text
+                style={{
+                  color: unlocked ? colors.success : colors.muted,
+                  fontSize: 10,
+                  fontWeight: "800",
+                }}
+              >
+                {step.name}
+              </Text>
+            </View>
+          );
+        })}
+      </View>
+      {journey.purchases_per_milestone && next ? (
+        <View style={{ flexDirection: "row", gap: 8 }}>
+          {Array.from(
+            { length: journey.purchases_per_milestone },
+            (_, index) => (
+              <View
+                key={index}
+                style={{
+                  flex: 1,
+                  paddingVertical: 12,
+                  borderRadius: 14,
+                  alignItems: "center",
+                  backgroundColor:
+                    index <
+                    (journey.purchase_count ?? 0) %
+                      journey.purchases_per_milestone!
+                      ? colors.successLight
+                      : colors.brandLight,
+                }}
+              >
+                <Ionicons
+                  name={
+                    index <
+                    (journey.purchase_count ?? 0) %
+                      journey.purchases_per_milestone!
+                      ? "checkmark-circle"
+                      : "gift-outline"
+                  }
+                  color={
+                    index <
+                    (journey.purchase_count ?? 0) %
+                      journey.purchases_per_milestone!
+                      ? colors.success
+                      : colors.brandStrong
+                  }
+                  size={22}
+                />
+                <Text
+                  style={{
+                    fontSize: 10,
+                    fontWeight: "700",
+                    color: colors.ink,
+                    marginTop: 6,
+                  }}
+                >
+                  Purchase {index + 1}
+                </Text>
+              </View>
+            ),
+          )}
+        </View>
+      ) : null}
       <Disclosure title="Explore card levels">
         {journey.milestones.map((step) => (
           <View

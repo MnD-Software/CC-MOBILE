@@ -2,7 +2,9 @@
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import HTMLResponse
 from pathlib import Path
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, EmailStr
+from sqlalchemy.exc import IntegrityError
+from uuid import uuid4
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -57,7 +59,8 @@ def queue(db, actor):
             "fulfilment": order.snapshot.get("checkout", {}).get("fulfilment"),
             "items": [{key: line[key] for key in ("name", "quantity", "sku_id", "selection") if key in line}
                       for line in order.snapshot.get("lines", [])],
-            "created_at": service.commerce.utc(order.created_at).isoformat(), "payment_test": order.channel == "app_test"})
+            "created_at": service.commerce.utc(order.created_at).isoformat(), "payment_test": order.channel == "app_test",
+            "review_checkout": bool(order.snapshot.get("review_checkout"))})
     return result
 
 
@@ -96,6 +99,39 @@ def dispatch_queue(actor: Customer = Depends(dispatch), db: Session = Depends(ge
 def riders(_: Customer = Depends(dispatch), db: Session = Depends(get_db)):
     return [{"id": row.id, "name": " ".join([row.first_name, row.last_name]), "role": row.role}
         for row in db.scalars(select(Customer).where(Customer.role.in_(service.RIDERS)).order_by(Customer.first_name).limit(1000))]
+
+
+class RiderAccount(BaseModel):
+    email: EmailStr
+    first_name: str = Field(min_length=1, max_length=80)
+    last_name: str = Field(min_length=1, max_length=80)
+    phone: str = Field(min_length=7, max_length=40)
+    password: str = Field(min_length=8, max_length=128)
+
+
+@router.post("/v1/logistics/riders", status_code=201)
+def create_rider(data: RiderAccount, actor: Customer = Depends(dispatch), db: Session = Depends(get_db)):
+    from .security import hash_password
+    email = str(data.email).strip().lower()
+    if db.scalar(select(Customer.id).where(Customer.email == email)):
+        raise HTTPException(409, "An account already uses that email. An administrator must review existing accounts.")
+    plants = set(db.scalars(select(LogisticsScope.plant).where(LogisticsScope.customer_id == actor.id)))
+    if actor.role in service.MANAGERS | {"dispatch"}: plants.add("hq")
+    if not plants:
+        raise HTTPException(403, "An operational location is required before creating riders.")
+    rider = Customer(id=str(uuid4()), email=email, first_name=data.first_name.strip(), last_name=data.last_name.strip(),
+        phone=data.phone.strip(), password_hash=hash_password(data.password), role="rider")
+    try:
+        db.add(rider)
+        db.flush()
+        for plant in plants:
+            db.add(LogisticsScope(customer_id=rider.id, plant=plant))
+        audit(db, actor.id, "rider_account_created", rider.id, plants=sorted(plants))
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(409, "That email was registered elsewhere. Refresh the rider list.") from None
+    return {"id": rider.id, "name": f"{rider.first_name} {rider.last_name}", "role": "rider"}
 
 
 @router.post("/v1/logistics/orders/{reference}/collection")

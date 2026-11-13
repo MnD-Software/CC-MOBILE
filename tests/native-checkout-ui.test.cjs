@@ -10,6 +10,7 @@ const { View, Text } = require("react-native-web");
 function renderCheckout(
   enabled,
   query = { data: { available: false }, isPending: false },
+  review = false,
 ) {
   const source = ts.transpileModule(
     fs.readFileSync("src/features/commerce/CheckoutScreen.tsx", "utf8"),
@@ -24,6 +25,7 @@ function renderCheckout(
     exports: {},
     process: { env: {} },
     require(name) {
+      if (name === "@/config/env") return { env: { reviewCheckout: review } };
       if (name === "react/jsx-runtime") return require(name);
       if (name === "@tanstack/react-query") return { useQuery: () => query };
       if (name === "./pesapal-checkout")
@@ -120,4 +122,17 @@ test("configuration network errors never expose a payment form", () => {
   });
   assert.match(html, /Cannot connect/);
   assert.doesNotMatch(html, /Real provider checkout form/);
+});
+
+test("isolated review checkout uses the ordinary order form only after server capability confirmation", () => {
+  const html = renderCheckout(false, { data: { enabled: true } }, true);
+  assert.match(html, /Real provider checkout form/);
+  assert.doesNotMatch(html, /simulation|sandbox|Pesapal|website/i);
+  const denied = renderCheckout(
+    false,
+    { isError: true, error: new Error("Ordering unavailable") },
+    true,
+  );
+  assert.match(denied, /Ordering unavailable/);
+  assert.doesNotMatch(denied, /Real provider checkout form/);
 });
