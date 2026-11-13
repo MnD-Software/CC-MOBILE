@@ -1,6 +1,7 @@
 const path = require("node:path");
 const { getDefaultConfig } = require("expo/metro-config");
 const config = getDefaultConfig(__dirname);
+require("./scripts/metro-cache.cjs").configureMetroCache(config, __dirname);
 // Generated exports and downloaded APKs are never source files. Excluding them
 // prevents repeated OneDrive scans and keeps release bundles out of dev caches.
 const generated = [

@@ -108,3 +108,11 @@ Refinement backend selection: 24 passed across review checkout/catalogue/Club te
 - The local backend is current. Reload Expo Go to pick up the native UI; if necessary, stop/restart its existing terminal with `npm run start:go:tunnel`. Private logins remain in ignored `artifacts/local-preview/LOGIN.txt`.
 
 Manual iPhone acceptance matrix: light/dark appearance x True Tone off/on x Night Shift off/on (including warm end), at low/normal brightness; repeat with Increase Contrast, Reduce Transparency, larger text and Reduce Motion. Check product photo fidelity, selected tab/action labels, Club card/perks/date sheets, nested pickers, centred loading and popup dismissal. No physical iPhone visual acceptance is claimed.
+
+## Metro file-cache recovery
+
+Reported error: `Unable to deserialize cloned data` while Metro reads its V8-serialized file map. This is a disposable development cache failure; Metro already falls back to crawling source files. The exact cause (interrupted write, another process, or an incompatible runtime snapshot) is not established.
+
+`scripts/metro-cache.cjs`, configured from `metro.config.js`, places file-map caches in the OS temporary directory with separate namespaces for the project, Node/V8 runtime, and development versus export. It recovers only V8 deserialization failures as cache misses and writes a fresh snapshot after the crawl. Other filesystem errors remain visible. Existing app data, review orders, credentials and dependencies are untouched. No broad cache deletion is performed.
+
+Restart the existing Expo terminal with Ctrl+C, then `npm run start:go:tunnel`. The first crawl in the new namespace can take longer; later runs reuse the cache. The launcher and its isolated backend behavior remain unchanged. Targeted cache/tunnel/launcher checks: 9 passed, including a real damaged DiskCacheManager snapshot followed by a readable replacement. Full frontend suite: **229 passed**. iOS Hermes export passed without the reported cache error at ignored `artifacts/local-preview/cache-repair-ios`, bundle `entry-1b75a10f98f15736f239a1d75e8be63c.hbc` (6.6 MB). Phone connectivity is not established by these checks.
