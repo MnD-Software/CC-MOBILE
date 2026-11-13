@@ -1,3 +1,4 @@
+import { RideFeedback } from "./RideFeedback";
 import { useState } from "react";
 import { View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -232,6 +233,22 @@ export function DeliveryComplete({ order }: { order: AppOrder }) {
           )}
         </View>
       )}
+      {hasReceived
+        ? order.deliveries
+            ?.filter(
+              (trip) =>
+                trip.status === "delivered" && trip.service_type === "delivery",
+            )
+            .map((trip, index) => (
+              <RideFeedback
+                key={trip.id}
+                reference={order.reference}
+                id={trip.id}
+                index={index}
+                feedback={trip.feedback}
+              />
+            ))
+        : null}
     </View>
   );
 }

@@ -30,6 +30,9 @@ def test_dashboard_static_shell_and_no_arbitrary_files(system):
     assert response.status_code == 200 and "OPERATIONS" in response.text
     assert "frame-ancestors 'none'" in response.headers["content-security-policy"]
     assert client.get("/admin/assets/dashboard.js").status_code == 200
+    logo=client.get("/admin/assets/cake-city-logo.png")
+    assert logo.status_code==200 and logo.headers["content-type"].startswith("image/png")
+    assert response.text.count('src="/admin/assets/cake-city-logo.png"')==3
     assert client.get("/admin/assets/config.py").status_code == 404
     assert client.get("/v1/admin/dashboard/products").status_code == 403
     assert client.get("/v1/admin/dashboard/promotions").status_code == 403

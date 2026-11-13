@@ -147,3 +147,14 @@ def test_celebration_dates_can_be_updated_only_by_the_owner(system):
     updated=s["client"].put(path,json={**body,"day":28})
     assert updated.status_code==200 and updated.json()["notes"]=="Keep this note" and updated.json()["day"]==28
     assert len(s["client"].get("/v1/account/celebrations").json())==1
+
+
+def test_all_cakes_excludes_cupcakes_before_pagination(system):
+    with Session(system["engine"]) as db:
+        db.add(AppProduct(id=81,slug="vanilla-cupcakes",payload={"id":81,"name":"Vanilla cupcakes","categories":[{"id":110,"name":"Cupcakes"}]},price_minor=1000,allocation=10,enabled=True))
+        db.commit()
+    response=system["client"].get("/v1/catalogue/products?exclude_cupcakes=true&orderby=price&per_page=1")
+    assert response.status_code==200 and [r["id"] for r in response.json()]==[12]
+    assert response.headers["X-Total-Pages"]=="1"
+    response=system["client"].get("/v1/catalogue/products?category=110")
+    assert [r["id"] for r in response.json()]==[81]

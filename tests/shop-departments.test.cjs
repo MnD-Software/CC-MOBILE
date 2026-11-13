@@ -208,3 +208,16 @@ test("product units preserve cookie packs, accessory items and the Pink Simba pa
     );
   }
 });
+
+test("cupcakes stay in their department and never appear in All cakes", () => {
+  for (const entry of [
+    product("Vanilla Cupcakes", [110]),
+    product("Chocolate cupcakes", []),
+  ]) {
+    assert.equal(matchesShopSelection(entry, "all", "all"), false);
+  }
+  assert.equal(
+    matchesShopSelection(product("Vanilla Cupcakes", [110]), "cupcakes", "all"),
+    true,
+  );
+});

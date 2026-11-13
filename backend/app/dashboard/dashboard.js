@@ -357,12 +357,17 @@ async function workflowBoard(stage) {
     in_transit: ["delivered", "Confirm delivery"],
   };
   const tripCards = tasks
-    .filter((t) => !["delivered", "cancelled"].includes(t.status))
+    .filter((t) => t.status !== "cancelled")
     .map((t) => {
       const action = next[t.status];
+      const feedback = t.feedback;
+      const quality =
+        t.status === "delivered"
+          ? `<div class="ride-quality">${feedback ? `<span class="pill ${feedback.timing === "on_time" ? "good" : feedback.timing === "late" ? "warning" : ""}">${feedback.timing === "on_time" ? "Arrived on time" : feedback.timing === "late" ? "Arrived late" : "Arrival time not confirmed"}</span><span class="pill ${feedback.condition === "good" ? "good" : "issue"}">${feedback.condition === "good" ? "Received in good condition" : feedback.condition === "damaged" ? "Damage reported" : "Condition issue reported"}</span><strong>${feedback.rating} / 5 stars</strong>${feedback.comment ? `<p>${esc(feedback.comment)}</p>` : ""}<small>Customer-reported arrival and condition.</small>` : `<span class="pill">Awaiting customer feedback</span><small>Ride not yet rated.</small>`}</div>`
+          : "";
       const button = (status, label) =>
         `<button data-trip="${esc(t.id)}" data-revision="${t.revision}" data-status="${status}">${label}</button>`;
-      return `<section class="panel workflow-card trip-card" data-state="${esc(t.status)}" data-trip-card="${esc(t.id)}">${pill(t.status)}<h2>${esc(t.reference)}</h2><p>${esc(t.rider_name)} / ${esc(t.destination)}</p><p>${esc(t.recipient)} / ${esc(t.phone)}</p><div class="workflow-actions">${action ? button(...action) : ""}${t.status === "failed" ? button("rescheduled", "Retry delivery") : button("failed", "Report delivery issue")}${["assigned", "accepted", "rescheduled", "failed"].includes(t.status) ? button("cancelled", "Cancel trip") : ""}</div></section>`;
+      return `<section class="panel workflow-card trip-card" data-state="${esc(t.status)}" data-trip-card="${esc(t.id)}">${pill(t.status, t.status === "delivered")}<h2>${esc(t.reference)}</h2><p>${esc(t.rider_name)} / ${esc(t.destination)}</p><p>${esc(t.recipient)} / ${esc(t.phone)}</p>${quality}<div class="workflow-actions">${action ? button(...action) : ""}${t.status === "delivered" ? "" : t.status === "failed" ? button("rescheduled", "Retry delivery") : button("failed", "Report delivery issue")}${["assigned", "accepted", "rescheduled", "failed"].includes(t.status) ? button("cancelled", "Cancel trip") : ""}</div></section>`;
     })
     .join("");
   const stages = kitchen
@@ -376,7 +381,7 @@ async function workflowBoard(stage) {
         ["out_for_delivery", "On the road"],
       ];
   const pulse = `<div class="queue-pulse">${stages.map(([status, label], i) => `<div><span class="queue-step">0${i + 1}</span><strong>${rows.filter((o) => o.status === status).length}</strong><span>${label}</span></div>`).join("")}${!kitchen ? `<div><span class="queue-step">LIVE</span><strong>${tasks.filter((t) => !["delivered", "cancelled"].includes(t.status)).length}</strong><span>Active rider trips</span></div>` : ""}</div>`;
-  return `<section class="queue-heading"><div><span class="eyebrow">${kitchen ? "CRAFT & CARE" : "THE LAST MILE"}</span><h2>${kitchen ? "Every cake, made with care." : "Great moments. Delivered."}</h2><p>${rows.length} orders in this queue, ready for the next step.</p></div><button class="primary" data-action="retry">Refresh queue</button></section>${pulse}<p>Assignments reach the rider's login. Customer tracking and notifications update as the kitchen and rider progress.</p><div class="cards">${cards || empty("Queue is clear", "Orders appear here when they reach this stage.")}</div>${!kitchen ? `<h2>Active rider trips</h2><div class="cards">${tripCards || empty("No active trips", "Assign a provisioned rider to begin dispatch.")}</div>` : ""}`;
+  return `<section class="queue-heading"><div><span class="eyebrow">${kitchen ? "CRAFT & CARE" : "THE LAST MILE"}</span><h2>${kitchen ? "Every cake, made with care." : "Great moments. Delivered."}</h2><p>${rows.length} orders in this queue, ready for the next step.</p></div><button class="primary" data-action="retry">Refresh queue</button></section>${pulse}<p>Assignments reach the rider's login. Customer tracking and notifications update as the kitchen and rider progress.</p><div class="cards">${cards || empty("Queue is clear", "Orders appear here when they reach this stage.")}</div>${!kitchen ? `<h2>Rider trips & delivery quality</h2><div class="cards">${tripCards || empty("No active trips", "Assign a provisioned rider to begin dispatch.")}</div>` : ""}`;
 }
 const views = {
   async kitchen() {

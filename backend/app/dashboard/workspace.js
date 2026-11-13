@@ -59,7 +59,7 @@ function salesChart(sales) {
     })
     .join("");
   return `<section class="panel sales-rhythm"><div class="panel-heading"><div><span class="eyebrow">VERIFIED LIVE PAYMENTS</span><h2>Sales rhythm</h2></div><span class="pill good">App channel</span></div><p>Daily net sales in KES. ${esc(points[0]?.date)} to ${esc(points.at(-1)?.date)}.</p><svg class="sales-chart" role="img" aria-label="Daily net sales. Exact values are available in the daily figures below." viewBox="0 0 680 195"><path d="M20 20H660M20 95H660M20 170H660" class="chart-grid"/>${bars}<text x="20" y="191">${esc(points[0]?.date)}</text><text x="660" y="191" text-anchor="end">${esc(points.at(-1)?.date)}</text></svg><details><summary>View daily figures</summary>${table(
-    ["Kenyan date", "Paid orders", "Net sales"],
+    ["Date", "Paid orders", "Net sales"],
     points.map(
       (p) =>
         `<tr><td>${esc(p.date)}</td><td>${p.orders}</td><td>${money(p.net_minor)}</td></tr>`,
@@ -85,8 +85,8 @@ async function workspaceOverview() {
   const salutation =
     hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
   const tools = data.modules.filter((module) => module.id !== "overview");
-  const hero = `<section class="workspace-hero"><div><span class="eyebrow">${esc(data.department.toUpperCase())}</span><h2>${salutation}, ${esc(session.customer.first_name || "team")}.</h2><p>One connected team. Every celebration, accounted for.</p><span class="freshness"><i></i> Updated ${esc(new Date(data.generated_at).toLocaleTimeString("en-KE", { timeZone: "Africa/Nairobi", hour: "2-digit", minute: "2-digit" }))} EAT / refreshes while visible</span></div><div class="hero-seal" aria-hidden="true">CC<span>OPERATIONS</span></div></section>`;
-  const filters = `<form id="workspace-period" class="period-toolbar"><div class="date-fields">${input("from", "From (Kenyan date)", workspaceFrom, "date", "required")}${input("to", "To (Kenyan date)", workspaceTo, "date", "required")}<button class="primary">Apply period</button></div><div class="period-actions"><button type="button" data-period="7">7 days</button><button type="button" data-period="30">30 days</button><button type="button" data-period="90">90 days</button><div class="view-switch" role="group" aria-label="Data view"><button type="button" data-workspace-mode="live" aria-pressed="${workspaceMode === "live"}">Live operations</button><button type="button" data-workspace-mode="simulation" aria-pressed="${workspaceMode === "simulation"}">Review orders</button></div>${data.sales ? '<button type="button" data-export-overview="true">Export figures</button>' : ""}</div></form>`;
+  const hero = `<section class="workspace-hero"><div><span class="eyebrow">${esc(data.department.toUpperCase())}</span><h2>${salutation}, ${esc(session.customer.first_name || "team")}.</h2><p>One connected team. Every celebration, accounted for.</p><span class="freshness"><i></i> Updated ${esc(new Date(data.generated_at).toLocaleTimeString("en-KE", { timeZone: "Africa/Nairobi", hour: "2-digit", minute: "2-digit" }))} / refreshes while visible</span></div><div class="hero-seal" aria-hidden="true">CC<span>OPERATIONS</span></div></section>`;
+  const filters = `<form id="workspace-period" class="period-toolbar"><div class="date-fields">${input("from", "From", workspaceFrom, "date", "required")}${input("to", "To", workspaceTo, "date", "required")}<button class="primary">Apply period</button></div><div class="period-actions"><button type="button" data-period="7">7 days</button><button type="button" data-period="30">30 days</button><button type="button" data-period="90">90 days</button><div class="view-switch" role="group" aria-label="Data view"><button type="button" data-workspace-mode="live" aria-pressed="${workspaceMode === "live"}">Live operations</button><button type="button" data-workspace-mode="simulation" aria-pressed="${workspaceMode === "simulation"}">Review orders</button></div>${data.sales ? '<button type="button" data-export-overview="true">Export figures</button>' : ""}</div></form>`;
   const cards = `<div class="stats ecosystem-stats">${data.kpis.map((kpi) => `<div class="stat"><small>${esc(kpi.label)}</small><strong>${esc(kpi.format === "money" ? money(kpi.value) : kpi.value.toLocaleString("en-KE"))}</strong>${kpi.change_percent !== null ? `<b class="${kpi.change_percent >= 0 ? "positive-change" : "negative-change"}">${kpi.change_percent > 0 ? "+" : ""}${kpi.change_percent}% vs previous period</b>` : ""}<span>${esc(kpi.hint)}</span></div>`).join("")}</div>`;
   const workload = `<section class="panel"><span class="eyebrow">RIGHT NOW</span><h2>Work in motion</h2>${data.workload.length ? data.workload.map((row) => `<div class="workload-row"><div><b>${esc(row.label)}</b><span>${row.count} ${row.count === 1 ? "order or task" : "orders or tasks"}</span></div><meter min="0" max="${Math.max(1, ...data.workload.map((r) => r.count))}" value="${row.count}" aria-label="${esc(row.label)}: ${row.count}">${row.count}</meter></div>`).join("") : "<p>Your authorized modules and insights are ready below.</p>"}<small>Current backlog, independent of the selected sales period. Location and rider scopes apply.</small></section>`;
   const popular = data.sales
@@ -213,7 +213,7 @@ document.addEventListener("click", async (event) => {
   }
   if (data.exportOverview && staffOverview?.sales) {
     const rows = [
-      ["Date (Africa/Nairobi)", "Paid orders", "Net KES"],
+      ["Date", "Paid orders", "Net KES"],
       ...staffOverview.sales.trend.map((p) => [
         p.date,
         p.orders,

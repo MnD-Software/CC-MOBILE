@@ -136,3 +136,23 @@ test("workflow counts reflect authorized queue data and escape order content", a
   assert.match(html, /&lt;script&gt;cake/);
   assert.doesNotMatch(html, /<script>cake/);
 });
+
+test("dashboard dates use natural labels and completed dispatch keeps customer quality distinct", async () => {
+  const { ctx } = harness(overview("admin"));
+  const overviewHtml = await vm.runInContext("workspaceOverview()", ctx);
+  assert.doesNotMatch(overviewHtml, /Kenyan|Africa\/Nairobi| EAT/);
+  vm.runInContext(
+    'request = async (path) => path === "/v1/logistics/tasks" ? [{id:"trip",reference:"APP-1",status:"delivered",items:[{quantity:1}],feedback:{rating:2,timing:"late",condition:"damaged",comment:"<script>report</script>"}}] : []',
+    ctx,
+  );
+  const html = await vm.runInContext('workflowBoard("dispatch")', ctx);
+  assert.match(html, /data-state="delivered"/);
+  assert.match(html, /Arrived late/);
+  assert.match(html, /Damage reported/);
+  assert.match(html, /2 \/ 5 stars/);
+  assert.match(html, /&lt;script&gt;report/);
+  assert.doesNotMatch(
+    html,
+    /Arrived on time|Received in good condition|Report delivery issue/,
+  );
+});

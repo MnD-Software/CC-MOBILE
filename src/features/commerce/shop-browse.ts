@@ -33,6 +33,7 @@ export type ShopBrowseParams = {
   excludeAccessories?: boolean;
   accessoriesOnly?: boolean;
   excludeCookies?: boolean;
+  excludeCupcakes?: boolean;
   cookiesOnly?: boolean;
 };
 
@@ -79,6 +80,7 @@ export function shopBrowseQuery(params: ShopBrowseParams) {
   });
   if (params.excludeAccessories) query.set("exclude_accessories", "true");
   if (params.accessoriesOnly) query.set("accessories_only", "true");
+  if (params.excludeCupcakes) query.set("exclude_cupcakes", "true");
   if (params.excludeCookies) query.set("exclude_cookies", "true");
   if (params.cookiesOnly) query.set("cookies_only", "true");
   if (params.search?.trim())

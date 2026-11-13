@@ -1,3 +1,4 @@
+import { deliveryFeedbackSchema } from "./delivery-feedback";
 import { z } from "zod";
 import { api } from "@/api/client";
 
@@ -18,6 +19,7 @@ export const tripSchema = z.object({
   payment_test: z.boolean(),
   review_checkout: z.boolean().optional(),
   delivery_notes: z.string().optional(),
+  feedback: deliveryFeedbackSchema.nullable().optional(),
   items: z.array(
     z.object({
       sku_id: z.number(),

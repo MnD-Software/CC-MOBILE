@@ -4,8 +4,13 @@ import { selectionWeight } from "./checkout-success";
 type ProductEvidence = Pick<StoreProduct, "name" | "categories">;
 export function catalogueKind(
   product: ProductEvidence,
-): "cake" | "accessory" | "cookie" {
+): "cake" | "accessory" | "cookie" | "cupcake" {
   const categories = product.categories;
+  if (
+    categories.some((c) => c.id === 110 || /cupcakes?/i.test(c.name)) ||
+    /cupcakes?/i.test(plainText(product.name))
+  )
+    return "cupcake";
   if (
     categories.some(
       (c) => c.id === 109 || /accessor|party item|tableware/i.test(c.name),

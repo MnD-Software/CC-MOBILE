@@ -118,55 +118,73 @@ export function ClubJourney({
         })}
       </View>
       {journey.purchases_per_milestone && next ? (
-        <View style={{ flexDirection: "row", gap: 8 }}>
-          {Array.from(
-            { length: journey.purchases_per_milestone },
-            (_, index) => (
+        <View
+          style={{
+            padding: 18,
+            borderRadius: 22,
+            backgroundColor: colors.brandLight,
+            gap: 14,
+          }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+            <View
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 16,
+                backgroundColor: colors.surface,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Ionicons
+                name="gift-outline"
+                size={23}
+                color={colors.brandStrong}
+              />
+            </View>
+            <View style={{ flex: 1, gap: 4 }}>
+              <Text
+                style={{ color: colors.ink, fontSize: 15, fontWeight: "800" }}
+              >
+                Your next sweet chapter
+              </Text>
+              <Text style={{ color: colors.muted, fontSize: 12 }}>
+                {(journey.purchase_count ?? 0) %
+                  journey.purchases_per_milestone}{" "}
+                of {journey.purchases_per_milestone} celebrations towards{" "}
+                {next.name}
+              </Text>
+            </View>
+          </View>
+          <View
+            style={{ flexDirection: "row", gap: 6 }}
+            accessibilityRole="progressbar"
+            accessibilityValue={{
+              min: 0,
+              max: journey.purchases_per_milestone,
+              now:
+                (journey.purchase_count ?? 0) % journey.purchases_per_milestone,
+            }}
+            accessibilityLabel={`Celebrations towards ${next.name}`}
+          >
+            {Array.from({ length: journey.purchases_per_milestone }, (_, i) => (
               <View
-                key={index}
+                key={i}
                 style={{
                   flex: 1,
-                  paddingVertical: 12,
-                  borderRadius: 14,
-                  alignItems: "center",
+                  height: 7,
+                  borderRadius: 5,
                   backgroundColor:
-                    index <
-                    (journey.purchase_count ?? 0) %
-                      journey.purchases_per_milestone!
-                      ? colors.successLight
-                      : colors.brandLight,
-                }}
-              >
-                <Ionicons
-                  name={
-                    index <
-                    (journey.purchase_count ?? 0) %
-                      journey.purchases_per_milestone!
-                      ? "checkmark-circle"
-                      : "gift-outline"
-                  }
-                  color={
-                    index <
+                    i <
                     (journey.purchase_count ?? 0) %
                       journey.purchases_per_milestone!
                       ? colors.success
-                      : colors.brandStrong
-                  }
-                  size={22}
-                />
-                <Text
-                  style={{
-                    fontSize: 10,
-                    fontWeight: "700",
-                    color: colors.ink,
-                    marginTop: 6,
-                  }}
-                >
-                  Purchase {index + 1}
-                </Text>
-              </View>
-            ),
-          )}
+                      : colors.border,
+                }}
+              />
+            ))}
+          </View>
         </View>
       ) : null}
       <Disclosure title="Explore card levels">

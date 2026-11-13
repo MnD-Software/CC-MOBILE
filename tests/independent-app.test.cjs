@@ -88,6 +88,10 @@ test("order and payment requests address only app-owned routes with authenticate
     paid_at: null,
   };
   const { appOrders } = load("src/features/commerce/app-orders.ts", {
+    "@/features/logistics/delivery-feedback": load(
+      "src/features/logistics/delivery-feedback.ts",
+      {},
+    ),
     "@/api/client": {
       api: {
         get: async (...args) => {

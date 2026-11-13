@@ -82,6 +82,10 @@ def is_accessory(row):
     return bool(re.search(r"candle|candel|sparkler|balloon|ballon|topper|napkin|paper plate|party (?:banner|popper|hat|plate|whistle|mask)|face mask|confetti|cutlery", name, re.I))
 
 
+def is_cupcake(row):
+    return bool(re.search(r"cupcakes?", str(row.payload.get("name", "")), re.I) or any(c.get("id") == 110 or re.search(r"cupcakes?", str(c.get("name", "")), re.I) for c in row.payload.get("categories", [])))
+
+
 def is_cookie(row):
     if is_accessory(row): return False
     categories = row.payload.get("categories", [])
@@ -106,6 +110,8 @@ def products(db, params):
         rows = [row for row in rows if not is_accessory(row)]
     if str(params.get("accessories_only", "")).lower() == "true":
         rows = [row for row in rows if is_accessory(row)]
+    if str(params.get("exclude_cupcakes", "")).lower() == "true":
+        rows = [row for row in rows if not is_cupcake(row)]
     if str(params.get("exclude_cookies", "")).lower() == "true":
         rows = [row for row in rows if not is_cookie(row)]
     if str(params.get("cookies_only", "")).lower() == "true":

@@ -1,3 +1,4 @@
+import { deliveryFeedbackSchema } from "@/features/logistics/delivery-feedback";
 import { z } from "zod";
 import { api } from "@/api/client";
 
@@ -41,6 +42,7 @@ export const appOrderSchema = z.object({
         id: z.string(),
         status: z.string(),
         service_type: z.string(),
+        feedback: deliveryFeedbackSchema.nullable().optional(),
         scheduled_at: z.string().nullable(),
         slot: z.string(),
         destination_matches_checkout: z.boolean().default(false),

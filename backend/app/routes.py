@@ -62,6 +62,7 @@ async def catalogue_products(
     exclude_accessories: bool = False,
     accessories_only: bool = False,
     exclude_cookies: bool = False,
+    exclude_cupcakes: bool = False,
     cookies_only: bool = False,
     accept_encoding: str = Header(default=""),
     db: Session = Depends(get_db),
@@ -69,6 +70,7 @@ async def catalogue_products(
     params: dict[str, str | int] = {"page": page, "per_page": per_page}
     if exclude_accessories: params["exclude_accessories"] = "true"
     if accessories_only: params["accessories_only"] = "true"
+    if exclude_cupcakes: params["exclude_cupcakes"] = "true"
     if exclude_cookies: params["exclude_cookies"] = "true"
     if cookies_only: params["cookies_only"] = "true"
     if category is not None:

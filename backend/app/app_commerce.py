@@ -329,9 +329,10 @@ def tracked_order_view(db, order):
         .order_by(LogisticsTask.created_at)))
     if tasks:
         from .live_tracking import customer_position
+        from .ride_feedback import for_task
         result["deliveries"] = [{"id": task.id, "status": task.status, "service_type": task.service_type,
             "scheduled_at": utc(task.scheduled_at).isoformat() if task.scheduled_at else None,
-              "slot": task.slot, "destination_matches_checkout": bool(order.snapshot.get("route") and task.destination == order.snapshot["route"].get("destination_address")),
+              "slot": task.slot, "feedback": for_task(db, task), "destination_matches_checkout": bool(order.snapshot.get("route") and task.destination == order.snapshot["route"].get("destination_address")),
               "position": customer_position(db, task) if order.state not in {"completed", "cancelled", "review_required"} and order.payment_state == "completed" else None,
               "events": [{"status": event.status, "at": utc(event.created_at).isoformat()}
                          for event in db.scalars(select(LogisticsEvent)

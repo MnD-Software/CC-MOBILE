@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { View } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/auth/AuthProvider";
@@ -12,7 +14,8 @@ import {
   Screen,
   ui as baseUi,
 } from "@/components/ui/Commerce";
-import { useThemedStyles } from "@/theme/ThemeProvider";
+import { deliveryQualityNotes } from "./delivery-feedback";
+import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import { logisticsApi, type WorkOrder, type Trip } from "./api";
 import { useScreenActive } from "@/design/useScreenActive";
 import { Disclosure } from "@/components/ui/Disclosure";
@@ -360,6 +363,7 @@ function WorkCard({
 }
 
 function DispatchTask({ task }: { task: Trip }) {
+  const { colors, isDark } = useTheme();
   const ui = useThemedStyles(baseUi);
   const cache = useQueryClient();
   const [proof, setProof] = useState("");
@@ -391,9 +395,123 @@ function DispatchTask({ task }: { task: Trip }) {
     },
   });
   return (
-    <View style={ui.panel} testID={`dispatch-${task.id}`}>
+    <View
+      style={[
+        ui.panel,
+        task.status === "delivered" && {
+          borderColor: colors.success,
+          backgroundColor: colors.successLight,
+          borderRadius: 26,
+          overflow: "hidden",
+          shadowColor: "#14543C",
+          shadowOpacity: 0.1,
+          shadowRadius: 18,
+          shadowOffset: { width: 0, height: 7 },
+        },
+      ]}
+      testID={`dispatch-${task.id}`}
+    >
+      {task.status === "delivered" ? (
+        <>
+          <LinearGradient
+            pointerEvents="none"
+            colors={
+              isDark
+                ? ["#173D32", "#173126", "#213B31"]
+                : ["#F3FCF6", "#DDF2E5", "#F5FCF8"]
+            }
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+            }}
+          />
+          <LinearGradient
+            pointerEvents="none"
+            colors={["rgba(255,255,255,0.24)", "rgba(255,255,255,0)"]}
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              height: 80,
+              borderTopWidth: 1,
+              borderTopColor: "rgba(255,255,255,0.6)",
+            }}
+          />
+          <LinearGradient
+            colors={["#267451", "#12533B", "#226647"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={{
+              alignSelf: "flex-start",
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 8,
+              paddingHorizontal: 14,
+              paddingVertical: 10,
+              borderRadius: 16,
+              borderWidth: 1,
+              borderColor: "#5AAB81",
+            }}
+          >
+            <Ionicons name="checkmark-circle" size={19} color="#CBF5DC" />
+            <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 12 }}>
+              DELIVERY COMPLETED
+            </Text>
+          </LinearGradient>
+        </>
+      ) : null}
       <Text style={ui.heading}>{task.reference}</Text>
-      <Text style={ui.eyebrow}>{task.status.replaceAll("_", " ")}</Text>
+      {task.status !== "delivered" ? (
+        <Text style={ui.eyebrow}>{task.status.replaceAll("_", " ")}</Text>
+      ) : null}
+      {task.status === "delivered" ? (
+        <View style={{ gap: 10 }}>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+            {deliveryQualityNotes(task.feedback).map((note) => (
+              <Text
+                key={note.label}
+                style={{
+                  paddingHorizontal: 12,
+                  paddingVertical: 8,
+                  borderRadius: 12,
+                  fontWeight: "700",
+                  fontSize: 12,
+                  color:
+                    note.tone === "good"
+                      ? colors.success
+                      : note.tone === "warning"
+                        ? colors.warning
+                        : note.tone === "issue"
+                          ? colors.error
+                          : colors.muted,
+                  backgroundColor: colors.surface,
+                }}
+              >
+                {note.label}
+              </Text>
+            ))}
+          </View>
+          <Text style={{ color: colors.ink, fontWeight: "700" }}>
+            {task.feedback
+              ? `${task.feedback.rating} / 5 stars / Customer rating`
+              : "Ride not yet rated"}
+          </Text>
+          {task.feedback?.comment ? (
+            <Text style={{ color: colors.ink, lineHeight: 22 }}>
+              {task.feedback.comment}
+            </Text>
+          ) : null}
+          <Text style={{ color: colors.muted, fontSize: 11 }}>
+            Arrival time and condition are reported by the customer.
+          </Text>
+        </View>
+      ) : null}
       <Text>{task.rider_name || "Rider unassigned"}</Text>
       <Text style={ui.body}>{task.destination}</Text>
       {task.status === "in_transit" ? (

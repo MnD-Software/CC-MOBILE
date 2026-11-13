@@ -1,7 +1,16 @@
 import { Ionicons } from "@expo/vector-icons";
-import { createContext, useContext, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   KeyboardAvoidingView,
+  Animated,
+  Easing,
   Modal,
   Platform,
   Pressable,
@@ -32,12 +41,30 @@ export function BottomSheet({
   const { colors } = useTheme();
   const reduceMotion = useReducedMotion();
   const depth = useContext(SheetDepth);
+  const content = useRef({ children, title, footer });
+  if (visible) content.current = { children, title, footer };
+  const [present, setPresent] = useState(visible);
+  const progress = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (visible) setPresent(true);
+    const animation = Animated.timing(progress, {
+      toValue: visible ? 1 : 0,
+      duration: reduceMotion ? 0 : visible ? 260 : 190,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: Platform.OS !== "web",
+      isInteraction: false,
+    });
+    animation.start(({ finished }) => {
+      if (finished && !visible) setPresent(false);
+    });
+    return () => animation.stop();
+  }, [visible, reduceMotion, progress]);
   return (
     <SheetDepth.Provider value={depth + 1}>
       <Modal
-        visible={visible}
+        visible={present}
         transparent
-        animationType={reduceMotion ? "none" : "fade"}
+        animationType="none"
         onRequestClose={onClose}
       >
         <KeyboardAvoidingView
@@ -45,16 +72,28 @@ export function BottomSheet({
           style={{
             flex: 1,
             justifyContent: "flex-end",
-            backgroundColor: depth ? "transparent" : colors.scrim,
+            backgroundColor: "transparent",
           }}
         >
+          <Animated.View
+            pointerEvents="none"
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: depth ? "transparent" : colors.scrim,
+              opacity: progress,
+            }}
+          />
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={`Close ${title}`}
             onPress={onClose}
             style={{ flex: 1 }}
           />
-          <View
+          <Animated.View
             accessibilityViewIsModal
             style={{
               maxHeight: "88%",
@@ -67,6 +106,15 @@ export function BottomSheet({
               paddingTop: 8,
               paddingBottom: Math.max(16, insets.bottom),
               overflow: "hidden",
+              opacity: progress,
+              transform: [
+                {
+                  translateY: progress.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [reduceMotion ? 0 : 28, 0],
+                  }),
+                },
+              ],
             }}
           >
             <View
@@ -97,7 +145,7 @@ export function BottomSheet({
                   color: colors.ink,
                 }}
               >
-                {title}
+                {content.current.title}
               </Text>
               <Pressable
                 accessibilityRole="button"
@@ -125,9 +173,9 @@ export function BottomSheet({
                 gap: 14,
               }}
             >
-              {children}
+              {content.current.children}
             </ScrollView>
-            {footer ? (
+            {content.current.footer ? (
               <View
                 style={{
                   paddingTop: 14,
@@ -136,10 +184,10 @@ export function BottomSheet({
                   borderTopColor: colors.border,
                 }}
               >
-                {footer}
+                {content.current.footer}
               </View>
             ) : null}
-          </View>
+          </Animated.View>
         </KeyboardAvoidingView>
       </Modal>
     </SheetDepth.Provider>

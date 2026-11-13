@@ -11,6 +11,7 @@ import { Linking, Pressable, StyleSheet, View } from "react-native";
 import { Text } from "@/components/ui/Typography";
 import { useAuth } from "@/auth/AuthProvider";
 import { BrandLogo } from "@/components/BrandLogo";
+import { BottomSheet } from "@/components/ui/BottomSheet";
 import { Disclosure } from "@/components/ui/Disclosure";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
 import {
@@ -494,11 +495,27 @@ export function AccountScreen() {
       }
     >
       <LinearGradient
-        colors={["#B80068", "#8E0052", "#610A3E"]}
+        colors={["#302033", "#642449", "#9B2865"]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={styles.memberHero}
+        style={[
+          styles.memberHero,
+          { padding: 24, borderRadius: 30, gap: 20, alignItems: "flex-start" },
+        ]}
       >
+        <View
+          pointerEvents="none"
+          style={{
+            position: "absolute",
+            width: 190,
+            height: 190,
+            borderRadius: 100,
+            right: -65,
+            top: -75,
+            borderWidth: 26,
+            borderColor: "rgba(255,255,255,0.045)",
+          }}
+        />
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Choose your profile photo"
@@ -508,23 +525,31 @@ export function AccountScreen() {
             pressed && styles.pressed,
           ]}
         >
-          <ProfileAvatar size={72} />
+          <ProfileAvatar size={82} />
           <View style={styles.editBadge}>
             <Ionicons name="camera" size={13} color={colors.brandStrong} />
           </View>
         </Pressable>
         <View style={styles.memberHeroCopy}>
           <Text style={[styles.heroEyebrow, { color: "#FFFFFF" }]}>
-            YOUR CAKE CITY
+            YOUR PERSONAL CORNER
           </Text>
           <Text
-            style={[styles.memberName, { color: "#FFFFFF" }]}
+            style={[
+              styles.memberName,
+              {
+                color: "#FFFFFF",
+                fontSize: 27,
+                lineHeight: 33,
+                letterSpacing: -0.7,
+              },
+            ]}
             numberOfLines={2}
           >
             {firstName} {customer.last_name?.trim()}
           </Text>
           <Text
-            style={[styles.memberEmail, { color: "#FFFFFF" }]}
+            style={[styles.memberEmail, { color: "#F3DCE9", lineHeight: 20 }]}
             numberOfLines={1}
           >
             {customer.email}
@@ -541,7 +566,7 @@ export function AccountScreen() {
           >
             <Ionicons name="create-outline" size={14} color="#FFFFFF" />
             <Text style={[styles.securePillText, { color: "#FFFFFF" }]}>
-              Profile settings
+              Edit profile
             </Text>
           </Pressable>
         </View>
@@ -641,7 +666,11 @@ export function AccountScreen() {
         </Shortcut>
       </View>
 
-      {editingProfile ? (
+      <BottomSheet
+        visible={editingProfile}
+        title="Make it yours"
+        onClose={() => setEditingProfile(false)}
+      >
         <>
           <View style={styles.profileDetails}>
             <View style={styles.profileDetailsHeading}>
@@ -727,7 +756,7 @@ export function AccountScreen() {
             </View>
           </View>
         </>
-      ) : null}
+      </BottomSheet>
       <Section
         title="My addresses"
         action="Manage"
@@ -1109,7 +1138,7 @@ const baseStyles = StyleSheet.create({
     borderWidth: 1,
     borderColor: tokens.color.border,
     backgroundColor: tokens.color.surface,
-    ...tokens.shadow.card,
+    ...tokens.shadow.subtle,
   },
   shortcutIcon: {
     width: 38,

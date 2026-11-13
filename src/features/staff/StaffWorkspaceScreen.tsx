@@ -168,7 +168,6 @@ export function StaffWorkspaceScreen() {
               hour: "2-digit",
               minute: "2-digit",
             })}{" "}
-            EAT
           </Text>
         ) : null}
       </LinearGradient>
@@ -450,8 +449,8 @@ export function StaffWorkspaceScreen() {
         </>
       ) : null}
       <Text style={{ color: colors.muted, fontSize: 11, lineHeight: 18 }}>
-        All department tools open here in the app. Periods use Kenyan time;
-        queues show your current workload.
+        All department tools open here in the app. queues show your current
+        workload.
       </Text>
     </Screen>
   );

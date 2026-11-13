@@ -173,12 +173,14 @@ def new_trip(db, actor, reference, data, commit=True):
 def task_view(db, task, history=False):
     order = db.get(AppOrder, task.order_id)
     rider = db.get(Customer, task.rider_id) if task.rider_id else None
+    from .ride_feedback import for_task
     result = {"id": task.id, "reference": order.reference, "status": task.status, "revision": task.revision,
         "plant": task.plant, "service_type": task.service_type, "destination": task.destination,
         "recipient": task.recipient, "phone": task.phone, "items": task.items,
         "scheduled_at": commerce.utc(task.scheduled_at).isoformat() if task.scheduled_at else None,
         "slot": task.slot, "rider_id": task.rider_id,
         "rider_name": " ".join([rider.first_name, rider.last_name]) if rider else None,
+        "feedback": for_task(db, task),
         "payment_test": order.channel == "app_test", "review_checkout": bool(order.snapshot.get("review_checkout")),
         "delivery_notes": str(order.snapshot.get("checkout", {}).get("notes", ""))}
     lines = {line.get("sku_id"): line for line in order.snapshot.get("lines", [])}

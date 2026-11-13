@@ -10,6 +10,7 @@ const { View, Text } = require("react-native-web");
 function render(received) {
   let reviewEnabled;
   const modules = {
+    "./RideFeedback": { RideFeedback: () => null },
     react: React,
     "react/jsx-runtime": require("react/jsx-runtime"),
     "react-native": { View },

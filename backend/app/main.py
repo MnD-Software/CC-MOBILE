@@ -14,6 +14,7 @@ from . import logistics_models
 from . import notification_models
 from . import club_celebrations
 from .routes_notifications import router as notifications_router
+from .ride_feedback import router as ride_feedback_router
 from .routes import router as platform_router
 from .routes_auth import router as auth_router
 from .routes_addresses import router as addresses_router
@@ -95,6 +96,7 @@ app.include_router(checkout_coupons_router)
 app.include_router(order_home_router)
 app.include_router(staff_workspace_router)
 app.include_router(notifications_router)
+app.include_router(ride_feedback_router)
 app.include_router(concierge_router)
 
 
