@@ -3,6 +3,9 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const vm = require("node:vm");
 const ts = require("typescript");
+const http = require("node:http");
+const connect = require("connect");
+const { reviewApiProxy } = require("../scripts/review-api-proxy.cjs");
 function config(dev, review, host) {
   const context = {
     exports: {},
@@ -24,6 +27,50 @@ function config(dev, review, host) {
   );
   return context.exports.env;
 }
+
+test("Metro fallthrough keeps Connect's continuation and error handling", async (t) => {
+  const app = connect();
+  app.use(
+    reviewApiProxy((req, res, next) => {
+      assert.equal(typeof next, "function");
+      if (req.url === "/bundle") {
+        res.end("bundle");
+        return;
+      }
+      if (req.url === "/failed") {
+        next(new Error("Metro test failure"));
+        return;
+      }
+      next();
+    }),
+  );
+  app.use((req, res) => {
+    res.end("Expo continuation");
+  });
+  app.use((error, req, res, next) => {
+    res.statusCode = 500;
+    res.end(error.message);
+  });
+  const server = http.createServer(app);
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  t.after(
+    () =>
+      new Promise((resolve) => {
+        server.close(resolve);
+        server.closeAllConnections();
+      }),
+  );
+  const base = `http://127.0.0.1:${server.address().port}`;
+  for (const path of ["/", "/status", "/favicon.ico"]) {
+    const response = await fetch(base + path);
+    assert.equal(response.status, 200);
+    assert.equal(await response.text(), "Expo continuation");
+  }
+  assert.equal(await (await fetch(base + "/bundle")).text(), "bundle");
+  const failed = await fetch(base + "/failed");
+  assert.equal(failed.status, 500);
+  assert.equal(await failed.text(), "Metro test failure");
+});
 test("isolated Expo Go uses its Metro tunnel, production always ignores the review flag", () => {
   assert.equal(
     config(true, "1", "test.exp.direct").apiUrl,

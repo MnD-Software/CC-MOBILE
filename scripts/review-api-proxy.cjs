@@ -1,9 +1,11 @@
 // Fixed local target: never accept an upstream URL supplied by a request.
 const http = require("node:http");
 const PREFIX = "/__cakecity-review";
-function reviewApiProxy(next) {
-  return (req, res) => {
-    if (!req.url?.startsWith(PREFIX + "/")) return next(req, res);
+function reviewApiProxy(middleware) {
+  return (req, res, next) => {
+    // Metro needs Connect's continuation for requests handled by Expo later
+    // in the chain (manifest, status, dev tools and unknown paths).
+    if (!req.url?.startsWith(PREFIX + "/")) return middleware(req, res, next);
     const path = req.url.slice(PREFIX.length);
     if (!/^\/(?:v1\/|health(?:\?|$)|ready\/db(?:\?|$))/.test(path)) {
       res.writeHead(404);

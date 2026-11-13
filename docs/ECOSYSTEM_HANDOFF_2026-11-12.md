@@ -79,6 +79,8 @@ Next operational actions: deploy the backend commit to Render, restart the local
 
 ## Validation and deployment evidence
 
+November 13 preview fix: `scripts/review-api-proxy.cjs` must return Connect middleware with `(req, res, next)` and forward all three arguments to Metro. Previously it omitted the continuation, causing `TypeError: next is not a function` for requests Metro passes to Expo. `node --test tests/review-tunnel.test.cjs` passed all three tests, including a real local Connect HTTP chain exercising manifest/status-style fallthrough, handled bundles, errors and the fixed upstream API target. Restart `npm run start:go:tunnel` after this middleware change; hot reload alone does not reload Metro configuration.
+
 Implementation commit: `bb88d4c86cc4488689dbf35007cfc28f36df39b2`, pushed to `origin/master` at `https://github.com/MnD-Software/CC-MOBILE.git`. `git ls-remote origin refs/heads/master` confirmed that exact implementation SHA before this documentation-only follow-up. The later documentation commit can be identified with `git log`; it does not change the implementation. No Render deployment was verified. Unrelated untracked APK/WooCommerce directories were preserved.
 
 Verified automated checks:
