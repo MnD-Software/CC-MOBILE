@@ -36,15 +36,15 @@ def route(s, fulfilment="delivery", **extra):
 def test_delivery_charge_is_verified_through_payment_and_receipt(system, monkeypatch):
     s = system; configure(s, monkeypatch)
     r = route(s); assert r.status_code == 200, r.text
-    assert r.json()["fee_minor"] == 26500  # KES 100 + 5.5*30
+    assert r.json()["fee_minor"] == 16500  # Owner-approved KES 30/km, minimum KES 100
     s["payload"].update(fulfilment="delivery", delivery_quote_id=r.json()["id"])
-    assert quote(s)["total_minor"] == 276500
-    s["amount"] = 2765
+    assert quote(s)["total_minor"] == 266500
+    s["amount"] = 2665
     start(s); assert ipn(s).status_code == 200
     assert verify(s).json()["payment_state"] == "completed"
     receipt = s["client"].get(f"/v1/app-orders/{s['reference']}/receipt").json()
     assert receipt["snapshot"]["route"]["distance_meters"] == 5500
-    assert receipt["snapshot"]["delivery_minor"] == 26500
+    assert receipt["snapshot"]["delivery_minor"] == 16500
 
 
 def test_hq_pickup_is_free_without_google(system, monkeypatch):
@@ -126,7 +126,8 @@ def test_search_map_and_configuration_keep_server_key_private(system, monkeypatc
 
 def test_actual_branches_are_available_without_a_website_request(system):
     data = system["client"].get("/v1/app-checkout/options").json()["distance_delivery"]
-    assert len(data["pickup_stores"]) == 13
+    assert len(data["pickup_stores"]) == 12
+    assert not any('athi-river' in b['id'] for b in data['pickup_stores'])
     assert any("Gallant" in s["name"] for s in data["pickup_stores"])
     assert any("Ruaka" in s["name"] for s in data["pickup_stores"])
     assert not data["enabled"]  # A directory is not an invented active delivery policy.
@@ -153,7 +154,7 @@ def test_verified_delivery_pin_does_not_require_retyping_area_or_postcode(system
     r = route(s).json()
     s["payload"].update(fulfilment="delivery", delivery_quote_id=r["id"])
     s["payload"]["billing"].update(area="", city="", postcode="")
-    assert quote(s)["delivery_minor"] == 26500
+    assert quote(s)["delivery_minor"] == 16500
     s["payload"]["billing"]["address"] = ""
     assert s["client"].post("/v1/app-checkout/quote", json=s["payload"]).status_code == 422
     s["payload"]["billing"]["address"] = "Building"

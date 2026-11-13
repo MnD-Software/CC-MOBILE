@@ -33,5 +33,6 @@ export function visibleRiderPoint(
 }
 export function trackingDestination(order: AppOrder): MapPoint | null {
   // Staff-entered dispatch overrides may not match the checkout pin; never imply a route to it.
-  return order.snapshot?.route?.destination ?? null;
+    const pin=order.snapshot?.checkout.delivery_location;
+    return order.snapshot?.route?.destination ?? (pin && typeof pin === "object" && "latitude" in pin && "longitude" in pin && typeof pin.latitude === "number" && typeof pin.longitude === "number" ? {latitude:pin.latitude,longitude:pin.longitude}:null);
 }

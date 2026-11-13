@@ -12,6 +12,9 @@ import { useAuth } from "@/auth/AuthProvider";
 import { Button } from "@/components/ui/Button";
 import { Feedback, Notice, Screen } from "@/components/ui/Commerce";
 import { Text } from "@/components/ui/Typography";
+import { Ionicons } from "@expo/vector-icons";
+import { Disclosure } from "@/components/ui/Disclosure";
+import { LinearGradient } from "expo-linear-gradient";
 import { useTheme } from "@/theme/ThemeProvider";
 import { useScreenActive } from "@/design/useScreenActive";
 import {
@@ -95,101 +98,116 @@ export function NotificationsScreen() {
         />
       ) : (
         <>
-          <View
-            style={{
-              padding: 20,
-              gap: 12,
-              borderRadius: 22,
-              backgroundColor: colors.brandLight,
-            }}
+          <LinearGradient
+            colors={["#372337", "#763153"]}
+            style={{ padding: 24, borderRadius: 28, gap: 10 }}
           >
-            <Text
-              style={{ color: colors.ink, fontWeight: "800", fontSize: 19 }}
+            <Ionicons name="notifications-outline" size={29} color="#F7D7E7" />
+            <Text style={{ color: "white", fontSize: 26, fontWeight: "800" }}>
+              Little updates. Lovely moments.
+            </Text>
+            <Text style={{ color: "#F3DCE8", lineHeight: 21 }}>
+              {items.filter((i) => !i.read_at).length} unread updates · Your
+              cake’s progress, quietly kept here.
+            </Text>
+          </LinearGradient>
+          <Disclosure title="Alert preferences & phone settings">
+            <View
+              style={{
+                padding: 20,
+                gap: 12,
+                borderRadius: 22,
+                backgroundColor: colors.brandLight,
+              }}
             >
-              Keep up with your cake
-            </Text>
-            <Text style={{ color: colors.muted, lineHeight: 21 }}>
-              Get updates when preparation starts, your cake is ready for
-              dispatch or collection, your rider sets off and your order
-              arrives. Marketing notifications are off.
-            </Text>
-            {Platform.OS === "web" ? (
-              <Notice message="Your inbox works here. Phone alerts need the installed Android or iPhone app." />
-            ) : (
-              <>
+              <Text
+                style={{ color: colors.ink, fontWeight: "800", fontSize: 19 }}
+              >
+                Keep up with your cake
+              </Text>
+              <Text style={{ color: colors.muted, lineHeight: 21 }}>
+                Get updates when preparation starts, your cake is ready for
+                dispatch or collection, your rider sets off and your order
+                arrives. Marketing notifications are off.
+              </Text>
+              {Platform.OS === "web" ? (
+                <Notice message="Your inbox works here. Phone alerts need the installed Android or iPhone app." />
+              ) : (
+                <>
+                  <Button
+                    label="Enable phone notifications"
+                    loading={busy}
+                    disabled={busy}
+                    onPress={() =>
+                      void perform(
+                        () => registerNotifications(),
+                        preferences.data?.push_service_enabled
+                          ? "This phone is registered for order alerts."
+                          : "This phone is registered. The server push service still needs activation.",
+                      )
+                    }
+                  />
+                  <Button
+                    variant="ghost"
+                    label="Open device notification settings"
+                    onPress={() =>
+                      void Linking.openSettings().catch(() =>
+                        setError(
+                          "Open Cake City notification permissions in your device settings.",
+                        ),
+                      )
+                    }
+                  />
+                </>
+              )}
+              {preferences.data ? (
                 <Button
-                  label="Enable phone notifications"
-                  loading={busy}
+                  variant="outline"
+                  label={
+                    preferences.data.order_updates
+                      ? "Turn order push alerts off"
+                      : "Turn order push alerts on"
+                  }
                   disabled={busy}
                   onPress={() =>
-                    void perform(
-                      () => registerNotifications(),
-                      preferences.data?.push_service_enabled
-                        ? "This phone is registered for order alerts."
-                        : "This phone is registered. The server push service still needs activation.",
-                    )
+                    void perform(async () => {
+                      await api.patch(
+                        "/v1/account/notifications/preferences",
+                        { order_updates: !preferences.data.order_updates },
+                        { auth: true },
+                      );
+                      await preferences.refetch();
+                    }, "Notification preference saved. Your inbox is always available.")
                   }
                 />
-                <Button
-                  variant="ghost"
-                  label="Open device notification settings"
-                  onPress={() =>
-                    void Linking.openSettings().catch(() =>
-                      setError(
-                        "Open Cake City notification permissions in your device settings.",
-                      ),
-                    )
-                  }
+              ) : preferences.isError ? (
+                <Feedback
+                  error={preferences.error}
+                  onRetry={() => void preferences.refetch()}
                 />
-              </>
-            )}
-            {preferences.data ? (
+              ) : null}
+            </View>
+            {error ? <Notice error message={error} /> : null}
+            {message ? <Notice message={message} /> : null}
+            {Platform.OS !== "web" ? (
               <Button
                 variant="outline"
-                label={
-                  preferences.data.order_updates
-                    ? "Turn order push alerts off"
-                    : "Turn order push alerts on"
-                }
-                disabled={busy}
+                label="Send a test notification"
+                disabled={busy || !preferences.data?.push_service_enabled}
                 onPress={() =>
                   void perform(async () => {
-                    await api.patch(
-                      "/v1/account/notifications/preferences",
-                      { order_updates: !preferences.data.order_updates },
+                    await registerNotifications();
+                    await api.post(
+                      "/v1/account/notifications/test",
+                      {},
                       { auth: true },
                     );
-                    await preferences.refetch();
-                  }, "Notification preference saved. Your inbox is always available.")
+                    await inbox.refetch();
+                  }, "Test queued. Put the app in the background to check phone delivery.")
                 }
               />
-            ) : preferences.isError ? (
-              <Feedback
-                error={preferences.error}
-                onRetry={() => void preferences.refetch()}
-              />
             ) : null}
-          </View>
-          {error ? <Notice error message={error} /> : null}
-          {message ? <Notice message={message} /> : null}
-          {Platform.OS !== "web" ? (
-            <Button
-              variant="outline"
-              label="Send a test notification"
-              disabled={busy || !preferences.data?.push_service_enabled}
-              onPress={() =>
-                void perform(async () => {
-                  await registerNotifications();
-                  await api.post(
-                    "/v1/account/notifications/test",
-                    {},
-                    { auth: true },
-                  );
-                  await inbox.refetch();
-                }, "Test queued. Put the app in the background to check phone delivery.")
-              }
-            />
-          ) : null}
+          </Disclosure>
           <Button
             variant="ghost"
             label="Refresh notifications"
@@ -215,11 +233,36 @@ export function NotificationsScreen() {
                   borderRadius: 20,
                   backgroundColor: colors.surface,
                   borderWidth: 1,
-                  borderColor: item.read_at
+                  borderColor: item.read_at ? colors.border : colors.brandLight,
+                  borderLeftWidth: item.read_at ? 1 : 4,
+                  borderLeftColor: item.read_at
                     ? colors.border
                     : colors.brandStrong,
                 }}
               >
+                <View
+                  style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+                >
+                  <Ionicons
+                    name={
+                      String(item.data.kind || "").includes("delivered")
+                        ? "checkmark-circle-outline"
+                        : "gift-outline"
+                    }
+                    color={colors.brandStrong}
+                    size={20}
+                  />
+                  <Text
+                    style={{
+                      color: colors.muted,
+                      fontSize: 10,
+                      fontWeight: "800",
+                      letterSpacing: 1,
+                    }}
+                  >
+                    {item.read_at ? "YOUR UPDATE" : "JUST FOR YOU"}
+                  </Text>
+                </View>
                 <Text
                   style={{ color: colors.ink, fontWeight: "800", fontSize: 17 }}
                 >

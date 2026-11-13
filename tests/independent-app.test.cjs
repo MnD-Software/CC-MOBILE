@@ -119,7 +119,7 @@ test("order and payment requests address only app-owned routes with authenticate
 });
 
 test("app receipt exports are escaped, app-referenced and require verified payment", () => {
-  const { appReceiptHtml } = load("src/features/commerce/app-receipt.ts", {});
+  const { appReceiptHtml } = load("src/features/commerce/app-receipt.ts", {"./receipt-logo":load("src/features/commerce/receipt-logo.ts",{})});
   assert.throws(() => appReceiptHtml({ paid_at: null }), /verified payment/);
   const order = {
     reference: "APP-20261103-ABC",
@@ -129,6 +129,7 @@ test("app receipt exports are escaped, app-referenced and require verified payme
     payment_state: "completed",
     total_minor: 250000,
     snapshot: {
+      checkout: {},
       subtotal_minor: 250000,
       delivery_minor: 0,
       discount_minor: 0,
@@ -138,12 +139,16 @@ test("app receipt exports are escaped, app-referenced and require verified payme
           name: '<script>alert("test")</script>',
           quantity: 1,
           line_minor: 250000,
+          unit_minor:250000,
+          selection:{size:"1kg"},
         },
       ],
     },
   };
   const html = appReceiptHtml(order);
   assert.match(html, /RCPT-APP-20261103-ABC/);
+  assert.match(html, /<img class="logo" src="data:image\/png;base64,/);
+  assert.doesNotMatch(html, /<h1>Cake City<\/h1>/);
   assert.match(html, /SANDBOX/);
   assert.match(html, /&lt;script&gt;/);
   assert.doesNotMatch(html, /<script>|https?:\/\//);

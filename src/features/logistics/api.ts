@@ -10,6 +10,8 @@ export const tripSchema = z.object({
   plant: z.string(),
   service_type: z.string(),
   destination: z.string(),
+  destination_point:z.object({latitude:z.number(),longitude:z.number()}).nullable().optional(),
+  expected_payout_minor:z.number().nullable().optional(),
   recipient: z.string(),
   phone: z.string(),
   rider_id: z.string().nullable(),

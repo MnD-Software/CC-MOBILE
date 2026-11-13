@@ -59,6 +59,7 @@ function pickup() {
     "@/components/ui/Disclosure": { Disclosure: "Disclosure" },
     "@/components/ui/Typography": { Text: "Text" },
     "./DeliveryMap": { DeliveryMap: "Map" },
+    "./PickupBranchPicker": { PickupBranchPicker: "BranchPicker" },
     "./contracts": { money: (v) => `KES ${v}` },
     "./app-delivery": {
       appDelivery: {
@@ -109,7 +110,7 @@ function pickup() {
     if (!node || typeof node !== "object") return [];
     if (Array.isArray(node)) return node.flatMap(visit);
     return [
-      ...(node.type === "Button" ? [node] : []),
+      ...(node.type === "Button" ? [node] : node.type === "BranchPicker" ? node.props.branches.map(b=>({props:{label:b.name,onPress:()=>node.props.onSelect(b.id)}})) : []),
       ...visit(node.props?.children),
     ];
   }

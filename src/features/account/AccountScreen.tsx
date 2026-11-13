@@ -500,7 +500,7 @@ export function AccountScreen() {
         end={{ x: 1, y: 1 }}
         style={[
           styles.memberHero,
-          { padding: 24, borderRadius: 30, gap: 20, alignItems: "flex-start" },
+          { padding: 24, borderRadius: 30, gap: 18, alignItems: "center", flexDirection: "row" },
         ]}
       >
         <View

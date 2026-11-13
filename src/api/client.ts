@@ -8,6 +8,7 @@ import {
 export const DEFAULT_REQUEST_TIMEOUT_MS = 15_000;
 
 export type ApiRequestOptions = {
+  responseType?: "text" | "bytes";
   /** Adds the current in-memory bearer token to the request. */
   auth?: boolean;
   /** Additional non-sensitive request headers. Authorization is always managed here. */
@@ -259,7 +260,9 @@ async function request<T>(
       route: metricRoute(path),
       status: response.status,
     });
-    const parsed = await parseResponse(response);
+    const parsed = response.ok && options.responseType
+      ? { kind: "json" as const, value: options.responseType === "bytes" ? await response.arrayBuffer() : await response.text() }
+      : await parseResponse(response);
     const requestId = getRequestId(response);
 
     if (options.auth && expectedSession !== sessionGeneration)

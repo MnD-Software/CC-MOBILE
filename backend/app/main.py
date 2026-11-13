@@ -43,6 +43,9 @@ from .checkout_coupons import router as checkout_coupons_router
 from .order_home import router as order_home_router
 from .staff_workspace import router as staff_workspace_router
 from .concierge import router as concierge_router
+from .rider_earnings import router as rider_earnings_router
+from .business import router as business_router
+from .diy import router as diy_router
 
 
 @asynccontextmanager
@@ -98,6 +101,9 @@ app.include_router(staff_workspace_router)
 app.include_router(notifications_router)
 app.include_router(ride_feedback_router)
 app.include_router(concierge_router)
+app.include_router(rider_earnings_router)
+app.include_router(business_router)
+app.include_router(diy_router)
 
 
 @app.get("/ready/db")

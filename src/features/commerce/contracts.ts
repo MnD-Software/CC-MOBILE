@@ -156,6 +156,7 @@ export type CakeSelection = {
   studio_quote_id?: string;
 };
 export const selectionSchema = z.object({
+  design_colour: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
   size: z
     .string()
     .max(24)

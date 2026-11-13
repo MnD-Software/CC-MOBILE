@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AppState, Pressable, View } from "react-native";
-import { router } from "expo-router";
+import { router, usePathname } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { z } from "zod";
@@ -47,6 +48,7 @@ export function useOrderUpdates(poll = false) {
 
 /** Foreground inbox updates also work in Expo Go and without remote push credentials. */
 export function OrderUpdateBanner() {
+  const path = usePathname();
   const { customer } = useAuth();
   const updates = useOrderUpdates(true);
   const cache = useQueryClient();
@@ -77,12 +79,18 @@ export function OrderUpdateBanner() {
   }, [customer?.id, updates.data, cache]);
   useEffect(() => {
     if (!banner) return;
-    const timer = setTimeout(() => setBanner(null), 7000);
+    const timer = setTimeout(() => setBanner(null), 4200);
     return () => clearTimeout(timer);
   }, [banner]);
-  if (!banner || banner.owner !== customer?.id) return null;
+  if (
+    !banner ||
+    banner.owner !== customer?.id ||
+    /checkout|payment|sign-in|custom/.test(path)
+  )
+    return null;
   return (
     <View
+      pointerEvents="box-none"
       style={{
         position: "absolute",
         top: insets.top + 8,
@@ -114,26 +122,47 @@ export function OrderUpdateBanner() {
           if (path) router.push(path);
         }}
         style={{
-          padding: 18,
+          padding: 16,
+          paddingRight: 52,
           gap: 6,
           borderRadius: 20,
-          backgroundColor: colors.ink,
+          backgroundColor: colors.surface,
+          borderWidth: 1,
+          borderColor: colors.border,
+          borderLeftWidth: 4,
+          borderLeftColor: colors.brandStrong,
         }}
       >
         <Text
-          style={{ color: colors.background, fontSize: 15, fontWeight: "800" }}
+          numberOfLines={1}
+          style={{ color: colors.ink, fontSize: 14, fontWeight: "800" }}
         >
           {banner.item.title}
         </Text>
-        <Text
-          numberOfLines={2}
-          style={{ color: colors.background, fontSize: 12 }}
-        >
+        <Text numberOfLines={1} style={{ color: colors.muted, fontSize: 12 }}>
           {banner.item.body}
         </Text>
-        <Text style={{ color: colors.background, fontSize: 11 }}>
+        <Text
+          style={{ color: colors.brandStrong, fontSize: 10, fontWeight: "700" }}
+        >
           Tap to view order
         </Text>
+      </Pressable>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Dismiss update"
+        onPress={() => setBanner(null)}
+        style={{
+          position: "absolute",
+          right: 5,
+          top: 5,
+          width: 44,
+          height: 44,
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <Ionicons name="close" color={colors.muted} size={20} />
       </Pressable>
     </View>
   );

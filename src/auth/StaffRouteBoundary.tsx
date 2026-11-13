@@ -15,7 +15,10 @@ export function StaffRouteBoundary({ children }: PropsWithChildren) {
     isStaffRole(customer.role) &&
     !staffRouteAllowed(customer.role, path);
   useEffect(() => {
-    if (!restoring && blocked) router.replace("/workspace");
+    if (!restoring && blocked)
+      router.replace(
+        customer?.role === "corporate_client" ? "/corporate" : "/workspace",
+      );
   }, [restoring, blocked, path, customer?.role]);
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>

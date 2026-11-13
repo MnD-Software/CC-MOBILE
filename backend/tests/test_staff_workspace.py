@@ -39,7 +39,7 @@ def test_every_provisionable_role_has_a_department_and_only_relevant_modules(sys
         assert not modules & {"sales", "products", "payments", "club", "team"}
         assert data["sales"] is None and data["activity"] == []
     if role in {"rider", "driver"}:
-        assert modules == {"overview", "rider"}
+        assert modules == {"overview", "rider", "earnings"}
     if role != "admin": assert system["client"].get("/v1/staff/team").status_code == 403
 
 

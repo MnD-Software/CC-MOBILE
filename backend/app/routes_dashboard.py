@@ -25,13 +25,15 @@ STATIC = Path(__file__).parent / "dashboard"
 
 @router.get("/admin", include_in_schema=False)
 @router.get("/admin/", include_in_schema=False)
+@router.get("/business", include_in_schema=False)
+@router.get("/business/", include_in_schema=False)
 def dashboard():
     return FileResponse(STATIC / "index.html", headers={"Cache-Control": "no-store", "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' https: data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'", "X-Content-Type-Options": "nosniff", "Referrer-Policy": "same-origin"})
 
 
 @router.get("/admin/assets/{name}", include_in_schema=False)
 def dashboard_asset(name: str):
-    if name not in ("dashboard.js", "dashboard.css", "workspace.js", "cake-city-logo.png"):
+    if name not in ("dashboard.js", "dashboard.css", "workspace.js", "ecosystem.js", "ecosystem.css", "cake-city-logo.png"):
         raise HTTPException(404)
     return FileResponse(STATIC / name, headers={"Cache-Control": "no-cache", "X-Content-Type-Options": "nosniff"})
 

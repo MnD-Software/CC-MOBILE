@@ -25,6 +25,17 @@ function render(screen, customer, states = {}) {
     exports: {},
     require(name) {
       if (name === "react-native") return native;
+      if(name === "./BusinessPortal") {
+        const child={exports:{},require:context.require};
+        vm.runInNewContext(ts.transpileModule(fs.readFileSync("src/features/workspace/BusinessPortal.tsx","utf8"),{compilerOptions:{jsx:ts.JsxEmit.ReactJSX,module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,child);
+        return child.exports;
+      }
+      if(name === "expo-linear-gradient")return {LinearGradient:native.View};
+      if(name === "expo-image-picker")return {};
+      if(name === "@expo/vector-icons")return {Ionicons:()=>null};
+      if(name.endsWith("/BottomSheet"))return {BottomSheet:()=>null};
+      if(name.endsWith("/Disclosure"))return {Disclosure:({children})=>React.createElement(native.View,null,children)};
+      if(name.endsWith("/report-export"))return {exportExcel(){},shareBusinessDocument(){}};
       if (name === "expo-crypto")
         return { randomUUID: () => "test-request-unique-id" };
       if (name === "expo-router") return { router: { push() {} } };
@@ -71,10 +82,11 @@ function render(screen, customer, states = {}) {
           Screen: ({ title, children }) =>
             React.createElement("main", null, title, children),
           Notice: ({ message }) => React.createElement("p", null, message),
+          Feedback:({error})=>React.createElement("p",null,error?.message||"Loading"),
           ui: {},
         };
       if (name.endsWith("/ThemeProvider"))
-        return { useThemedStyles: () => ({}) };
+        return { useThemedStyles: () => ({}),useTheme:()=>({colors:{}}) };
       if (name === "./contracts") return contracts;
       return require(name);
     },
@@ -120,9 +132,9 @@ test("corporate screen renders genuine empty and failed loading states without d
   const empty = render(
     "CorporateScreen",
     { id: "customer-a" },
-    { "corporate-organizations": { data: [] } },
+    { "business-companies": { data: [] } },
   );
-  assert.match(empty.html, /Register a company or accept an invitation/);
+  assert.match(empty.html, /corporate team will add your company/);
   assert.ok(
     empty.queries.every((query) => query.queryKey.includes("customer-a")),
   );
@@ -130,7 +142,7 @@ test("corporate screen renders genuine empty and failed loading states without d
     "CorporateScreen",
     { id: "customer-a" },
     {
-      "corporate-organizations": {
+      "business-companies": {
         isError: true,
         error: new Error("Corporate service unavailable"),
       },

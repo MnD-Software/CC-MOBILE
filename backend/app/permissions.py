@@ -5,6 +5,9 @@ from .models import AdministrativeEvent, Customer
 from .routes_club import member
 
 ROLE_PERMISSIONS = {
+    "corporate_manager": {"enquiries.read", "enquiries.write"},
+    "corporate_assistant": {"enquiries.read", "enquiries.write"},
+    "corporate_agent": {"enquiries.read", "enquiries.write"},
     "admin": {"content.read", "content.write", "enquiries.read", "enquiries.write", "audit.read"},
     "staff": {"content.read", "content.write", "enquiries.read", "enquiries.write"},
     "executive": {"content.read", "audit.read"},

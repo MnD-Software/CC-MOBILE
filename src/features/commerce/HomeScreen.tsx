@@ -1,4 +1,5 @@
-import { isPinkSimbaPackage } from "./catalogue-kind";
+import { HomeWelcome } from "./HomeWelcome";
+import { WelcomeCoupon } from "@/features/account/WelcomeCoupon";
 import { appMedia } from "./app-media";
 import { HeaderActions } from "@/components/storefront/HeaderActions";
 import { ActiveOrderCard } from "./ActiveOrderCard";
@@ -302,6 +303,7 @@ export function HomeScreen() {
         </CommerceBrowseHeader>
       }
     >
+      <WelcomeCoupon />
       <ScrollView
         contentContainerStyle={[
           styles.content,
@@ -325,6 +327,7 @@ export function HomeScreen() {
         >
           <ActiveOrderCard compact />
         </View>
+        <HomeWelcome />
         {catalogue.isPending ? (
           <HomeSkeleton cardWidth={collectionCardWidth} />
         ) : catalogue.isError ? (
@@ -511,7 +514,7 @@ function DealSlide({
       {image ? (
         <LoadingImage
           cachePolicy="memory-disk"
-          contentFit={isPinkSimbaPackage(product) ? "contain" : "cover"}
+          contentFit="cover"
           source={{ uri: image }}
           style={styles.heroImage}
           transition={120}

@@ -1,4 +1,7 @@
-import { View } from "react-native";
+import { Pressable, View } from "react-native";
+import { useState } from "react";
+import { LinearGradient } from "expo-linear-gradient";
+import { membershipPalette } from "./member-card";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "@/components/ui/Typography";
 import { Disclosure } from "@/components/ui/Disclosure";
@@ -22,13 +25,22 @@ export function ClubJourney({
     milestones: { name: string; spend_kes: number }[];
   };
 }) {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
+  const [chapter, setChapter] = useState<string | null>(null);
   const next = journey.milestones.find(
     (step) => step.spend_kes > journey.qualifying_spend_kes,
   );
   const previous = [...journey.milestones]
     .reverse()
     .find((step) => step.spend_kes <= journey.qualifying_spend_kes);
+  const palette = membershipPalette(
+    chapter || next?.name || previous?.name || "Silver",
+  );
+  const chapterAccent = isDark
+    ? palette.gradient[0]
+    : palette === membershipPalette("Platinum")
+      ? "#52657D"
+      : palette.accent;
   return (
     <View testID="club-journey" style={{ gap: 12 }}>
       <View style={{ gap: 10, paddingVertical: 12 }}>
@@ -36,7 +48,7 @@ export function ClubJourney({
           <Ionicons
             name={next ? "sparkles-outline" : "trophy-outline"}
             size={20}
-            color={colors.brandStrong}
+            color={chapterAccent}
           />
           <View style={{ flex: 1, gap: 3 }}>
             <Text
@@ -58,7 +70,7 @@ export function ClubJourney({
             next ? journey.qualifying_spend_kes - (previous?.spend_kes ?? 0) : 1
           }
           total={next ? next.spend_kes - (previous?.spend_kes ?? 0) : 1}
-          color={colors.brandStrong}
+          color={chapterAccent}
           trackColor={colors.brandLight}
           label={next ? `Progress to ${next.name}` : "All tiers unlocked"}
           height={5}
@@ -76,8 +88,12 @@ export function ClubJourney({
         {journey.milestones.map((step, index) => {
           const unlocked = journey.qualifying_spend_kes >= step.spend_kes;
           return (
-            <View
+            <Pressable
               key={step.name}
+              accessibilityRole="button"
+              accessibilityLabel={`Explore ${step.name}${unlocked ? ", unlocked" : ""}`}
+              accessibilityState={{ selected: chapter === step.name }}
+              onPress={() => setChapter(step.name)}
               style={{ flex: 1, alignItems: "center", gap: 8 }}
             >
               <View
@@ -87,9 +103,9 @@ export function ClubJourney({
                   borderRadius: 15,
                   alignItems: "center",
                   justifyContent: "center",
-                  backgroundColor: unlocked
-                    ? colors.successLight
-                    : colors.surface,
+                  backgroundColor: membershipPalette(step.name).gradient[0],
+                  borderWidth: chapter === step.name ? 2 : 0,
+                  borderColor: membershipPalette(step.name).accent,
                 }}
               >
                 <Ionicons
@@ -100,7 +116,7 @@ export function ClubJourney({
                         ? "diamond-outline"
                         : "ribbon-outline"
                   }
-                  color={unlocked ? colors.success : colors.muted}
+                  color={membershipPalette(step.name).ink}
                   size={20}
                 />
               </View>
@@ -113,10 +129,27 @@ export function ClubJourney({
               >
                 {step.name}
               </Text>
-            </View>
+            </Pressable>
           );
         })}
       </View>
+      {chapter ? (
+        <LinearGradient
+          colors={[...palette.gradient]}
+          style={{ padding: 20, borderRadius: 24, gap: 8 }}
+        >
+          <Text style={{ color: palette.ink, fontSize: 22, fontWeight: "800" }}>
+            {chapter} chapter
+          </Text>
+          <Text style={{ color: palette.muted, lineHeight: 21 }}>
+            {journey.qualifying_spend_kes >=
+            (journey.milestones.find((s) => s.name === chapter)?.spend_kes ??
+              Infinity)
+              ? "Unlocked. Your membership is part of every celebration."
+              : `Your ${chapter} card is waiting. Follow your progress and explore the published benefits in My rewards.`}
+          </Text>
+        </LinearGradient>
+      ) : null}
       {journey.purchases_per_milestone && next ? (
         <View
           style={{

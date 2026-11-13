@@ -20,6 +20,7 @@ import { logisticsApi, type WorkOrder, type Trip } from "./api";
 import { useScreenActive } from "@/design/useScreenActive";
 import { Disclosure } from "@/components/ui/Disclosure";
 import { StaffDepartmentMetrics } from "@/features/staff/StaffDepartmentMetrics";
+import { EarningsPanel } from "./EarningsPanel";
 
 export function OperationsScreen({ kitchen }: { kitchen: boolean }) {
   const { customer, logout } = useAuth();
@@ -85,6 +86,7 @@ function Queue({ owner, kitchen }: { owner: string; kitchen: boolean }) {
   return (
     <>
       <StaffDepartmentMetrics />
+      {!kitchen ? <Disclosure title="Rider earnings & payments"><EarningsPanel /></Disclosure> : null}
       {!kitchen ? (
         <Button
           label="Rider accounts / create rider"

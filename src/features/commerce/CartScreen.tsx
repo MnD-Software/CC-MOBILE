@@ -14,6 +14,7 @@ import { useBag, usePreferences } from "./store";
 import { CelebrationArtwork } from "@/components/ui/CelebrationArtwork";
 import { AnimatedNumber } from "@/components/ui/Delight";
 import { CartSuggestions } from "./CartSuggestions";
+import { Disclosure } from "@/components/ui/Disclosure";
 
 export function CartScreen() {
   const styles = useThemedStyles(baseStyles);
@@ -214,7 +215,7 @@ export function CartScreen() {
             ))}
           </View>
 
-          <CartSuggestions lines={bag.lines} />
+          <Disclosure title="Make it extra special · optional extras"><CartSuggestions lines={bag.lines} /></Disclosure>
           <View style={styles.totalCard}>
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>Bag total</Text>

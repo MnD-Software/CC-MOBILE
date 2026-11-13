@@ -34,6 +34,8 @@ def modules(role):
     result = [{"id": "overview", "label": "Overview", "href": "/workspace"}]
     def add(identity, label, href="/workspace"):
         result.append({"id": identity, "label": label, "href": href})
+    if role in DISPATCH | RIDERS | {"finance"}: add("earnings", "Rider earnings & payments")
+    if role in MANAGERS | {"corporate_manager", "corporate_assistant", "corporate_agent", "corporate_sales"}: add("corporate", "Corporate CRM & accounts")
     if role in KITCHEN: add("kitchen", "Kitchen & production", "/kitchen")
     if role in DISPATCH:
         add("dispatch", "Dispatch & delivery", "/dispatch")

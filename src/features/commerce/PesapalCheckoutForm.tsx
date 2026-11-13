@@ -37,6 +37,11 @@ import { distanceOptionsSchema, type DeliveryRouteQuote } from "./app-delivery";
 import { HqDeliveryPicker } from "./HqDeliveryPicker";
 import { CheckoutProgress } from "@/components/storefront/CheckoutProgress";
 import { CheckoutCoupons } from "./CheckoutCoupons";
+import { PickupBranchPicker } from "./PickupBranchPicker";
+import {
+  DeliveryAddressLocation,
+  type AddressPoint,
+} from "./DeliveryAddressLocation";
 
 const quoteSchema = z.object({
   id: z.string(),
@@ -90,6 +95,10 @@ function AppCheckout({ owner }: { owner: string }) {
     "delivery",
   );
   const [zone, setZone] = useState("");
+  const [pickupLocation, setPickupLocation] = useState("hq");
+  const [deliveryLocation, setDeliveryLocation] = useState<AddressPoint | null>(
+    null,
+  );
   const [deliveryQuote, setDeliveryQuote] = useState<DeliveryRouteQuote | null>(
     null,
   );
@@ -123,6 +132,8 @@ function AppCheckout({ owner }: { owner: string }) {
     billing,
     fulfilment,
     zone,
+    pickupLocation,
+    deliveryLocation,
     deliveryQuote,
     coupon,
     notes,
@@ -298,6 +309,9 @@ function AppCheckout({ owner }: { owner: string }) {
             })),
             fulfilment,
             delivery_zone_id: fulfilment === "delivery" ? zone : null,
+            pickup_location_id: fulfilment === "pickup" ? pickupLocation : null,
+            delivery_location:
+              fulfilment === "delivery" ? deliveryLocation : null,
             delivery_quote_id: deliveryQuote?.id || null,
             coupon_code: coupon.trim() || null,
             billing: {
@@ -836,7 +850,14 @@ function AppCheckout({ owner }: { owner: string }) {
               ) : null}
             </View>
             {fulfilment === "pickup" && options.data?.pickup_instructions ? (
-              <Notice message={options.data.pickup_instructions} />
+              <Notice
+                message={
+                  pickupLocation !== "hq" &&
+                  !options.data.distance_delivery?.enabled
+                    ? "We’ll notify you when your cake is ready at your selected branch."
+                    : options.data.pickup_instructions
+                }
+              />
             ) : null}
             {options.data?.distance_delivery?.enabled ? (
               <HqDeliveryPicker
@@ -848,8 +869,35 @@ function AppCheckout({ owner }: { owner: string }) {
                 }
               />
             ) : null}
+            {fulfilment === "pickup" &&
+            options.data?.distance_delivery &&
+            !options.data.distance_delivery.enabled ? (
+              <PickupBranchPicker
+                selected={pickupLocation}
+                onSelect={setPickupLocation}
+                branches={[
+                  {
+                    id: "hq",
+                    name: options.data.distance_delivery.origin_name,
+                    address: options.data.distance_delivery.origin_address,
+                  },
+                  ...options.data.distance_delivery.pickup_stores,
+                ]}
+              />
+            ) : null}
             {fulfilment === "delivery" ? (
               <>
+                {!options.data?.distance_delivery?.enabled ? (
+                  <DeliveryAddressLocation
+                    onChange={setDeliveryLocation}
+                    onAddress={(address) =>
+                      setBilling((previous) => ({
+                        ...previous,
+                        address: previous.address || address,
+                      }))
+                    }
+                  />
+                ) : null}
                 <Input
                   label="Building, street and apartment / delivery entrance"
                   value={billing.address}

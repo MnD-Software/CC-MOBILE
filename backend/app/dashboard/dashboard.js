@@ -157,7 +157,7 @@ $("signin").onsubmit = async (e) => {
       Object.fromEntries(f),
     );
     try {
-      staffOverview = await request("/v1/staff/overview");
+      staffOverview = session.customer.role === "corporate_client" ? {modules:[{id:"corporate",label:"Your company"}]} : await request("/v1/staff/overview");
     } catch (error) {
       await request("/v1/auth/mobile/logout", "POST", {
         refresh_token: session.refresh_token,
@@ -170,7 +170,7 @@ $("signin").onsubmit = async (e) => {
     $("identity").textContent =
       `${session.customer.first_name} · ${session.customer.role.replaceAll("_", " ")}`;
     navigation();
-    await show("overview");
+    await show(session.customer.role === "corporate_client" ? "corporate" : "overview");
   } catch (error) {
     session = null;
     $("login-error").textContent = error.message;

@@ -150,6 +150,8 @@ function checkout(optionOverrides = {}) {
     },
     "./app-delivery": { distanceOptionsSchema: z.any() },
     "./HqDeliveryPicker": { HqDeliveryPicker: "HqPicker" },
+    "./PickupBranchPicker": { PickupBranchPicker: "PickupPicker" },
+    "./DeliveryAddressLocation": { DeliveryAddressLocation: "AddressLocation" },
     "@/components/storefront/CheckoutProgress": {
       CheckoutProgress: "Progress",
     },

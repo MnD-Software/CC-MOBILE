@@ -18,6 +18,7 @@ import { RiderLocationSharing } from "./RiderLocationSharing";
 import { useScreenActive } from "@/design/useScreenActive";
 import { Disclosure } from "@/components/ui/Disclosure";
 import { StaffDepartmentMetrics } from "@/features/staff/StaffDepartmentMetrics";
+import { EarningsPanel } from "./EarningsPanel";
 
 export function RiderScreen() {
   const { customer, logout } = useAuth();
@@ -68,6 +69,7 @@ function RiderQueue({ owner }: { owner: string }) {
   return (
     <>
       <StaffDepartmentMetrics />
+      <Disclosure title="Your earnings & payment history"><EarningsPanel /></Disclosure>
       <Notice message="Assigned work refreshes every 15 seconds while this screen is open. Collection is available after Kitchen confirms readiness." />
       <Button
         label="Refresh assignments"
@@ -129,6 +131,7 @@ function TripCard({ task }: { task: Trip }) {
     <View style={ui.panel} testID={`trip-${task.id}`}>
       <Text style={ui.heading}>{task.reference}</Text>
       <Text style={ui.eyebrow}>{task.status.replaceAll("_", " ")}</Text>
+      <Text style={ui.heading}>{task.expected_payout_minor != null ? `Your expected payout: KES ${(task.expected_payout_minor/100).toLocaleString("en-KE")}` : "Dispatch will confirm your distance and fare"}</Text>
       {task.payment_test && !task.review_checkout ? (
         <Notice message="SIMULATED TEST — no physical delivery or payment is required." />
       ) : null}
@@ -172,7 +175,7 @@ function TripCard({ task }: { task: Trip }) {
         label="Open directions"
         onPress={() =>
           void Linking.openURL(
-            `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(task.destination)}`,
+            `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(task.destination_point ? `${task.destination_point.latitude},${task.destination_point.longitude}` : task.destination)}`,
           )
         }
       />

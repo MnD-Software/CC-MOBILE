@@ -111,6 +111,8 @@ Manual iPhone acceptance matrix: light/dark appearance x True Tone off/on x Nigh
 
 ## Checkout blocked by missing local fulfilment setup
 
+Follow-up ecosystem expansion, owner-approved delivery/rider tariffs, corporate portal, earnings reports, inventory DIY, coupons, rider details and logo receipt are documented in [ECOSYSTEM_EXPANSION_2026-11-13.md](ECOSYSTEM_EXPANSION_2026-11-13.md). Use that document for the latest implementation/validation details and operational acceptance limits.
+
 The grey Review confirmed total button was reproduced against the running preview: checkout policy and delivery-zone tables were empty, despite an imported catalogue and historical orders. Both pickup and delivery were unavailable. Restored the missing policy and a zero-fee address-based Delivery zone through the authenticated local admin API, after verifying the isolated backend status; temporary admin/customer check sessions were logged out. No customer order or payment was submitted. This is local review configuration, not confirmation of production delivery rates or Maps routing.
 
 The local factory now calls guarded `review_checkout.prepare_checkout` to initialize missing settings on startup, preserving existing operator choices and disabled settings. Production startup does not call this helper and its isolation guard rejects non-review databases before accessing them. Checkout automatically selects a sole delivery area. A disabled review button now has an adjacent explanation for missing setup, a missing route, loading, or recovery; failed option loads offer retry.

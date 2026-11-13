@@ -162,6 +162,14 @@ def new_trip(db, actor, reference, data, commit=True):
         scheduled_at=data.scheduled_at, slot=data.slot, pv_reference=data.pv_reference, status="assigned")
     db.add(task)
     db.flush()
+    route = order.snapshot.get("route") or {}
+    if (data.service_type == "delivery" and data.resource_type == "internal_rider"
+            and destination == route.get("destination_address") and route.get("distance_meters", 0) > 0):
+        from .ecosystem_models import RiderEarning
+        from .rider_earnings import TARIFF
+        meters = int(route["distance_meters"])
+        db.add(RiderEarning(task_id=task.id, rider_id=rider.id, distance_meters=meters,
+                           amount_minor=8500+(meters*1500+500)//1000, tariff=dict(TARIFF)))
     task_event(db, task, actor.id if actor else None, "assigned")
     if actor:
         audit(db, actor.id, "logistics_task_assigned", task.id, reference=reference, rider_id=rider.id, plant=production.plant)
@@ -183,6 +191,12 @@ def task_view(db, task, history=False):
         "feedback": for_task(db, task),
         "payment_test": order.channel == "app_test", "review_checkout": bool(order.snapshot.get("review_checkout")),
         "delivery_notes": str(order.snapshot.get("checkout", {}).get("notes", ""))}
+    checkout = order.snapshot.get("checkout", {})
+    expected = (order.snapshot.get("route") or {}).get("destination_address") or checkout.get("billing", {}).get("address")
+    result["destination_point"] = ((order.snapshot.get("route") or {}).get("destination") or checkout.get("delivery_location")) if task.destination == expected else None
+    from .ecosystem_models import RiderEarning
+    earning = db.get(RiderEarning, task.id)
+    result["expected_payout_minor"] = earning.amount_minor if earning and earning.rider_id == task.rider_id else None
     lines = {line.get("sku_id"): line for line in order.snapshot.get("lines", [])}
     result["items"] = [{**item, "name": lines.get(item.get("sku_id"), {}).get("name", "Cake"),
         "selection": lines.get(item.get("sku_id"), {}).get("selection", {})} for item in task.items]
@@ -277,6 +291,9 @@ def update_task(db, actor, identity, data):
         audit(db, actor.id, "logistics_task_status", identity, status=data.status)
     if not db.info.get("odoo_import"):
         db.commit()
+        if order.state == "completed":
+            from .routes_club_benefits import sync_referral
+            sync_referral(order.customer_id, order.reference, "completed", db)
     return task_view(db, task, history=True)
 
 

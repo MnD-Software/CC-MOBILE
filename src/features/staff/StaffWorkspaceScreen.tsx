@@ -19,6 +19,8 @@ import {
 import { StaffRecords } from "./StaffRecords";
 import { env } from "@/config/env";
 import { NativeStaffModule } from "./NativeStaffModule";
+import { EarningsPanel } from "@/features/logistics/EarningsPanel";
+import { BusinessPortal } from "@/features/workspace/BusinessPortal";
 
 const cash = (minor: number) =>
   `KES ${(minor / 100).toLocaleString("en-KE", { maximumFractionDigits: 2 })}`;
@@ -113,10 +115,16 @@ export function StaffWorkspaceScreen() {
           />
         }
       >
-        <NativeStaffModule
-          key={`${customer?.id}-${section}`}
-          module={section}
-        />
+        {section === "earnings" ? (
+          <EarningsPanel />
+        ) : section === "corporate" ? (
+          <BusinessPortal />
+        ) : (
+          <NativeStaffModule
+            key={`${customer?.id}-${section}`}
+            module={section}
+          />
+        )}
       </Screen>
     );
   return (

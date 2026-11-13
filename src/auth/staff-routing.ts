@@ -23,6 +23,7 @@ export const isStaffRole = (role?: string) => !!role && role !== "customer";
 
 /** Navigation convenience only. Every staff API independently authorizes its actor. */
 export function staffRouteAllowed(role: string, path: string) {
+  if (role === "corporate_client") return ["/corporate", "/notifications", "/sign-in"].includes(path);
   if (path === "/workspace" || path === "/notifications") return true;
   const managers = ["admin", "staff", "ecommerce_manager"];
   if (path === "/kitchen")

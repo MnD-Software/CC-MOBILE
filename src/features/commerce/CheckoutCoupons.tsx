@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
 import { Pressable, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { z } from "zod";
@@ -57,6 +58,12 @@ export function CheckoutCoupons({
   const eligible = coupons.filter((coupon) => coupon.eligible);
   const selected = coupons.find((coupon) => coupon.code === code);
   const recommended = selected?.eligible ? selected : eligible[0];
+  const restoredSelection = useRef(false);
+  useEffect(() => {
+    if (!wallet.ready || !offers.isSuccess || restoredSelection.current) return;
+    restoredSelection.current = true;
+    if (!code && wallet.selected && eligible.some(c => c.code === wallet.selected)) onChange(wallet.selected);
+  }, [wallet.ready, wallet.selected, offers.isSuccess, code, eligible, onChange]);
   const checkbox = (coupon: (typeof coupons)[number]) => (
     <Pressable
       key={coupon.code}

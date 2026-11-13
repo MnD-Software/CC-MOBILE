@@ -60,7 +60,8 @@ class DeliveryPolicy(BaseModel):
 def policy(db):
     row = db.get(AppPolicy, "delivery")
     if row:
-        return DeliveryPolicy.model_validate(row.payload)
+        result = DeliveryPolicy.model_validate(row.payload)
+        return result.model_copy(update={"pickup_stores": [b for b in result.pickup_stores if "athi-river" not in b.id and "athi river" not in b.name.lower()]})
     directory = json.loads((Path(__file__).parent / "data" / "pickup_stores.json").read_text(encoding="utf-8"))
     return DeliveryPolicy(pickup_stores=directory["stores"])
 
@@ -76,9 +77,11 @@ def distance_km(a, b):
 
 
 def delivery_fee(distance_meters, *, transfer=False):
-    # KES 100 base + KES 30/km. Whole route metres are billed to KES cents.
-    fee = 10000 + distance_meters * 3
-    return (fee + 1)//2 if transfer else fee
+    # Owner confirmation 13 Nov 2026: customer fee is KES 30/km,
+    # with a KES 100 floor. Keep the separate branch-transfer schedule.
+    if transfer:
+        return (10000 + distance_meters * 3 + 1)//2
+    return max(10000, distance_meters * 3)
 
 
 async def google_request(method, url, **kwargs):
@@ -173,7 +176,7 @@ async def create_quote(db, customer_id, fulfilment, point=None, pickup_id=None):
         "destination": destination.model_dump(), "destination_name": name, "destination_address": address,
         "pickup_location_id": pickup_id if fulfilment == "pickup" else None, "distance_meters": meters,
         "fee_minor": 0 if hq_pickup else delivery_fee(meters, transfer=fulfilment == "pickup"),
-        "rate": "Free HQ pickup" if hq_pickup else "50% of KES 100 + KES 30/km" if fulfilment == "pickup" else "KES 100 + KES 30/km",
+        "rate": "Free HQ pickup" if hq_pickup else "50% of KES 100 + KES 30/km" if fulfilment == "pickup" else "KES 30/km, minimum KES 100",
         "quoted_at": now.isoformat()}
     expires = now+timedelta(minutes=15)
     row = AppDeliveryQuote(id=str(uuid4()), customer_id=customer_id, snapshot=snapshot, expires_at=expires)

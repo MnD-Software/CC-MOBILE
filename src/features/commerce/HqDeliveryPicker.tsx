@@ -15,6 +15,7 @@ import {
 import { DeliveryMap } from "./DeliveryMap";
 import { money } from "./contracts";
 import { useTheme } from "@/theme/ThemeProvider";
+import { PickupBranchPicker } from "./PickupBranchPicker";
 
 export function HqDeliveryPicker({
   options,
@@ -184,7 +185,7 @@ export function HqDeliveryPicker({
       {fulfilment === "delivery" ? (
         <>
           <Text style={detailStyle}>
-            KES 100 + KES 30/km by road from HQ. Available within the configured{" "}
+            KES 30/km by road, minimum KES 100. Available within the configured{" "}
             {options.radius_km} km delivery area.
           </Text>
           <Input
@@ -258,32 +259,25 @@ export function HqDeliveryPicker({
             Collect at HQ for free, or choose an available store. Transfers cost
             50% of the applicable delivery fee from HQ.
           </Text>
-          <Disclosure
-            title={`Choose pickup branch: ${pickup === "hq" ? options.origin_name : options.pickup_stores.find((s) => s.id === pickup)?.name || "Select branch"}`}
-          >
-            {[
+          <PickupBranchPicker
+            selected={pickup}
+            branches={[
               {
                 id: "hq",
                 name: options.origin_name,
                 address: options.origin_address,
               },
               ...options.pickup_stores,
-            ].map((store) => (
-              <Button
-                key={store.id}
-                variant={pickup === store.id ? "primary" : "outline"}
-                label={store.name}
-                onPress={() => {
+            ]}
+                onSelect={(identity) => {
                   generation.current++;
-                  setPickup(store.id);
+                  setPickup(identity);
                   setRoute(null);
                   setBusy(false);
                   onChange(null);
-                  if (store.id === pickup) confirm(null);
+                  if (identity === pickup) confirm(null);
                 }}
-              />
-            ))}
-          </Disclosure>
+          />
         </>
       )}
       {!options.maps_ready && (fulfilment === "delivery" || pickup !== "hq") ? (

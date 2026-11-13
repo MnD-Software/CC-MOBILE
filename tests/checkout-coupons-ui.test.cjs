@@ -7,6 +7,7 @@ function screen(coupons, code = "") {
   const changes = [];
   const jsx = (type, props) => ({ type, props });
   const modules = {
+    react: {useEffect(){},useRef(value){return {current:value};}},
     "react/jsx-runtime": { jsx, jsxs: jsx },
     "@tanstack/react-query": { useQuery: () => ({ data: { coupons } }) },
     "react-native": { Pressable: "Checkbox", View: "View" },

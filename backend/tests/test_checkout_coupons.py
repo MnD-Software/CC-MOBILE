@@ -20,7 +20,7 @@ def test_coupon_discovery_is_private_owned_and_does_not_reserve_rewards(system):
     result = system["client"].post("/v1/account/coupons/available", json={"subtotal_minor":250000,"saved_codes":[" PUBLIC-SAVED ","other-secret"]})
     assert result.status_code == 200, result.text
     offers = {c["code"]: c for c in result.json()["coupons"]}
-    assert set(offers) == {"own-reward", "own-next", "public-saved"}
+    assert set(offers) == {"own-reward", "own-next", "public-saved", "welcome-buyer"}
     assert offers["own-reward"]["eligible"] is True
     assert offers["own-next"]["eligible"] is False
     assert offers["own-next"]["remaining_to_minimum_minor"] == 250000

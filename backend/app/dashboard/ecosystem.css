@@ -1,0 +1,191 @@
+.ecosystem-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 30px;
+  padding: 32px;
+  background: linear-gradient(125deg, #2f2039, #663553 65%, #90677c);
+  color: #fff;
+  margin: 16px 0 24px;
+  box-shadow: 0 14px 36px #3c173512;
+}
+.ecosystem-hero:after {
+  content: "";
+  position: absolute;
+  width: 260px;
+  height: 260px;
+  border: 45px solid #ffffff05;
+  border-radius: 50%;
+  right: -100px;
+  top: -150px;
+  pointer-events: none;
+}
+.ecosystem-hero.emerald {
+  background: linear-gradient(125deg, #143e35, #1d6b4e, #4a9775);
+}
+.ecosystem-hero h2 {
+  font-size: clamp(26px, 3vw, 40px);
+  letter-spacing: -1px;
+  margin: 14px 0;
+}
+.ecosystem-hero p,
+.ecosystem-hero .eyebrow {
+  color: #f1dfeb;
+}
+.ecosystem-hero .stats {
+  margin: 24px 0 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+.ecosystem-hero .stat {
+  background: #ffffff0c;
+  border: 1px solid #ffffff12;
+  color: white;
+  box-shadow: none;
+  border-radius: 20px;
+  padding: 20px;
+}
+.ecosystem-hero .stat small,
+.ecosystem-hero .stat span {
+  color: #f1dfeb;
+}
+.ecosystem-hero .stat strong {
+  color: #fff;
+  font-size: clamp(20px, 2.5vw, 30px);
+}
+.ecosystem-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 14px 0;
+}
+.ecosystem-actions button {
+  min-height: 42px;
+  border-radius: 14px;
+}
+.earning-amount {
+  font-size: 25px;
+  display: block;
+  margin: 16px 0;
+  color: #1c674b;
+  letter-spacing: -0.5px;
+}
+.earning-paid {
+  background: linear-gradient(135deg, #f2fcf6, #def3e6) !important;
+  border-color: #b7dec6 !important;
+}
+.company-tile {
+  text-align: left;
+  min-height: 190px;
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease;
+}
+.company-tile:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 36px #51223e10;
+}
+.company-tile strong {
+  color: #a90062;
+}
+.inventory-choices {
+  max-height: 340px;
+  overflow: auto;
+  margin: 16px 0;
+}
+.inventory-choice {
+  display: flex !important;
+  align-items: center;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid #eadfe5;
+  border-radius: 16px;
+  margin: 10px 0;
+  background: #fffcfe;
+}
+.inventory-choice > span {
+  flex: 1;
+  min-width: 0;
+}
+.inventory-choice strong,
+.inventory-choice small {
+  display: block;
+  margin: 3px 0;
+}
+.inventory-choice small {
+  color: #715e6a;
+  line-height: 1.5;
+}
+.inventory-choice input[type="number"] {
+  max-width: 85px;
+}
+.inventory-choice input[type="radio"],
+.inventory-choice input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  accent-color: #b80068;
+}
+.segmented label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #eadfe5;
+  border-radius: 14px;
+  padding: 12px;
+  cursor: pointer;
+}
+.segmented label:has(input:checked) {
+  background: #fceaf4;
+  border-color: #b80068;
+  color: #9b0059;
+}
+.segmented input {
+  accent-color: #b80068;
+  width: 16px;
+  height: 16px;
+}
+.panel details {
+  margin-top: 16px;
+}
+.panel summary {
+  color: #7a3a61;
+  cursor: pointer;
+  line-height: 1.6;
+}
+button:focus-visible,
+summary:focus-visible {
+  outline: 3px solid #d58db8;
+  outline-offset: 3px;
+}
+@media (max-width: 640px) {
+  .ecosystem-hero {
+    padding: 23px;
+    border-radius: 24px;
+  }
+  .ecosystem-hero .stats {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .ecosystem-hero .stat {
+    padding: 15px;
+  }
+  .ecosystem-actions {
+    gap: 8px;
+  }
+  .ecosystem-actions button {
+    flex: 1 1 auto;
+  }
+  .inventory-choice {
+    padding: 11px;
+    gap: 9px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .company-tile {
+    transition: none;
+  }
+  .company-tile:hover {
+    transform: none;
+  }
+}

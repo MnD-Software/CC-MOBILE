@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Linking, StyleSheet, View } from "react-native";
+import { Linking, ScrollView, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { Text } from "@/components/ui/Typography";
@@ -11,6 +11,8 @@ import { orderTracking } from "./order-tracking";
 import { orderStageLabel } from "./ActiveOrderCard";
 import { useScreenActive } from "@/design/useScreenActive";
 import { LiveDeliveryMap } from "./LiveDeliveryMap";
+import { LoadingImage } from "@/components/ui/LoadingImage";
+import { appMedia } from "./app-media";
 import {
   tripStageLabel,
   visibleRiderPoint,
@@ -108,6 +110,62 @@ export function OrderJourney({
               : orderStageLabel(order.status)}
           </Text>
           <Text style={styles.copy}>{copy}</Text>
+          {order.snapshot?.lines?.length ? (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ gap: 10, paddingVertical: 8 }}
+            >
+              {order.snapshot.lines.map((line, index) => (
+                <View
+                  key={`${line.sku_id}-${index}`}
+                  style={{
+                    backgroundColor: "rgba(255,255,255,0.09)",
+                    padding: 9,
+                    borderRadius: 18,
+                    flexDirection: "row",
+                    gap: 10,
+                    alignItems: "center",
+                    maxWidth: 250,
+                  }}
+                >
+                  {line.image ? (
+                    <LoadingImage
+                      source={{ uri: appMedia(line.image) }}
+                      contentFit="cover"
+                      style={{ width: 48, height: 48, borderRadius: 13 }}
+                    />
+                  ) : (
+                    <View
+                      style={{
+                        width: 42,
+                        height: 42,
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <Ionicons name="gift-outline" color="#FFE1A8" size={24} />
+                    </View>
+                  )}
+                  <View style={{ flex: 1, gap: 4 }}>
+                    <Text
+                      numberOfLines={2}
+                      style={{
+                        color: "white",
+                        fontWeight: "700",
+                        fontSize: 12,
+                      }}
+                    >
+                      {line.name}
+                    </Text>
+                    <Text style={{ color: "#F4DCE9", fontSize: 10 }}>
+                      {line.quantity} × {String(line.selection.size || "Cake")}
+                    </Text>
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+          ) : null}
           <View style={styles.pips}>
             {steps.map((step, index) => (
               <View
@@ -131,6 +189,114 @@ export function OrderJourney({
           </Text>
         </LinearGradient>
       </View>
+      {trips.some((t) => t.rider) ? (
+        <View style={{ gap: 12 }}>
+          {trips
+            .filter((t) => t.rider)
+            .map((trip) => (
+              <View
+                key={trip.id}
+                style={{
+                  padding: 20,
+                  borderRadius: 25,
+                  backgroundColor: colors.surface,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  gap: 12,
+                }}
+              >
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 14,
+                  }}
+                >
+                  <LinearGradient
+                    colors={["#F8E2F0", "#EEC3DC"]}
+                    style={{
+                      width: 54,
+                      height: 54,
+                      borderRadius: 20,
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 22,
+                        fontWeight: "800",
+                        color: "#722148",
+                      }}
+                    >
+                      {trip
+                        .rider!.name.split(" ")
+                        .map((p) => p[0])
+                        .slice(0, 2)
+                        .join("")}
+                    </Text>
+                  </LinearGradient>
+                  <View style={{ flex: 1, gap: 4 }}>
+                    <Text
+                      style={{
+                        color: colors.muted,
+                        fontSize: 10,
+                        letterSpacing: 1,
+                        fontWeight: "700",
+                      }}
+                    >
+                      YOUR {trip.rider!.role === "driver" ? "DRIVER" : "RIDER"}
+                    </Text>
+                    <Text
+                      style={{
+                        color: colors.ink,
+                        fontWeight: "800",
+                        fontSize: 18,
+                      }}
+                    >
+                      {trip.rider!.name}
+                    </Text>
+                    <Text
+                      style={{
+                        color:
+                          trip.status === "delivered"
+                            ? colors.success
+                            : colors.brandStrong,
+                        fontSize: 12,
+                        fontWeight: "600",
+                      }}
+                    >
+                      {tripStageLabel(trip.status)}
+                      {trips.length > 1
+                        ? ` · Delivery ${trips.indexOf(trip) + 1}`
+                        : ""}
+                    </Text>
+                  </View>
+                  {trip.rider!.phone ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      label="Call rider"
+                      onPress={() =>
+                        void Linking.openURL(
+                          `tel:${trip.rider!.phone.replace(/[^+0-9]/g, "")}`,
+                        )
+                      }
+                    />
+                  ) : null}
+                </View>
+                {trip.rider!.phone ? (
+                  <Text
+                    selectable
+                    style={{ color: colors.muted, fontSize: 13 }}
+                  >
+                    {trip.rider!.phone}
+                  </Text>
+                ) : null}
+              </View>
+            ))}
+        </View>
+      ) : null}
       {delivery && !completed && trips.length ? (
         <View style={{ gap: 14 }}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
@@ -171,7 +337,7 @@ export function OrderJourney({
           ) : null}
         </View>
       ) : null}
-      {order.dispatch ? (
+      {order.dispatch && !trips.some((t) => t.rider) ? (
         <View
           style={[
             styles.rider,

@@ -15,9 +15,9 @@ if (Notifications) {
       const target = notification.request.content.data?.customer_id;
       const owned = typeof target !== "string" || target === notificationOwner;
       return {
-        shouldPlaySound: owned && !tracking,
+        shouldPlaySound: false,
         shouldSetBadge: false,
-        shouldShowBanner: owned,
+        shouldShowBanner: false,
         shouldShowList: owned,
         priority: tracking
           ? Notifications.AndroidNotificationPriority.LOW

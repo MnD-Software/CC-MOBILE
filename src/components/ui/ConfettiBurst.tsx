@@ -1,7 +1,7 @@
 import { memo } from "react";
 import { Animated, StyleSheet, View, useWindowDimensions } from "react-native";
 
-const pieces = Array.from({ length: 136 }, (_, index) => ({
+const pieces = Array.from({ length: 152 }, (_, index) => ({
   index,
   side: index % 2,
   delay: Math.floor(index / 34) * 0.065 + (index % 8) * 0.006,

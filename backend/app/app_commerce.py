@@ -29,6 +29,7 @@ class Selection(BaseModel):
     message: str = Field(default="", max_length=32)
     add_ons: list[str] = Field(default_factory=list, max_length=10)
     variation_attributes: list[dict[str, str]] = Field(default_factory=list, max_length=8)
+    design_colour: str | None = Field(default=None, pattern=r"^#[0-9a-fA-F]{6}$")
 
 
 class Billing(BaseModel):
@@ -54,6 +55,8 @@ class CheckoutData(BaseModel):
     recipient_name: str = Field(default="", max_length=160)
     recipient_phone: str = Field(default="", max_length=40)
     notes: str = Field(default="", max_length=1500)
+    pickup_location_id: str | None = Field(default=None, max_length=80)
+    delivery_location: dict[str, float] | None = None
 
 
 class PlaceOrder(BaseModel):
@@ -79,6 +82,17 @@ def calculate(db, customer_id, data):
     delivery_config = app_delivery.policy(db)
     if not payment_test and data.fulfilment == "pickup" and not policy.get("pickup_enabled"):
         raise HTTPException(409, "Pickup is not currently enabled in the app.")
+    if data.delivery_location is not None:
+        from .app_delivery import Point
+        try:
+            Point.model_validate(data.delivery_location)
+        except Exception:
+            raise HTTPException(422, "Choose valid delivery coordinates.") from None
+    pickup_branch = None
+    if data.fulfilment == "pickup" and data.pickup_location_id and not delivery_config.enabled:
+        if data.pickup_location_id != "hq":
+            pickup_branch = next((b for b in delivery_config.pickup_stores if b.id == data.pickup_location_id and "athi-river" not in b.id), None)
+            if pickup_branch is None: raise HTTPException(409, "Choose a current pickup branch.")
     if not payment_test and data.fulfilment == "delivery" and (not data.billing.address or (not delivery_config.enabled and (not data.billing.area or not data.billing.city))):
         raise HTTPException(422, "Complete your delivery address.")
     lines, quantities = [], {}
@@ -126,6 +140,7 @@ def calculate(db, customer_id, data):
         if not made_to_order and quantities[product.id] > product.allocation - product.reserved - product.sold:
             raise HTTPException(409, "The app's available stock or production capacity has changed. Review your bag.")
         lines.append({"product_id": parent.id, "sku_id": product.id, "name": parent.payload.get("name", parent.slug),
+                      "image": next(iter(parent.payload.get("images", [])), {}).get("src"),
                       "slug": parent.slug, "quantity": item.quantity, "unit_minor": product.price_minor,
                       "line_minor": product.price_minor*item.quantity, "revision": product.revision,
                       "order_mode": "made_to_order" if made_to_order else "stocked",
@@ -146,6 +161,8 @@ def calculate(db, customer_id, data):
     if data.coupon_code:
         coupon_code = data.coupon_code.strip().casefold()
         coupon = db.get(AppCoupon, coupon_code)
+        if coupon_code.startswith("welcome-") and db.scalar(select(AppOrder.id).where(AppOrder.customer_id == customer_id, AppOrder.payment_state == "completed").limit(1)):
+            raise HTTPException(409, "Your welcome coupon is for your first order only.")
         if (not coupon or not coupon.enabled or coupon.customer_id not in (None, customer_id)
                 or coupon.uses + coupon.reserved >= coupon.usage_limit or subtotal < coupon.minimum_minor
                 or (coupon.expires_at and utc(coupon.expires_at) <= datetime.now(UTC))):
@@ -156,9 +173,19 @@ def calculate(db, customer_id, data):
     included = True if payment_test else bool(policy.get("prices_include_tax", True))
     tax = (base*rate + (10000+rate)//2)//(10000+rate) if included else (base*rate + 5000)//10000
     total = base if included else base + tax
-    if not 0 < total <= 1_000_000_000:
+    zero_review = False
+    if total == 0 and coupon_code:
+        from .review_checkout import require_local_review
+        try:
+            require_local_review()
+            zero_review = True
+        except HTTPException:
+            pass
+    if not (0 < total <= 1_000_000_000 or zero_review):
         raise HTTPException(409, "This order total needs staff assistance.")
     pickup_instructions = "Simulated order. No money charged or physical fulfilment required." if payment_test else (policy.get("pickup_instructions", "") if data.fulfilment == "pickup" else "")
+    if pickup_branch:
+        pickup_instructions = f"Collect from {pickup_branch.name}, {pickup_branch.address}, once your cake is ready. Present your order reference."
     if route_snapshot and data.fulfilment == "pickup" and route_snapshot.get("pickup_location_id") != "hq":
         pickup_instructions = f"Collect from {route_snapshot['destination_name']}, {route_snapshot['destination_address']}, after your order is marked ready. Present your APP order reference."
     return {**({"payment_test": True} if payment_test else {}), "lines": lines, "quantities": {str(k): v for k, v in quantities.items()}, "subtotal_minor": subtotal,
@@ -330,9 +357,16 @@ def tracked_order_view(db, order):
     if tasks:
         from .live_tracking import customer_position
         from .ride_feedback import for_task
+        from .models import Customer
+        def rider_details(task):
+            person = db.get(Customer, task.rider_id) if task.rider_id else None
+            return {"name": f"{person.first_name} {person.last_name}".strip(), "phone": person.phone or "", "role": person.role} if person else None
+        checkout = order.snapshot.get("checkout", {})
+        expected_destination = (order.snapshot.get("route") or {}).get("destination_address") or checkout.get("billing", {}).get("address")
         result["deliveries"] = [{"id": task.id, "status": task.status, "service_type": task.service_type,
+            "rider": rider_details(task),
             "scheduled_at": utc(task.scheduled_at).isoformat() if task.scheduled_at else None,
-              "slot": task.slot, "feedback": for_task(db, task), "destination_matches_checkout": bool(order.snapshot.get("route") and task.destination == order.snapshot["route"].get("destination_address")),
+              "slot": task.slot, "feedback": for_task(db, task), "destination_matches_checkout": bool(expected_destination and task.destination == expected_destination),
               "position": customer_position(db, task) if order.state not in {"completed", "cancelled", "review_required"} and order.payment_state == "completed" else None,
               "events": [{"status": event.status, "at": utc(event.created_at).isoformat()}
                          for event in db.scalars(select(LogisticsEvent)
