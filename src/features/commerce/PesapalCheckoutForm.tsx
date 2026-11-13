@@ -135,6 +135,8 @@ function AppCheckout({ owner }: { owner: string }) {
       optionsSchema.parse(await api.get("/v1/app-checkout/options")),
   });
   useEffect(() => {
+    if (options.data?.delivery_zones.length === 1)
+      setZone(options.data.delivery_zones[0].id);
     if (
       options.data?.pickup_enabled &&
       !options.data.delivery_zones.length &&
@@ -648,6 +650,23 @@ function AppCheckout({ owner }: { owner: string }) {
         </View>
       </View>
     );
+  const checkoutBlockedReason = !restored
+    ? "Your previous checkout is being checked. Please wait before continuing."
+    : options.isPending
+      ? "Loading pickup and delivery options…"
+      : options.isError
+        ? "Pickup and delivery options could not be loaded. Retry below."
+        : !(
+              options.data?.pickup_enabled ||
+              options.data?.distance_delivery?.enabled ||
+              options.data?.delivery_zones.length
+            )
+          ? "Ordering is waiting for pickup or delivery to be configured. Your bag is saved."
+          : options.data?.distance_delivery?.enabled && !deliveryQuote
+            ? fulfilment === "pickup"
+              ? "Choose your pickup branch above and wait for its transport fee to be confirmed."
+              : "Choose your delivery destination above and confirm its delivery fee to continue."
+            : "";
   return (
     <View style={{ gap: 18 }}>
       <CheckoutProgress current={quote ? 2 : 1} />
@@ -1048,6 +1067,16 @@ function AppCheckout({ owner }: { owner: string }) {
                 </Text>
               </View>
             )}
+            {checkoutBlockedReason ? (
+              <Notice message={checkoutBlockedReason} />
+            ) : null}
+            {options.isError ? (
+              <Button
+                variant="outline"
+                label="Retry pickup and delivery options"
+                onPress={() => void options.refetch()}
+              />
+            ) : null}
             <Button
               size="lg"
               style={checkoutStyles.payButton}
@@ -1066,19 +1095,7 @@ function AppCheckout({ owner }: { owner: string }) {
                   : "Review confirmed total"
               }
               loading={busy}
-              disabled={
-                busy ||
-                !restored ||
-                !lines.length ||
-                options.isPending ||
-                options.isError ||
-                (options.data?.distance_delivery?.enabled && !deliveryQuote) ||
-                !(
-                  options.data?.pickup_enabled ||
-                  options.data?.distance_delivery?.enabled ||
-                  options.data?.delivery_zones.length
-                )
-              }
+              disabled={busy || !lines.length || Boolean(checkoutBlockedReason)}
               onPress={() => void (quote ? pay() : review())}
             />
             <View style={checkoutStyles.secure}>

@@ -34,6 +34,9 @@ def test_normal_app_does_not_mount_review_checkout_and_guard_rejects_test_settin
     with pytest.raises(Exception) as error:
         review_checkout.require_local_review()
     assert error.value.status_code == 403
+    with pytest.raises(Exception) as setup_error:
+        review_checkout.prepare_checkout(None)
+    assert setup_error.value.status_code == 403
 
 
 def test_all_product_prices_remain_and_three_purchases_unlock_each_tier(review_routes):
@@ -71,6 +74,39 @@ def test_review_order_ownership_and_changed_price_are_enforced(review_routes):
     assert s["client"].post("/v1/review-checkout/orders", json={"quote_id": q["id"]}, headers={"Idempotency-Key": uuid4().hex}).status_code == 409
 
 
+def test_missing_review_setup_supports_pickup_and_delivery_without_maps(review_routes):
+    from app.commerce_models import AppPolicy, AppDeliveryZone
+    s = review_routes
+    with Session(s["engine"]) as db:
+        db.delete(db.get(AppPolicy, "checkout"))
+        db.delete(db.get(AppDeliveryZone, "zone"))
+        db.commit()
+        review_checkout.prepare_checkout(db)
+        db.commit()
+        review_checkout.prepare_checkout(db)
+        db.commit()
+        assert len(list(db.scalars(select(AppDeliveryZone)))) == 1
+    options = s["client"].get("/v1/app-checkout/options").json()
+    assert options["pickup_enabled"] and not options["distance_delivery"]["enabled"]
+    assert options["delivery_zones"] == [{"id": "local-delivery", "name": "Delivery", "fee_minor": 0}]
+    for fulfilment in ("pickup", "delivery"):
+        s["payload"].update(fulfilment=fulfilment, delivery_zone_id="local-delivery")
+        order, _ = place_review(s)
+        assert order["payment_state"] == "completed" and order["due_now_minor"] == 0
+    assert not s["calls"]
+
+
+def test_review_setup_preserves_operator_settings(review_routes):
+    from app.commerce_models import AppPolicy, AppDeliveryZone
+    with Session(review_routes["engine"]) as db:
+        db.get(AppPolicy, "checkout").payload = {"enabled": False, "pickup_enabled": False}
+        db.get(AppDeliveryZone, "zone").enabled = False
+        db.commit()
+        review_checkout.prepare_checkout(db)
+        db.commit()
+        assert db.get(AppPolicy, "checkout").payload == {"enabled": False, "pickup_enabled": False}
+        assert not db.get(AppDeliveryZone, "zone").enabled
+        assert len(list(db.scalars(select(AppDeliveryZone)))) == 1
 def test_accessories_are_separate_and_cakes_sort_by_available_variation_price(system):
     from app.app_catalogue import products
     with Session(system["engine"]) as db:

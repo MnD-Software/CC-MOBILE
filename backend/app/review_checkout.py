@@ -7,7 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from . import app_commerce as commerce
-from .commerce_models import AppOrder
+from .commerce_models import AppDeliveryZone, AppOrder, AppPolicy
 from .config import get_settings
 from .db import get_db
 from .permissions import audit
@@ -38,6 +38,22 @@ def count_purchases(db, customer_id):
 
 
 router = APIRouter(tags=["isolated-review-checkout"])
+
+
+def prepare_checkout(db):
+    """Initialize missing review settings without replacing operator choices."""
+    require_local_review()
+    if db.get(AppPolicy, "checkout") is None:
+        db.add(AppPolicy(id="checkout", payload={
+            "enabled": True, "pricing_confirmed": True, "pickup_enabled": True,
+            "prices_include_tax": True, "tax_bps": 0,
+            "pickup_instructions": "Collect from Cake City HQ once your order is ready. Present your order reference.",
+        }))
+    # A local address-based delivery option lets kitchen and rider workflows be
+    # reviewed without claiming a Maps route or contacting a paid provider.
+    from .app_delivery import policy
+    if not policy(db).enabled and db.scalar(select(AppDeliveryZone.id).limit(1)) is None:
+        db.add(AppDeliveryZone(id="local-delivery", name="Delivery", fee_minor=0, enabled=True))
 
 
 @router.get("/v1/review-checkout/config")

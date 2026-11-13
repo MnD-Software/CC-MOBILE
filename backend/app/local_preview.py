@@ -55,6 +55,8 @@ def create_app():
     credentials = json.loads((directory / "credentials.json").read_text(encoding="utf-8"))
     Base.metadata.create_all(engine)
     with SessionLocal() as db:
+        from .review_checkout import prepare_checkout
+        prepare_checkout(db)
         for role, identity in credentials["accounts"].items():
             customer = db.scalar(select(Customer).where(Customer.email == identity["email"]))
             if not customer:

@@ -109,7 +109,15 @@ Refinement backend selection: 24 passed across review checkout/catalogue/Club te
 
 Manual iPhone acceptance matrix: light/dark appearance x True Tone off/on x Night Shift off/on (including warm end), at low/normal brightness; repeat with Increase Contrast, Reduce Transparency, larger text and Reduce Motion. Check product photo fidelity, selected tab/action labels, Club card/perks/date sheets, nested pickers, centred loading and popup dismissal. No physical iPhone visual acceptance is claimed.
 
-## Metro file-cache recovery
+## Checkout blocked by missing local fulfilment setup
+
+The grey Review confirmed total button was reproduced against the running preview: checkout policy and delivery-zone tables were empty, despite an imported catalogue and historical orders. Both pickup and delivery were unavailable. Restored the missing policy and a zero-fee address-based Delivery zone through the authenticated local admin API, after verifying the isolated backend status; temporary admin/customer check sessions were logged out. No customer order or payment was submitted. This is local review configuration, not confirmation of production delivery rates or Maps routing.
+
+The local factory now calls guarded `review_checkout.prepare_checkout` to initialize missing settings on startup, preserving existing operator choices and disabled settings. Production startup does not call this helper and its isolation guard rejects non-review databases before accessing them. Checkout automatically selects a sole delivery area. A disabled review button now has an adjacent explanation for missing setup, a missing route, loading, or recovery; failed option loads offer retry.
+
+Validation: 10 checkout UI/recovery checks and 21 backend review/factory checks passed; typecheck passed. A real HTTP quote through the Expo proxy for Milky Caramel 1.5KG Offers, BlueBerry Pound Cake variation 33459, and Sparkling Candles returned 200 with 3 items, KES 8,250 catalogue total and zero delivery fee. Local capability confirms KES 0 due now. No order/payment was submitted by that check. Reopen Checkout or reload Expo Go to refresh cached options; `npm run start:go:tunnel` remains the startup command.
+
+## Metro file-cache implementation details
 
 Reported error: `Unable to deserialize cloned data` while Metro reads its V8-serialized file map. This is a disposable development cache failure; Metro already falls back to crawling source files. The exact cause (interrupted write, another process, or an incompatible runtime snapshot) is not established.
 

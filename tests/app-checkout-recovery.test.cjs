@@ -6,7 +6,7 @@ const ts = require("typescript");
 const { randomUUID } = require("node:crypto");
 const z = require("zod").z;
 const pause = () => new Promise((resolve) => setImmediate(resolve));
-function checkout() {
+function checkout(optionOverrides = {}) {
   const states = [],
     refs = [],
     deps = [],
@@ -30,6 +30,7 @@ function checkout() {
     pickup_enabled: true,
     pickup_instructions: "Collect at HQ",
     delivery_zones: [],
+    ...optionOverrides,
   };
   const react = {
     useState: (initial) => {
@@ -208,8 +209,66 @@ function checkout() {
       await pause();
     }
   }
-  return { calls, saved, flush, buttons, starts: () => starts };
+  function notices(node = tree) {
+    if (!node || typeof node !== "object") return [];
+    if (Array.isArray(node)) return node.flatMap(notices);
+    return [
+      ...(node.type === "Notice" ? [node.props.message] : []),
+      ...(node.props?.children ? notices(node.props.children) : []),
+    ];
+  }
+  return { calls, saved, flush, buttons, notices, starts: () => starts };
 }
+test("unconfigured fulfilment explains the disabled checkout beside its total", async () => {
+  const c = checkout({ pickup_enabled: false });
+  await c.flush();
+  assert.equal(
+    c.buttons().find((b) => b.props.label === "Review confirmed total").props
+      .disabled,
+    true,
+  );
+  assert(
+    c
+      .notices()
+      .some((message) =>
+        /Ordering is waiting for pickup or delivery/.test(message),
+      ),
+  );
+  assert.equal(c.calls.length, 0);
+});
+
+test("a single delivery area is selected automatically for the quote", async () => {
+  const c = checkout({
+    delivery_zones: [{ id: "local-delivery", name: "Delivery", fee_minor: 0 }],
+  });
+  await c.flush();
+  const review = c
+    .buttons()
+    .find((b) => b.props.label === "Review confirmed total");
+  assert.equal(review.props.disabled, false);
+  review.props.onPress();
+  await c.flush();
+  const quote = c.calls.find((call) => call.path === "/v1/app-checkout/quote");
+  assert.equal(quote.body.delivery_zone_id, "local-delivery");
+  assert.equal(quote.body.fulfilment, "delivery");
+});
+
+test("a missing distance quote explains how to unlock checkout", async () => {
+  const c = checkout({ distance_delivery: { enabled: true } });
+  await c.flush();
+  assert.equal(
+    c.buttons().find((b) => b.props.label === "Review confirmed total").props
+      .disabled,
+    true,
+  );
+  assert(
+    c
+      .notices()
+      .some((message) =>
+        /Choose your delivery destination above/.test(message),
+      ),
+  );
+});
 test("lost app-order response locks new checkout and recovery reuses the original request without initiating payment", async () => {
   const c = checkout();
   await c.flush();
