@@ -1,10 +1,11 @@
+import { catalogueKind } from "./catalogue-kind";
 import { appMedia } from "./app-media";
 import { plainText, type StoreProduct } from "./contracts";
 
 export const shopDepartments = [
   {
     id: "all",
-    name: "All",
+    name: "All cakes",
     categories: [],
     image: appMedia(
       "https://cakecity.co.ke/wp-content/uploads/2025/08/Straw-gateau-Photoroom-2.avif",
@@ -106,6 +107,15 @@ export const shopDepartments = [
     filters: [{ id: "all", label: "All deals & steals" }],
   },
   {
+    id: "cookies",
+    name: "Cookies",
+    categories: [111],
+    image: appMedia(
+      "https://i0.wp.com/cakecity.co.ke/wp-content/uploads/2024/08/Butter-Cookies.jpg?fit=1080%2C1080&ssl=1",
+    ),
+    filters: [{ id: "all", label: "All cookies" }],
+  },
+  {
     id: "accessories",
     name: "Accessories",
     categories: [],
@@ -137,6 +147,7 @@ export function departmentForCategory(id?: number): ShopDepartmentId {
         206: "deals",
         98: "deals",
         109: "accessories",
+        111: "cookies",
       } as Record<number, ShopDepartmentId>
     )[id ?? 0] ?? "all"
   );
@@ -148,6 +159,10 @@ export function matchesShopSelection(
   department: ShopDepartmentId,
   filter: string,
 ) {
+  if (department === "all") return catalogueKind(product) === "cake";
+  if (department === "cookies") return catalogueKind(product) === "cookie";
+  if (department === "accessories" && catalogueKind(product) !== "accessory")
+    return false;
   const has = (id: number) => product.categories.some((c) => c.id === id);
   const name = plainText(product.name).toLowerCase();
   const attributes = product.attributes

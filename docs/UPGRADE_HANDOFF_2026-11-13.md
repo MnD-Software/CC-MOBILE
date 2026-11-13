@@ -27,7 +27,7 @@ Staff native: `src/features/staff/`, `app/workspace.tsx`; backend overview `back
 - [x] Implement cake-first price sorting, Accessories category, and offer naming consolidation.
 - [x] Improve web dashboard presentation without disconnecting it from actual APIs.
 - [x] Verify permission/payment boundaries and regressions; update exact checks and remaining limits.
-- [ ] Push intended files and verify GitHub state. Do not claim Render deployed without evidence.
+- [x] Push intended files and verify GitHub state. Do not claim Render deployed without evidence.
 
 ## Current progress
 
@@ -48,7 +48,7 @@ Preserve unrelated untracked APK and WooCommerce directories. Existing local bac
 3. Kitchen assigns production, starts preparing, then marks ready. Customer Orders and the inbox update.
 4. Dispatch creates a rider from Rider accounts and assigns the order. The rider uses their own login to accept, collect after readiness, start delivery, read cake/message/destination/contact/instructions, then complete with proof.
 5. Customer confirms receipt, then rates the experience or returns later. Customer satisfaction is available to admin/staff/ecommerce manager/customer service on mobile and web.
-6. The web console is `http://localhost:8010/dashboard/` when the local backend runs. Select Review orders for review workload; live sales remain independent.
+6. The web console is `http://localhost:8010/admin/` when the local backend runs. Select Review orders for review workload; live sales remain independent.
 7. Manually inspect small/large phones, larger text, light/dark mode and reduced motion. Check sheet scrolling/dismissal, avatar upload, all role modules, Club prompts, confetti, GPS and notification permissions. These are device acceptance checks, not claims established by unit tests.
 
 ## Verification evidence
@@ -61,6 +61,8 @@ Preserve unrelated untracked APK and WooCommerce directories. Existing local bac
 - iOS production JS/Hermes export succeeded to ignored `artifacts/local-preview/upgrade-ios`; this proves bundling, not device behavior or an installable App Store build.
 - Final receipt/satisfaction API selection: 19 passed (`test_notifications.py`, `test_review_checkout.py`, `test_home_orders.py`, `test_order_experience.py`). Covers owner-only receipt, idempotent confirmation, one satisfaction inbox reminder, receipt required before rating, duplicate review protection, staff feedback permissions and the review delivery flow with cake message/instructions intact.
 - Frontend suite rerun after receipt integration: 216 passed; new receipt-prompt renderer test plus web dashboard tests: 5 passed. The receipt test confirms rating controls stay hidden until the customer acknowledges receipt. Typecheck and dashboard JavaScript syntax checks passed.
+- Final iOS Hermes export after receipt/satisfaction integration also passed: `entry-00c5e8b692f3cd3dbdfdbb633b3e27b5.hbc` (6.6 MB), in the ignored local preview export directory.
+- Implementation commit `f9560bdef601fe1b6be76a2357cdadf81795d5de` pushed to `origin/master`; remote ref verified. This is GitHub evidence, not Render deployment evidence.
 
 ## Operational limits
 
@@ -71,3 +73,26 @@ Earlier separate web-preview launch was rejected by automatic approval review; n
 ## Customer receipt and satisfaction follow-up
 
 The owner additionally requested explicit customer acknowledgement of delivery, followed by satisfaction feedback. Implemented using existing receipt acknowledgements and private order reviews, with no schema migration. Rider delivery remains separate from customer receipt (`received_at`). Confirming receipt opens the order for optional feedback and creates one inbox reminder, so the customer can return later. Feedback requires receipt acknowledgement and remains idempotent; historical existing reviews stay readable. Admin/staff/ecommerce manager/customer service can access Customer satisfaction on mobile and web. Other departments cannot retrieve these private reviews. Order details show whether customer receipt is confirmed.
+
+## Display comfort follow-up
+
+Owner also requested refined iPhone appearance with True Tone, Night Shift/eye-care display settings, and standard display settings. Preserve the approved Shop structure and product photography. Tune shared neutral surfaces and dark-mode accents, separate filled action colours from text accents, strengthen critical text contrast, respect system Increase Contrast/Reduce Transparency and reduce decorative glow intensity. Do not attempt to detect or override True Tone, change phone brightness, recolour product images, or claim hardware validation from mathematical contrast tests. Verify semantic colour pairs and appearance behavior, and leave an explicit iPhone on/off acceptance matrix.
+
+Additional owner refinements: lighten popup backdrops and use consistent smooth transitions; put Cookies in its own department and exclude accessories/cookies from All cakes on both the server and cached client rendering; centre search loading; refine Pink Simba cards as a school birthday package; improve Club perks/date presentation without changing saved dates or benefit rules. Inspect actual catalogue category/name evidence, including uncategorized accessories and cake names containing accessory words, before changing classification.
+
+Implemented these refinements. Shared sheets now fade with a lighter themed backdrop, use solid content surfaces, and avoid stacking another dim layer for nested panels. Reduced motion disables the transition. Club Rewards/Perks/Dates use the same sheet; perks have separate referral and birthday cards with full rules on demand. Dates show month/day badges and upcoming dates; the add/edit form replaces the list while active. An owner-scoped PUT updates celebration dates, preserving notes; editing clears the old device reminder and asks the member to set a fresh one. Birthday eligibility retains backend rules, including February 29 handling.
+
+Cookies uses the real catalogue category 111 and its existing product image. All cakes excludes cookies and accessories before server pagination and again when rendering cached results. Classification gives genuine cake names/categories precedence over words such as balloons or cookies, while recognizing uncategorized candles and other party items. Search has a centred, reduced-motion-aware loading state in results and predictions. Pink Simba uses a portrait package card in the Home carousel, a package label/detail action in product grids, and the source description's included 3kg cake in the bag. Cookie packs/accessory items use explicit Pack/Item units; prices stay unchanged.
+
+Light canvas is a subtle neutral off-white; dark text accents and filled action colours are distinct so white button labels stay readable. Increase Contrast updates native theme text/edges and removes glass transparency. Product photography and phone brightness/white point remain untouched; decorative Club glow is restrained. Contrast tests cover both appearances and approximate warm shifts; these matrices do not reproduce a calibrated True Tone/Night Shift display. Reference: [Apple display controls](https://support.apple.com/en-ie/109351), [Apple sufficient contrast criteria](https://developer.apple.com/help/app-store-connect/manage-app-accessibility/sufficient-contrast-evaluation-criteria/).
+
+Refinement backend selection: 24 passed across review checkout/catalogue/Club tests, including cookie filtering before pagination, keeping balloon/cookies-themed cakes, and owner-only valid date edits. Additional Club panel/contrast/catalogue/accessibility renderer selection: 13 passed. Final expanded frontend suite, typecheck and latest iOS bundle checks are being recorded below.
+
+- Final expanded frontend suite: **223 passed** (`upgrade-frontend-final.log`).
+- Final `npm run typecheck`: passed (`upgrade-types-final.log`).
+- Final iOS Hermes export passed: `entry-56b0e2c4debd6c6e799bccc79f76a548.hbc`, 6.6 MB. Export metadata/assets remain ignored.
+- Restarted only the agent-owned isolated API runner to load new routes, retaining the review DB. Real local HTTP checks verified no-charge capability, private customer/dispatch/admin logins and authorized module data; the check sessions were logged out. No business orders were created by these local smoke checks.
+- Actual local catalogue check: all **322 cakes across four sorted pages** exclude cookie/accessory categories and uncategorized candles; Cookies returns **six actual products**. The web shell is reachable at `http://localhost:8010/admin/`. An earlier guessed `/dashboard/` path returned 404; use `/admin/`.
+- The local backend is current. Reload Expo Go to pick up the native UI; if necessary, stop/restart its existing terminal with `npm run start:go:tunnel`. Private logins remain in ignored `artifacts/local-preview/LOGIN.txt`.
+
+Manual iPhone acceptance matrix: light/dark appearance x True Tone off/on x Night Shift off/on (including warm end), at low/normal brightness; repeat with Increase Contrast, Reduce Transparency, larger text and Reduce Motion. Check product photo fidelity, selected tab/action labels, Club card/perks/date sheets, nested pickers, centred loading and popup dismissal. No physical iPhone visual acceptance is claimed.

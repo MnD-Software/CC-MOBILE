@@ -73,11 +73,24 @@ def product_view(row):
 
 
 def is_accessory(row):
-    import re
     categories = row.payload.get("categories", [])
-    if any(c.get("id") == 109 or re.search(r"accessor|party item|candle|balloon|decor|topper|tableware", str(c.get("name", "")), re.I) for c in categories):
+    if any(c.get("id") == 109 or re.search(r"accessor|party item|tableware", str(c.get("name", "")), re.I) for c in categories):
         return True
-    return bool(re.search(r"candle|sparkler|balloon|topper|napkin|paper plate|party banner|confetti|cutlery", str(row.payload.get("name", "")), re.I))
+    name = str(row.payload.get("name", ""))
+    if re.search(r"\bcakes?\b|cupcakes?|cheesecakes?|gateau", name, re.I) or any(re.search(r"cakes?|gateau", str(c.get("name", "")), re.I) for c in categories):
+        return False
+    return bool(re.search(r"candle|candel|sparkler|balloon|ballon|topper|napkin|paper plate|party (?:banner|popper|hat|plate|whistle|mask)|face mask|confetti|cutlery", name, re.I))
+
+
+def is_cookie(row):
+    if is_accessory(row): return False
+    categories = row.payload.get("categories", [])
+    if any(c.get("id") == 111 or re.fullmatch(r"cookies?|biscuits?", str(c.get("name", "")), re.I) for c in categories):
+        return True
+    name = str(row.payload.get("name", ""))
+    if re.search(r"\bcakes?\b|cupcakes?|cheesecakes?|gateau", name, re.I) or any(re.search(r"cakes?|gateau", str(c.get("name", "")), re.I) for c in categories):
+        return False
+    return bool(re.search(r"\bcookies?\b|\bbiscuits?\b", name, re.I))
 
 
 def products(db, params):
@@ -93,6 +106,10 @@ def products(db, params):
         rows = [row for row in rows if not is_accessory(row)]
     if str(params.get("accessories_only", "")).lower() == "true":
         rows = [row for row in rows if is_accessory(row)]
+    if str(params.get("exclude_cookies", "")).lower() == "true":
+        rows = [row for row in rows if not is_cookie(row)]
+    if str(params.get("cookies_only", "")).lower() == "true":
+        rows = [row for row in rows if is_cookie(row)]
     if params.get("type") == "variation":
         rows = [r for r in rows if r.parent_id is not None]
     else:

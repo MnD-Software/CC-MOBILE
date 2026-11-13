@@ -1,3 +1,4 @@
+import { isPinkSimbaPackage } from "./catalogue-kind";
 import { appMedia } from "./app-media";
 import { HeaderActions } from "@/components/storefront/HeaderActions";
 import { ActiveOrderCard } from "./ActiveOrderCard";
@@ -497,6 +498,8 @@ function DealSlide({
   const { colors } = useTheme();
   const price = productPrice(product);
   const image = product.images[0]?.src;
+  if (isPinkSimbaPackage(product))
+    return <PinkSimbaCard product={product} onPress={onPress} />;
   return (
     <Pressable
       accessibilityHint="Opens this cake and its available options"
@@ -550,6 +553,105 @@ function DealSlide({
           </View>
           <View style={styles.dealArrow}>
             <Ionicons color={colors.cocoa} name="arrow-forward" size={17} />
+          </View>
+        </View>
+      </View>
+    </Pressable>
+  );
+}
+
+function PinkSimbaCard({
+  product,
+  onPress,
+}: {
+  product: StoreProduct;
+  onPress: () => void;
+}) {
+  const { colors } = useTheme();
+  const price = productPrice(product);
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${plainText(product.name)}. ${price === null ? "View package" : money(price)}`}
+      onPress={onPress}
+      style={({ pressed }) => ({
+        borderRadius: 28,
+        overflow: "hidden",
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.brandLight,
+        minHeight: 260,
+        opacity: pressed ? 0.88 : 1,
+      })}
+    >
+      <View style={{ flexDirection: "row", minHeight: 260 }}>
+        <View
+          style={{
+            width: "40%",
+            alignSelf: "stretch",
+            backgroundColor: "#FFF1F7",
+          }}
+        >
+          <LoadingImage
+            source={product.images[0]?.src}
+            contentFit="contain"
+            style={StyleSheet.absoluteFill}
+          />
+        </View>
+        <View
+          style={{
+            flex: 1,
+            minWidth: 0,
+            padding: 18,
+            gap: 10,
+            justifyContent: "center",
+          }}
+        >
+          <Text
+            style={{
+              color: colors.brandStrong,
+              fontSize: 9,
+              fontWeight: "800",
+              letterSpacing: 1,
+            }}
+          >
+            THE PARTY EXPERIENCE
+          </Text>
+          <Text
+            style={{
+              color: colors.ink,
+              fontSize: 27,
+              lineHeight: 31,
+              fontWeight: "800",
+              letterSpacing: -0.6,
+            }}
+          >
+            Pink Simba
+          </Text>
+          <Text style={{ color: colors.ink, fontSize: 13, lineHeight: 20 }}>
+            School birthday magic. A 3kg cake, party extras and a mascot
+            experience.
+          </Text>
+          <Text
+            style={{
+              color: colors.brandStrong,
+              fontSize: 20,
+              fontWeight: "800",
+            }}
+          >
+            {price === null ? "View package" : money(price)}
+          </Text>
+          <View style={{ flexDirection: "row", gap: 6, alignItems: "center" }}>
+            <Text
+              style={{ color: colors.ink, fontWeight: "700", fontSize: 12 }}
+            >
+              Explore package
+            </Text>
+            <Ionicons
+              name="arrow-forward"
+              color={colors.brandStrong}
+              size={16}
+            />
           </View>
         </View>
       </View>

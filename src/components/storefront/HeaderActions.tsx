@@ -124,7 +124,7 @@ export function HeaderActions() {
               height: 7,
               width: 7,
               borderRadius: 4,
-              backgroundColor: colors.brandStrong,
+              backgroundColor: colors.action,
             }}
           />
         ) : null}

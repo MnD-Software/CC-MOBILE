@@ -79,15 +79,17 @@ export function Button({
   const reduceMotion = useReducedMotion();
   const baseVariant = variantStyles[variant];
   const v =
-    variant === "secondary"
-      ? { bg: colors.surface, border: colors.border, text: colors.ink }
-      : variant === "outline" || variant === "ghost"
-        ? {
-            ...baseVariant,
-            border: variant === "outline" ? colors.brandStrong : undefined,
-            text: colors.brandStrong,
-          }
-        : baseVariant;
+    variant === "primary"
+      ? { bg: colors.action, border: colors.action, text: colors.onAction }
+      : variant === "secondary"
+        ? { bg: colors.surface, border: colors.border, text: colors.ink }
+        : variant === "outline" || variant === "ghost"
+          ? {
+              ...baseVariant,
+              border: variant === "outline" ? colors.brandStrong : undefined,
+              text: colors.brandStrong,
+            }
+          : baseVariant;
   const s = sizeStyles[size];
   const isDisabled = Boolean(
     disabled ||

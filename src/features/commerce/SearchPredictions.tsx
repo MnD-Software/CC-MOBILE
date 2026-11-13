@@ -6,6 +6,7 @@ import { Pressable, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "@/components/ui/Typography";
 import { useTheme } from "@/theme/ThemeProvider";
+import { SearchLoading } from "./SearchLoading";
 import { shopApi } from "./api";
 import { money, plainText, productPrice } from "./contracts";
 import { suggestedSearchTerm } from "./search-intelligence";
@@ -47,11 +48,13 @@ export function SearchPredictions({
         borderRadius: 16,
       }}
     >
-      <Text style={{ color: colors.muted, fontSize: 11, padding: 6 }}>
-        {results.isFetching || term !== query.trim()
-          ? "Finding your next favourite…"
-          : "Suggestions"}
-      </Text>
+      {results.isFetching || term !== query.trim() ? (
+        <SearchLoading compact />
+      ) : (
+        <Text style={{ color: colors.muted, fontSize: 11, padding: 6 }}>
+          Suggestions
+        </Text>
+      )}
       {term === query.trim()
         ? results.data?.data.map((product) => (
             <Pressable

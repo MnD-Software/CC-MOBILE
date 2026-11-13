@@ -72,6 +72,7 @@ test("appearance and disclosure expose checked and expanded state through the re
       useRef: React.useRef,
       useEffect: React.useEffect,
       Modal: () => null,
+      BottomSheet: () => null,
       KeyboardAvoidingView: View,
       ScrollView: View,
       Platform: { OS: "web" },

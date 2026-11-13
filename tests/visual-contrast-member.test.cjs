@@ -2,7 +2,7 @@ require("./register.cjs");
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const { tokens } = require("../src/theme/tokens.ts");
-const { darkColors } = require("../src/theme/appearance.ts");
+const { darkColors, contrastColors } = require("../src/theme/appearance.ts");
 const {
   memberBarcode,
   barcodeModules,
@@ -52,4 +52,68 @@ test("branch barcode preserves exact UUID identity and includes quiet zones", ()
   assert.match(modules, /^0{10}1[01]+10{10}$/);
   assert.throws(() => memberBarcode("not-a-member"));
   assert.notDeepEqual(membershipPalette("Silver"), membershipPalette("Gold"));
+});
+
+test("filled actions retain readable labels in both appearances and high contrast strengthens text and edges", () => {
+  for (const [base, dark] of [
+    [tokens.color, false],
+    [darkColors, true],
+  ]) {
+    assert.ok(contrast(base.action, base.onAction) >= 4.5);
+    const enhanced = contrastColors(base, dark);
+    for (const background of ["surface", "surfaceRaised", "background"]) {
+      for (const foreground of ["ink", "muted", "mutedSoft"])
+        assert.ok(
+          contrast(enhanced[foreground], enhanced[background]) >= 7,
+          `${foreground}/${background}`,
+        );
+      assert.ok(contrast(enhanced.border, enhanced[background]) >= 3);
+    }
+    assert.equal(enhanced.glass, base.surface);
+  }
+});
+
+test("key text pairs keep contrast under approximate warm colour shifts", () => {
+  // Stress cases only: these matrices do not reproduce an iPhone's calibrated display.
+  const warm = (hex, green, blue) =>
+    "#" +
+    hex
+      .slice(1)
+      .match(/../g)
+      .map((channel, index) =>
+        Math.round(parseInt(channel, 16) * [1, green, blue][index])
+          .toString(16)
+          .padStart(2, "0"),
+      )
+      .join("");
+  for (const base of [tokens.color, darkColors]) {
+    for (const [green, blue] of [
+      [1, 1],
+      [0.96, 0.86],
+      [0.9, 0.7],
+    ]) {
+      for (const fg of [
+        "ink",
+        "muted",
+        "mutedSoft",
+        "brandStrong",
+        "success",
+        "error",
+      ]) {
+        assert.ok(
+          contrast(
+            warm(base[fg], green, blue),
+            warm(base.surfaceRaised, green, blue),
+          ) >= 4.5,
+          fg,
+        );
+      }
+      assert.ok(
+        contrast(
+          warm(base.action, green, blue),
+          warm(base.onAction, green, blue),
+        ) >= 4.5,
+      );
+    }
+  }
 });

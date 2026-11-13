@@ -1,3 +1,4 @@
+import { catalogueSelectionSize } from "./catalogue-kind";
 import { Ionicons } from "@expo/vector-icons";
 import { useScreenActive } from "@/design/useScreenActive";
 import { shouldRememberProduct } from "./recently-viewed";
@@ -52,7 +53,6 @@ import { api } from "@/api/client";
 import { z } from "zod";
 import { storeProductSchema } from "./contracts";
 import { rankPairings } from "./pairings";
-import { selectionWeight } from "./checkout-success";
 import { trackCommerceEvent } from "@/observability/commerce-events";
 import { contentApi, mediaSource } from "@/features/editorial/content";
 import { VideoClip } from "@/features/editorial/VideoClip";
@@ -320,8 +320,9 @@ export function ProductScreen() {
     cake.is_in_stock &&
     cake.is_purchasable &&
     price !== null;
-  const size: CakeSelection["size"] = selectionWeight(
-    selectedVariationLabel ?? plainText(cake.name),
+  const size: CakeSelection["size"] = catalogueSelectionSize(
+    cake,
+    selectedVariationLabel,
   );
   const orderCake = cake;
   const canChooseVariation = variationRequired && variations.length > 0;
@@ -374,7 +375,11 @@ export function ProductScreen() {
         image: pairing.images[0]?.src ?? null,
         price: productPrice(pairing)!,
         quantity: 1,
-        selection: { size: "1kg", message: "", add_ons: [] },
+        selection: {
+          size: catalogueSelectionSize(pairing),
+          message: "",
+          add_ons: [],
+        },
       });
     }
     if (!addBundle(bundle)) {

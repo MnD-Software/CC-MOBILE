@@ -206,7 +206,7 @@ export function OrdersHistoryScreen() {
                   alignItems: "center",
                   justifyContent: "center",
                   backgroundColor:
-                    tab === value ? colors.brandStrong : "transparent",
+                    tab === value ? colors.action : "transparent",
                 }}
               >
                 <Text

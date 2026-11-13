@@ -76,7 +76,7 @@ export function OccasionDateField({
                   alignItems: "center",
                   justifyContent: "center",
                   backgroundColor:
-                    month === index ? colors.brandStrong : colors.brandLight,
+                    month === index ? colors.action : colors.brandLight,
                 }}
               >
                 <Text
@@ -108,9 +108,7 @@ export function OccasionDateField({
                   alignItems: "center",
                   justifyContent: "center",
                   backgroundColor:
-                    draft.getDate() === day
-                      ? colors.brandStrong
-                      : colors.surface,
+                    draft.getDate() === day ? colors.action : colors.surface,
                 }}
               >
                 <Text

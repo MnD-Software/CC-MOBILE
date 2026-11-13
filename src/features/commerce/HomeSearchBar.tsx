@@ -94,7 +94,7 @@ export function HomeSearchBar() {
           style={({ pressed }) => [
             styles.button,
             {
-              backgroundColor: colors.brandStrong,
+              backgroundColor: colors.action,
               opacity: pressed ? 0.75 : 1,
             },
           ]}

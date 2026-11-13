@@ -30,14 +30,17 @@ export const darkColors: ThemeColors = {
   surfaceTint: "#30202B",
   glass: "rgba(33,27,36,0.84)",
   glassStrong: "rgba(33,27,36,0.96)",
-  ink: "#FFF5FB",
+  scrim: "rgba(8,5,10,0.42)",
+  ink: "#F6EDF2",
   cocoa: "#EED5DE",
   muted: "#D7C2CF",
   mutedSoft: "#C4AABA",
   border: "#695463",
   borderStrong: "#A87996",
   brand: "#EC008C",
-  brandStrong: "#FF8BCB",
+  brandStrong: "#F5A3CD",
+  action: "#A82169",
+  onAction: "#FFFFFF",
   brandLight: "#3A2031",
   violet: "#D7ABCB",
   violetStrong: "#E6B7D5",
@@ -55,6 +58,24 @@ export const darkColors: ThemeColors = {
   error: "#FF9A9F",
   errorLight: "#3E222B",
 };
+
+/** Stronger text and control edges when the OS requests increased contrast. */
+export function contrastColors(
+  base: ThemeColors,
+  isDark: boolean,
+): ThemeColors {
+  return {
+    ...base,
+    ink: isDark ? "#FFFFFF" : "#1E131B",
+    cocoa: isDark ? "#F8E9F1" : "#382331",
+    muted: isDark ? "#E9DCE4" : "#47313F",
+    mutedSoft: isDark ? "#DECCD7" : "#513B48",
+    border: isDark ? "#AE8B9F" : "#8D7080",
+    borderStrong: isDark ? "#DAB8CC" : "#6D4F60",
+    glass: base.surface,
+    glassStrong: base.surface,
+  };
+}
 
 const foreground = new Map<string, string>(
   Object.entries(tokens.color)
@@ -85,6 +106,7 @@ foreground.set("#90252A", darkColors.error);
 const surfaces = new Map<string, string>([
   [tokens.color.background, darkColors.background],
   [tokens.color.surface, darkColors.surface],
+  [tokens.color.surfaceRaised, darkColors.surfaceRaised],
   [tokens.color.surfaceTint, darkColors.surfaceTint],
   [tokens.color.brandLight, darkColors.brandLight],
   [tokens.color.accentLight, darkColors.accentLight],

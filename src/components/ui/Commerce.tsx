@@ -1,3 +1,7 @@
+import {
+  isPinkSimbaPackage,
+  catalogueSelectionSize,
+} from "@/features/commerce/catalogue-kind";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import {
@@ -428,7 +432,7 @@ export function Chip({
           borderRadius: 10,
         },
         selected && themed.chipActive,
-        selected && filled && { backgroundColor: tokens.color.brandStrong },
+        selected && filled && { backgroundColor: colors.action },
       ]}
     >
       <Text
@@ -666,17 +670,15 @@ export const ProductTile = memo(function ProductTile({
   const category = product.categories[0]?.name
     ? plainText(product.categories[0].name)
     : "Cake City";
+  const partyPackage = isPinkSimbaPackage(product);
   const quickAddAllowed =
+    !partyPackage &&
     product.type === "simple" &&
     product.variations.length === 0 &&
     product.is_in_stock &&
     product.is_purchasable &&
     price !== null;
-  const quickAddSize = /(?:^|\D)2(?:\.0)?\s*kg/i.test(plainText(product.name))
-    ? "2kg"
-    : /1[.\s-]*5\s*kg/i.test(plainText(product.name))
-      ? "1.5kg"
-      : "1kg";
+  const quickAddSize = catalogueSelectionSize(product);
   const openProduct = () => {
     trackCommerceEvent("product_viewed", {
       product_id: product.id,
@@ -745,7 +747,7 @@ export const ProductTile = memo(function ProductTile({
       >
         <View
           style={{
-            aspectRatio: 1,
+            aspectRatio: partyPackage ? 0.86 : 1,
             width: horizontal ? 90 : undefined,
             marginLeft: horizontal ? 10 : 0,
             borderRadius: horizontal ? 23 : 0,
@@ -799,7 +801,11 @@ export const ProductTile = memo(function ProductTile({
               textTransform: "uppercase",
             }}
           >
-            {product.on_sale ? "Special price" : category}
+            {partyPackage
+              ? "Party experience"
+              : product.on_sale
+                ? "Special price"
+                : category}
           </Text>
           <Text
             style={{
@@ -929,9 +935,11 @@ export const ProductTile = memo(function ProductTile({
               ? product.order_mode === "made_to_order"
                 ? "Unavailable"
                 : "Sold out"
-              : quickAddAllowed
-                ? "Add to bag"
-                : "Choose options"}
+              : partyPackage
+                ? "View package"
+                : quickAddAllowed
+                  ? "Add to bag"
+                  : "Choose options"}
           </Text>
         ) : null}
       </Pressable>

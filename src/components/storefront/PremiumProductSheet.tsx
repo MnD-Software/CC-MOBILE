@@ -6,6 +6,7 @@ import { AccessibilityInfo, Animated, Modal, Platform, Pressable, ScrollView, St
 import type { ScrollViewInstance } from "react-native";
 import { Text } from "@/components/ui/Typography";
 import { tokens } from '@/theme/tokens';
+import { useTheme } from '@/theme/ThemeProvider';
 import type { StorefrontCarouselProduct } from './PremiumProductCarousel';
 
 export type PremiumSheetProduct = StorefrontCarouselProduct & {
@@ -195,6 +196,7 @@ export function PremiumProductSheet<
   unavailableLabel = 'Unavailable',
   renderGlassBackground,
 }: PremiumProductSheetProps<TProduct>) {
+  const { colors } = useTheme();
   const { height: windowHeight } = useWindowDimensions();
   const scrollRef = useRef<ScrollViewInstance>(null);
   const [mainImageFailed, setMainImageFailed] = useState(false);
@@ -498,7 +500,7 @@ export function PremiumProductSheet<
 
   return (
     <Modal
-      animationType={reduceMotionEnabled ? 'none' : 'slide'}
+      animationType={reduceMotionEnabled ? 'none' : 'fade'}
       navigationBarTranslucent
       onRequestClose={onClose}
       presentationStyle="overFullScreen"
@@ -511,7 +513,7 @@ export function PremiumProductSheet<
           accessibilityRole="button"
           accessibilityLabel="Close product details"
           onPress={onClose}
-          style={styles.scrim}
+          style={[styles.scrim, { backgroundColor: colors.scrim }]}
         />
         <View style={[styles.sheetShadow, { height: sheetHeight }]}>
           <View accessibilityViewIsModal style={styles.sheet}>

@@ -281,7 +281,7 @@ export function FloatingTabBar() {
                     pointerEvents="none"
                     colors={
                       clubSelected
-                        ? ["#F73CA3", "#EC008C", "#BA006C"]
+                        ? ["#B31D70", "#AD0063", "#8C1754"]
                         : [
                             "rgba(255,255,255,0.60)",
                             "rgba(255,255,255,0.02)",
@@ -320,7 +320,7 @@ export function FloatingTabBar() {
                       <View style={styles.tabIcon}>
                         <View pointerEvents="none" style={styles.clubHalo} />
                         <LinearGradient
-                          colors={["#FF72BF", "#EC008C", "#AD0064"]}
+                          colors={["#CD4389", "#B00065", "#85074F"]}
                           start={{ x: 0, y: 0 }}
                           end={{ x: 1, y: 1 }}
                           style={styles.clubJewel}
@@ -436,7 +436,7 @@ const baseStyles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: "rgba(236,0,140,0.10)",
     shadowColor: "#EC008C",
-    shadowOpacity: 0.55,
+    shadowOpacity: 0.25,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 0 },
   },

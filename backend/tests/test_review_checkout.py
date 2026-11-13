@@ -118,3 +118,32 @@ def test_review_order_moves_through_kitchen_dispatch_rider_and_customer_inbox(re
         assert not list(db.scalars(select(PushJob)))
         assert not list(db.scalars(select(SalesRecord)))
     assert not s["calls"]
+
+
+def test_cookie_and_accessory_exclusion_precedes_pagination_and_keeps_themed_cakes(system):
+    from app.app_catalogue import products
+    with Session(system["engine"]) as db:
+        for identity,name,categories in [(31,"Butter Cookies",[{"id":111,"name":"Cookies"}]), (32,"Number Candles",[]), (33,"Colorful Balloons Car Cake",[{"id":267,"name":"Car Cakes"}]), (34,"Cookies and Cream Cake",[{"id":229,"name":"Signature Cakes"}])]:
+            db.add(AppProduct(id=identity,slug="product-"+str(identity),payload={"id":identity,"name":name,"categories":categories},price_minor=10000,allocation=10,enabled=True))
+        db.commit()
+        rows,pages=products(db,dict(exclude_cookies="true",exclude_accessories="true",per_page=100))
+        assert {r["id"] for r in rows} == {12,33,34} and pages==1
+        rows,_=products(db,dict(cookies_only="true"))
+        assert [r["id"] for r in rows] == [31]
+    response=system["client"].get("/v1/catalogue/products?cookies_only=true")
+    assert response.status_code==200 and [r["id"] for r in response.json()] == [31]
+
+
+def test_celebration_dates_can_be_updated_only_by_the_owner(system):
+    s=system
+    body=dict(name="Mum",month=2,day=29,occasion="birthday",notes="Keep this note")
+    created=s["client"].post("/v1/account/celebrations",json=body)
+    assert created.status_code==201,created.text
+    path="/v1/account/celebrations/"+created.json()["id"]
+    actor("other","customer")
+    assert s["client"].put(path,json={**body,"day":28}).status_code==404
+    actor("buyer","customer")
+    assert s["client"].put(path,json={**body,"month":2,"day":30}).status_code==422
+    updated=s["client"].put(path,json={**body,"day":28})
+    assert updated.status_code==200 and updated.json()["notes"]=="Keep this note" and updated.json()["day"]==28
+    assert len(s["client"].get("/v1/account/celebrations").json())==1

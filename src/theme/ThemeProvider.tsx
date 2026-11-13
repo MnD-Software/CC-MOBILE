@@ -9,12 +9,18 @@ import {
   useState,
   type PropsWithChildren,
 } from "react";
-import { Appearance, Platform, useColorScheme } from "react-native";
+import {
+  AccessibilityInfo,
+  Appearance,
+  Platform,
+  useColorScheme,
+} from "react-native";
 import * as SystemUI from "expo-system-ui";
 import { tokens } from "./tokens";
 import {
   APPEARANCE_STORAGE_KEY,
   darkColors,
+  contrastColors,
   parseAppearance,
   resolveAppearance,
   themedStyleMap,
@@ -28,6 +34,7 @@ type ThemeContextValue = {
   preference: AppearancePreference;
   setPreference: (value: AppearancePreference) => void;
   persistenceError: boolean;
+  highContrast: boolean;
 };
 const ThemeContext = createContext<ThemeContextValue>({
   colors: tokens.color,
@@ -35,12 +42,41 @@ const ThemeContext = createContext<ThemeContextValue>({
   preference: "light",
   setPreference: () => {},
   persistenceError: false,
+  highContrast: false,
 });
 
 export function ThemeProvider({ children }: PropsWithChildren) {
   const systemScheme = useColorScheme();
   const [preference, setChoice] = useState<AppearancePreference>("light");
   const [persistenceError, setPersistenceError] = useState(false);
+  const [highContrast, setHighContrast] = useState(false);
+  useEffect(() => {
+    if (Platform.OS !== "ios" && Platform.OS !== "android") return;
+    let mounted = true;
+    let receivedEvent = false;
+    const read =
+      Platform.OS === "ios"
+        ? AccessibilityInfo.isDarkerSystemColorsEnabled()
+        : AccessibilityInfo.isHighTextContrastEnabled();
+    void read
+      .then((enabled) => {
+        if (mounted && !receivedEvent) setHighContrast(enabled);
+      })
+      .catch(() => {});
+    const subscription = AccessibilityInfo.addEventListener(
+      Platform.OS === "ios"
+        ? "darkerSystemColorsChanged"
+        : "highTextContrastChanged",
+      (enabled) => {
+        receivedEvent = true;
+        if (mounted) setHighContrast(enabled);
+      },
+    );
+    return () => {
+      mounted = false;
+      subscription.remove();
+    };
+  }, []);
   const interacted = useRef(false);
   const writes = useRef(Promise.resolve());
   useEffect(() => {
@@ -67,7 +103,11 @@ export function ThemeProvider({ children }: PropsWithChildren) {
   }, []);
   const scheme = resolveAppearance(preference, systemScheme);
   const isDark = scheme === "dark";
-  const colors = isDark ? darkColors : tokens.color;
+  const baseColors = isDark ? darkColors : tokens.color;
+  const colors = useMemo(
+    () => (highContrast ? contrastColors(baseColors, isDark) : baseColors),
+    [baseColors, isDark, highContrast],
+  );
 
   useEffect(() => {
     // Native menus, alerts and controls follow an explicit app preference too.
@@ -82,8 +122,15 @@ export function ThemeProvider({ children }: PropsWithChildren) {
   }, [colors.background]);
 
   const value = useMemo(
-    () => ({ colors, isDark, preference, setPreference, persistenceError }),
-    [colors, isDark, preference, setPreference, persistenceError],
+    () => ({
+      colors,
+      isDark,
+      preference,
+      setPreference,
+      persistenceError,
+      highContrast,
+    }),
+    [colors, isDark, preference, setPreference, persistenceError, highContrast],
   );
   return (
     <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>

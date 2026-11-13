@@ -84,13 +84,13 @@ export function GlassSurface({
   opaque = false,
   style,
 }: GlassSurfaceProps) {
-  const { colors, isDark } = useTheme();
+  const { colors, isDark, highContrast } = useTheme();
   const styles = useThemedStyles(baseStyles);
   const resolvedTint = tintColor
     ? themeColor("backgroundColor", tintColor, isDark)
     : undefined;
   const reduceTransparency = useContext(GlassPreferences);
-  if (opaque)
+  if (opaque || highContrast)
     return (
       <View
         style={[

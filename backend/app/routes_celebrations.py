@@ -61,3 +61,14 @@ def delete_celebration(identity: str, customer: Customer = Depends(member), db: 
         raise HTTPException(404, "Celebration not found")
     db.delete(record)
     db.commit()
+
+
+@router.put("/{identity}")
+def update_celebration(identity: str, data: CelebrationInput, customer: Customer = Depends(member), db: Session = Depends(get_db)):
+    record = db.scalar(select(Celebration).where(Celebration.id == identity, Celebration.customer_id == customer.id).with_for_update())
+    if not record:
+        raise HTTPException(404, "Celebration not found")
+    for key, value in data.model_dump().items():
+        setattr(record, key, value)
+    db.commit()
+    return payload(record)

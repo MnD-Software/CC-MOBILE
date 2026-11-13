@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/Commerce";
 import { GlassSurface } from "@/components/storefront/GlassSurface";
 import { Button } from "@/components/ui/Button";
-import { Skeleton } from "@/components/ui/Skeleton";
+import { SearchLoading } from "./SearchLoading";
 import { tokens } from "@/theme/tokens";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import { plainText, type StoreProduct } from "./contracts";
@@ -59,6 +59,7 @@ const knownIds: Record<string, number> = {
   cupcakes: 110,
   "tea cakes": 112,
   "party accessories": 109,
+  cookies: 111,
 };
 
 export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
@@ -135,7 +136,7 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
 
   const selection = shopDepartments.find((item) => item.id === department)!;
   const selectedCategories =
-    debounced || department === "accessories"
+    debounced || department === "accessories" || department === "cookies"
       ? undefined
       : category
         ? [category]
@@ -150,6 +151,8 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
         sort,
         excludeAccessories: department === "all" && !debounced,
         accessoriesOnly: department === "accessories",
+        excludeCookies: department === "all" && !debounced,
+        cookiesOnly: department === "cookies",
         ...budget,
       },
     ],
@@ -164,6 +167,8 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
           sort,
           excludeAccessories: department === "all" && !debounced,
           accessoriesOnly: department === "accessories",
+          excludeCookies: department === "all" && !debounced,
+          cookiesOnly: department === "cookies",
           ...budget,
         },
         signal,
@@ -438,7 +443,7 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
                             width: 5,
                             height: 5,
                             borderRadius: 3,
-                            backgroundColor: colors.brandStrong,
+                            backgroundColor: colors.action,
                           }}
                         />
                       ) : null}
@@ -611,11 +616,7 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
               }}
               ListEmptyComponent={
                 products.isPending ? (
-                  <View style={{ gap: 12 }}>
-                    {[0, 1, 2].map((key) => (
-                      <Skeleton key={key} height={142} radius={18} />
-                    ))}
-                  </View>
+                  <SearchLoading />
                 ) : products.isError ? (
                   <Feedback
                     error={products.error}
@@ -624,7 +625,11 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
                 ) : (
                   <View style={styles.empty}>
                     <Text style={styles.sectionTitle}>
-                      No cakes in this selection
+                      {department === "cookies"
+                        ? "No cookies in this selection"
+                        : department === "accessories"
+                          ? "No accessories in this selection"
+                          : "No cakes in this selection"}
                     </Text>
                     <Text style={styles.sortLabel}>
                       {department === "cheesecakes" && subfilter !== "all"

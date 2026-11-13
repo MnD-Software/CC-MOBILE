@@ -157,3 +157,54 @@ test("custom and pound retain their categories while Deals & Steals includes off
     true,
   );
 });
+
+test("All cakes excludes cookies and accessories including old cached uncategorized records", () => {
+  for (const accessory of [
+    product("Party Popper Small", [109]),
+    product("Number Candles", []),
+    product("Face Mask", []),
+  ]) {
+    assert.equal(matchesShopSelection(accessory, "all", "all"), false);
+    assert.equal(matchesShopSelection(accessory, "accessories", "all"), true);
+  }
+  assert.equal(departmentForCategory(111), "cookies");
+  assert.equal(
+    matchesShopSelection(product("Butter Cookies", [111]), "all", "all"),
+    false,
+  );
+  assert.equal(
+    matchesShopSelection(product("Butter Cookies", [111]), "cookies", "all"),
+    true,
+  );
+  for (const cake of [
+    product("Colorful Balloons Car Cake", [267]),
+    product("Cookies and Cream Cake", [229]),
+  ]) {
+    assert.equal(matchesShopSelection(cake, "all", "all"), true);
+    assert.equal(matchesShopSelection(cake, "accessories", "all"), false);
+    assert.equal(matchesShopSelection(cake, "cookies", "all"), false);
+  }
+});
+
+test("product units preserve cookie packs, accessory items and the Pink Simba package cake weight", () => {
+  const {
+    catalogueSelectionSize,
+  } = require("../src/features/commerce/catalogue-kind.ts");
+  const { selectionSchema } = require("../src/features/commerce/contracts.ts");
+  for (const [name, categories, expected] of [
+    ["Butter Cookies", [111], "Pack"],
+    ["Number Candles", [], "Item"],
+    ["Pink Simba School Birthday Party", [123, 206], "3kg"],
+    ["Car Cake 5kg", [267], "5kg"],
+  ]) {
+    const value = catalogueSelectionSize({
+      ...product(name, categories),
+      slug: name,
+    });
+    assert.equal(value, expected);
+    assert.equal(
+      selectionSchema.parse({ size: value, message: "", add_ons: [] }).size,
+      expected,
+    );
+  }
+});

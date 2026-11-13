@@ -46,7 +46,7 @@ export function MomentHero({
   }, [active, isResolved, reduceMotion, motion]);
   return (
     <LinearGradient
-      colors={["#4F1647", "#A61968", "#EA687D"]}
+      colors={["#4F1647", "#A61968", "#9E315E"]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={{ borderRadius: 30, padding: 24, overflow: "hidden", gap: 18 }}

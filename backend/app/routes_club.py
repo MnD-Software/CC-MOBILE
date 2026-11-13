@@ -253,7 +253,7 @@ def apply_order_event(event: OrderEvent, db: Session):
     from .commerce_models import AppOrder
     app_order = db.scalar(select(AppOrder).where(AppOrder.reference == event.order_id)) if event.order_id.startswith("APP-") else None
     description = f"Order {event.order_id}: qualifying spend updated"
-    if app_order and app_order.channel == "app_test":
+    if app_order and app_order.channel == "app_test" and not app_order.snapshot.get("review_checkout"):
         description = f"SIMULATED TEST {event.order_id}: KES 100 qualifying value (no payment)"
     if new_purchase and remaining > 0:
         earn_achievements(db, value, previous_spend, previous_lifetime, remaining, event.order_id)

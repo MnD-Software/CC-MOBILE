@@ -32,6 +32,8 @@ export type ShopBrowseParams = {
   maximumKes?: number;
   excludeAccessories?: boolean;
   accessoriesOnly?: boolean;
+  excludeCookies?: boolean;
+  cookiesOnly?: boolean;
 };
 
 export function parseBudget(minimum: string, maximum: string) {
@@ -77,6 +79,8 @@ export function shopBrowseQuery(params: ShopBrowseParams) {
   });
   if (params.excludeAccessories) query.set("exclude_accessories", "true");
   if (params.accessoriesOnly) query.set("accessories_only", "true");
+  if (params.excludeCookies) query.set("exclude_cookies", "true");
+  if (params.cookiesOnly) query.set("cookies_only", "true");
   if (params.search?.trim())
     query.set("search", params.search.trim().slice(0, 120));
   if (params.onSale) query.set("on_sale", "true");

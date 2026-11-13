@@ -9,12 +9,13 @@
 export const tokens = {
   color: {
     // Canvas & surfaces
-    background: "#FFFFFF",
+    background: "#FCFAFB",
     surface: "#FFFFFF",
-    surfaceRaised: "#FFF9FC",
+    surfaceRaised: "#F8F3F6",
     surfaceTint: "#FFEAF4",
     glass: "rgba(255, 255, 255, 0.82)",
     glassStrong: "rgba(255, 255, 255, 0.94)",
+    scrim: "rgba(28,16,24,0.24)",
     white: "#FFFFFF",
 
     // Text
@@ -30,6 +31,8 @@ export const tokens = {
     // Brand
     brand: "#EC008C",
     brandStrong: "#B80068",
+    action: "#AD0063",
+    onAction: "#FFFFFF",
     brandPressed: "#930052",
     brandDark: "#51382D",
     brandLight: "#FFF0F8",
@@ -112,7 +115,7 @@ export const tokens = {
     glow: {
       shadowColor: "#EC008C",
       shadowOffset: { width: 0, height: 6 },
-      shadowOpacity: 0.24,
+      shadowOpacity: 0.16,
       shadowRadius: 16,
       elevation: 8,
     },

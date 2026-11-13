@@ -159,4 +159,13 @@ export const clubApi = {
       auth: true,
     });
   },
+  async updateCelebration(id: string, data: Omit<Celebration, "id">) {
+    return celebration.parse(
+      await api.put(
+        `/v1/account/celebrations/${encodeURIComponent(id)}`,
+        data,
+        { auth: true },
+      ),
+    );
+  },
 };

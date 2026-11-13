@@ -159,7 +159,7 @@ export const selectionSchema = z.object({
   size: z
     .string()
     .max(24)
-    .regex(/^[1-9]\d*(?:\.\d+)?kg$|^0\.\d*[1-9]\d*kg$/),
+    .regex(/^[1-9]\d*(?:\.\d+)?kg$|^0\.\d*[1-9]\d*kg$|^(?:Pack|Item)$/),
   message: z.string().max(32),
   add_ons: z.array(z.string()),
   variation_id: z.number().int().positive().optional(),

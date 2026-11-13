@@ -21,7 +21,7 @@ import {
   useCouponWallet,
 } from "@/features/commerce/coupon-wallet";
 import { useTheme } from "@/theme/ThemeProvider";
-import { clubApi } from "./club-api";
+import { clubApi, type Celebration } from "./club-api";
 import { MembershipCard } from "./MembershipCard";
 import { ClubTransactions } from "./ClubTransactions";
 import { OccasionDateField } from "@/components/ui/OccasionDateField";
@@ -149,7 +149,12 @@ export function ClubMembership({
           />
           <SuccessBurst trigger={celebrationTrigger} />
           <View
-            style={{ gap: 12, padding: 20, borderRadius: 24, backgroundColor: colors.surfaceRaised }}
+            style={{
+              gap: 12,
+              padding: 20,
+              borderRadius: 24,
+              backgroundColor: colors.surfaceRaised,
+            }}
             testID="club-next-reward"
           >
             <Text
@@ -417,34 +422,25 @@ export function ClubMembership({
               </Pressable>
             ))}
           </View>
-          {panel ? (
-            <View
-              style={{
-                padding: 18,
-                borderRadius: 24,
-                borderWidth: 1,
-                borderColor: colors.border,
-                backgroundColor: colors.surface,
-                gap: 12,
-              }}
-            >
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Close Club panel"
-                onPress={() => setPanel(null)}
-                style={{ alignSelf: "flex-end", padding: 8 }}
-              >
-                <Ionicons name="close" size={20} color={colors.muted} />
-              </Pressable>
-              {panel === "rewards" ? (
-                <CloudCoupons walletScope={walletScope} />
-              ) : panel === "perks" ? (
-                <MembershipBenefits />
-              ) : (
-                <Celebrations />
-              )}
-            </View>
-          ) : null}
+          <BottomSheet
+            visible={!!panel}
+            title={
+              panel === "rewards"
+                ? "My rewards"
+                : panel === "perks"
+                  ? "Member perks"
+                  : "My celebrations"
+            }
+            onClose={() => setPanel(null)}
+          >
+            {panel === "rewards" ? (
+              <CloudCoupons walletScope={walletScope} />
+            ) : panel === "perks" ? (
+              <MembershipBenefits />
+            ) : panel === "celebrations" ? (
+              <Celebrations />
+            ) : null}
+          </BottomSheet>
           <Disclosure title="Points & reward details">
             <Disclosure title="How points work">
               <Text selectable style={text}>
@@ -567,138 +563,363 @@ export function Celebrations() {
   const { customer } = useAuth();
   const { colors } = useTheme();
   const client = useQueryClient();
-  const [reminderNotice, setReminderNotice] = useState("");
   const key = ["celebrations", customer?.id];
+  const [notice, setNotice] = useState("");
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState<Celebration | null>(null);
+  const [managed, setManaged] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [date, setDate] = useState<Date | null>(null);
-  const [occasion, setOccasion] = useState<
-    "birthday" | "anniversary" | "other"
-  >("birthday");
+  const [occasion, setOccasion] = useState<Celebration["occasion"]>("birthday");
   const query = useQuery({
     queryKey: key,
     queryFn: ({ signal }) => clubApi.celebrations(signal),
     enabled: !!customer,
     retry: false,
   });
+  const reset = () => {
+    setFormOpen(false);
+    setEditing(null);
+    setName("");
+    setDate(null);
+    setOccasion("birthday");
+  };
   const save = useMutation({
-    mutationFn: () =>
-      clubApi.saveCelebration({
+    mutationFn: async () => {
+      if (!date || !name.trim())
+        throw Error("Add a name and celebration date.");
+      const body = {
         name: name.trim(),
-        month: date!.getMonth() + 1,
-        day: date!.getDate(),
+        month: date.getMonth() + 1,
+        day: date.getDate(),
         occasion,
-        notes: "",
-      }),
-    onSuccess: async () => {
-      setName("");
-      setDate(null);
+        notes: editing?.notes ?? "",
+      };
+      const result = editing
+        ? await clubApi.updateCelebration(editing.id, body)
+        : await clubApi.saveCelebration(body);
+      let reminderCancelled = true;
+      if (editing && customer) {
+        await cancelCelebrationReminder(customer.id, editing.id).catch(() => {
+          reminderCancelled = false;
+        });
+      }
+      return { record: result, reminderCancelled };
+    },
+    onSuccess: async (result) => {
+      setNotice(
+        !result.reminderCancelled
+          ? "Date saved, but the old reminder could not be cancelled. Check your phone's reminders before setting a new one."
+          : editing
+            ? "Celebration updated. Set a fresh reminder for the new date."
+            : "A lovely date to look forward to. Celebration saved.",
+      );
+      reset();
       await client.invalidateQueries({ queryKey: key });
     },
   });
   const remove = useMutation({
     mutationFn: async (id: string) => {
-      await clubApi.deleteCelebration(id);
       if (customer) await cancelCelebrationReminder(customer.id, id);
+      await clubApi.deleteCelebration(id);
     },
-    onSuccess: () => client.invalidateQueries({ queryKey: key }),
+    onSuccess: async () => {
+      setManaged(null);
+      await client.invalidateQueries({ queryKey: key });
+    },
   });
+  const next = (item: Celebration) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const build = (year: number) =>
+      new Date(
+        year,
+        item.month - 1,
+        Math.min(item.day, new Date(year, item.month, 0).getDate()),
+      );
+    let result = build(today.getFullYear());
+    if (result < today) result = build(today.getFullYear() + 1);
+    return result;
+  };
   return (
-    <View style={{ gap: 12 }}>
-      <Section title="Your celebration calendar" />
-      <Text style={{ color: colors.ink }}>
-        Save important dates across devices. Set an optional reminder for the
-        next occurrence on this device. Your device notification settings
-        control delivery.
-      </Text>
-      {query.isError ? (
+    <View style={{ gap: 20 }}>
+      <View
+        style={{
+          padding: 22,
+          borderRadius: 24,
+          backgroundColor: colors.brandLight,
+          gap: 10,
+        }}
+      >
+        <Ionicons
+          name="calendar-outline"
+          color={colors.brandStrong}
+          size={28}
+        />
+        <Text style={{ color: colors.ink, fontSize: 23, fontWeight: "800" }}>
+          Make room for happy dates.
+        </Text>
+        <Text style={{ color: colors.muted, lineHeight: 22 }}>
+          Birthdays, anniversaries and your favourite people. Saved to your
+          account, ready for the next celebration.
+        </Text>
+      </View>
+      {query.isPending ? (
+        <Notice message="Opening your celebration calendar?" />
+      ) : query.isError ? (
         <>
-          <Notice error message="Celebrations could not load." />
+          <Notice error message="Your dates could not load." />
           <Button
             variant="outline"
             label="Retry calendar"
             onPress={() => void query.refetch()}
           />
         </>
+      ) : !query.data?.length && !formOpen ? (
+        <Text style={{ color: colors.muted, lineHeight: 22 }}>
+          Your first special date starts here. Add someone worth celebrating.
+        </Text>
       ) : null}
-      {query.data?.map((item) => (
-        <View key={item.id} style={{ gap: 8 }}>
-          <Text style={{ color: colors.ink }}>
-            {item.name} · {item.occasion} · {item.day}/{item.month}
+      {!formOpen
+        ? [...(query.data ?? [])]
+            .sort((a, b) => next(a).getTime() - next(b).getTime())
+            .map((item) => (
+              <View
+                key={item.id}
+                style={{
+                  padding: 18,
+                  borderRadius: 22,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  backgroundColor: colors.surface,
+                  gap: 14,
+                }}
+              >
+                <View
+                  style={{
+                    flexDirection: "row",
+                    gap: 14,
+                    alignItems: "center",
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 58,
+                      paddingVertical: 10,
+                      borderRadius: 18,
+                      backgroundColor: colors.brandLight,
+                      alignItems: "center",
+                      gap: 3,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: colors.brandStrong,
+                        fontSize: 10,
+                        fontWeight: "800",
+                      }}
+                    >
+                      {new Date(2000, item.month - 1, item.day)
+                        .toLocaleDateString("en-KE", { month: "short" })
+                        .toUpperCase()}
+                    </Text>
+                    <Text
+                      style={{
+                        color: colors.ink,
+                        fontSize: 25,
+                        fontWeight: "800",
+                      }}
+                    >
+                      {item.day}
+                    </Text>
+                  </View>
+                  <View style={{ flex: 1, gap: 5 }}>
+                    <Text
+                      style={{
+                        color: colors.ink,
+                        fontSize: 17,
+                        fontWeight: "800",
+                      }}
+                    >
+                      {item.name}
+                    </Text>
+                    <Text
+                      style={{
+                        color: colors.muted,
+                        fontSize: 12,
+                        textTransform: "capitalize",
+                      }}
+                    >
+                      {item.occasion} ?{" "}
+                      {next(item).toLocaleDateString("en-KE", {
+                        weekday: "short",
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </Text>
+                  </View>
+                </View>
+                <View
+                  style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}
+                >
+                  <Button
+                    label="Remind me"
+                    size="sm"
+                    variant="outline"
+                    style={{ flex: 1, minWidth: 110 }}
+                    onPress={() => {
+                      if (customer)
+                        void scheduleCelebrationReminder(customer.id, item)
+                          .then((day) =>
+                            setNotice(
+                              `Reminder set for ${day.toLocaleDateString("en-KE", { month: "short", day: "numeric" })} on this phone.`,
+                            ),
+                          )
+                          .catch((e) =>
+                            setNotice(
+                              e instanceof Error
+                                ? e.message
+                                : "Could not set a reminder.",
+                            ),
+                          );
+                    }}
+                  />
+                  <Button
+                    label="Manage"
+                    size="sm"
+                    variant="ghost"
+                    onPress={() =>
+                      setManaged(managed === item.id ? null : item.id)
+                    }
+                  />
+                </View>
+                {managed === item.id ? (
+                  <View
+                    style={{
+                      gap: 10,
+                      paddingTop: 8,
+                      borderTopWidth: 1,
+                      borderTopColor: colors.border,
+                    }}
+                  >
+                    <View
+                      style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}
+                    >
+                      <Button
+                        label="Edit date"
+                        variant="outline"
+                        size="sm"
+                        onPress={() => {
+                          setEditing(item);
+                          setName(item.name);
+                          setOccasion(item.occasion);
+                          setDate(new Date(2000, item.month - 1, item.day));
+                          setFormOpen(true);
+                        }}
+                      />
+                      <Button
+                        label="Cancel reminder"
+                        variant="ghost"
+                        size="sm"
+                        onPress={() => {
+                          if (customer)
+                            void cancelCelebrationReminder(customer.id, item.id)
+                              .then(() =>
+                                setNotice("Reminder cancelled on this phone."),
+                              )
+                              .catch(() =>
+                                setNotice(
+                                  "Could not cancel the reminder. Please try again.",
+                                ),
+                              );
+                        }}
+                      />
+                    </View>
+                    <Button
+                      label={`Remove ${item.name}`}
+                      variant="ghost"
+                      disabled={remove.isPending}
+                      onPress={() => remove.mutate(item.id)}
+                    />
+                  </View>
+                ) : null}
+              </View>
+            ))
+        : null}
+      {notice ? <Notice message={notice} /> : null}
+      {!formOpen ? (
+        <Button
+          label="Add a celebration"
+          icon={<Ionicons name="add" color={colors.onAction} size={20} />}
+          onPress={() => {
+            reset();
+            setFormOpen(true);
+          }}
+        />
+      ) : (
+        <View
+          style={{
+            padding: 18,
+            borderRadius: 24,
+            backgroundColor: colors.surfaceRaised,
+            gap: 16,
+          }}
+        >
+          <Text style={{ color: colors.ink, fontSize: 20, fontWeight: "800" }}>
+            {editing ? "A little change of date" : "Who are we celebrating?"}
           </Text>
-          <Button
-            variant="outline"
-            label="Remind me next time"
-            onPress={() => {
-              if (!customer) return;
-              void scheduleCelebrationReminder(customer.id, item)
-                .then((date) =>
-                  setReminderNotice(
-                    `Reminder scheduled for ${date.toLocaleString()} on this device.`,
-                  ),
-                )
-                .catch((reason) =>
-                  setReminderNotice(
-                    reason instanceof Error
-                      ? reason.message
-                      : "Reminder could not be scheduled.",
-                  ),
-                );
-            }}
+          <Input
+            label="Their name"
+            value={name}
+            onChangeText={setName}
+            maxLength={100}
           />
-          <Button
-            variant="outline"
-            label="Cancel device reminder"
-            onPress={() => {
-              if (customer)
-                void cancelCelebrationReminder(customer.id, item.id)
-                  .then(() => setReminderNotice("Device reminder cancelled."))
-                  .catch(() =>
-                    setReminderNotice(
-                      "Reminder could not be cancelled. Please try again.",
-                    ),
-                  );
-            }}
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+            {(["birthday", "anniversary", "other"] as const).map((value) => (
+              <Button
+                key={value}
+                label={value[0].toUpperCase() + value.slice(1)}
+                size="sm"
+                variant={occasion === value ? "primary" : "outline"}
+                onPress={() => setOccasion(value)}
+              />
+            ))}
+          </View>
+          <OccasionDateField
+            label="Month & day"
+            value={date}
+            onChange={setDate}
           />
-          <Button
-            variant="ghost"
-            label={`Remove ${item.name}`}
-            disabled={remove.isPending}
-            onPress={() => remove.mutate(item.id)}
-          />
+          <View style={{ flexDirection: "row", gap: 10 }}>
+            <Button
+              label="Save date"
+              loading={save.isPending}
+              disabled={!name.trim() || !date || save.isPending}
+              style={{ flex: 1 }}
+              onPress={() => save.mutate()}
+            />
+            <Button
+              label="Cancel"
+              variant="outline"
+              disabled={save.isPending}
+              onPress={reset}
+            />
+          </View>
         </View>
-      ))}
-      {reminderNotice ? <Notice message={reminderNotice} /> : null}
-      <Input
-        label="Who are we celebrating?"
-        value={name}
-        onChangeText={setName}
-        maxLength={100}
-      />
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-        {(["birthday", "anniversary", "other"] as const).map((value) => (
-          <Button
-            key={value}
-            label={value}
-            variant={occasion === value ? "secondary" : "outline"}
-            onPress={() => setOccasion(value)}
-          />
-        ))}
-      </View>
-      <OccasionDateField
-        label="Celebration date"
-        value={date}
-        onChange={setDate}
-      />
-      <Button
-        label="Save celebration"
-        loading={save.isPending}
-        disabled={!name.trim() || !date || save.isPending}
-        onPress={() => save.mutate()}
-      />
+      )}
+      <Text style={{ color: colors.muted, fontSize: 11, lineHeight: 18 }}>
+        Reminders are optional and use this phone's notification permission.
+        Editing a date clears its old device reminder; set a fresh one after
+        saving.
+      </Text>
       {save.isError ? (
         <Notice
           error
-          message="Could not save. Check the date and your connection, then try again."
+          message={
+            save.error instanceof Error
+              ? save.error.message
+              : "Could not save this date."
+          }
         />
       ) : null}
       {remove.isError ? (
@@ -842,105 +1063,265 @@ function MembershipBenefits() {
     },
   });
   const data = query.data;
+  const today = new Date(Date.now() + 3 * 60 * 60 * 1000);
+  const birthdayToday =
+    !!data?.birthday &&
+    data.birthday.month === today.getUTCMonth() + 1 &&
+    Math.min(
+      data.birthday.day,
+      new Date(
+        Date.UTC(today.getUTCFullYear(), data.birthday.month, 0),
+      ).getUTCDate(),
+    ) === today.getUTCDate();
   return (
-    <View style={{ gap: 12 }}>
-      <Section title="Birthday & friend benefits" />
-      {query.isError ? (
-        <Button
-          label="Retry membership benefits"
-          variant="outline"
-          onPress={() => void query.refetch()}
-        />
+    <View style={{ gap: 20 }}>
+      <View style={{ gap: 8 }}>
+        <Text style={{ color: colors.ink, fontSize: 24, fontWeight: "800" }}>
+          Little extras. Lovely rewards.
+        </Text>
+        <Text style={{ color: colors.muted, lineHeight: 22 }}>
+          A thank-you for celebrating with us, and sharing the joy.
+        </Text>
+      </View>
+      {query.isPending ? (
+        <Notice message="Opening your member perks?" />
+      ) : query.isError ? (
+        <>
+          <Notice error message="Your perks could not load." />
+          <Button
+            label="Retry perks"
+            variant="outline"
+            onPress={() => void query.refetch()}
+          />
+        </>
       ) : null}
       {data ? (
         <>
-          <Text style={{ color: colors.ink }}>
-            Receive {data.referral_points} points when a friend's first verified
-            order of at least {money(data.referral_minimum_kes)} is completed.
-            Apply codes before the first qualifying order. Refunded orders
-            reverse the reward. Up to {data.referral_annual_limit} qualifying
-            referrals per year.
-          </Text>
-          <Text selectable style={{ color: colors.ink }}>
-            Your code: {data.referral_code}
-          </Text>
-          <Button
-            variant="outline"
-            label="Share my referral code"
-            onPress={() => {
-              void Share.share({
-                message: `Join Cake City Club and enter my referral code before your first qualifying purchase: ${data.referral_code}`,
-              }).catch(() =>
-                setNotice("Sharing is unavailable on this device."),
-              );
+          <View
+            style={{
+              padding: 22,
+              borderRadius: 26,
+              backgroundColor: colors.brandLight,
+              gap: 16,
             }}
-          />
-          <Text style={{ color: colors.ink }}>
-            {data.referrals_completed} completed referrals
-          </Text>
+          >
+            <View
+              style={{ flexDirection: "row", gap: 12, alignItems: "center" }}
+            >
+              <Ionicons
+                name="people-outline"
+                size={28}
+                color={colors.brandStrong}
+              />
+              <View style={{ flex: 1, gap: 4 }}>
+                <Text
+                  style={{ color: colors.ink, fontSize: 19, fontWeight: "800" }}
+                >
+                  Bring a friend
+                </Text>
+                <Text style={{ color: colors.brandStrong, fontWeight: "800" }}>
+                  {data.referral_points} points for a qualifying referral
+                </Text>
+              </View>
+            </View>
+            <Text style={{ color: colors.muted, lineHeight: 21 }}>
+              Share your invite. When their first qualifying order is confirmed,
+              you earn a little extra joy.
+            </Text>
+            <View
+              style={{
+                padding: 14,
+                borderRadius: 16,
+                borderWidth: 1,
+                borderStyle: "dashed",
+                borderColor: colors.borderStrong,
+                backgroundColor: colors.surface,
+              }}
+            >
+              <Text
+                style={{
+                  color: colors.muted,
+                  fontSize: 10,
+                  fontWeight: "800",
+                  letterSpacing: 1,
+                  marginBottom: 6,
+                }}
+              >
+                YOUR INVITE CODE
+              </Text>
+              <Text
+                selectable
+                style={{
+                  color: colors.ink,
+                  fontWeight: "700",
+                  fontSize: 12,
+                  lineHeight: 19,
+                }}
+              >
+                {data.referral_code}
+              </Text>
+            </View>
+            <Button
+              label="Share my invite"
+              icon={
+                <Ionicons
+                  name="share-outline"
+                  color={colors.onAction}
+                  size={18}
+                />
+              }
+              onPress={() => {
+                void Share.share({
+                  message: `Join Cake City Club and enter my referral code before your first qualifying purchase: ${data.referral_code}`,
+                }).catch(() =>
+                  setNotice("Sharing is unavailable on this phone."),
+                );
+              }}
+            />
+            <Text style={{ color: colors.muted, fontSize: 12 }}>
+              {data.referrals_completed} completed referrals
+            </Text>
+            <Disclosure title="How referral rewards work">
+              <Text style={{ color: colors.ink, lineHeight: 23 }}>
+                Your friend's first verified order must be at least{" "}
+                {money(data.referral_minimum_kes)}. They need to enter your code
+                before their first qualifying order. Up to{" "}
+                {data.referral_annual_limit} qualifying referrals per year;
+                refunded orders reverse the reward.
+              </Text>
+            </Disclosure>
+          </View>
+          <View
+            style={{
+              padding: 22,
+              borderRadius: 26,
+              borderWidth: 1,
+              borderColor: colors.border,
+              backgroundColor: colors.surfaceRaised,
+              gap: 16,
+            }}
+          >
+            <View
+              style={{ flexDirection: "row", gap: 12, alignItems: "center" }}
+            >
+              <Ionicons
+                name="gift-outline"
+                size={28}
+                color={colors.brandStrong}
+              />
+              <View style={{ flex: 1, gap: 4 }}>
+                <Text
+                  style={{ color: colors.ink, fontSize: 19, fontWeight: "800" }}
+                >
+                  A birthday treat
+                </Text>
+                <Text style={{ color: colors.muted, fontSize: 12 }}>
+                  50?150 points, depending on your Club tier
+                </Text>
+              </View>
+            </View>
+            {data.birthday ? (
+              <>
+                <Text
+                  style={{ color: colors.ink, fontSize: 20, fontWeight: "700" }}
+                >
+                  {new Date(
+                    2000,
+                    data.birthday.month - 1,
+                    data.birthday.day,
+                  ).toLocaleDateString("en-KE", {
+                    month: "long",
+                    day: "numeric",
+                  })}
+                </Text>
+                <Text
+                  style={{
+                    color: data.birthday_claimed
+                      ? colors.success
+                      : colors.muted,
+                    lineHeight: 21,
+                  }}
+                >
+                  {data.birthday_claimed
+                    ? "Birthday treat received. Here's to another lovely year."
+                    : birthdayToday
+                      ? "It's your day. Check your birthday reward below."
+                      : "Your treat opens on your saved birthday."}
+                </Text>
+                {birthdayToday && !data.birthday_claimed ? (
+                  <Button
+                    label="Claim birthday points"
+                    loading={change.isPending}
+                    disabled={change.isPending}
+                    onPress={() =>
+                      change.mutate({
+                        path: "/v1/club/birthday/claim",
+                        body: {},
+                      })
+                    }
+                  />
+                ) : null}
+              </>
+            ) : (
+              <>
+                <Text style={{ color: colors.muted, lineHeight: 21 }}>
+                  Save your birthday so we can keep your yearly treat ready.
+                </Text>
+                <OccasionDateField
+                  label="My birthday"
+                  value={date}
+                  onChange={setDate}
+                />
+                <Button
+                  label="Save my birthday"
+                  disabled={!date || change.isPending}
+                  loading={change.isPending}
+                  onPress={() =>
+                    change.mutate({
+                      path: "/v1/club/birthday",
+                      method: "put",
+                      body: {
+                        month: date!.getMonth() + 1,
+                        day: date!.getDate(),
+                      },
+                    })
+                  }
+                />
+              </>
+            )}
+            <Disclosure title="Birthday benefit details">
+              <Text style={{ color: colors.ink, lineHeight: 23 }}>
+                Silver earns 50 points, Gold 75, Diamond 100 and Platinum 150.
+                Claim once a year on your saved birthday after 30 days of
+                membership and {money(2000)} qualifying spend. Contact support
+                to correct a saved birthday.
+              </Text>
+            </Disclosure>
+          </View>
           {!data.referral_status ? (
-            <>
+            <Disclosure title="Have an invite from a friend?">
               <Input
-                label="Referral code from a friend"
+                label="Their referral code"
                 value={code}
                 onChangeText={setCode}
                 maxLength={80}
               />
               <Button
-                label="Apply referral code"
+                label="Apply invite"
                 disabled={!code.trim() || change.isPending}
-                onPress={() =>
-                  change.mutate({ path: "/v1/club/referrals", body: { code } })
-                }
-              />
-            </>
-          ) : (
-            <Text style={{ color: colors.ink }}>
-              Your referral: {data.referral_status}
-            </Text>
-          )}
-          <Text style={{ color: colors.ink }}>
-            Birthday points: Silver 50, Gold 75, Diamond 100, Platinum 150.
-            Claim once per year on your saved birthday after 30 days of
-            membership and {money(2000)} qualifying spend. Contact support to
-            correct a saved birthday.
-          </Text>
-          {data.birthday ? (
-            <>
-              <Text style={{ color: colors.ink }}>
-                Your birthday: {data.birthday.day}/{data.birthday.month}
-              </Text>
-              <Button
-                label={
-                  data.birthday_claimed
-                    ? "Birthday benefit claimed this year"
-                    : "Claim birthday points"
-                }
-                disabled={data.birthday_claimed || change.isPending}
-                onPress={() =>
-                  change.mutate({ path: "/v1/club/birthday/claim", body: {} })
-                }
-              />
-            </>
-          ) : (
-            <>
-              <OccasionDateField
-                label="Your birthday"
-                value={date}
-                onChange={setDate}
-              />
-              <Button
-                label="Save my birthday"
-                disabled={!date || change.isPending}
+                loading={change.isPending}
                 onPress={() =>
                   change.mutate({
-                    path: "/v1/club/birthday",
-                    method: "put",
-                    body: { month: date!.getMonth() + 1, day: date!.getDate() },
+                    path: "/v1/club/referrals",
+                    body: { code: code.trim() },
                   })
                 }
               />
-            </>
+            </Disclosure>
+          ) : (
+            <Text style={{ color: colors.muted }}>
+              Your referral: {data.referral_status}
+            </Text>
           )}
         </>
       ) : null}
