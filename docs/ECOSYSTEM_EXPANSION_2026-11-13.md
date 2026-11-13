@@ -67,3 +67,9 @@ Receipts use the supplied PNG logo embedded as a data URL for offline PDFs, item
 ## Remaining operational acceptance
 
 On iPhone, check Home welcome coupon once/dismiss/apply, zero-payment checkout, branch popup at small/large text sizes, location allow/deny, cake playground combinations and price changes, Club refill/confetti with Reduce Motion, per-delivery rider cards, receipt PDF/logo and private document sharing. In web, check manager onboarding, assigned-agent isolation, client quote approval, LPO upload, invoice/evidence reconciliation and Excel export. Confirm production Maps/remote push configuration before claiming those services live. Unapproved special/pickup rider tariffs need business approval; no invented payable amount is used.
+
+## DIY opening repair - 13 November 2026
+
+Owner reported tapping DIY left the screen unchanged. Installed Expo Router 58 maps tab `href: null` to `hidden: true`; `useVisibleTabsWithRedirect` immediately replaces a focused hidden route with the initial tab. Both custom and search had that obsolete configuration. Removed `href: null` from these two declared screens. The app already renders its own FloatingTabBar and disables the navigator tab bar, so neither creates an extra bottom navigation item. Existing DIY links and screen stay intact.
+
+`tests/diy-navigation.test.cjs` exercises the actual installed TabsClient conversion and visible-tab redirect hook. It reproduces the old custom-to-index redirect and verifies both repaired routes remain focused. Combined navigation and Home search tests: 5 passed. Local inventory API and the active Expo review proxy each returned 200 with 40 cakes. A browser check could not finish loading the development web bundle; native inspector access closed before responding. No phone tap verification is claimed. Reload Expo Go to discard the old navigator state.

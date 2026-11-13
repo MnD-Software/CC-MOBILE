@@ -84,8 +84,11 @@ export default function TabLayout() {
       <Tabs.Screen name="loyalty" options={{ title: "Cake City Club" }} />
       <Tabs.Screen name="orders" options={{ title: "Orders" }} />
       <Tabs.Screen name="account" options={{ title: "Account" }} />
-      <Tabs.Screen name="custom" options={{ href: null }} />
-      <Tabs.Screen name="search" options={{ title: "Search", href: null }} />
+      {/* Expo Router 58 redirects hidden tabs to the initial tab. Our separate
+          FloatingTabBar already controls which destinations are displayed;
+          these routes must stay registered and visible to the navigator. */}
+      <Tabs.Screen name="custom" options={{ title: "Cake playground" }} />
+      <Tabs.Screen name="search" options={{ title: "Search" }} />
     </Tabs>
   );
 }
