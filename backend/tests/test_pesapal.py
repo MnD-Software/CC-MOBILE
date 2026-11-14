@@ -34,7 +34,7 @@ def system(monkeypatch):
     with Session(engine) as db:
         db.add(Customer(id="buyer",email="buyer@example.com",first_name="Test",last_name="Buyer",password_hash="unused",role="customer"))
         db.add(Customer(id="other",email="other@example.com",first_name="Other",last_name="Buyer",password_hash="unused",role="customer"))
-        db.add(AppProduct(id=12,slug="test-cake",payload={"id":12,"slug":"test-cake","name":"Test cake","type":"simple","images":[],"categories":[]},price_minor=250000,allocation=10,enabled=True))
+        db.add(AppProduct(id=12,slug="test-cake",payload={"id":12,"slug":"test-cake","name":"Test cake","type":"simple","images":[{"src":"https://images.example.com/test-cake.jpg"}],"categories":[]},price_minor=250000,allocation=10,enabled=True))
         db.add(AppPolicy(id="checkout",payload={"enabled":True,"pricing_confirmed":True,"pickup_enabled":True,"tax_bps":0,"prices_include_tax":True,"pickup_instructions":"Collect at test branch"}))
         db.add(AppDeliveryZone(id="zone",name="Test zone",fee_minor=30000))
         db.commit()

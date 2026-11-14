@@ -60,6 +60,16 @@ async def drain(db, limit=50, transport=request):
                    and device.customer_id == notification.customer_id and session and not session.revoked
                    and session.customer_id == notification.customer_id and utc(session.expires_at) > now
                    and (not prefs or prefs.order_updates))
+        if allowed and notification.data.get('marketing'):
+            from .marketing_crm import MarketingConsent
+            consent=db.get(MarketingConsent,notification.customer_id)
+            allowed=bool(consent and consent.enabled)
+            if allowed and notification.kind=='checkout_reminder':
+                from .marketing_crm import CheckoutActivity
+                activity=db.get(CheckoutActivity,notification.customer_id)
+                allowed=not (activity and (activity.payload.get('converted') or not activity.payload.get('product_ids')))
+                from .commerce_models import AppOrder
+                if db.scalar(select(AppOrder.id).where(AppOrder.customer_id==notification.customer_id,AppOrder.payment_state.in_(['completed','pending','creating','uncertain']),AppOrder.created_at>=notification.created_at).limit(1)):allowed=False
         if not allowed or utc(job.expires_at) <= now:
             job.state, job.error = "cancelled", "expired_or_disabled"
             db.commit()
@@ -123,6 +133,8 @@ async def main(loop):
     validate_production_settings(get_settings())
     while True:
         with SessionLocal() as db:
+            from .marketing_crm import recover
+            recover(db)
             print(await drain(db), flush=True)
         if not loop:
             return

@@ -7,7 +7,7 @@ from typing import Literal
 from uuid import uuid4
 from urllib.parse import urlsplit
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, Header, HTTPException, Response
 from pydantic import BaseModel, Field, field_validator, model_validator
 from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
@@ -45,6 +45,7 @@ class CampaignInput(BaseModel):
     product_slugs: list[str] = Field(default_factory=list, max_length=8)
     category_id: int | None = Field(default=None, gt=0)
     branch_names: list[str] = Field(default_factory=list, max_length=20)
+    segment: Literal['all','new','first_time','repeat','high_spenders','inactive','checkout_pending'] = 'all'
     member_only: bool = False
     published: bool = False
     template: Literal["spotlight", "celebration", "offer"] = "spotlight"
@@ -106,11 +107,16 @@ def output(record):
 
 
 @router.get("/v1/content")
-def content(response: Response, db: Session = Depends(get_db)):
-    response.headers["Cache-Control"] = "public, max-age=30"
+def content(response: Response, db: Session = Depends(get_db), authorization: str | None = Header(default=None)):
+    response.headers['Cache-Control']='private, no-store' if authorization else 'public, max-age=30'
+    customer=None
+    if authorization:
+        from .security import customer_from_access_token
+        customer=customer_from_access_token(db,authorization)
+    from .marketing_crm import matches
     now = datetime.now(UTC)
     rows = db.scalars(select(EditorialContent).where(EditorialContent.kind == "campaign").order_by(EditorialContent.updated_at.desc())).all()
-    return {"campaigns": [output(row) for row in rows if active(row.payload, now)][:30]}
+    return {"campaigns": [output(row) for row in rows if active(row.payload, now) and (row.payload.get('segment','all')=='all' or (customer and matches(db,customer.id,row.payload['segment'])))][:30]}
 
 
 @router.get("/v1/content/products/{product_id}")

@@ -21,6 +21,9 @@ import { useScreenActive } from "@/design/useScreenActive";
 import { Disclosure } from "@/components/ui/Disclosure";
 import { StaffDepartmentMetrics } from "@/features/staff/StaffDepartmentMetrics";
 import { EarningsPanel } from "./EarningsPanel";
+import { OrderAgentNotes } from "@/features/staff/ServiceDesk";
+import { api } from "@/api/client";
+import { Pressable } from "react-native";
 
 export function OperationsScreen({ kitchen }: { kitchen: boolean }) {
   const { customer, logout } = useAuth();
@@ -71,6 +74,40 @@ export function OperationsScreen({ kitchen }: { kitchen: boolean }) {
 }
 function Queue({ owner, kitchen }: { owner: string; kitchen: boolean }) {
   const active = useScreenActive();
+  const [selected, setSelected] = useState<string[]>([]),
+    [bulkRider, setBulkRider] = useState(""),
+    [bulkMessage, setBulkMessage] = useState(""),
+    [bulkBusy, setBulkBusy] = useState(false);
+  const bulkRiders = useQuery({
+    queryKey: ["bulk-riders", owner],
+    enabled: !kitchen && active,
+    queryFn: ({ signal }) => logisticsApi.riders(signal),
+  });
+  const bulk = async (action: string) => {
+    setBulkBusy(true);
+    try {
+      const result = await api.post<{
+        results: { reference: string; ok: boolean; message?: string }[];
+      }>(
+        "/v1/logistics/bulk-work",
+        { references: selected, action, rider_id: bulkRider || null },
+        { auth: true },
+      );
+      const failed = result.results.filter((r) => !r.ok);
+      setSelected(failed.map((r) => r.reference));
+      setBulkMessage(
+        `${result.results.length - failed.length} updated.${failed.length ? " " + failed.map((r) => `${r.reference}: ${r.message}`).join(" ") : ""}`,
+      );
+      await Promise.all([
+        query.refetch(),
+        ...(!kitchen ? [tasks.refetch()] : []),
+      ]);
+    } catch (e) {
+      setBulkMessage(e instanceof Error ? e.message : "Please retry.");
+    } finally {
+      setBulkBusy(false);
+    }
+  };
   const query = useQuery({
     queryKey: ["logistics-orders", owner, kitchen],
     queryFn: ({ signal }) => logisticsApi.orders(kitchen, signal),
@@ -86,7 +123,82 @@ function Queue({ owner, kitchen }: { owner: string; kitchen: boolean }) {
   return (
     <>
       <StaffDepartmentMetrics />
-      {!kitchen ? <Disclosure title="Rider earnings & payments"><EarningsPanel /></Disclosure> : null}
+      <Disclosure
+        title={`Batch workspace${selected.length ? " · " + selected.length + " selected" : ""}`}
+      >
+        <Text>
+          Select up to 20 orders. Each order is checked separately; blocked
+          orders stay selected.
+        </Text>
+        {(query.data || []).map((order) => (
+          <Pressable
+            key={order.reference}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: selected.includes(order.reference) }}
+            disabled={bulkBusy}
+            onPress={() =>
+              setSelected((v) =>
+                v.includes(order.reference)
+                  ? v.filter((r) => r !== order.reference)
+                  : v.length < 20
+                    ? [...v, order.reference]
+                    : v,
+              )
+            }
+            style={{
+              padding: 12,
+              borderBottomWidth: 1,
+              borderBottomColor: "#E8DFE4",
+              flexDirection: "row",
+              gap: 10,
+            }}
+          >
+            <Text>{selected.includes(order.reference) ? "✓" : "○"}</Text>
+            <Text>
+              {order.reference} · {order.status}
+            </Text>
+          </Pressable>
+        ))}
+        {kitchen ? (
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            <Button
+              label="Start selected"
+              disabled={!selected.length || bulkBusy}
+              onPress={() => void bulk("preparing")}
+            />
+            <Button
+              label="Mark selected ready"
+              disabled={!selected.length || bulkBusy}
+              onPress={() => void bulk("ready")}
+            />
+          </View>
+        ) : (
+          <>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+              {bulkRiders.data?.map((r) => (
+                <Button
+                  key={r.id}
+                  label={r.name}
+                  size="sm"
+                  variant={bulkRider === r.id ? "primary" : "outline"}
+                  onPress={() => setBulkRider(r.id)}
+                />
+              ))}
+            </View>
+            <Button
+              label="Assign selected orders"
+              disabled={!selected.length || !bulkRider || bulkBusy}
+              onPress={() => void bulk("assign_rider")}
+            />
+          </>
+        )}
+        {bulkMessage ? <Notice message={bulkMessage} /> : null}
+      </Disclosure>
+      {!kitchen ? (
+        <Disclosure title="Rider earnings & payments">
+          <EarningsPanel />
+        </Disclosure>
+      ) : null}
       {!kitchen ? (
         <Button
           label="Rider accounts / create rider"
@@ -221,6 +333,7 @@ function WorkCard({
   return (
     <View style={ui.panel} testID={`work-${order.reference}`}>
       <Text style={ui.heading}>{order.reference}</Text>
+      <OrderAgentNotes reference={order.reference} />
       <Text style={ui.eyebrow}>{order.status.replaceAll("_", " ")}</Text>
       {order.payment_test && !order.review_checkout ? (
         <Notice message="SIMULATED TEST — no payment or physical fulfilment is required." />
@@ -342,13 +455,15 @@ function WorkCard({
           ) : !riders.isPending && !riders.data?.length ? (
             <Notice message="Provision a rider account before assigning a trip." />
           ) : null}
-          <Input
-            label="Destination override (optional)"
-            hint="Leave empty to use the order’s delivery address."
-            value={destination}
-            onChangeText={setDestination}
-            maxLength={500}
-          />
+          <Disclosure title="Change delivery destination">
+            <Input
+              label="Destination override (optional)"
+              hint="Leave empty to use the order’s delivery address."
+              value={destination}
+              onChangeText={setDestination}
+              maxLength={500}
+            />
+          </Disclosure>
           <Button
             label="Assign remaining order items"
             loading={mutation.isPending}

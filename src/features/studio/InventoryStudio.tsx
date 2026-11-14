@@ -16,6 +16,7 @@ import { useAuth } from "@/auth/AuthProvider";
 import { useBag, usePreferences } from "@/features/commerce/store";
 import { Disclosure } from "@/components/ui/Disclosure";
 import { LoadingImage } from "@/components/ui/LoadingImage";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { Text } from "@/components/ui/Typography";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -23,6 +24,7 @@ import { Screen, Notice, Feedback, useToast } from "@/components/ui/Commerce";
 import { useTheme } from "@/theme/ThemeProvider";
 import { useMotionAccessibilityPreference } from "@/design/useReducedMotion";
 import { CustomCakeBrief } from "./CustomCakeBrief";
+import { SizeFinishPicker } from "./SizeFinishPicker";
 import { appMedia } from "@/features/commerce/app-media";
 import { useScreenActive } from "@/design/useScreenActive";
 
@@ -35,6 +37,7 @@ type Item = {
   attributes: { name?: string; attribute?: string; value: string }[];
   variants: Item[];
   kind: string;
+  canvas_colour?: string;
 };
 type Quote = {
   subtotal_minor: number;
@@ -104,7 +107,7 @@ export function CakeCanvas({
     <View
       accessibilityLabel={`Illustrative cake canvas, colour ${colour}${message ? `, message ${message}` : ""}`}
       style={{
-        height: 255,
+        height: 220,
         alignItems: "center",
         justifyContent: "center",
         overflow: "hidden",
@@ -294,18 +297,25 @@ export function InventoryStudio() {
   const drafts = usePreferences((s) => s.designs[owner] ?? EMPTY_DESIGNS);
   const saveDesign = usePreferences((s) => s.saveDesign);
   const deleteDesign = usePreferences((s) => s.deleteDesign);
+  const [completedSteps, setCompletedSteps] = useState<number[]>([]);
+  const [mode, setMode] = useState<"diy" | "inspo">("diy");
   const [step, setStep] = useState(0),
     [search, setSearch] = useState(""),
     [submitted, setSubmitted] = useState(""),
     [cake, setCake] = useState<Item | null>(null),
     [variant, setVariant] = useState<Item | null>(null),
     [extras, setExtras] = useState<Item[]>([]),
-    [colour, setColour] = useState(swatches[0]),
+    [colour, setColour] = useState("#FFF8EE"),
     [message, setMessage] = useState(""),
     [quote, setQuote] = useState<Quote | null>(null),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
+  useEffect(() => {
+    const timer = setTimeout(() => setSubmitted(search.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
   const cakes = useQuery({
+    enabled: mode === "diy",
     queryKey: ["diy-inventory", submitted],
     queryFn: () =>
       api.get<Item[]>(
@@ -319,7 +329,10 @@ export function InventoryStudio() {
     enabled: step >= 2,
     staleTime: 60000,
   });
-  useEffect(() => setQuote(null), [cake, variant, extras, colour, message]);
+  useEffect(() => {
+    setQuote(null);
+    setCompletedSteps((steps) => steps.filter((s) => s !== 3));
+  }, [cake, variant, extras, colour, message]);
   const sku = variant || cake;
   const estimate =
     (sku?.price_minor || 0) + extras.reduce((s, x) => s + x.price_minor, 0);
@@ -405,6 +418,7 @@ export function InventoryStudio() {
         { auth: true },
       );
       setQuote(value);
+      setCompletedSteps([0, 1, 2, 3]);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Please retry your design.");
     } finally {
@@ -450,402 +464,469 @@ export function InventoryStudio() {
       subtitle="Dream it. Shape it. Make their day."
       back
     >
-      <LinearGradient
-        colors={["#372034", "#6F2C54", "#AD3F7D"]}
-        style={{ borderRadius: 30, padding: 18, gap: 7 }}
+      <View
+        style={{
+          flexDirection: "row",
+          gap: 6,
+          padding: 5,
+          borderRadius: 20,
+          backgroundColor: colors.surfaceRaised,
+        }}
       >
-        <View
-          style={{
-            flexDirection: "row",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
-          <Text
-            style={{
-              color: "#F7CEE3",
-              fontWeight: "800",
-              letterSpacing: 2,
-              fontSize: 10,
-            }}
-          >
-            MADE BY YOU
-          </Text>
-          <Text style={{ color: "white", fontWeight: "800", fontSize: 18 }}>
-            {sku ? cash(quote?.subtotal_minor ?? estimate) : "Start creating"}
-          </Text>
-        </View>
-        <CakeCanvas
-          colour={colour}
-          message={message}
-          decorations={extras.length}
-        />
-        <Text style={{ color: "#F5D6E6", textAlign: "center", fontSize: 12 }}>
-          Every choice starts with real Cake City inventory.
-        </Text>
-      </LinearGradient>
-      <View style={{ flexDirection: "row", gap: 6 }}>
-        {["Flavour", "Finish", "Extras", "Make it yours"].map((label, i) => (
+        {(["diy", "inspo"] as const).map((value) => (
           <Pressable
-            key={label}
+            key={value}
             accessibilityRole="tab"
-            accessibilityState={{ selected: step === i }}
-            onPress={() => setStep(i)}
+            accessibilityState={{ selected: mode === value }}
+            onPress={() => setMode(value)}
             style={{
               flex: 1,
-              paddingVertical: 12,
+              padding: 13,
               borderRadius: 16,
               backgroundColor:
-                step === i ? colors.brandLight : colors.surfaceRaised,
-              alignItems: "center",
-              gap: 5,
+                mode === value ? colors.brandLight : "transparent",
             }}
           >
             <Text
               style={{
-                color: step === i ? colors.brandStrong : colors.muted,
+                color: colors.ink,
                 fontWeight: "800",
-                fontSize: 12,
+                textAlign: "center",
               }}
             >
-              {i < step ? "✓" : `0${i + 1}`}
-            </Text>
-            <Text
-              style={{
-                color: step === i ? colors.brandStrong : colors.muted,
-                fontSize: 10,
-                fontWeight: "700",
-              }}
-            >
-              {label}
+              {value === "diy"
+                ? "DIY ? create your cake"
+                : "Inspo ? share your idea"}
             </Text>
           </Pressable>
         ))}
       </View>
-      {step === 0 ? (
+      {mode === "inspo" ? (
+        <CustomCakeBrief />
+      ) : (
         <>
-          <Text style={{ color: colors.ink, fontWeight: "800", fontSize: 22 }}>
-            Find your flavour story
-          </Text>
-          <Input
-            label="Search flavours, cake styles or themes"
-            value={search}
-            onChangeText={setSearch}
-            onSubmitEditing={() => setSubmitted(search)}
-            returnKeyType="search"
-          />
-          <Button
-            label="Find my flavour"
-            variant="outline"
-            onPress={() => setSubmitted(search)}
-          />
-          {cakes.isPending ? (
-            <Feedback loading />
-          ) : cakes.isError ? (
-            <Feedback
-              error={cakes.error}
-              onRetry={() => void cakes.refetch()}
-            />
-          ) : (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: 12 }}
+          <LinearGradient
+            colors={["#372034", "#6F2C54", "#AD3F7D"]}
+            style={{ borderRadius: 30, padding: 18, gap: 7 }}
+          >
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
             >
-              {cakes.data.map((item) => (
+              <Text
+                style={{
+                  color: "#F7CEE3",
+                  fontWeight: "800",
+                  letterSpacing: 2,
+                  fontSize: 10,
+                }}
+              >
+                MADE BY YOU
+              </Text>
+              <Text style={{ color: "white", fontWeight: "800", fontSize: 18 }}>
+                {sku
+                  ? cash(quote?.subtotal_minor ?? estimate)
+                  : "Start creating"}
+              </Text>
+            </View>
+            <CakeCanvas
+              colour={colour}
+              message={message}
+              decorations={extras.length}
+            />
+            <Text
+              style={{ color: "#F5D6E6", textAlign: "center", fontSize: 12 }}
+            >
+              Every choice starts with real Cake City inventory.
+            </Text>
+          </LinearGradient>
+          <View style={{ flexDirection: "row", gap: 6 }}>
+            {["Flavour", "Finish", "Extras", "Make it yours"].map(
+              (label, i) => (
                 <Pressable
-                  key={item.id}
-                  accessibilityRole="radio"
-                  accessibilityState={{ checked: cake?.id === item.id }}
-                  onPress={() => {
-                    setCake(item);
-                    setVariant(item.variants?.[0] || null);
-                    setStep(1);
-                  }}
+                  key={label}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: step === i }}
+                  onPress={() => setStep(i)}
                   style={{
-                    width: 175,
-                    borderRadius: 24,
-                    padding: 10,
-                    gap: 10,
-                    borderWidth: 2,
-                    borderColor:
-                      cake?.id === item.id ? colors.brandStrong : colors.border,
-                    backgroundColor: colors.surface,
+                    flex: 1,
+                    paddingVertical: 12,
+                    borderRadius: 16,
+                    backgroundColor: completedSteps.includes(i)
+                      ? colors.successLight
+                      : step === i
+                        ? colors.brandLight
+                        : colors.surfaceRaised,
+                    alignItems: "center",
+                    gap: 5,
                   }}
                 >
-                  <LoadingImage
-                    source={{ uri: item.image ? appMedia(item.image) : "" }}
-                    contentFit="contain"
-                    style={{ width: "100%", height: 125, borderRadius: 18 }}
-                  />
                   <Text
-                    numberOfLines={2}
                     style={{
-                      color: colors.ink,
+                      color: completedSteps.includes(i)
+                        ? colors.success
+                        : step === i
+                          ? colors.brandStrong
+                          : colors.muted,
                       fontWeight: "800",
-                      fontSize: 15,
+                      fontSize: 12,
                     }}
                   >
-                    {item.name}
+                    {i < step ? "✓" : `0${i + 1}`}
                   </Text>
                   <Text
-                    style={{ color: colors.brandStrong, fontWeight: "700" }}
+                    style={{
+                      color: completedSteps.includes(i)
+                        ? colors.success
+                        : step === i
+                          ? colors.brandStrong
+                          : colors.muted,
+                      fontSize: 10,
+                      fontWeight: "700",
+                    }}
                   >
-                    From{" "}
-                    {cash(item.variants?.[0]?.price_minor || item.price_minor)}
+                    {label}
                   </Text>
                 </Pressable>
-              ))}
-            </ScrollView>
-          )}
-        </>
-      ) : null}
-      {step === 1 ? (
-        <>
-          <Text style={{ color: colors.ink, fontWeight: "800", fontSize: 22 }}>
-            The perfect finish
-          </Text>
-          {!cake ? (
-            <Notice message="Choose a cake first to see its available sizes, cake types and icing options." />
-          ) : (
+              ),
+            )}
+          </View>
+          {step === 0 ? (
             <>
-              <Text style={{ color: colors.muted, lineHeight: 21 }}>
-                Choose a published combination for {cake.name}. These sizes and
-                finishes come from inventory.
+              <Text
+                style={{ color: colors.ink, fontWeight: "800", fontSize: 22 }}
+              >
+                Find your flavour story
               </Text>
-              <View style={{ gap: 10 }}>
-                {(cake.variants?.length ? cake.variants : [cake]).map((v) => (
+              <Input
+                label="Search flavours, cake styles or themes"
+                value={search}
+                onChangeText={setSearch}
+                onSubmitEditing={() => setSubmitted(search)}
+                returnKeyType="search"
+              />
+              {search ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Clear flavour search"
+                  onPress={() => {
+                    setSearch("");
+                    setSubmitted("");
+                  }}
+                  style={{ alignSelf: "flex-end", padding: 8 }}
+                >
+                  <Text style={{ color: colors.brandStrong }}>
+                    Clear search ?
+                  </Text>
+                </Pressable>
+              ) : null}
+              {cakes.isPending ? (
+                <View style={{ flexDirection: "row", gap: 12 }}>
+                  <Skeleton height={210} radius={23} width="48%" />
+                  <Skeleton height={210} radius={23} width="48%" />
+                </View>
+              ) : cakes.isError ? (
+                <Feedback
+                  error={cakes.error}
+                  onRetry={() => void cakes.refetch()}
+                />
+              ) : (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ gap: 12 }}
+                >
+                  {cakes.data.map((item) => (
+                    <Pressable
+                      key={item.id}
+                      accessibilityRole="radio"
+                      accessibilityState={{ checked: cake?.id === item.id }}
+                      onPress={() => {
+                        setCake(item);
+                        setCompletedSteps([0]);
+                        setColour(item.canvas_colour || "#FFF8EE");
+                        setVariant(item.variants?.[0] || null);
+                        setStep(1);
+                      }}
+                      style={{
+                        width: 175,
+                        borderRadius: 24,
+                        padding: 10,
+                        gap: 10,
+                        borderWidth: 2,
+                        borderColor:
+                          cake?.id === item.id
+                            ? colors.brandStrong
+                            : colors.border,
+                        backgroundColor: colors.surface,
+                      }}
+                    >
+                      <LoadingImage
+                        source={{ uri: item.image ? appMedia(item.image) : "" }}
+                        contentFit="contain"
+                        style={{ width: "100%", height: 125, borderRadius: 18 }}
+                      />
+                      <Text
+                        numberOfLines={2}
+                        style={{
+                          color: colors.ink,
+                          fontWeight: "800",
+                          fontSize: 15,
+                        }}
+                      >
+                        {item.name}
+                      </Text>
+                      <Text
+                        style={{ color: colors.brandStrong, fontWeight: "700" }}
+                      >
+                        From{" "}
+                        {cash(
+                          item.variants?.[0]?.price_minor || item.price_minor,
+                        )}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              )}
+            </>
+          ) : null}
+          {step === 1 ? (
+            <>
+              <Text
+                style={{ color: colors.ink, fontWeight: "800", fontSize: 22 }}
+              >
+                The perfect finish
+              </Text>
+              {!cake ? (
+                <Notice message="Choose a cake first to see its available sizes, cake types and icing options." />
+              ) : (
+                <>
+                  <Text style={{ color: colors.muted, lineHeight: 21 }}>
+                    Choose a published combination for {cake.name}. These sizes
+                    and finishes come from inventory.
+                  </Text>
+                  <SizeFinishPicker
+                    variants={cake.variants?.length ? cake.variants : [cake]}
+                    selected={variant || cake}
+                    onSelect={(value) =>
+                      setVariant(value.id === cake.id ? null : value)
+                    }
+                  />
+                  <Notice message="Need an icing or decoration that is not listed? Send a custom brief below for a kitchen quote." />
+                </>
+              )}
+            </>
+          ) : null}
+          {step === 2 ? (
+            <>
+              <Text
+                style={{ color: colors.ink, fontWeight: "800", fontSize: 22 }}
+              >
+                A little extra magic
+              </Text>
+              <Text style={{ color: colors.muted }}>
+                Optional inventory extras. Tap to add or remove.
+              </Text>
+              {decor.isPending ? (
+                <Feedback loading />
+              ) : decor.isError ? (
+                <Feedback
+                  error={decor.error}
+                  onRetry={() => void decor.refetch()}
+                />
+              ) : (
+                <View style={{ gap: 10 }}>
+                  {decor.data?.map((item) => (
+                    <Pressable
+                      key={item.id}
+                      accessibilityRole="checkbox"
+                      accessibilityState={{
+                        checked: extras.some((x) => x.id === item.id),
+                      }}
+                      onPress={() =>
+                        setExtras((v) =>
+                          v.some((x) => x.id === item.id)
+                            ? v.filter((x) => x.id !== item.id)
+                            : v.length < 10
+                              ? [...v, item]
+                              : v,
+                        )
+                      }
+                      style={{
+                        padding: 15,
+                        borderRadius: 20,
+                        backgroundColor: extras.some((x) => x.id === item.id)
+                          ? colors.brandLight
+                          : colors.surface,
+                        flexDirection: "row",
+                        gap: 12,
+                        alignItems: "center",
+                        borderWidth: 1,
+                        borderColor: colors.border,
+                      }}
+                    >
+                      <LoadingImage
+                        source={{ uri: item.image ? appMedia(item.image) : "" }}
+                        contentFit="contain"
+                        style={{ width: 55, height: 55, borderRadius: 14 }}
+                      />
+                      <View style={{ flex: 1, gap: 5 }}>
+                        <Text style={{ color: colors.ink, fontWeight: "700" }}>
+                          {item.name}
+                        </Text>
+                        <Text style={{ color: colors.brandStrong }}>
+                          {cash(item.price_minor)}
+                        </Text>
+                      </View>
+                      <Ionicons
+                        name={
+                          extras.some((x) => x.id === item.id)
+                            ? "checkmark-circle"
+                            : "add-circle-outline"
+                        }
+                        size={25}
+                        color={colors.brandStrong}
+                      />
+                    </Pressable>
+                  ))}
+                </View>
+              )}
+            </>
+          ) : null}
+          {step === 3 ? (
+            <>
+              <Text
+                style={{ color: colors.ink, fontWeight: "800", fontSize: 22 }}
+              >
+                Give it your signature
+              </Text>
+              <Text style={{ color: colors.muted }}>
+                Try a colour on the canvas. Custom colour requests are confirmed
+                by the kitchen.
+              </Text>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
+                {swatches.map((c) => (
                   <Pressable
-                    key={v.id}
+                    key={c}
                     accessibilityRole="radio"
-                    accessibilityState={{ checked: sku?.id === v.id }}
-                    onPress={() => setVariant(v.id === cake.id ? null : v)}
+                    accessibilityLabel={`Cake colour ${c}`}
+                    accessibilityState={{ checked: colour === c }}
+                    onPress={() => setColour(c)}
                     style={{
-                      padding: 18,
-                      borderRadius: 20,
-                      borderWidth: 1,
+                      width: 44,
+                      height: 44,
+                      borderRadius: 22,
+                      backgroundColor: c,
+                      borderWidth: colour === c ? 3 : 1,
                       borderColor:
-                        sku?.id === v.id ? colors.brandStrong : colors.border,
-                      backgroundColor:
-                        sku?.id === v.id ? colors.brandLight : colors.surface,
-                      gap: 7,
+                        colour === c ? colors.brandStrong : colors.border,
+                      alignItems: "center",
+                      justifyContent: "center",
                     }}
                   >
-                    <Text style={{ color: colors.ink, fontWeight: "700" }}>
-                      {v.attributes?.length
-                        ? v.attributes
-                            .map((a) => a.value.replaceAll("-", " "))
-                            .join(" · ")
-                        : "Original recipe and finish"}
-                    </Text>
-                    <Text
-                      style={{ color: colors.brandStrong, fontWeight: "800" }}
-                    >
-                      {cash(v.price_minor)}
-                    </Text>
+                    {colour === c ? (
+                      <Ionicons name="checkmark" color="#442338" size={23} />
+                    ) : null}
                   </Pressable>
                 ))}
               </View>
-              <Notice message="Need an icing or decoration that is not listed? Send a custom brief below for a kitchen quote." />
+              <Input
+                label="Message on the cake"
+                value={message}
+                onChangeText={setMessage}
+                maxLength={32}
+              />
+              {quote ? (
+                <>
+                  <Text
+                    style={{
+                      color: colors.ink,
+                      fontWeight: "800",
+                      fontSize: 25,
+                    }}
+                  >
+                    {cash(quote.subtotal_minor)}
+                  </Text>
+                  <Notice message={quote.preview_notice} />
+                  <Button label="Add my creation to bag" onPress={add} />
+                </>
+              ) : (
+                <Button
+                  label="Confirm my design price"
+                  disabled={!cake || busy}
+                  loading={busy}
+                  onPress={() => void review()}
+                />
+              )}
+              <Notice message="Your cake canvas is an illustration, not a photograph of the finished cake. Delivery and any additional custom work are quoted separately." />
             </>
-          )}
-        </>
-      ) : null}
-      {step === 2 ? (
-        <>
-          <Text style={{ color: colors.ink, fontWeight: "800", fontSize: 22 }}>
-            A little extra magic
-          </Text>
-          <Text style={{ color: colors.muted }}>
-            Optional inventory extras. Tap to add or remove.
-          </Text>
-          {decor.isPending ? (
-            <Feedback loading />
-          ) : decor.isError ? (
-            <Feedback
-              error={decor.error}
-              onRetry={() => void decor.refetch()}
-            />
-          ) : (
-            <View style={{ gap: 10 }}>
-              {decor.data?.map((item) => (
-                <Pressable
-                  key={item.id}
-                  accessibilityRole="checkbox"
-                  accessibilityState={{
-                    checked: extras.some((x) => x.id === item.id),
-                  }}
-                  onPress={() =>
-                    setExtras((v) =>
-                      v.some((x) => x.id === item.id)
-                        ? v.filter((x) => x.id !== item.id)
-                        : v.length < 10
-                          ? [...v, item]
-                          : v,
-                    )
-                  }
-                  style={{
-                    padding: 15,
-                    borderRadius: 20,
-                    backgroundColor: extras.some((x) => x.id === item.id)
-                      ? colors.brandLight
-                      : colors.surface,
-                    flexDirection: "row",
-                    gap: 12,
-                    alignItems: "center",
-                    borderWidth: 1,
-                    borderColor: colors.border,
-                  }}
-                >
-                  <LoadingImage
-                    source={{ uri: item.image ? appMedia(item.image) : "" }}
-                    contentFit="contain"
-                    style={{ width: 55, height: 55, borderRadius: 14 }}
-                  />
-                  <View style={{ flex: 1, gap: 5 }}>
-                    <Text style={{ color: colors.ink, fontWeight: "700" }}>
-                      {item.name}
-                    </Text>
-                    <Text style={{ color: colors.brandStrong }}>
-                      {cash(item.price_minor)}
-                    </Text>
-                  </View>
-                  <Ionicons
-                    name={
-                      extras.some((x) => x.id === item.id)
-                        ? "checkmark-circle"
-                        : "add-circle-outline"
-                    }
-                    size={25}
-                    color={colors.brandStrong}
-                  />
-                </Pressable>
-              ))}
-            </View>
-          )}
-        </>
-      ) : null}
-      {step === 3 ? (
-        <>
-          <Text style={{ color: colors.ink, fontWeight: "800", fontSize: 22 }}>
-            Give it your signature
-          </Text>
-          <Text style={{ color: colors.muted }}>
-            Try a colour on the canvas. Custom colour requests are confirmed by
-            the kitchen.
-          </Text>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
-            {swatches.map((c) => (
-              <Pressable
-                key={c}
-                accessibilityRole="radio"
-                accessibilityLabel={`Cake colour ${c}`}
-                accessibilityState={{ checked: colour === c }}
-                onPress={() => setColour(c)}
-                style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: 22,
-                  backgroundColor: c,
-                  borderWidth: colour === c ? 3 : 1,
-                  borderColor:
-                    colour === c ? colors.brandStrong : colors.border,
-                  alignItems: "center",
-                  justifyContent: "center",
+          ) : null}
+          {error ? <Notice error message={error} /> : null}
+          <View style={{ flexDirection: "row", gap: 10 }}>
+            {step > 0 ? (
+              <Button
+                label="Back"
+                variant="outline"
+                style={{ flex: 1 }}
+                onPress={() => setStep((s) => s - 1)}
+              />
+            ) : null}
+            {step < 3 ? (
+              <Button
+                label="Next sweet step"
+                style={{ flex: 1 }}
+                disabled={!cake}
+                onPress={() => {
+                  setCompletedSteps((v) => [...new Set([...v, step])]);
+                  setStep((s) => s + 1);
                 }}
-              >
-                {colour === c ? (
-                  <Ionicons name="checkmark" color="#442338" size={23} />
-                ) : null}
-              </Pressable>
-            ))}
+              />
+            ) : null}
           </View>
-          <Input
-            label="Message on the cake"
-            value={message}
-            onChangeText={setMessage}
-            maxLength={32}
-          />
-          {quote ? (
-            <>
-              <Text
-                style={{ color: colors.ink, fontWeight: "800", fontSize: 25 }}
-              >
-                {cash(quote.subtotal_minor)}
-              </Text>
-              <Notice message={quote.preview_notice} />
-              <Button label="Add my creation to bag" onPress={add} />
-            </>
-          ) : (
+          {cake ? (
             <Button
-              label="Confirm my design price"
-              disabled={!cake || busy}
-              loading={busy}
-              onPress={() => void review()}
+              label="Save to my sketchbook"
+              variant="outline"
+              disabled={busy}
+              onPress={saveDraft}
             />
-          )}
-          <Notice message="Your cake canvas is an illustration, not a photograph of the finished cake. Delivery and any additional custom work are quoted separately." />
+          ) : null}
+          {drafts.some((d) => d.version === "inventory-v1") ? (
+            <Disclosure title="Your saved creations">
+              {drafts
+                .filter((d) => d.version === "inventory-v1")
+                .map((d) => (
+                  <View key={d.id} style={{ gap: 10, paddingVertical: 12 }}>
+                    <Text style={{ color: colors.ink, fontWeight: "700" }}>
+                      {d.name}
+                    </Text>
+                    <Text style={{ color: colors.muted, fontSize: 12 }}>
+                      {d.message || "A little magic in the making"}
+                    </Text>
+                    <View style={{ flexDirection: "row", gap: 10 }}>
+                      <Button
+                        label="Continue creating"
+                        size="sm"
+                        disabled={busy}
+                        onPress={() => void restoreDraft(d)}
+                      />
+                      <Button
+                        label="Remove"
+                        size="sm"
+                        variant="ghost"
+                        disabled={busy}
+                        onPress={() => deleteDesign(owner, d.id)}
+                      />
+                    </View>
+                  </View>
+                ))}
+            </Disclosure>
+          ) : null}
         </>
-      ) : null}
-      {error ? <Notice error message={error} /> : null}
-      <View style={{ flexDirection: "row", gap: 10 }}>
-        {step > 0 ? (
-          <Button
-            label="Back"
-            variant="outline"
-            style={{ flex: 1 }}
-            onPress={() => setStep((s) => s - 1)}
-          />
-        ) : null}
-        {step < 3 ? (
-          <Button
-            label="Next sweet step"
-            style={{ flex: 1 }}
-            disabled={!cake}
-            onPress={() => setStep((s) => s + 1)}
-          />
-        ) : null}
-      </View>
-      {cake ? (
-        <Button
-          label="Save to my sketchbook"
-          variant="outline"
-          disabled={busy}
-          onPress={saveDraft}
-        />
-      ) : null}
-      {drafts.some((d) => d.version === "inventory-v1") ? (
-        <Disclosure title="Your saved creations">
-          {drafts
-            .filter((d) => d.version === "inventory-v1")
-            .map((d) => (
-              <View key={d.id} style={{ gap: 10, paddingVertical: 12 }}>
-                <Text style={{ color: colors.ink, fontWeight: "700" }}>
-                  {d.name}
-                </Text>
-                <Text style={{ color: colors.muted, fontSize: 12 }}>
-                  {d.message || "A little magic in the making"}
-                </Text>
-                <View style={{ flexDirection: "row", gap: 10 }}>
-                  <Button
-                    label="Continue creating"
-                    size="sm"
-                    disabled={busy}
-                    onPress={() => void restoreDraft(d)}
-                  />
-                  <Button
-                    label="Remove"
-                    size="sm"
-                    variant="ghost"
-                    disabled={busy}
-                    onPress={() => deleteDesign(owner, d.id)}
-                  />
-                </View>
-              </View>
-            ))}
-        </Disclosure>
-      ) : null}
-      <CustomCakeBrief />
+      )}
     </Screen>
   );
 }

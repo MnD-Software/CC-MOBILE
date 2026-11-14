@@ -35,11 +35,16 @@ module.exports = function withCakeCityShortcuts(config) {
       );
       await fs.mkdir(path.join(directory, "xml"), { recursive: true });
       await fs.mkdir(path.join(directory, "values"), { recursive: true });
-      const actions = [["track", "Track my orders"]];
+      const actions = [
+        ["orders", "My orders"],
+        ["custom", "Cake playground"],
+        ["loyalty", "My Club"],
+        ["shop", "Shop cakes"],
+      ];
       const intents = actions
         .map(
           ([id]) =>
-            `<shortcut android:shortcutId="cakecity_${id}" android:enabled="true" android:icon="@mipmap/ic_launcher" android:shortcutShortLabel="@string/cakecity_shortcut_${id}"><intent android:action="android.intent.action.VIEW" android:targetPackage="${result.android.package}" android:targetClass="${result.android.package}.MainActivity" android:data="cakecity://concierge?action=${id}" /></shortcut>`,
+            `<shortcut android:shortcutId="cakecity_${id}" android:enabled="true" android:icon="@mipmap/ic_launcher" android:shortcutShortLabel="@string/cakecity_shortcut_${id}"><intent android:action="android.intent.action.VIEW" android:targetPackage="${result.android.package}" android:targetClass="${result.android.package}.MainActivity" android:data="cakecity://${id}" /></shortcut>`,
         )
         .join("\n");
       await fs.writeFile(

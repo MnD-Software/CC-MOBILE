@@ -9,6 +9,10 @@ from . import commerce_models
 from . import odoo_models
 from . import logistics_models
 from . import ecosystem_models
+from . import promotions
+from . import service_desk
+from . import marketing_crm
+from . import compliance
 from . import notification_models
 from . import club_celebrations
 from . import concierge

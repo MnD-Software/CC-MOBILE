@@ -42,6 +42,7 @@ class Billing(BaseModel):
     area: str = Field(default="", max_length=160)
     city: str = Field(default="", max_length=120)
     postcode: str = Field(default="", max_length=16)
+    kra_pin: str = Field(default='',pattern=r'^$|^[A-Z][0-9]{9}[A-Z]$')
 
 
 class CheckoutData(BaseModel):
@@ -50,6 +51,7 @@ class CheckoutData(BaseModel):
     fulfilment: str = Field(pattern="^(pickup|delivery)$")
     delivery_zone_id: str | None = Field(default=None, max_length=80)
     delivery_quote_id: str | None = Field(default=None, max_length=36)
+    corporate_quote_id: str | None = Field(default=None,max_length=36)
     coupon_code: str | None = Field(default=None, max_length=100)
     billing: Billing
     recipient_name: str = Field(default="", max_length=160)
@@ -101,6 +103,13 @@ def calculate(db, customer_id, data):
         product = db.get(AppProduct, item.variation_id or item.product_id)
         if not parent or not parent.enabled or not product or not product.enabled or product.price_minor is None:
             raise HTTPException(409, "One of these products is not available for app orders.")
+        from .product_rules import has_image
+        if not payment_test and not has_image(parent):
+            raise HTTPException(409, 'This product is awaiting its photo and is not currently published. Remove it from your bag to continue.')
+        if item.design_colour:
+            from .product_rules import whole_cake, cake_weight
+            if not whole_cake(parent) or (cake_weight(product,parent) or 0)<2:
+                raise HTTPException(422, 'Custom cake creations start at 2 kg. Choose a whole cake of at least 2 kg.')
         from .config import get_settings
         settings = get_settings()
         if (settings.odoo_enabled and settings.odoo_require_mapped_products and not payment_test
@@ -159,6 +168,7 @@ def calculate(db, customer_id, data):
         fee, zone_revision, zone_name = zone.fee_minor, zone.revision, zone.name
     discount, coupon_code = 0, None
     if data.coupon_code:
+        from .promotions import eligibility, rules as promotion_rules, saving
         coupon_code = data.coupon_code.strip().casefold()
         coupon = db.get(AppCoupon, coupon_code)
         if coupon_code.startswith("welcome-") and db.scalar(select(AppOrder.id).where(AppOrder.customer_id == customer_id, AppOrder.payment_state == "completed").limit(1)):
@@ -167,12 +177,30 @@ def calculate(db, customer_id, data):
                 or coupon.uses + coupon.reserved >= coupon.usage_limit or subtotal < coupon.minimum_minor
                 or (coupon.expires_at and utc(coupon.expires_at) <= datetime.now(UTC))):
             raise HTTPException(409, "This app coupon is not eligible for this order.")
-        discount = min(coupon.amount_minor, subtotal)
+        if not eligibility(db,coupon,customer_id):
+            raise HTTPException(409, 'This promotion has not started or its account limit has been reached.')
+        discount = saving(promotion_rules(db,coupon.code),coupon,subtotal,fee,lines)
+        if discount == 0: raise HTTPException(409, 'This promotion does not apply to the selected products or delivery.')
+    if data.corporate_quote_id:
+        from .ecosystem_models import CorporateDocument
+        from .business import access
+        document=db.get(CorporateDocument,data.corporate_quote_id)
+        if not document or document.kind!='quote':raise HTTPException(404,'Corporate quotation not found')
+        access(db,db.get(Customer,customer_id),document.organization_id,write=True)
+        if document.status!='accepted' or datetime.fromisoformat(document.payload['expires_at'])<=datetime.now(UTC):raise HTTPException(409,'Accept a current corporate quotation before ordering')
+        if coupon_code:raise HTTPException(409,'Corporate savings cannot be combined with another coupon')
+        quoted={line['product_id']:line['quantity'] for line in document.payload['lines']}
+        actual={int(sku):qty for sku,qty in quantities.items()}
+        if actual!=quoted or subtotal!=document.payload.get('subtotal_minor',document.total_minor):raise HTTPException(409,'The basket or prices differ from your approved quotation. Ask your corporate team for a revised quote.')
+        discount=document.payload.get('discount_minor',0)
     base = subtotal + fee - discount
     rate = 0 if payment_test else int(policy.get("tax_bps", 0))
     included = True if payment_test else bool(policy.get("prices_include_tax", True))
     tax = (base*rate + (10000+rate)//2)//(10000+rate) if included else (base*rate + 5000)//10000
     total = base if included else base + tax
+    if data.corporate_quote_id:
+        from .business import validate_checkout_invoice
+        validate_checkout_invoice(db,document,total)
     zero_review = False
     if total == 0 and coupon_code:
         from .review_checkout import require_local_review
@@ -204,6 +232,19 @@ def quote(db, customer_id, data):
 
 
 def record_event(db, order, kind, **details):
+    if kind=='payment_completed':
+        from .marketing_crm import CheckoutActivity
+        activity=db.get(CheckoutActivity,order.customer_id)
+        if activity:activity.payload={**activity.payload,'converted':True}
+        pin=order.snapshot.get('checkout',{}).get('billing',{}).get('kra_pin')
+        if pin:
+            from .compliance import TaxInvoiceRequest
+            if not db.get(TaxInvoiceRequest,order.id):
+                db.add(TaxInvoiceRequest(order_id=order.id,buyer_pin=pin,payload={'state':'awaiting_configuration','requested_at':datetime.now(UTC).isoformat(),'review_checkout':bool(order.snapshot.get('review_checkout'))}))
+
+    if kind=='payment_completed':
+        from .business import record_order_payment
+        record_order_payment(db,order)
     key = f"{order.reference}:{kind}"
     if not db.scalar(select(AppOrderEvent.id).where(AppOrderEvent.event_key == key)):
         db.add(AppOrderEvent(id=str(uuid4()), order_id=order.id, event_key=key, kind=kind, details=details))
@@ -241,6 +282,17 @@ def place(db, customer_id, quote_id, request_key, account_id, environment, *, re
         raise HTTPException(409, "Prices, stock or delivery rules changed. Review a new quote before paying.")
     if review:
         current = {**current, "review_checkout": True, "payment_test": True}
+    corporate_id=current['checkout'].get('corporate_quote_id')
+    if corporate_id:
+        from .ecosystem_models import CorporateDocument
+        from .business import lock
+        corporate_document=db.get(CorporateDocument,corporate_id)
+        lock(db,corporate_document.organization_id)
+        from .business import validate_checkout_invoice
+        validate_checkout_invoice(db,corporate_document,current['total_minor'])
+        db.execute(update(CorporateDocument).where(CorporateDocument.id==corporate_id).values(revision=CorporateDocument.revision))
+        if db.scalar(select(AppOrder.id).where(AppOrder.snapshot['checkout']['corporate_quote_id'].as_string()==corporate_id,AppOrder.state.notin_(['cancelled','payment_failed'])).limit(1)):
+            raise HTTPException(409,'An order already exists for this quotation. Open company orders to continue.')
     # Conditional atomic updates work on PostgreSQL and SQLite and prevent overselling.
     try:
         for identity, quantity in sorted(current["quantities"].items(), key=lambda item: int(item[0])):
@@ -323,7 +375,7 @@ def order_view(order, private=True):
               "total_minor": order.total_minor, "currency": "KES", "created_at": utc(order.created_at).isoformat(),
               "paid_at": utc(order.paid_at).isoformat() if order.paid_at else None}
     result["items"] = [{"product_id": line.get("product_id"), "slug": line.get("slug", ""),
-                        "name": line.get("name", ""), "quantity": line.get("quantity", 1),
+                        "name": line.get("name", ""), "quantity": line.get("quantity", 1), "image":line.get("image"),
                         "size": str(line.get("selection", {}).get("size", ""))}
                        for line in order.snapshot.get("lines", [])]
     if order.snapshot.get("review_checkout"):
@@ -337,6 +389,8 @@ def order_view(order, private=True):
 def tracked_order_view(db, order):
     """Customer-safe progress history; never expose internal event details."""
     result = order_view(order)
+    from .compliance import tax_view
+    result['tax_invoice']=tax_view(db,order)
     from .order_home import OrderAcknowledgement
     acknowledgement = db.get(OrderAcknowledgement, order.id)
     result["received_at"] = utc(acknowledgement.received_at).isoformat() if acknowledgement else None

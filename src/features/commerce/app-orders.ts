@@ -4,6 +4,10 @@ import { api } from "@/api/client";
 
 export const appOrderSchema = z.object({
   reference: z.string(),
+  tax_invoice: z
+    .object({ buyer_pin: z.string(), state: z.string() })
+    .nullable()
+    .optional(),
   channel: z.literal("app"),
   payment_test: z.boolean().default(false),
   review_checkout: z.boolean().default(false),
@@ -24,6 +28,7 @@ export const appOrderSchema = z.object({
         name: z.string(),
         quantity: z.number(),
         size: z.string(),
+        image: z.string().nullable().optional(),
       }),
     )
     .optional(),
@@ -42,7 +47,10 @@ export const appOrderSchema = z.object({
         id: z.string(),
         status: z.string(),
         service_type: z.string(),
-        rider:z.object({name:z.string(),phone:z.string(),role:z.string()}).nullable().optional(),
+        rider: z
+          .object({ name: z.string(), phone: z.string(), role: z.string() })
+          .nullable()
+          .optional(),
         feedback: deliveryFeedbackSchema.nullable().optional(),
         scheduled_at: z.string().nullable(),
         slot: z.string(),
@@ -71,7 +79,7 @@ export const appOrderSchema = z.object({
           sku_id: z.number(),
           slug: z.string(),
           name: z.string(),
-          image:z.string().nullable().optional(),
+          image: z.string().nullable().optional(),
           quantity: z.number(),
           unit_minor: z.number(),
           line_minor: z.number(),
@@ -115,7 +123,7 @@ export const appOrders = {
       awaiting_receipt?: boolean;
     } = {},
   ) {
-    const params = new URLSearchParams();
+    const params = new URLSearchParams({ limit: "5" });
     if (cursor !== undefined) params.set("before", String(cursor));
     for (const [key, value] of Object.entries(filters))
       if (value) params.set(key, String(value));

@@ -1,3 +1,5 @@
+import { ComplianceDesk } from "./ComplianceDesk";
+import { AdminFunnel } from "./MarketingSegments";
 import { useEffect, useState } from "react";
 import { BackHandler, Pressable, ScrollView, View } from "react-native";
 import { Redirect, router, useLocalSearchParams } from "expo-router";
@@ -21,6 +23,8 @@ import { env } from "@/config/env";
 import { NativeStaffModule } from "./NativeStaffModule";
 import { EarningsPanel } from "@/features/logistics/EarningsPanel";
 import { BusinessPortal } from "@/features/workspace/BusinessPortal";
+import { ServiceDesk } from "./ServiceDesk";
+import { MarketingDesk } from "./MarketingDesk";
 
 const cash = (minor: number) =>
   `KES ${(minor / 100).toLocaleString("en-KE", { maximumFractionDigits: 2 })}`;
@@ -115,7 +119,13 @@ export function StaffWorkspaceScreen() {
           />
         }
       >
-        {section === "earnings" ? (
+        {section === "compliance" ? (
+          <ComplianceDesk />
+        ) : section === "service-desk" ? (
+          <ServiceDesk />
+        ) : section === "marketing" ? (
+          <MarketingDesk />
+        ) : section === "earnings" ? (
           <EarningsPanel />
         ) : section === "corporate" ? (
           <BusinessPortal />
@@ -331,6 +341,7 @@ export function StaffWorkspaceScreen() {
             <StaffRecords section={section as "team" | "audit" | "enquiries"} />
           ) : (
             <>
+              {section === "overview" ? <AdminFunnel /> : null}
               {data.sales ? <SalesPanels sales={data.sales} /> : null}
               {data.workload.length ? (
                 <View

@@ -22,6 +22,7 @@ export const campaignSchema = z.object({
   product_slugs: z.array(z.string()).max(8),
   category_id: z.number().int().positive().nullable(),
   branch_names: z.array(z.string()).default([]),
+  segment: z.string().optional(),
   member_only: z.boolean(),
   published: z.boolean(),
   template: z.enum(["spotlight", "celebration", "offer"]),
@@ -60,7 +61,7 @@ export const contentApi = {
     try {
       return z
         .object({ campaigns: z.array(campaignSchema) })
-        .parse(await api.get("/v1/content", { signal })).campaigns;
+        .parse(await api.get("/v1/content", { signal, auth: true })).campaigns;
     } catch (error) {
       if (isApiError(error) && error.status === 404) return [];
       throw error;

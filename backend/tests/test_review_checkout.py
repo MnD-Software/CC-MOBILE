@@ -111,9 +111,9 @@ def test_accessories_are_separate_and_cakes_sort_by_available_variation_price(sy
     from app.app_catalogue import products
     with Session(system["engine"]) as db:
         db.add_all([
-            AppProduct(id=20, slug="candle", payload={"id": 20, "name": "Party candles", "categories": [{"id": 109, "name": "Candles"}]}, price_minor=5000, allocation=10, enabled=True),
-            AppProduct(id=21, slug="variable", payload={"id": 21, "name": "Vanilla cake", "type": "variable", "categories": []}, enabled=True),
-            AppProduct(id=22, slug="small", parent_id=21, payload={"id": 22, "name": "Small Vanilla", "type": "variation"}, price_minor=100000, allocation=10, enabled=True),
+            AppProduct(id=20, slug="candle", payload={"images":[{"src":"https://images.example.com/catalogue.jpg"}],"id": 20, "name": "Party candles", "categories": [{"id": 109, "name": "Candles"}]}, price_minor=5000, allocation=10, enabled=True),
+            AppProduct(id=21, slug="variable", payload={"images":[{"src":"https://images.example.com/catalogue.jpg"}],"id": 21, "name": "Vanilla cake", "type": "variable", "categories": []}, enabled=True),
+            AppProduct(id=22, slug="small", parent_id=21, payload={"images":[{"src":"https://images.example.com/catalogue.jpg"}],"id": 22, "name": "Small Vanilla", "type": "variation"}, price_minor=100000, allocation=10, enabled=True),
         ])
         db.commit()
         rows, pages = products(db, dict(orderby="price", order="asc", exclude_accessories="true", per_page=1, page=1))
@@ -160,7 +160,7 @@ def test_cookie_and_accessory_exclusion_precedes_pagination_and_keeps_themed_cak
     from app.app_catalogue import products
     with Session(system["engine"]) as db:
         for identity,name,categories in [(31,"Butter Cookies",[{"id":111,"name":"Cookies"}]), (32,"Number Candles",[]), (33,"Colorful Balloons Car Cake",[{"id":267,"name":"Car Cakes"}]), (34,"Cookies and Cream Cake",[{"id":229,"name":"Signature Cakes"}])]:
-            db.add(AppProduct(id=identity,slug="product-"+str(identity),payload={"id":identity,"name":name,"categories":categories},price_minor=10000,allocation=10,enabled=True))
+            db.add(AppProduct(id=identity,slug="product-"+str(identity),payload={"images":[{"src":"https://images.example.com/catalogue.jpg"}],"id":identity,"name":name,"categories":categories},price_minor=10000,allocation=10,enabled=True))
         db.commit()
         rows,pages=products(db,dict(exclude_cookies="true",exclude_accessories="true",per_page=100))
         assert {r["id"] for r in rows} == {12,33,34} and pages==1
@@ -187,7 +187,7 @@ def test_celebration_dates_can_be_updated_only_by_the_owner(system):
 
 def test_all_cakes_excludes_cupcakes_before_pagination(system):
     with Session(system["engine"]) as db:
-        db.add(AppProduct(id=81,slug="vanilla-cupcakes",payload={"id":81,"name":"Vanilla cupcakes","categories":[{"id":110,"name":"Cupcakes"}]},price_minor=1000,allocation=10,enabled=True))
+        db.add(AppProduct(id=81,slug="vanilla-cupcakes",payload={"images":[{"src":"https://images.example.com/catalogue.jpg"}],"id":81,"name":"Vanilla cupcakes","categories":[{"id":110,"name":"Cupcakes"}]},price_minor=1000,allocation=10,enabled=True))
         db.commit()
     response=system["client"].get("/v1/catalogue/products?exclude_cupcakes=true&orderby=price&per_page=1")
     assert response.status_code==200 and [r["id"] for r in response.json()]==[12]

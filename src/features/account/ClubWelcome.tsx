@@ -1,24 +1,10 @@
-import { useEffect, useState } from "react";
-import { AppState, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { Text } from "@/components/ui/Typography";
 import { tokens } from "@/theme/tokens";
-import { salutation } from "./salutation";
 
 export function ClubWelcome({ name }: { name?: string }) {
-  const [greeting, setGreeting] = useState(() => salutation());
-  useEffect(() => {
-    const refresh = () => setGreeting(salutation());
-    const timer = setInterval(refresh, 60_000);
-    const listener = AppState.addEventListener("change", (state) => {
-      if (state === "active") refresh();
-    });
-    return () => {
-      clearInterval(timer);
-      listener.remove();
-    };
-  }, []);
   return (
     <View style={styles.shadow}>
       <LinearGradient
@@ -35,15 +21,16 @@ export function ClubWelcome({ name }: { name?: string }) {
           </View>
         </View>
         <Text style={styles.greeting}>
-          {greeting}
-          {name?.trim() ? `, ${name.trim()}.` : "."}
+          {name?.trim()
+            ? `${name.trim()}'s sweeter chapter`
+            : "Your sweeter chapter"}
         </Text>
         <Text style={styles.copy}>
           Your celebrations. A little more rewarding.
         </Text>
         <View style={styles.footer}>
           <View style={styles.dot} />
-          <Text style={styles.footerText}>Welcome to your Club</Text>
+          <Text style={styles.footerText}>Made for your next celebration</Text>
         </View>
       </LinearGradient>
     </View>

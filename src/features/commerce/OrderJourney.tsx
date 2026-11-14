@@ -1,5 +1,12 @@
 import { useEffect, useState } from "react";
-import { Linking, ScrollView, StyleSheet, View } from "react-native";
+import {
+  ActivityIndicator,
+  Linking,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { Text } from "@/components/ui/Typography";
@@ -90,6 +97,28 @@ export function OrderJourney({
         >
           <View style={styles.top}>
             <Text style={styles.kicker}>MADE FOR YOUR MOMENT</Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Refresh order tracking"
+              accessibilityState={{ busy: refreshing }}
+              disabled={refreshing}
+              onPress={refresh}
+              hitSlop={8}
+              style={{
+                width: 44,
+                height: 44,
+                alignItems: "center",
+                justifyContent: "center",
+                borderRadius: 22,
+                backgroundColor: "rgba(255,255,255,0.12)",
+              }}
+            >
+              {refreshing ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Ionicons name="refresh-outline" size={21} color="#FFFFFF" />
+              )}
+            </Pressable>
             <View style={styles.mark}>
               <Ionicons
                 name={
@@ -527,12 +556,6 @@ export function OrderJourney({
             {order.snapshot.pickup_instructions}
           </Text>
         ) : null}
-        <Button
-          label="Refresh tracking"
-          variant="outline"
-          loading={refreshing}
-          onPress={refresh}
-        />
       </View>
     </View>
   );

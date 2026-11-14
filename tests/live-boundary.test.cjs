@@ -310,11 +310,11 @@ test("search, account identity and checkout location stay customer-controlled", 
   assert.match(tabs, /import \{ Tabs \} from "expo-router"/);
   assert.match(
     tabs,
-    /<Tabs\.Screen name="custom" options=\{\{ href: null \}\}/,
+    /<Tabs\.Screen name="custom" options=\{\{ title: "Cake playground" \}\}/,
   );
   assert.match(
     tabs,
-    /<Tabs\.Screen name="search" options=\{\{ title: "Search", href: null \}\}/,
+    /<Tabs\.Screen name="search" options=\{\{ title: "Search" \}\}/,
   );
   assert.match(help, /tel:\+254709729000/);
   assert.doesNotMatch(help, /contact-us/);
@@ -329,11 +329,11 @@ test("preview launch keeps tabs and updates compatible with the installed build"
   assert.doesNotMatch(tabs, /unstable-native-tabs/);
   assert.match(
     tabs,
-    /<Tabs\.Screen name="custom" options=\{\{ href: null \}\}/,
+    /<Tabs\.Screen name="custom" options=\{\{ title: "Cake playground" \}\}/,
   );
   assert.match(
     tabs,
-    /<Tabs\.Screen name="search" options=\{\{ title: "Search", href: null \}\}/,
+    /<Tabs\.Screen name="search" options=\{\{ title: "Search" \}\}/,
   );
   assert.match(appConfig, /"runtimeVersion": \{\s+"policy": "appVersion"/);
   assert.match(boundary, /componentDidCatch\(error: Error, info: ErrorInfo\)/);

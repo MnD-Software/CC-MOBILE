@@ -1,4 +1,6 @@
+import { PrivacyRights } from "./PrivacyRights";
 import { useState } from "react";
+import { BiometricSettings } from "@/auth/BiometricSettings";
 import { Platform, View } from "react-native";
 import { File, Paths } from "expo-file-system";
 import * as Sharing from "expo-sharing";
@@ -120,6 +122,12 @@ export function AccountPrivacyScreen() {
   }
   return (
     <Screen title="Privacy & account" back>
+      {customer ? (
+        <>
+          <BiometricSettings />
+          <PrivacyRights />
+        </>
+      ) : null}
       {!customer ? (
         <Button label="Sign in" onPress={() => router.push("/sign-in")} />
       ) : (

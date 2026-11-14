@@ -213,10 +213,10 @@ def sales(environment: str = "live", _: Customer = Depends(reporting), db: Sessi
     if environment not in ("live", "sandbox"):
         raise HTTPException(422, "Invalid environment")
     rows = db.execute(select(SalesRecord.channel, func.count(), func.sum(SalesRecord.paid_minor), func.sum(SalesRecord.reversed_minor))
-                      .where(SalesRecord.environment == environment).group_by(SalesRecord.channel)).all()
+                      .where(SalesRecord.environment == environment, SalesRecord.channel == ("app" if environment == "live" else "app_test"), SalesRecord.currency == "KES").group_by(SalesRecord.channel)).all()
     return {"currency": "KES", "environment": environment,
             "channels": [{"channel": r[0], "orders": r[1], "gross_minor": r[2], "reversed_minor": r[3], "net_minor": r[2]-r[3]} for r in rows],
-            "website_reporting": "No website totals are assumed. Only explicitly ingested website sales are included."}
+            "reporting_scope": "App sales only. Net sales are verified collections less recorded reversals."}
 
 
 @router.get("/v1/admin/commerce-issues")

@@ -28,6 +28,7 @@ struct TrackCakeCityIntent: AppIntent {
 }
 struct CakeCityShortcuts: AppShortcutsProvider {
   static var appShortcuts: [AppShortcut] {
+    AppShortcut(intent: ReorderCakeCityIntent(), phrases: ["Reorder my cake in \(.applicationName)"], shortTitle: "Shop cakes", systemImageName: "birthday.cake")
     AppShortcut(intent: TrackCakeCityIntent(), phrases: ["Track my cake in \(.applicationName)"], shortTitle: "Track my cake", systemImageName: "shippingbox")
   }
 }

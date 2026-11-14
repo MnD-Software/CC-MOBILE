@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { takeCustomerRoute } from "@/auth/post-login";
+import { useEffect, useState } from "react";
 import { Link, router, useLocalSearchParams } from "expo-router";
 import { View } from "react-native";
 import { Text } from "@/components/ui/Typography";
@@ -37,6 +38,16 @@ export function AuthScreen({
     forgot: "Forgot your password?",
     reset: "A fresh start.",
   }[mode];
+  useEffect(() => {
+    if (mode === "login" && auth.customer)
+      router.replace(
+        auth.customer.role === "customer"
+          ? destination || takeCustomerRoute() || "/home"
+          : auth.customer.role === "corporate_client"
+            ? "/corporate"
+            : "/workspace",
+      );
+  }, [mode, auth.customer?.id, auth.customer?.role]);
   async function submit() {
     if (busy) return;
     setError("");
@@ -52,9 +63,7 @@ export function AuthScreen({
       if (mode === "login") {
         if (!password) throw new Error("Enter your password.");
         await auth.login(email, password);
-        if (destination) router.replace(destination);
-        else if (router.canGoBack()) router.back();
-        else router.replace("/home");
+        // The account effect routes once the authenticated role is available.
       }
       if (mode === "register") {
         if (!name.trim()) throw new Error("Enter your first name.");
@@ -96,15 +105,7 @@ export function AuthScreen({
     }
   }
   return (
-    <Screen
-      title=""
-      back
-      right={
-        <Link href="/home" style={{ color: colors.brandStrong, padding: 12 }}>
-          Explore cakes
-        </Link>
-      }
-    >
+    <Screen title="" back={mode !== "login"}>
       <View
         style={{ maxWidth: 480, width: "100%", alignSelf: "center", gap: 24 }}
       >
@@ -161,7 +162,9 @@ export function AuthScreen({
               onChangeText={setEmail}
               autoCapitalize="none"
               keyboardType="email-address"
-              autoComplete="email"
+              autoComplete={mode === "login" ? "username" : "email"}
+              textContentType="username"
+              importantForAutofill="yes"
               maxLength={320}
             />
           ) : null}
@@ -172,6 +175,8 @@ export function AuthScreen({
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!visible}
+                textContentType={mode === "login" ? "password" : "newPassword"}
+                importantForAutofill="yes"
                 autoCapitalize="none"
                 autoCorrect={false}
                 autoComplete={

@@ -98,6 +98,7 @@ def is_cookie(row):
 
 
 def products(db, params):
+    from .product_rules import has_image
     query = select(AppProduct)
     if params.get("slug"):
         query = query.where(AppProduct.slug == params["slug"])
@@ -105,7 +106,8 @@ def products(db, params):
         ids = {int(i) for i in str(params["include"]).split(",") if i.isdigit()}
         query = query.where(AppProduct.id.in_(ids))
     query = query.where(AppProduct.parent_id.is_not(None) if params.get("type") == "variation" else AppProduct.parent_id.is_(None))
-    rows = [r for r in db.scalars(query) if not r.payload.get("payment_test")]
+    rows = [r for r in db.scalars(query) if not r.payload.get("payment_test") and r.enabled
+            and has_image(db.get(AppProduct, r.parent_id) if r.parent_id else r)]
     if str(params.get("exclude_accessories", "")).lower() == "true":
         rows = [row for row in rows if not is_accessory(row)]
     if str(params.get("accessories_only", "")).lower() == "true":
@@ -169,8 +171,10 @@ def media(identity: str, db: Session = Depends(get_db)):
 
 @router.get("/v1/catalogue/categories")
 def categories(db: Session = Depends(get_db)):
+    from .product_rules import has_image
     found = {}
     for row in db.scalars(select(AppProduct).where(AppProduct.parent_id.is_(None))):
+        if not row.enabled or not has_image(row): continue
         for category in row.payload.get("categories", []):
             found[category["id"]] = {**category, "count": found.get(category["id"], {}).get("count", 0) + 1}
     return sorted(found.values(), key=lambda item: item.get("name", ""))

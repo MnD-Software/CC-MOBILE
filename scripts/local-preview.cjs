@@ -122,7 +122,17 @@ async function main() {
     );
   }
   const credentials = JSON.parse(fs.readFileSync(credentialsFile, "utf8"));
-  for (const role of ["production", "rider", "dispatch"]) {
+  for (const role of [
+    "production",
+    "rider",
+    "dispatch",
+    "call_center_agent",
+    "call_center_manager",
+    "marketing_manager",
+    "corporate_manager",
+    "corporate_assistant",
+    "corporate_agent",
+  ]) {
     if (!credentials.accounts[role])
       credentials.accounts[role] = {
         email: `${role}@preview.example.com`,

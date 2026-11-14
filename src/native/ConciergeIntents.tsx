@@ -23,7 +23,7 @@ function ReadyIntents() {
   return null;
 }
 export function ConciergeIntents() {
-  const { restoring } = useAuth();
+  const { restoring, customer } = useAuth();
   const navigation = useRootNavigationState();
-  return restoring || !navigation?.key ? null : <ReadyIntents />;
+  return restoring || !customer || !navigation?.key ? null : <ReadyIntents />;
 }

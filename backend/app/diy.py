@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from .db import get_db
 from .commerce_models import AppProduct
 from .routes_club import member
+from .product_rules import whole_cake, has_image, cake_colour, cake_weight
 
 router = APIRouter(prefix="/v1/diy", tags=["inventory-diy"])
 
@@ -17,7 +18,7 @@ def kind(product):
     cats = ' '.join(str(c.get('name','')).lower() for c in p.get('categories',[]))
     if any(w in cats for w in ['accessor','candle','party','decor']) or any(w in name for w in ['sparkling candle','number candle','balloon pack','cake topper']): return 'decor'
     if any(w in cats for w in ['cookie','cupcake']) or 'cupcake' in name: return 'other'
-    return 'cake' if any(w in name or w in cats for w in ['cake','pound','signature']) else 'other'
+    return 'cake' if whole_cake(product) else 'other'
 
 
 def available(product):
@@ -29,7 +30,7 @@ def product_view(db, product):
     p=product.payload
     return {'id':product.id,'parent_id':product.parent_id,'name':p.get('name',product.slug),'slug':product.slug,
             'price_minor':product.price_minor,'image':next(iter(p.get('images',[])),{}).get('src'),
-            'attributes':p.get('variation_attributes',[]),'type':p.get('type','simple'),'kind':kind(product)}
+            'attributes':p.get('variation_attributes',[]),'type':p.get('type','simple'),'kind':kind(product), 'canvas_colour':cake_colour(product)}
 
 
 @router.get('/inventory')
@@ -39,9 +40,10 @@ def inventory(search: str = '', group: str = 'cake', db: Session = Depends(get_d
     if search.strip(): query=query.where(AppProduct.payload['name'].as_string().icontains(search.strip(),autoescape=True))
     result=[]
     for p in db.scalars(query.order_by(AppProduct.price_minor,AppProduct.id)):
-        if kind(p)!=group or p.payload.get('payment_test'): continue
+        if kind(p)!=group or p.payload.get('payment_test') or not has_image(p): continue
         children=list(db.scalars(select(AppProduct).where(AppProduct.parent_id==p.id).order_by(AppProduct.price_minor))) if p.payload.get('type')=='variable' else []
-        options=[c for c in children if available(c)]
+        options=[c for c in children if available(c) and (cake_weight(c,p) or 0)>=2] if group=='cake' else [c for c in children if available(c)]
+        if group=='cake' and not children and (cake_weight(p) or 0)<2: continue
         if p.payload.get('type')=='variable' and not options: continue
         if children and not options or not children and not available(p): continue
         result.append({**product_view(db,p),'variants':[product_view(db,c) for c in options]})
@@ -62,8 +64,9 @@ class Design(BaseModel):
 def quote(data:Design,person=Depends(member),db:Session=Depends(get_db)):
     parent=db.get(AppProduct,data.product_id)
     sku=db.get(AppProduct,data.variation_id or data.product_id)
-    if not parent or kind(parent)!='cake' or not parent.enabled or not sku or not available(sku): raise HTTPException(409,'Choose an available cake from inventory.')
+    if not parent or kind(parent)!='cake' or not parent.enabled or not has_image(parent) or not sku or not available(sku): raise HTTPException(409,'Choose an available whole cake with a product photo from inventory.')
     if data.variation_id and sku.parent_id!=parent.id or not data.variation_id and parent.payload.get('type')=='variable': raise HTTPException(422,'Choose a valid flavour, size and icing combination.')
+    if (cake_weight(sku,parent) or 0)<2: raise HTTPException(422,'Custom cake orders start at 2 kg. Choose a published size of at least 2 kg.')
     if len(data.extras)!=len(set(data.extras)): raise HTTPException(422,'Select each decoration once.')
     parts=[(parent,sku)]
     for identity in data.extras:

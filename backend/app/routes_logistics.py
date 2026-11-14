@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import HTMLResponse
 from pathlib import Path
 from pydantic import BaseModel, Field, EmailStr
+from typing import Literal
 from sqlalchemy.exc import IntegrityError
 from uuid import uuid4
 from sqlalchemy import select
@@ -17,6 +18,31 @@ from .permissions import audit
 from .routes_club import member
 
 router = APIRouter(tags=["kitchen-and-logistics"])
+
+
+class BulkWork(BaseModel):
+    references: list[str] = Field(min_length=1,max_length=20)
+    action: Literal['preparing','ready','assign_rider']
+    rider_id: str | None = Field(default=None,max_length=36)
+
+
+@router.post('/v1/logistics/bulk-work')
+def bulk_work(data:BulkWork,actor:Customer=Depends(member),db:Session=Depends(get_db)):
+    permitted=service.DISPATCH if data.action=='assign_rider' else service.KITCHEN
+    if actor.role not in permitted: raise HTTPException(403,'This workflow action is outside your department')
+    if len(set(data.references))!=len(data.references): raise HTTPException(422,'Select each order once')
+    results=[]
+    for reference in data.references:
+        try:
+            if data.action=='assign_rider':
+                if not data.rider_id: raise HTTPException(422,'Choose a rider')
+                service.new_trip(db,actor,reference,service.NewTrip(rider_id=data.rider_id))
+            else: service.kitchen_status(db,actor,reference,data.action)
+            results.append({'reference':reference,'ok':True})
+        except HTTPException as error:
+            db.rollback()
+            results.append({'reference':reference,'ok':False,'message':str(error.detail)})
+    return {'results':results}
 
 
 @router.get("/v1/delivery-tracking/map", response_class=HTMLResponse)

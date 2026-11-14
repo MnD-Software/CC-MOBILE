@@ -17,7 +17,7 @@ def admin():
 def product_input(row=None, **overrides):
     return {"revision": row["revision"] if row else 0, "name": "Dashboard cake", "slug": "dashboard-cake",
             "description": "Freshly made", "short_description": "Celebration cake", "price_minor": 450000,
-            "allocation": 12, "enabled": True, "image_urls": [], "categories": [], "parent_id": None, **overrides}
+            "allocation": 12, "enabled": True, "image_urls": ["https://images.example.com/dashboard-cake.jpg"], "categories": [], "parent_id": None, **overrides}
 
 
 def promotion_input(**overrides):
@@ -117,15 +117,15 @@ def test_role_change_is_checked_on_every_request(system):
     assert client.get("/v1/admin/content").status_code == 200
 
 
-def test_original_categories_filter_browsable_products_without_enabling_orders(system):
+def test_original_categories_filter_browsable_products_with_enabled_photographed_products(system):
     client=system["client"]
     with Session(system["engine"]) as db:
         original=db.get(AppProduct,12)
         original.payload={**original.payload,"categories":[{"id":229,"name":"Signature Cakes","slug":"signature-cakes"}]}
         for identity,slug,category in [(21,"deal-cake",206),(22,"custom-cake",123)]:
             db.add(AppProduct(id=identity,slug=slug,payload={"id":identity,"slug":slug,"name":slug,"type":"simple",
-                "categories":[{"id":category,"name":"Deals And Steals" if category==206 else "Custom Cakes","slug":"deals-and-steals" if category==206 else "custom-cakes"}]},
-                price_minor=250000,allocation=0,enabled=False))
+                "images":[{"src":"https://images.example.com/cake.jpg"}],"categories":[{"id":category,"name":"Deals And Steals" if category==206 else "Custom Cakes","slug":"deals-and-steals" if category==206 else "custom-cakes"}]},
+                price_minor=250000,allocation=0,enabled=True))
         db.commit()
     categories={r["id"]:r for r in client.get("/v1/catalogue/categories").json()}
     assert categories[206]["count"] == categories[123]["count"] == categories[229]["count"] == 1
@@ -134,7 +134,7 @@ def test_original_categories_filter_browsable_products_without_enabling_orders(s
         assert [r["id"] for r in rows] == [identity]
     rows=client.get("/v1/catalogue/products",params={"category":"206,123","category_operator":"in"}).json()
     assert {r["id"] for r in rows} == {21,22}
-    assert all(not r["is_purchasable"] and not r["is_in_stock"] for r in rows)
+    assert all(r["is_purchasable"] and not r["is_in_stock"] for r in rows)
 
 
 def test_legacy_zero_parent_repair_restores_categories_and_preserves_inventory(system):

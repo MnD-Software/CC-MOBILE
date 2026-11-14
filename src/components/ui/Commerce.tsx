@@ -1,3 +1,4 @@
+import { BrandLogo } from "@/components/BrandLogo";
 import {
   isPinkSimbaPackage,
   catalogueSelectionSize,
@@ -334,7 +335,8 @@ export function Screen({
                 }
               />
             ) : null}
-            <View style={{ flex: 1 }}>
+            <View style={{ flex: 1, gap: 7 }}>
+              <BrandLogo width={84} />
               {title ? (
                 <Text accessibilityRole="header" style={themed.title}>
                   {title}
@@ -747,7 +749,7 @@ export const ProductTile = memo(function ProductTile({
       >
         <View
           style={{
-            aspectRatio: partyPackage ? 0.86 : 1,
+            aspectRatio: 1,
             width: horizontal ? 90 : undefined,
             marginLeft: horizontal ? 10 : 0,
             borderRadius: horizontal ? 23 : 0,
@@ -808,10 +810,11 @@ export const ProductTile = memo(function ProductTile({
                 : category}
           </Text>
           <Text
+            numberOfLines={2}
             style={{
               color: colors.ink,
               fontWeight: "700",
-              minHeight: compact ? 36 : 40,
+              minHeight: horizontal ? 40 : 44,
               fontSize: horizontal ? 14 : 15,
               lineHeight: horizontal ? 20 : 22,
               letterSpacing: -0.15,

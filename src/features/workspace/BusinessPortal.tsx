@@ -1,3 +1,10 @@
+import { router } from "expo-router";
+import { PesapalCheckoutForm } from "@/features/commerce/PesapalCheckoutForm";
+import { bagLineSchema, type BagLine } from "@/features/commerce/contracts";
+import { BrandLogo } from "@/components/BrandLogo";
+import { LoadingImage } from "@/components/ui/LoadingImage";
+import { mediaSource } from "@/features/editorial/content";
+import { staffGreeting } from "@/auth/staff-routing";
 import { useState } from "react";
 import { View, Pressable } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -32,6 +39,9 @@ type Document = {
   kind: string;
   status: string;
   total_minor: number;
+  discount_minor?: number;
+  discount_bps?: number;
+  cake_kg?: number;
   revision: number;
   reference: string;
   notes: string;
@@ -49,6 +59,7 @@ type Details = {
   id: string;
   name: string;
   billing_address: string;
+  branding?: { logo_url?: string; accent?: string };
   permissions: { team: boolean; onboard: boolean; manage: boolean };
   totals: { invoiced_minor: number; paid_minor: number; balance_minor: number };
   documents: Document[];
@@ -78,6 +89,10 @@ export function BusinessPortal() {
   const { customer } = useAuth();
   const { colors } = useTheme();
   const cache = useQueryClient();
+  const [corporateCheckout, setCorporateCheckout] = useState<{
+    id: string;
+    lines: BagLine[];
+  } | null>(null);
   const [company, setCompany] = useState<string | null>(null),
     [mode, setMode] = useState(""),
     [form, setForm] = useState<Record<string, string>>({}),
@@ -87,6 +102,20 @@ export function BusinessPortal() {
     [requestKey, setRequestKey] = useState(randomUUID()),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
+  const companyOrders = useQuery({
+    queryKey: ["company-orders", customer?.id, company],
+    enabled: !!company,
+    queryFn: () =>
+      api.get<
+        {
+          reference: string;
+          status: string;
+          total_minor: number;
+          can_open: boolean;
+        }[]
+      >(`/v1/business/companies/${company}/orders`, { auth: true }),
+    refetchInterval: 30000,
+  });
   const [evidence, setEvidence] = useState<{
     data: string;
     mime: string;
@@ -247,10 +276,47 @@ export function BusinessPortal() {
   };
   return (
     <View style={{ gap: 18 }}>
+      {corporateCheckout ? (
+        <BottomSheet
+          visible
+          title="Company checkout"
+          onClose={() => setCorporateCheckout(null)}
+        >
+          <PesapalCheckoutForm
+            corporateQuoteId={corporateCheckout.id}
+            linesOverride={corporateCheckout.lines}
+          />
+        </BottomSheet>
+      ) : null}
       <LinearGradient
         colors={["#281E38", "#4D355D", "#82627E"]}
         style={{ padding: 26, borderRadius: 30, gap: 12 }}
       >
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <BrandLogo width={105} />
+          {details.data?.branding?.logo_url ? (
+            <LoadingImage
+              source={{ uri: mediaSource(details.data.branding.logo_url) }}
+              contentFit="contain"
+              style={{
+                width: 100,
+                height: 60,
+                borderRadius: 12,
+                backgroundColor: "#FFFFFF",
+              }}
+            />
+          ) : null}
+        </View>
+        <Text style={{ color: "#F1DFEA", fontSize: 13 }}>
+          {staffGreeting(new Date().getHours())},{" "}
+          {customer?.first_name || "there"}.
+        </Text>
         <Text
           style={{
             color: "#EACAE0",
@@ -297,6 +363,80 @@ export function BusinessPortal() {
           </View>
         ) : null}
       </LinearGradient>
+      {company && details.data?.permissions.team ? (
+        <Disclosure title="Company identity">
+          <View style={{ gap: 12 }}>
+            <Input
+              label="Company logo URL"
+              value={
+                form.company_logo ?? details.data?.branding?.logo_url ?? ""
+              }
+              autoCapitalize="none"
+              onChangeText={(value) =>
+                setForm((f) => ({ ...f, company_logo: value }))
+              }
+            />
+            <Button
+              label="Save company logo"
+              loading={busy}
+              onPress={() =>
+                void work(
+                  () =>
+                    api.put(
+                      `/v1/business/companies/${company}/branding`,
+                      {
+                        logo_url:
+                          form.company_logo ??
+                          details.data?.branding?.logo_url ??
+                          "",
+                        accent: "#B80070",
+                      },
+                      { auth: true },
+                    ),
+                  false,
+                )
+              }
+            />
+          </View>
+        </Disclosure>
+      ) : null}
+      {company && companyOrders.data?.length ? (
+        <Disclosure title={`Company orders (${companyOrders.data.length})`}>
+          <View style={{ gap: 12 }}>
+            {companyOrders.data.map((o) => (
+              <View
+                key={o.reference}
+                style={{
+                  padding: 16,
+                  borderRadius: 18,
+                  backgroundColor: colors.surfaceRaised,
+                  gap: 8,
+                }}
+              >
+                <Text style={{ color: colors.ink, fontWeight: "800" }}>
+                  {o.reference}
+                </Text>
+                <Text style={{ color: colors.muted }}>
+                  {o.status.replaceAll("_", " ")} - {cash(o.total_minor)}
+                </Text>
+                {o.can_open ? (
+                  <Button
+                    label="View order"
+                    size="sm"
+                    variant="outline"
+                    onPress={() =>
+                      router.push({
+                        pathname: "/order/[reference]",
+                        params: { reference: o.reference },
+                      })
+                    }
+                  />
+                ) : null}
+              </View>
+            ))}
+          </View>
+        </Disclosure>
+      ) : null}
       {error ? <Notice error message={error} /> : null}
       {!company ? (
         <>
@@ -514,6 +654,51 @@ export function BusinessPortal() {
                                       : "jpg",
                                 ),
                               false,
+                            )
+                          }
+                        />
+                      ) : null}
+                      {d.kind === "quote" &&
+                      d.status === "accepted" &&
+                      !isTeam ? (
+                        <Button
+                          label="Order these cakes"
+                          disabled={busy}
+                          onPress={() =>
+                            void work(async () => {
+                              const data = await api.get<{ lines: unknown[] }>(
+                                `/v1/business/companies/${company}/documents/${d.id}/basket`,
+                                { auth: true },
+                              );
+                              setCorporateCheckout({
+                                id: d.id,
+                                lines: bagLineSchema.array().parse(data.lines),
+                              });
+                            }, false)
+                          }
+                        />
+                      ) : null}
+                      {d.discount_minor ? (
+                        <Text style={{ color: colors.success, fontSize: 12 }}>
+                          Corporate saving {cash(d.discount_minor)} -{" "}
+                          {(d.discount_bps || 0) / 100}% - {d.cake_kg} kg
+                        </Text>
+                      ) : null}
+                      {d.kind === "quote" &&
+                      ["requested", "issued"].includes(d.status) &&
+                      isTeam ? (
+                        <Button
+                          label="Recall quote"
+                          variant="ghost"
+                          size="sm"
+                          disabled={busy}
+                          onPress={() =>
+                            void work(() =>
+                              api.post(
+                                `/v1/business/companies/${company}/documents/${d.id}/status`,
+                                { revision: d.revision, status: "recalled" },
+                                { auth: true },
+                              ),
                             )
                           }
                         />

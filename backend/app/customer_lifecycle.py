@@ -33,9 +33,15 @@ def rows(db, model, owner, fields):
 @router.get("/export")
 def export(response: Response, actor=Depends(member), db: Session = Depends(get_db)):
     from .models import ClubEntry, ClubProfile
+    from .compliance import PrivacyRequest,TaxInvoiceRequest
+    from .marketing_crm import MarketingConsent,CheckoutActivity
     response.headers["Cache-Control"] = "private, no-store"
     response.headers["Content-Disposition"] = 'attachment; filename="cake-city-account.json"'
     return {"version": 1, "exported_at": datetime.now(UTC), "profile": customer_payload(actor),
+        "tax_invoice_requests": [{"reference":o.reference,"buyer_pin":r.buyer_pin,"status":r.payload} for r,o in db.execute(select(TaxInvoiceRequest,AppOrder).join(AppOrder,AppOrder.id==TaxInvoiceRequest.order_id).where(AppOrder.customer_id==actor.id))],
+        "privacy_requests": rows(db, PrivacyRequest, actor.id, ["id","payload"]),
+        "checkout_activity": rows(db, CheckoutActivity, actor.id, ["updated_at","payload"]),
+        "marketing_consent": rows(db, MarketingConsent, actor.id, ["enabled","payload"]),
         "addresses": rows(db, Address, actor.id, ["label", "recipient_name", "phone", "line1", "line2", "area", "city", "delivery_notes", "is_default"]),
         "celebrations": rows(db, Celebration, actor.id, ["name", "occasion", "month", "day", "notes"]),
         "orders": rows(db, AppOrder, actor.id, ["reference", "state", "payment_state", "channel", "environment", "snapshot", "total_minor", "subtotal_minor", "discount_minor", "delivery_minor", "created_at", "paid_at"]),
@@ -81,7 +87,8 @@ def close(data: Closure, actor=Depends(member), db: Session = Depends(get_db)):
     notifications = select(AccountNotification.id).where(AccountNotification.customer_id == owner.id)
     db.execute(delete(PushJob).where(PushJob.notification_id.in_(notifications)))
     db.execute(delete(AccountNotification).where(AccountNotification.customer_id == owner.id))
-    for model in [Address, Celebration, AppQuote, AppDeliveryQuote, PasswordResetToken, NotificationPreference]:
+    from .marketing_crm import MarketingConsent,CheckoutActivity
+    for model in [MarketingConsent,CheckoutActivity,Address, Celebration, AppQuote, AppDeliveryQuote, PasswordResetToken, NotificationPreference]:
         db.execute(delete(model).where(model.customer_id == owner.id))
     from .models import ClubProfile
     db.execute(delete(ClubProfile).where(ClubProfile.customer_id == owner.id))

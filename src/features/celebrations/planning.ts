@@ -47,7 +47,16 @@ export function planningRecommendations(
         /cake|sponge|forest|velvet|lotus|biscoff/i.test(
           `${plainText(product.name)} ${(product.categories ?? []).map((category) => category.name).join(" ")}`,
         ) &&
-        !/cupcake|candle|topper|stand/i.test(plainText(product.name))
+        !/cupcake|candle|topper|stand|\bslices?\b|\bcookies?\b/i.test(
+          plainText(product.name),
+        ) &&
+        (flavour === "Surprise me" ||
+          `${plainText(product.name)} ${product.attributes
+            .filter((item) => /flavou?r|recipe/i.test(item.name))
+            .flatMap((item) => item.terms.map((term) => term.name))
+            .join(" ")}`
+            .toLowerCase()
+            .includes(flavour.toLowerCase()))
       );
     })
     .map((product) => {

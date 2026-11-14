@@ -12,6 +12,7 @@ import { useAuth } from "@/auth/AuthProvider";
 import { isStaffRole } from "@/auth/staff-routing";
 import { StaffRouteBoundary } from "@/auth/StaffRouteBoundary";
 import { QueryProvider } from "@/providers/QueryProvider";
+import { BiometricGate } from "@/auth/BiometricGate";
 import { AppErrorBoundary, ToastProvider } from "@/components/ui/Commerce";
 import { OfflineNotice } from "@/components/ui/OfflineNotice";
 import { CelebrationReminderPrivacy } from "@/native/celebration-reminders";
@@ -83,38 +84,40 @@ function AppShell() {
         <AppErrorBoundary>
           <QueryProvider>
             <AuthProvider>
-              <ToastProvider>
-                <NotificationObserver />
-                <PushRegistration />
-                <ConciergeIntents />
-                <CelebrationReminderPrivacy />
-                <AndroidBackNavigator />
-                <OfflineNotice />
-                <StatusBar style={isDark ? "light" : "dark"} />
-                <ConfettiLayerProvider>
-                  <StaffRouteBoundary>
-                    <Stack
-                      screenOptions={{
-                        headerShown: false,
-                        contentStyle: { backgroundColor: colors.background },
-                      }}
-                    >
-                      <Stack.Screen name="(tabs)" />
-                      <Stack.Screen
-                        name="branches"
-                        options={{ presentation: "card" }}
-                      />
-                      <Stack.Screen
-                        name="cart"
-                        options={{ presentation: "card" }}
-                      />
-                    </Stack>
-                    <FloatingTabBar />
-                    <BrandEntrance />
-                    <CustomerUpdates />
-                  </StaffRouteBoundary>
-                </ConfettiLayerProvider>
-              </ToastProvider>
+              <BiometricGate>
+                <ToastProvider>
+                  <NotificationObserver />
+                  <PushRegistration />
+                  <ConciergeIntents />
+                  <CelebrationReminderPrivacy />
+                  <AndroidBackNavigator />
+                  <OfflineNotice />
+                  <StatusBar style={isDark ? "light" : "dark"} />
+                  <ConfettiLayerProvider>
+                    <StaffRouteBoundary>
+                      <Stack
+                        screenOptions={{
+                          headerShown: false,
+                          contentStyle: { backgroundColor: colors.background },
+                        }}
+                      >
+                        <Stack.Screen name="(tabs)" />
+                        <Stack.Screen
+                          name="branches"
+                          options={{ presentation: "card" }}
+                        />
+                        <Stack.Screen
+                          name="cart"
+                          options={{ presentation: "card" }}
+                        />
+                      </Stack>
+                      <FloatingTabBar />
+                      <BrandEntrance />
+                      <CustomerUpdates />
+                    </StaffRouteBoundary>
+                  </ConfettiLayerProvider>
+                </ToastProvider>
+              </BiometricGate>
             </AuthProvider>
           </QueryProvider>
         </AppErrorBoundary>

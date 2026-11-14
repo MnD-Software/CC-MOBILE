@@ -1,3 +1,4 @@
+import { rememberCustomerRoute } from "./post-login";
 import { useEffect, type PropsWithChildren } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { router, usePathname } from "expo-router";
@@ -10,15 +11,32 @@ export function StaffRouteBoundary({ children }: PropsWithChildren) {
   const { customer, restoring } = useAuth();
   const { colors } = useTheme();
   const path = usePathname();
+  const anonymousBlocked =
+    !customer &&
+    ![
+      "/sign-in",
+      "/register",
+      "/forgot-password",
+      "/reset-password",
+      "/rider-login",
+    ].includes(path) &&
+    !path.startsWith("/page/");
   const blocked =
-    !!customer &&
-    isStaffRole(customer.role) &&
-    !staffRouteAllowed(customer.role, path);
+    anonymousBlocked ||
+    (!!customer &&
+      isStaffRole(customer.role) &&
+      !staffRouteAllowed(customer.role, path));
   useEffect(() => {
-    if (!restoring && blocked)
+    if (!restoring && blocked) {
+      if (!customer) rememberCustomerRoute(path);
       router.replace(
-        customer?.role === "corporate_client" ? "/corporate" : "/workspace",
+        !customer
+          ? "/sign-in"
+          : customer?.role === "corporate_client"
+            ? "/corporate"
+            : "/workspace",
       );
+    }
   }, [restoring, blocked, path, customer?.role]);
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>

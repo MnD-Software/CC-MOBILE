@@ -14,7 +14,7 @@ def test_inventory_diy_reprices_the_actual_variation_and_extras(system):
     with Session(s['engine']) as db:
         base=db.get(AppProduct,12)
         base.payload={**base.payload,'type':'variable','order_mode':'made_to_order'}
-        db.add(AppProduct(id=13,parent_id=12,slug='cake-variation',payload={'name':'Cake','type':'variation','order_mode':'made_to_order','variation_attributes':[{'name':'Size','value':'1-5kg-serves-15'},{'name':'Icing','value':'with-cream'}]},price_minor=350000,enabled=True))
+        db.add(AppProduct(id=13,parent_id=12,slug='cake-variation',payload={'name':'Cake','type':'variation','order_mode':'made_to_order','variation_attributes':[{'name':'Size','value':'2kg-serves-20'},{'name':'Icing','value':'with-cream'}]},price_minor=350000,enabled=True))
         db.add(AppProduct(id=14,slug='sparkling-candles',payload={'name':'Sparkling Candles','type':'simple','order_mode':'made_to_order','categories':[{'name':'Candles'}]},price_minor=40000,enabled=True))
         db.commit()
     inventory=s['client'].get('/v1/diy/inventory').json()
@@ -23,7 +23,7 @@ def test_inventory_diy_reprices_the_actual_variation_and_extras(system):
     quote=s['client'].post('/v1/diy/quote',json=data)
     assert quote.status_code==200,quote.text
     assert quote.json()['subtotal_minor']==390000
-    assert quote.json()['lines'][0]['size']=='1.5kg'
+    assert quote.json()['lines'][0]['size']=='2kg'
     with Session(s['engine']) as db:
         db.get(AppProduct,13).price_minor=360000
         db.commit()

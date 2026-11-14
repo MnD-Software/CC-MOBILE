@@ -126,3 +126,6 @@ Reported error: `Unable to deserialize cloned data` while Metro reads its V8-ser
 `scripts/metro-cache.cjs`, configured from `metro.config.js`, places file-map caches in the OS temporary directory with separate namespaces for the project, Node/V8 runtime, and development versus export. It recovers only V8 deserialization failures as cache misses and writes a fresh snapshot after the crawl. Other filesystem errors remain visible. Existing app data, review orders, credentials and dependencies are untouched. No broad cache deletion is performed.
 
 Restart the existing Expo terminal with Ctrl+C, then `npm run start:go:tunnel`. The first crawl in the new namespace can take longer; later runs reuse the cache. The launcher and its isolated backend behavior remain unchanged. Targeted cache/tunnel/launcher checks: 9 passed, including a real damaged DiskCacheManager snapshot followed by a readable replacement. Full frontend suite: **229 passed**. iOS Hermes export passed without the reported cache error at ignored `artifacts/local-preview/cache-repair-ios`, bundle `entry-1b75a10f98f15736f239a1d75e8be63c.hbc` (6.6 MB). Phone connectivity is not established by these checks.
+
+
+Latest continuation: [UX, marketing, call centre and corporate handoff - 14 November 2026](UX_OPERATIONS_2026-11-14.md).

@@ -7,7 +7,7 @@ from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from sqlalchemy import func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -18,6 +18,14 @@ from .db import get_db
 from .models import Customer
 from .permissions import audit
 from .routes_app_admin import operator
+from .routes_club import member
+from .promotions import PromotionRule, rules as promotion_rules
+
+
+def marketer(customer: Customer = Depends(member)):
+    if customer.role not in {'admin','staff','ecommerce_manager','marketing_manager','content_manager'}:
+        raise HTTPException(403, 'Marketing access required')
+    return customer
 
 router = APIRouter(tags=["web-dashboard"])
 STATIC = Path(__file__).parent / "dashboard"
@@ -33,7 +41,7 @@ def dashboard():
 
 @router.get("/admin/assets/{name}", include_in_schema=False)
 def dashboard_asset(name: str):
-    if name not in ("dashboard.js", "dashboard.css", "workspace.js", "ecosystem.js", "ecosystem.css", "cake-city-logo.png"):
+    if name not in ("dashboard.js", "dashboard.css", "workspace.js", "ecosystem.js", "ecosystem.css", "queue-position.js", "cake-city-logo.png"):
         raise HTTPException(404)
     return FileResponse(STATIC / name, headers={"Cache-Control": "no-cache", "X-Content-Type-Options": "nosniff"})
 
@@ -153,10 +161,11 @@ def edit_product(identity: int, data: ProductInput, actor: Customer = Depends(op
     return save_product(identity, data, actor, db)
 
 
-def coupon_view(row):
+def coupon_view(row, db=None):
     config = {"code": row.code, "amount_minor": row.amount_minor, "minimum_minor": row.minimum_minor,
               "usage_limit": row.usage_limit, "enabled": row.enabled,
               "expires_at": utc(row.expires_at).isoformat() if row.expires_at else None}
+    if db is not None: config.update(promotion_rules(db,row.code))
     return {**config, "version": digest(config), "uses": row.uses, "reserved": row.reserved,
             "customer_id": row.customer_id}
 
@@ -168,6 +177,33 @@ class PromotionInput(BaseModel):
     usage_limit: int = Field(ge=1, le=1000000)
     enabled: bool
     expires_at: datetime | None = None
+    title: str = Field(default='', max_length=100)
+    description: str = Field(default='', max_length=500)
+    banner_url: str = Field(default='', max_length=2000)
+
+    @field_validator('banner_url')
+    @classmethod
+    def banner(cls, value):
+        from .routes_content import media_url
+        return media_url(value)
+    discount_type: Literal['fixed','percentage'] = 'fixed'
+    percentage_bps: int = Field(default=0, ge=0, le=10000)
+    maximum_minor: int | None = Field(default=None, ge=1, le=1000000000)
+    scope: Literal['subtotal','delivery'] = 'subtotal'
+    starts_at: datetime | None = None
+    segment: Literal['all','new','first_time','repeat','high_spenders','inactive','checkout_pending'] = 'all'
+    discoverable: bool = False
+    first_order_only: bool = False
+    per_customer_limit: int | None = Field(default=None, ge=1, le=1000000)
+    product_ids: list[int] = Field(default_factory=list, max_length=100)
+
+    @model_validator(mode='after')
+    def validate_schedule(self):
+        if self.starts_at and not self.starts_at.tzinfo: raise ValueError('Start time needs a timezone')
+        if self.starts_at and self.expires_at and self.starts_at >= self.expires_at: raise ValueError('Expiry must follow start')
+        if self.discount_type == 'percentage' and self.percentage_bps < 1: raise ValueError('Choose a percentage greater than zero')
+        if any(p < 1 for p in self.product_ids) or len(set(self.product_ids)) != len(self.product_ids): raise ValueError('Choose unique product IDs')
+        return self
 
     @field_validator("expires_at")
     @classmethod
@@ -178,12 +214,14 @@ class PromotionInput(BaseModel):
 
 
 @router.get("/v1/admin/dashboard/promotions")
-def promotions(_: Customer = Depends(operator), db: Session = Depends(get_db)):
-    return [coupon_view(r) for r in db.scalars(select(AppCoupon).order_by(AppCoupon.code))]
+def promotions(_: Customer = Depends(marketer), db: Session = Depends(get_db)):
+    query=select(AppCoupon).order_by(AppCoupon.code)
+    if _.role not in {"admin","staff","ecommerce_manager"}: query=query.where(AppCoupon.customer_id.is_(None))
+    return [coupon_view(r,db) for r in db.scalars(query)]
 
 
 @router.put("/v1/admin/dashboard/promotions/{code}")
-def promotion(code: str, data: PromotionInput, actor: Customer = Depends(operator), db: Session = Depends(get_db)):
+def promotion(code: str, data: PromotionInput, actor: Customer = Depends(marketer), db: Session = Depends(get_db)):
     import re
     code = code.strip().casefold()
     if not re.fullmatch(r"[a-z0-9][a-z0-9_-]{2,79}", code):
@@ -191,15 +229,22 @@ def promotion(code: str, data: PromotionInput, actor: Customer = Depends(operato
     row = db.scalar(select(AppCoupon).where(AppCoupon.code == code).with_for_update())
     if row and row.customer_id:
         raise HTTPException(409, "Member reward coupons cannot be edited as general promotions")
-    if (row and coupon_view(row)["version"] != data.version) or (not row and data.version):
+    if (row and coupon_view(row,db)["version"] != data.version) or (not row and data.version):
         raise HTTPException(409, "Promotion changed. Reload before saving.")
     if row and data.usage_limit < row.uses + row.reserved:
         raise HTTPException(409, "Usage limit cannot erase redeemed or reserved uses")
     if not row:
         row = AppCoupon(code=code)
         db.add(row)
-    for key, value in data.model_dump(exclude={"version"}).items():
+    rule_keys={'segment','title','description','banner_url','discount_type','percentage_bps','maximum_minor','scope','starts_at','discoverable','first_order_only','per_customer_limit','product_ids'}
+    for key, value in data.model_dump(exclude={"version"}|rule_keys).items():
         setattr(row, key, value)
+    db.flush()
+    rule=db.get(PromotionRule,code)
+    if not rule:
+        rule=PromotionRule(code=code,payload={})
+        db.add(rule)
+    rule.payload=data.model_dump(mode='json',include=rule_keys)
     audit(db, actor.id, "dashboard.promotion.saved", code, enabled=data.enabled)
     try:
         db.commit()
@@ -207,7 +252,7 @@ def promotion(code: str, data: PromotionInput, actor: Customer = Depends(operato
         db.rollback()
         raise HTTPException(409, "Promotion changed. Reload before saving.") from None
     db.refresh(row)
-    return coupon_view(row)
+    return coupon_view(row,db)
 
 
 @router.get("/v1/admin/dashboard/club")

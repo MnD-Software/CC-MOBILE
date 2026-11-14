@@ -24,18 +24,48 @@ function render(screen, customer, states = {}) {
   const context = {
     exports: {},
     require(name) {
+      if (name.endsWith("/PesapalCheckoutForm"))
+        return { PesapalCheckoutForm: () => null };
+      if (name.endsWith("/commerce/contracts"))
+        return { bagLineSchema: { array: () => ({ parse: (v) => v }) } };
+      if (name.endsWith("/BrandLogo")) return { BrandLogo: () => null };
+      if (name.endsWith("/LoadingImage")) return { LoadingImage: () => null };
+      if (name.endsWith("/editorial/content")) return { mediaSource: (v) => v };
+      if (name.endsWith("/staff-routing"))
+        return { staffGreeting: () => "Good morning" };
       if (name === "react-native") return native;
-      if(name === "./BusinessPortal") {
-        const child={exports:{},require:context.require};
-        vm.runInNewContext(ts.transpileModule(fs.readFileSync("src/features/workspace/BusinessPortal.tsx","utf8"),{compilerOptions:{jsx:ts.JsxEmit.ReactJSX,module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,child);
+      if (name === "./BusinessPortal") {
+        const child = { exports: {}, require: context.require };
+        vm.runInNewContext(
+          ts.transpileModule(
+            fs.readFileSync(
+              "src/features/workspace/BusinessPortal.tsx",
+              "utf8",
+            ),
+            {
+              compilerOptions: {
+                jsx: ts.JsxEmit.ReactJSX,
+                module: ts.ModuleKind.CommonJS,
+                target: ts.ScriptTarget.ES2022,
+              },
+            },
+          ).outputText,
+          child,
+        );
         return child.exports;
       }
-      if(name === "expo-linear-gradient")return {LinearGradient:native.View};
-      if(name === "expo-image-picker")return {};
-      if(name === "@expo/vector-icons")return {Ionicons:()=>null};
-      if(name.endsWith("/BottomSheet"))return {BottomSheet:()=>null};
-      if(name.endsWith("/Disclosure"))return {Disclosure:({children})=>React.createElement(native.View,null,children)};
-      if(name.endsWith("/report-export"))return {exportExcel(){},shareBusinessDocument(){}};
+      if (name === "expo-linear-gradient")
+        return { LinearGradient: native.View };
+      if (name === "expo-image-picker") return {};
+      if (name === "@expo/vector-icons") return { Ionicons: () => null };
+      if (name.endsWith("/BottomSheet")) return { BottomSheet: () => null };
+      if (name.endsWith("/Disclosure"))
+        return {
+          Disclosure: ({ children }) =>
+            React.createElement(native.View, null, children),
+        };
+      if (name.endsWith("/report-export"))
+        return { exportExcel() {}, shareBusinessDocument() {} };
       if (name === "expo-crypto")
         return { randomUUID: () => "test-request-unique-id" };
       if (name === "expo-router") return { router: { push() {} } };
@@ -82,11 +112,15 @@ function render(screen, customer, states = {}) {
           Screen: ({ title, children }) =>
             React.createElement("main", null, title, children),
           Notice: ({ message }) => React.createElement("p", null, message),
-          Feedback:({error})=>React.createElement("p",null,error?.message||"Loading"),
+          Feedback: ({ error }) =>
+            React.createElement("p", null, error?.message || "Loading"),
           ui: {},
         };
       if (name.endsWith("/ThemeProvider"))
-        return { useThemedStyles: () => ({}),useTheme:()=>({colors:{}}) };
+        return {
+          useThemedStyles: () => ({}),
+          useTheme: () => ({ colors: {} }),
+        };
       if (name === "./contracts") return contracts;
       return require(name);
     },

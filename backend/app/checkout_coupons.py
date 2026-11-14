@@ -9,6 +9,7 @@ from .commerce_models import AppCoupon, AppOrder
 from .models import Customer
 from .db import get_db
 from .routes_club import member
+from .promotions import eligibility, rules, offer_view
 
 router = APIRouter(tags=["checkout-coupons"])
 
@@ -44,18 +45,21 @@ def available(data: AvailableCoupons, actor=Depends(member), db: Session = Depen
     welcome(db, actor)
     db.commit()
     codes = {value.strip().casefold() for value in data.saved_codes if 0 < len(value.strip()) <= 100}
+    codes.update(c.code for c in db.scalars(select(AppCoupon).where(AppCoupon.customer_id.is_(None))) if rules(db,c.code).get('discoverable'))
     query = select(AppCoupon).where(AppCoupon.enabled.is_(True), or_(
         AppCoupon.customer_id == actor.id,
         (AppCoupon.customer_id.is_(None) & AppCoupon.code.in_(codes)),
     )).order_by(AppCoupon.amount_minor.desc(), AppCoupon.code).limit(100)
     offers = []
     for coupon in db.scalars(query):
+        if not eligibility(db,coupon,actor.id): continue
         if coupon.code.startswith("welcome-") and db.scalar(select(AppOrder.id).where(AppOrder.customer_id == actor.id, AppOrder.payment_state == "completed").limit(1)):
             continue
         if coupon.uses + coupon.reserved >= coupon.usage_limit or (coupon.expires_at and utc(coupon.expires_at) <= datetime.now(UTC)):
             continue
-        offers.append({"code": coupon.code, "amount_minor": coupon.amount_minor,
+        offers.append({**offer_view(db,coupon,data.subtotal_minor), "code": coupon.code, "amount_minor": coupon.amount_minor,
             "minimum_minor": coupon.minimum_minor, "expires_at": coupon.expires_at,
             "eligible": data.subtotal_minor >= coupon.minimum_minor,
             "remaining_to_minimum_minor": max(0, coupon.minimum_minor - data.subtotal_minor)})
+    offers.sort(key=lambda c:c['saving_minor'],reverse=True)
     return {"coupons": offers, "discount_confirmed_at_quote": True}

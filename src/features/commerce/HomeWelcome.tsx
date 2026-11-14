@@ -13,7 +13,7 @@ export function HomeWelcome() {
   const greeting =
     hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
   return (
-    <View style={{ gap: 13, paddingVertical: 14 }}>
+    <View style={{ gap: 8, paddingVertical: 5 }}>
       <View style={{ gap: 4 }}>
         <Text
           style={{

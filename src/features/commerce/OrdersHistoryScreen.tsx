@@ -12,6 +12,9 @@ import { Text } from "@/components/ui/Typography";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Disclosure } from "@/components/ui/Disclosure";
+import { LoadingImage } from "@/components/ui/LoadingImage";
+import { appMedia } from "./app-media";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { appOrders } from "./app-orders";
 import { orderStageLabel } from "./ActiveOrderCard";
 import { orderHistoryAction } from "./order-history";
@@ -34,6 +37,7 @@ export function OrdersHistoryScreen() {
   const homeOrders = useHomeOrders();
   const acknowledge = useAcknowledgeOrder();
   const awaitingCount = homeOrders.data?.awaiting_receipt_count ?? 0;
+  const [pageIndex, setPageIndex] = useState(0);
   const [filters, setFilters] = useState<Filters>({});
   const [cake, setCake] = useState("");
   const [from, setFrom] = useState("");
@@ -61,7 +65,12 @@ export function OrdersHistoryScreen() {
     refetchInterval:
       active && (tab === "active" || awaitingReceipt) ? 20_000 : false,
   });
-  const rows = orders.data?.pages.flatMap((page) => page.data) ?? [];
+  useEffect(() => setPageIndex(0), [tab, filters, awaitingReceipt]);
+  const displayPage = Math.min(
+    pageIndex,
+    Math.max(0, (orders.data?.pages.length || 1) - 1),
+  );
+  const rows = orders.data?.pages[displayPage]?.data ?? [];
   const filtered = !!(
     awaitingReceipt ||
     filters.from_date ||
@@ -238,7 +247,7 @@ export function OrdersHistoryScreen() {
               <OrderDateField label="To" value={to} onChange={setTo} />
             </View>
             <Text style={{ color: colors.muted, fontSize: 12, lineHeight: 18 }}>
-              Order dates use Kenyan time. Leave a date blank for any time.
+              Order dates use local time. Leave a date blank for any time.
             </Text>
             {error ? <Notice error message={error} /> : null}
             <View style={{ flexDirection: "row", gap: 10 }}>
@@ -294,7 +303,10 @@ export function OrdersHistoryScreen() {
           onPress={() => router.push("/sign-in")}
         />
       ) : orders.isPending ? (
-        <Feedback loading />
+        <>
+          <Skeleton height={170} radius={22} />
+          <Skeleton height={170} radius={22} />
+        </>
       ) : orders.isError ? (
         <Feedback error={orders.error} onRetry={() => void orders.refetch()} />
       ) : !rows.length ? (
@@ -339,21 +351,29 @@ export function OrdersHistoryScreen() {
                   justifyContent: "center",
                 }}
               >
-                <Ionicons
-                  name={
-                    order.status === "completed"
-                      ? "checkmark-circle-outline"
-                      : tab === "past"
-                        ? "receipt-outline"
-                        : "gift-outline"
-                  }
-                  size={22}
-                  color={
-                    order.status === "completed"
-                      ? colors.success
-                      : colors.brandStrong
-                  }
-                />
+                {order.items?.[0]?.image ? (
+                  <LoadingImage
+                    source={{ uri: appMedia(order.items[0].image) }}
+                    contentFit="cover"
+                    style={{ width: 42, height: 42, borderRadius: 14 }}
+                  />
+                ) : (
+                  <Ionicons
+                    name={
+                      order.status === "completed"
+                        ? "checkmark-circle-outline"
+                        : tab === "past"
+                          ? "receipt-outline"
+                          : "gift-outline"
+                    }
+                    size={22}
+                    color={
+                      order.status === "completed"
+                        ? colors.success
+                        : colors.brandStrong
+                    }
+                  />
+                )}
               </View>
               <View style={{ flex: 1, gap: 4 }}>
                 <Text
@@ -441,13 +461,44 @@ export function OrdersHistoryScreen() {
           </View>
         ))
       )}
-      {orders.hasNextPage && customer ? (
-        <Button
-          label={tab === "past" ? "More past orders" : "More active orders"}
-          variant="outline"
-          loading={orders.isFetchingNextPage}
-          onPress={() => void orders.fetchNextPage()}
-        />
+      {customer && rows.length ? (
+        <View
+          style={{
+            flexDirection: "row",
+            gap: 8,
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <Button
+            label="Previous"
+            size="sm"
+            variant="outline"
+            disabled={displayPage === 0}
+            onPress={() => setPageIndex((p) => Math.max(0, p - 1))}
+          />
+          <Text style={{ color: colors.muted }}>Page {displayPage + 1}</Text>
+          <Button
+            label="Next"
+            size="sm"
+            variant="outline"
+            disabled={
+              orders.isFetchingNextPage ||
+              (displayPage >= (orders.data?.pages.length || 1) - 1 &&
+                !orders.hasNextPage)
+            }
+            loading={orders.isFetchingNextPage}
+            onPress={() => {
+              if (displayPage < (orders.data?.pages.length || 1) - 1)
+                setPageIndex((p) => p + 1);
+              else
+                void orders.fetchNextPage().then((result) => {
+                  if ((result.data?.pages.length || 0) > displayPage + 1)
+                    setPageIndex(displayPage + 1);
+                });
+            }}
+          />
+        </View>
       ) : null}
     </Screen>
   );

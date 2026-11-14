@@ -105,6 +105,7 @@ function checkout(optionOverrides = {}) {
     "expo-linear-gradient": { LinearGradient: "Gradient" },
     "expo-router": { router: { push() {}, replace() {} } },
     "expo-crypto": { randomUUID },
+    "@/design/useScreenActive": { useScreenActive: () => false },
     "@/config/env": { env: { reviewCheckout: false } },
     "@tanstack/react-query": {
       useQuery: () => ({ data: options, isPending: false, isError: false }),

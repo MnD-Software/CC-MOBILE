@@ -10,12 +10,18 @@ import { Disclosure } from "@/components/ui/Disclosure";
 import { useTheme } from "@/theme/ThemeProvider";
 import { useCouponWallet } from "./coupon-wallet";
 import { money } from "./contracts";
+import { Skeleton } from "@/components/ui/Skeleton";
 
 const offersSchema = z.object({
   coupons: z.array(
     z.object({
       code: z.string(),
       amount_minor: z.number(),
+      saving_minor: z.number().optional(),
+      title: z.string().optional(),
+      discount_type: z.string().optional(),
+      percentage_bps: z.number().optional(),
+      scope: z.string().optional(),
       minimum_minor: z.number(),
       eligible: z.boolean(),
       remaining_to_minimum_minor: z.number(),
@@ -62,8 +68,20 @@ export function CheckoutCoupons({
   useEffect(() => {
     if (!wallet.ready || !offers.isSuccess || restoredSelection.current) return;
     restoredSelection.current = true;
-    if (!code && wallet.selected && eligible.some(c => c.code === wallet.selected)) onChange(wallet.selected);
-  }, [wallet.ready, wallet.selected, offers.isSuccess, code, eligible, onChange]);
+    if (
+      !code &&
+      wallet.selected &&
+      eligible.some((c) => c.code === wallet.selected)
+    )
+      onChange(wallet.selected);
+  }, [
+    wallet.ready,
+    wallet.selected,
+    offers.isSuccess,
+    code,
+    eligible,
+    onChange,
+  ]);
   const checkbox = (coupon: (typeof coupons)[number]) => (
     <Pressable
       key={coupon.code}
@@ -80,6 +98,13 @@ export function CheckoutCoupons({
         alignItems: "center",
         gap: 12,
         paddingVertical: 12,
+        paddingHorizontal: 12,
+        borderRadius: 17,
+        borderWidth: 1,
+        borderStyle: "dashed",
+        borderColor: code === coupon.code ? colors.brandStrong : colors.border,
+        backgroundColor:
+          code === coupon.code ? colors.brandLight : colors.surface,
         minHeight: 48,
       }}
     >
@@ -91,8 +116,10 @@ export function CheckoutCoupons({
       <View style={{ flex: 1, gap: 4 }}>
         <Text style={{ color: colors.ink, fontWeight: "700", fontSize: 15 }}>
           {code === coupon.code
-            ? "Use my coupon"
-            : `Save up to ${money(coupon.amount_minor / 100)}`}
+            ? `${coupon.discount_type === "percentage" ? `${(coupon.percentage_bps || 0) / 100}% off` : coupon.scope === "delivery" ? "Delivery offer" : money((coupon.saving_minor ?? Math.min(coupon.amount_minor, subtotalMinor)) / 100) + " savings"} selected`
+            : coupon.discount_type === "percentage"
+              ? `${(coupon.percentage_bps || 0) / 100}% off ${coupon.scope === "delivery" ? "delivery" : "your order"}`
+              : `Save up to ${money(coupon.amount_minor / 100)}`}
         </Text>
         <Text style={{ color: colors.muted, fontSize: 12, lineHeight: 18 }}>
           {coupon.eligible
@@ -124,11 +151,7 @@ export function CheckoutCoupons({
               : "Offers & rewards"}
         </Text>
       </View>
-      {offers.isPending ? (
-        <Text style={{ color: colors.muted, fontSize: 13 }}>
-          Checking your saved rewards…
-        </Text>
-      ) : null}
+      {offers.isPending ? <Skeleton height={64} radius={17} /> : null}
       {recommended
         ? checkbox(recommended)
         : coupons[0]

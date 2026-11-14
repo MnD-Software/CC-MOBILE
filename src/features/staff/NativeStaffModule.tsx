@@ -1,3 +1,5 @@
+import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
+import { PromotionPreview } from "@/features/commerce/PromotionPreview";
 import { useState } from "react";
 import { Pressable, Switch, View } from "react-native";
 import * as ImagePicker from "expo-image-picker";
@@ -13,6 +15,7 @@ import { Input } from "@/components/ui/Input";
 import { Text } from "@/components/ui/Typography";
 import { Feedback, Notice } from "@/components/ui/Commerce";
 import { LoadingImage } from "@/components/ui/LoadingImage";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { Queue as NativeEnquiryQueue } from "@/features/workspace/CommandCenterScreen";
 import { OrderDateField } from "@/features/commerce/OrderDateField";
 import { StaffRecords } from "./StaffRecords";
@@ -104,9 +107,14 @@ export function NativeStaffModule({ module }: { module: string }) {
     queryFn: async () =>
       z.array(row).parse(await api.get("/v1/catalogue/categories")),
   });
-  const canEdit = ["admin", "staff", "ecommerce_manager"].includes(
-    customer?.role ?? "",
-  );
+  const canEdit = [
+    "admin",
+    "staff",
+    "ecommerce_manager",
+    ...(module === "promotions"
+      ? ["marketing_manager", "content_manager"]
+      : []),
+  ].includes(customer?.role ?? "");
   const refresh = async () => {
     await Promise.all([
       cache.invalidateQueries({ queryKey: ["native-staff"] }),
@@ -237,6 +245,68 @@ export function NativeStaffModule({ module }: { module: string }) {
       fields: [
         { id: "code", label: "Coupon code", value: text(record?.code) },
         {
+          id: "title",
+          label: "Customer-facing offer title",
+          value: text(record?.title),
+        },
+        {
+          id: "segment",
+          label: "Customer segment",
+          value: text(record?.segment || "all"),
+          options: [
+            "all",
+            "new",
+            "first_time",
+            "repeat",
+            "high_spenders",
+            "inactive",
+            "checkout_pending",
+          ].map((value) => ({ value, label: value.replaceAll("_", " ") })),
+        },
+        {
+          id: "banner_url",
+          label: "Banner image URL (or upload artwork below)",
+          value: text(record?.banner_url),
+        },
+        {
+          id: "description",
+          label: "Offer description",
+          value: text(record?.description),
+          multiline: true,
+        },
+        {
+          id: "discount_type",
+          label: "Discount type",
+          value: text(record?.discount_type || "fixed"),
+          options: [
+            { label: "KES off", value: "fixed" },
+            { label: "Percentage off", value: "percentage" },
+          ],
+        },
+        {
+          id: "percentage",
+          label: "Percentage off (1–100, for percentage offers)",
+          value: text(Number(record?.percentage_bps || 0) / 100),
+          number: true,
+        },
+        {
+          id: "maximum",
+          label: "Maximum saving KES (optional)",
+          value: record?.maximum_minor
+            ? text(Number(record.maximum_minor) / 100)
+            : "",
+          number: true,
+        },
+        {
+          id: "scope",
+          label: "Apply discount to",
+          value: text(record?.scope || "subtotal"),
+          options: [
+            { label: "Products", value: "subtotal" },
+            { label: "Delivery fee", value: "delivery" },
+          ],
+        },
+        {
           id: "amount",
           label: "Discount value (KES)",
           value: text(Number(record?.amount_minor || 0) / 100),
@@ -261,6 +331,35 @@ export function NativeStaffModule({ module }: { module: string }) {
           date: true,
         },
         { id: "enabled", label: "Promotion active", value: !!record?.enabled },
+        {
+          id: "discoverable",
+          label: "Show on Home, Club and checkout",
+          value: !!record?.discoverable,
+        },
+        {
+          id: "first_order_only",
+          label: "First order only",
+          value: !!record?.first_order_only,
+        },
+        {
+          id: "customer_limit",
+          label: "Redemptions per customer (optional)",
+          value: text(record?.per_customer_limit),
+          number: true,
+        },
+        {
+          id: "product_ids",
+          label: "Selected product IDs (comma separated; empty for all)",
+          value: Array.isArray(record?.product_ids)
+            ? record.product_ids.join(", ")
+            : "",
+        },
+        {
+          id: "starts",
+          label: "Start date (optional)",
+          value: text(record?.starts_at).slice(0, 10),
+          date: true,
+        },
       ],
       save: (v) => {
         if (
@@ -272,7 +371,33 @@ export function NativeStaffModule({ module }: { module: string }) {
           `${endpoints.promotions}/${encodeURIComponent(text(v.code).trim().toLowerCase())}`,
           {
             version: record?.version ?? "",
-            amount_minor: Math.round(Number(v.amount) * 100),
+            amount_minor:
+              v.discount_type === "percentage"
+                ? 1
+                : Math.round(Number(v.amount) * 100),
+            segment: v.segment,
+            title: v.title,
+            description: v.description,
+            banner_url: v.banner_url,
+            discount_type: v.discount_type,
+            percentage_bps: Math.round(Number(v.percentage) * 100),
+            maximum_minor: v.maximum
+              ? Math.round(Number(v.maximum) * 100)
+              : null,
+            scope: v.scope,
+            discoverable: v.discoverable,
+            first_order_only: v.first_order_only,
+            per_customer_limit: v.customer_limit
+              ? Number(v.customer_limit)
+              : null,
+            product_ids: text(v.product_ids)
+              .split(",")
+              .map((s) => s.trim())
+              .filter(Boolean)
+              .map(Number),
+            starts_at: v.starts
+              ? new Date(`${text(v.starts)}T00:00:00+03:00`).toISOString()
+              : null,
             minimum_minor: Math.round(Number(v.minimum) * 100),
             usage_limit: Number(v.uses),
             expires_at: v.expiry
@@ -626,6 +751,8 @@ function NativeEditor({
     Object.fromEntries(editor.fields.map((f) => [f.id, f.value])),
   );
   const [photoError, setPhotoError] = useState("");
+  const [previewing, setPreviewing] = useState(false);
+  const isPromotion = editor.fields.some((f) => f.id === "banner_url");
   const mutation = useMutation({
     mutationFn: () => editor.save(values),
     onSuccess: onSaved,
@@ -638,19 +765,39 @@ function NativeEditor({
         base64: true,
         quality: 0.6,
       });
-      if (photo.canceled || !photo.assets[0]?.base64) return;
+      if (photo.canceled || !photo.assets[0]) return;
+      const context = ImageManipulator.manipulate(photo.assets[0].uri);
+      context.resize({ width: 1200 });
+      const rendered = await context.renderAsync();
+      let encoded;
+      try {
+        encoded = await rendered.saveAsync({
+          format: SaveFormat.JPEG,
+          compress: 0.8,
+          base64: true,
+        });
+      } finally {
+        rendered.release();
+        context.release();
+      }
+      if (!encoded.base64)
+        throw Error("Could not prepare the selected artwork.");
       const result = z
         .object({ url: z.string() })
         .parse(
           await api.post(
             "/v1/admin/content/assets",
-            { mime: "image/jpeg", data: photo.assets[0].base64 },
+            { mime: "image/jpeg", data: encoded.base64 },
             { auth: true },
           ),
         );
       setValues((v) => ({
         ...v,
-        images: [text(v.images), result.url].filter(Boolean).join("\n"),
+        ...(editor.fields.some((f) => f.id === "banner_url")
+          ? { banner_url: result.url }
+          : {
+              images: [text(v.images), result.url].filter(Boolean).join("\n"),
+            }),
       }));
     } catch (e) {
       setPhotoError(
@@ -663,93 +810,150 @@ function NativeEditor({
       <Text style={{ color: colors.ink, fontSize: 22, fontWeight: "800" }}>
         {editor.title}
       </Text>
-      {editor.fields.map((field) =>
-        field.options ? (
-          <View key={field.id} style={{ gap: 10 }}>
-            <Text style={{ color: colors.ink, fontWeight: "700" }}>
-              {field.label}
-            </Text>
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-              {field.options.map((option) => {
-                const selected = text(values[field.id])
-                  .split(",")
-                  .includes(option.value);
-                return (
-                  <Button
-                    key={option.value}
-                    label={option.label}
-                    size="sm"
-                    variant={selected ? "primary" : "outline"}
-                    onPress={() =>
-                      setValues((v) => {
-                        const current = text(v[field.id])
-                          .split(",")
-                          .filter(Boolean);
-                        return {
-                          ...v,
-                          [field.id]: (selected
-                            ? current.filter((x) => x !== option.value)
-                            : [...current, option.value]
-                          ).join(","),
-                        };
-                      })
-                    }
-                  />
-                );
-              })}
-            </View>
-          </View>
-        ) : field.date ? (
-          <OrderDateField
-            key={field.id}
-            label={field.label}
-            value={text(values[field.id])}
-            onChange={(value) =>
-              setValues((v) => ({ ...v, [field.id]: value }))
-            }
+      {isPromotion ? (
+        <View style={{ flexDirection: "row", gap: 10 }}>
+          <Button
+            label="Edit offer"
+            size="sm"
+            variant={!previewing ? "primary" : "outline"}
+            onPress={() => setPreviewing(false)}
           />
-        ) : typeof field.value === "boolean" ? (
-          <View
-            key={field.id}
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 12,
-              padding: 16,
-              borderRadius: 16,
-              backgroundColor: colors.surfaceRaised,
-            }}
-          >
-            <Text style={{ flex: 1, color: colors.ink }}>{field.label}</Text>
-            <Switch
-              accessibilityLabel={field.label}
-              value={!!values[field.id]}
-              onValueChange={(value) =>
-                setValues((v) => ({ ...v, [field.id]: value }))
-              }
-            />
-          </View>
-        ) : (
-          <Input
-            key={field.id}
-            label={field.label}
-            value={text(values[field.id])}
-            onChangeText={(value) =>
-              setValues((v) => ({ ...v, [field.id]: value }))
-            }
-            keyboardType={field.number ? "decimal-pad" : "default"}
-            secureTextEntry={field.secret}
-            multiline={field.multiline}
-            autoCapitalize="none"
+          <Button
+            label="Customer preview"
+            size="sm"
+            variant={previewing ? "primary" : "outline"}
+            onPress={() => setPreviewing(true)}
           />
-        ),
-      )}
-      {editor.fields.some((f) => f.id === "images") ? (
+        </View>
+      ) : null}
+      {!isPromotion || !previewing
+        ? editor.fields.map((field) =>
+            field.options ? (
+              <View key={field.id} style={{ gap: 10 }}>
+                <Text style={{ color: colors.ink, fontWeight: "700" }}>
+                  {field.label}
+                </Text>
+                <View
+                  style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}
+                >
+                  {field.options.map((option) => {
+                    const selected = text(values[field.id])
+                      .split(",")
+                      .includes(option.value);
+                    return (
+                      <Button
+                        key={option.value}
+                        label={option.label}
+                        size="sm"
+                        variant={selected ? "primary" : "outline"}
+                        onPress={() =>
+                          setValues((v) => {
+                            const current = text(v[field.id])
+                              .split(",")
+                              .filter(Boolean);
+                            return {
+                              ...v,
+                              [field.id]: field.multiple
+                                ? (selected
+                                    ? current.filter((x) => x !== option.value)
+                                    : [...current, option.value]
+                                  ).join(",")
+                                : option.value,
+                            };
+                          })
+                        }
+                      />
+                    );
+                  })}
+                </View>
+              </View>
+            ) : field.date ? (
+              <OrderDateField
+                key={field.id}
+                label={field.label}
+                value={text(values[field.id])}
+                onChange={(value) =>
+                  setValues((v) => ({ ...v, [field.id]: value }))
+                }
+              />
+            ) : typeof field.value === "boolean" ? (
+              <View
+                key={field.id}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 12,
+                  padding: 16,
+                  borderRadius: 16,
+                  backgroundColor: colors.surfaceRaised,
+                }}
+              >
+                <Text style={{ flex: 1, color: colors.ink }}>
+                  {field.label}
+                </Text>
+                <Switch
+                  accessibilityLabel={field.label}
+                  value={!!values[field.id]}
+                  onValueChange={(value) =>
+                    setValues((v) => ({ ...v, [field.id]: value }))
+                  }
+                />
+              </View>
+            ) : (
+              <Input
+                key={field.id}
+                label={field.label}
+                value={text(values[field.id])}
+                onChangeText={(value) =>
+                  setValues((v) => ({ ...v, [field.id]: value }))
+                }
+                keyboardType={field.number ? "decimal-pad" : "default"}
+                secureTextEntry={field.secret}
+                multiline={field.multiline}
+                autoCapitalize="none"
+              />
+            ),
+          )
+        : null}
+      {!previewing &&
+      editor.fields.some((f) => f.id === "images" || f.id === "banner_url") ? (
         <Button
-          label="Upload product image"
+          label={
+            editor.fields.some((f) => f.id === "banner_url")
+              ? "Upload banner artwork"
+              : "Upload product image"
+          }
           variant="outline"
           onPress={() => void upload()}
         />
+      ) : null}
+      {isPromotion && previewing ? (
+        <View style={{ gap: 10 }}>
+          <Text style={{ color: colors.ink, fontWeight: "800" }}>
+            Customer preview - unsaved
+          </Text>
+          <PromotionPreview
+            offer={{
+              title: text(values.title),
+              description: text(values.description),
+              banner_url: text(values.banner_url),
+              amount_minor: Math.round(Number(values.amount) * 100),
+              minimum_minor: Math.round(Number(values.minimum) * 100),
+              discount_type: text(values.discount_type),
+              percentage_bps: Math.round(Number(values.percentage) * 100),
+              scope: text(values.scope),
+              maximum_minor: values.maximum
+                ? Math.round(Number(values.maximum) * 100)
+                : null,
+              first_order_only: !!values.first_order_only,
+            }}
+          />
+          <Text style={{ color: colors.muted, fontSize: 12 }}>
+            Preview updates as you edit. Customers see this after you save,
+            enable discovery and the start time is reached. No app rebuild is
+            needed.
+          </Text>
+        </View>
       ) : null}
       {mutation.isError || photoError ? (
         <Notice

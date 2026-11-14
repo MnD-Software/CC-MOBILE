@@ -1,4 +1,9 @@
-"use strict";
+const queueSelection = new Set();
+function queueBatchPanel(kitchen) {
+  return `<details class="panel" id="queue-batch"><summary>Batch workspace - up to 20 orders</summary><p>Select the cards below, then apply their next valid workflow step. Orders that cannot advance stay selected.</p><div class="workflow-actions">${kitchen ? '<button data-bulk-work="preparing">Start selected</button><button data-bulk-work="ready">Mark selected ready</button>' : "<button data-bulk-assign>Assign selected to a rider</button>"}<button data-bulk-clear>Clear selection</button></div></details>`;
+}
+
+("use strict");
 const $ = (id) => document.getElementById(id);
 const esc = (s) =>
   String(s ?? "").replace(
@@ -88,11 +93,18 @@ const canDispatch = () =>
 const canOperate = () => operatorRoles.includes(session?.customer.role);
 const canWrite = () => writerRoles.includes(session?.customer.role);
 const canReport = () => reportRoles.includes(session?.customer.role);
-async function request(path, method = "GET", body, retry = true) {
+async function request(
+  path,
+  method = "GET",
+  body,
+  retry = true,
+  additionalHeaders = {},
+) {
   const response = await fetch(path, {
     method,
     cache: "no-store",
     headers: {
+      ...additionalHeaders,
       ...(body ? { "Content-Type": "application/json" } : {}),
       ...(session ? { Authorization: `Bearer ${session.access_token}` } : {}),
     },
@@ -114,7 +126,7 @@ async function request(path, method = "GET", body, retry = true) {
       });
     try {
       await refreshPromise;
-      return request(path, method, body, false);
+      return request(path, method, body, false, additionalHeaders);
     } catch (error) {
       signedOut();
       throw error;
@@ -135,6 +147,7 @@ async function request(path, method = "GET", body, retry = true) {
   return response.status === 204 ? null : response.json();
 }
 function signedOut() {
+  globalThis.clearCakeCityWorkSelection?.();
   staffOverview = null;
   session = null;
   generation++;
@@ -157,7 +170,10 @@ $("signin").onsubmit = async (e) => {
       Object.fromEntries(f),
     );
     try {
-      staffOverview = session.customer.role === "corporate_client" ? {modules:[{id:"corporate",label:"Your company"}]} : await request("/v1/staff/overview");
+      staffOverview =
+        session.customer.role === "corporate_client"
+          ? { modules: [{ id: "corporate", label: "Your company" }] }
+          : await request("/v1/staff/overview");
     } catch (error) {
       await request("/v1/auth/mobile/logout", "POST", {
         refresh_token: session.refresh_token,
@@ -170,7 +186,9 @@ $("signin").onsubmit = async (e) => {
     $("identity").textContent =
       `${session.customer.first_name} · ${session.customer.role.replaceAll("_", " ")}`;
     navigation();
-    await show(session.customer.role === "corporate_client" ? "corporate" : "overview");
+    await show(
+      session.customer.role === "corporate_client" ? "corporate" : "overview",
+    );
   } catch (error) {
     session = null;
     $("login-error").textContent = error.message;
@@ -234,11 +252,7 @@ const sections = {
     "Orders",
     "Follow app orders from verified payment to fulfilment.",
   ],
-  sales: [
-    "↗",
-    "Channel sales",
-    "Compare verified sales from the app and website.",
-  ],
+  sales: ["↗", "Channel sales", "Track verified app sales and reversals."],
   issues: ["◎", "Issues", "Track app and website issues separately."],
 };
 function navigation() {
@@ -258,6 +272,11 @@ function notice(text, error = false) {
   $("notice").textContent = text;
 }
 async function show(next = tab, quiet = false) {
+  const position =
+    next === tab && $("content").childElementCount
+      ? CakeCityQueuePosition.capture($("content"))
+      : null;
+  if (position) quiet = true;
   if (!staffOverview?.modules.some((module) => module.id === next)) {
     notice("This section is outside your workspace.", true);
     return;
@@ -271,7 +290,7 @@ async function show(next = tab, quiet = false) {
   $("create").hidden = !(
     (tab === "products" && canOperate()) ||
     (tab === "campaigns" && canWrite()) ||
-    (tab === "promotions" && canOperate())
+    (tab === "promotions" && canWrite())
   );
   $("create").textContent =
     {
@@ -287,7 +306,14 @@ async function show(next = tab, quiet = false) {
     $("content").innerHTML = '<div class="loading">Loading workspace…</div>';
   try {
     const html = await views[tab]();
-    if (current === generation) $("content").innerHTML = html;
+    if (current === generation) {
+      $("content").innerHTML = html;
+      if (position)
+        requestAnimationFrame(() => {
+          if (current === generation)
+            CakeCityQueuePosition.restore($("content"), position);
+        });
+    }
   } catch (error) {
     if (current === generation) {
       $("content").innerHTML =
@@ -346,7 +372,7 @@ async function workflowBoard(stage) {
           ? `<button data-assign="${esc(o.reference)}">Assign remaining items to rider</button>`
           : `<p>Confirm the production location in Kitchen before assigning a rider.</p>`;
       }
-      return `<section class="panel workflow-card" data-state="${esc(o.status)}" data-work="${esc(o.reference)}">${pill(o.status, true)} ${o.payment_test && !o.review_checkout ? pill("SIMULATED TEST") : ""}<h2>${esc(o.reference)}</h2><p>${esc(date(o.created_at))} / ${esc(o.fulfilment)} / ${esc(o.plant || "Production unassigned")}</p>${o.items.map((l) => `<h3>${esc(l.quantity)} × ${esc(l.name)}</h3><p>${esc(l.selection?.size || "")} ${(l.selection?.variation_attributes || []).map((a) => `${esc(a.attribute)}: ${esc(a.value)}`).join(" / ")}</p><p>${esc(l.selection?.message || "")}</p>`).join("")}<div class="workflow-actions">${canOperate() ? `<button data-order-details="${esc(o.reference)}">Customer details & tracking</button>` : ""}${actions}</div></section>`;
+      return `<section class="panel workflow-card" data-state="${esc(o.status)}" data-work="${esc(o.reference)}"><label class="queue-select"><input type="checkbox" data-bulk-reference="${esc(o.reference)}" ${queueSelection.has(o.reference) ? "checked" : ""}> Select for batch</label>${pill(o.status, true)} ${o.payment_test && !o.review_checkout ? pill("SIMULATED TEST") : ""}<h2>${esc(o.reference)}</h2><p>${esc(date(o.created_at))} / ${esc(o.fulfilment)} / ${esc(o.plant || "Production unassigned")}</p>${o.items.map((l) => `<h3>${esc(l.quantity)} × ${esc(l.name)}</h3><p>${esc(l.selection?.size || "")} ${(l.selection?.variation_attributes || []).map((a) => `${esc(a.attribute)}: ${esc(a.value)}`).join(" / ")}</p><p>${esc(l.selection?.message || "")}</p>`).join("")}<div class="workflow-actions">${canOperate() ? `<button data-order-details="${esc(o.reference)}">Customer details & tracking</button>` : ""}${actions}</div></section>`;
     })
     .join("");
   const next = {
@@ -381,7 +407,7 @@ async function workflowBoard(stage) {
         ["out_for_delivery", "On the road"],
       ];
   const pulse = `<div class="queue-pulse">${stages.map(([status, label], i) => `<div><span class="queue-step">0${i + 1}</span><strong>${rows.filter((o) => o.status === status).length}</strong><span>${label}</span></div>`).join("")}${!kitchen ? `<div><span class="queue-step">LIVE</span><strong>${tasks.filter((t) => !["delivered", "cancelled"].includes(t.status)).length}</strong><span>Active rider trips</span></div>` : ""}</div>`;
-  return `<section class="queue-heading"><div><span class="eyebrow">${kitchen ? "CRAFT & CARE" : "THE LAST MILE"}</span><h2>${kitchen ? "Every cake, made with care." : "Great moments. Delivered."}</h2><p>${rows.length} orders in this queue, ready for the next step.</p></div><button class="primary" data-action="retry">Refresh queue</button></section>${pulse}<p>Assignments reach the rider's login. Customer tracking and notifications update as the kitchen and rider progress.</p><div class="cards">${cards || empty("Queue is clear", "Orders appear here when they reach this stage.")}</div>${!kitchen ? `<h2>Rider trips & delivery quality</h2><div class="cards">${tripCards || empty("No active trips", "Assign a provisioned rider to begin dispatch.")}</div>` : ""}`;
+  return `<section class="queue-heading"><div><span class="eyebrow">${kitchen ? "CRAFT & CARE" : "THE LAST MILE"}</span><h2>${kitchen ? "Every cake, made with care." : "Great moments. Delivered."}</h2><p>${rows.length} orders in this queue, ready for the next step.</p></div><button class="primary" data-action="retry">Refresh queue</button></section>${pulse}${queueBatchPanel(kitchen)}<p>Assignments reach the rider's login. Customer tracking and notifications update as the kitchen and rider progress.</p><div class="cards">${cards || empty("Queue is clear", "Orders appear here when they reach this stage.")}</div>${!kitchen ? `<h2>Rider trips & delivery quality</h2><div class="cards">${tripCards || empty("No active trips", "Assign a provisioned rider to begin dispatch.")}</div>` : ""}`;
 }
 const views = {
   async kitchen() {
@@ -417,7 +443,7 @@ const views = {
     ]);
     const d = deliverySettings,
       p = checkoutSettings || {};
-    return `<section class="panel"><h2>App payments and HQ fulfilment</h2><p>All app orders are produced and dispatched from HQ. Confirm the HQ pin, delivery boundary and price/tax treatment before accepting payments.</p><div class="stats">${stat("Route service", d.maps_ready ? "Configured" : "Key needed", "GOOGLE_MAPS_API_KEY on Render")}${stat("Map picker", d.map_picker_ready ? "Configured" : "Key needed", "GOOGLE_MAPS_BROWSER_KEY on Render")}${stat("Checkout", p.enabled && p.pricing_confirmed ? "Enabled" : "Awaiting confirmation", "Live payment also requires the Pesapal merchant account")}</div><button data-payment-check="true">Check Pesapal account and callback setup</button><h3>Confirmed rate card</h3><p>Doorstep: KES 100 + KES 30/km by road from HQ. Same-store HQ collection: free. Transfers to another pickup store: 50% of the applicable delivery fee.</p><small>${esc(d.source)}</small><h3>${esc(d.origin_name)}</h3><p>${esc(d.origin_address)}</p><p>${d.origin ? `${esc(d.origin.latitude)}, ${esc(d.origin.longitude)}` : "HQ pin not confirmed"}. Boundary: ${d.radius_km ? `${esc(d.radius_km)} km radius` : "not confirmed"}.</p><button data-delivery-config="hq">Configure HQ and delivery area</button><button data-checkout-config="true">Configure checkout and tax</button><h3>Additional pickup stores</h3><p>HQ collection is free. Additional stores require a quoted transfer from HQ.</p>${(d.pickup_stores || []).map((s) => `<p>${esc(s.name)} - ${esc(s.address)} <button data-edit-pickup="${esc(s.id)}">Edit branch</button><button data-remove-pickup="${esc(s.id)}">Remove store</button></p>`).join("")}<button data-delivery-config="store">Add pickup store</button></section>`;
+    return `<section class="panel"><h2>App payments and HQ fulfilment</h2><p>All app orders are produced and dispatched from HQ. Confirm the HQ pin, delivery boundary and price/tax treatment before accepting payments.</p><div class="stats">${stat("Route service", d.maps_ready ? "Configured" : "Key needed", "GOOGLE_MAPS_API_KEY on Render")}${stat("Map picker", d.map_picker_ready ? "Configured" : "Key needed", "GOOGLE_MAPS_BROWSER_KEY on Render")}${stat("Checkout", p.enabled && p.pricing_confirmed ? "Enabled" : "Awaiting confirmation", "Live payment also requires the Pesapal merchant account")}</div><button data-payment-check="true">Check Pesapal account and callback setup</button><h3>Confirmed rate card</h3><p>Doorstep: KES 30/km by road from HQ, with a KES 100 minimum. Same-store HQ collection: free. Transfers to another pickup store: 50% of the applicable delivery fee.</p><small>${esc(d.source)}</small><h3>${esc(d.origin_name)}</h3><p>${esc(d.origin_address)}</p><p>${d.origin ? `${esc(d.origin.latitude)}, ${esc(d.origin.longitude)}` : "HQ pin not confirmed"}. Boundary: ${d.radius_km ? `${esc(d.radius_km)} km radius` : "not confirmed"}.</p><button data-delivery-config="hq">Configure HQ and delivery area</button><button data-checkout-config="true">Configure checkout and tax</button><h3>Additional pickup stores</h3><p>HQ collection is free. Additional stores require a quoted transfer from HQ.</p>${(d.pickup_stores || []).map((s) => `<p>${esc(s.name)} - ${esc(s.address)} <button data-edit-pickup="${esc(s.id)}">Edit branch</button><button data-remove-pickup="${esc(s.id)}">Remove store</button></p>`).join("")}<button data-delivery-config="store">Add pickup store</button></section>`;
   },
   async overview() {
     return workspaceOverview();
@@ -476,7 +502,7 @@ const views = {
   async promotions() {
     promotions = await request("/v1/admin/dashboard/promotions");
     const rows = promotions.filter((c) => !c.customer_id);
-    return `<section class="panel"><h2>App checkout discount codes</h2><p>Fixed KES discounts on the cart subtotal. One code per order; delivery is calculated separately. Codes have minimum spend, expiry and total redemption limits. Member reward coupons are protected and remain separate.</p></section>${
+    return `<section class="panel"><h2>App checkout discount codes</h2><p>Scheduled KES, percentage and delivery offers. Discoverable offers appear on Home, Club and checkout. One code per order. Codes have minimum spend, expiry and total redemption limits. Member reward coupons are protected and remain separate.</p></section>${
       rows.length
         ? table(
             [
@@ -490,7 +516,7 @@ const views = {
             ],
             rows.map(
               (c) =>
-                `<tr><td><strong>${esc(c.code.toUpperCase())}</strong></td><td>${money(c.amount_minor)}</td><td>${money(c.minimum_minor)}</td><td>${c.uses} / ${c.reserved} of ${c.usage_limit}</td><td>${esc(date(c.expires_at))}</td><td>${pill(!c.enabled ? "Disabled" : c.expires_at && Date.parse(c.expires_at) <= Date.now() ? "Expired" : c.uses + c.reserved >= c.usage_limit ? "Exhausted" : "Available", c.enabled && (!c.expires_at || Date.parse(c.expires_at) > Date.now()) && c.uses + c.reserved < c.usage_limit)}</td><td><button data-promotion="${esc(c.code)}">Edit promotion</button></td></tr>`,
+                `<tr><td><strong>${esc(c.code.toUpperCase())}</strong></td><td>${c.discount_type === "percentage" ? `${c.percentage_bps / 100}%` : money(c.amount_minor)} ${c.scope === "delivery" ? "off delivery" : "off products"}</td><td>${money(c.minimum_minor)}</td><td>${c.uses} / ${c.reserved} of ${c.usage_limit}</td><td>${esc(date(c.expires_at))}</td><td>${pill(!c.enabled ? "Disabled" : c.expires_at && Date.parse(c.expires_at) <= Date.now() ? "Expired" : c.uses + c.reserved >= c.usage_limit ? "Exhausted" : "Available", c.enabled && (!c.expires_at || Date.parse(c.expires_at) > Date.now()) && c.uses + c.reserved < c.usage_limit)}</td><td><button data-promotion="${esc(c.code)}">Edit promotion</button></td></tr>`,
             ),
           )
         : empty(
@@ -518,7 +544,7 @@ const views = {
   },
   async sales() {
     const data = await request("/v1/admin/channel-sales");
-    return `<div class="stats">${["app", "website"]
+    return `<div class="stats">${["app"]
       .map((channel) => {
         const c = data.channels.find((x) => x.channel === channel);
         return stat(
@@ -529,7 +555,7 @@ const views = {
       })
       .join(
         "",
-      )}</div><section class="panel"><h2>Verified channel totals</h2><p>${esc(data.website_reporting)}</p>${table(
+      )}</div><section class="panel"><h2>Verified app sales</h2><p>${esc(data.reporting_scope)}</p>${table(
       ["Channel", "Orders", "Gross paid", "Reversed", "Net"],
       data.channels.map(
         (c) =>
@@ -712,7 +738,20 @@ function campaignEditor(c) {
   const now = new Date();
   openEditor(
     c ? `Campaign · ${c.title}` : "New campaign",
-    `<div class="form-grid">${input("title", "Campaign title", c?.title || "", "text", "required minlength=3 maxlength=100")}${input("template", "Template", c?.template || "spotlight", "text", 'required pattern="spotlight|celebration|offer"')}${area("description", "Campaign description", c?.description || "")}${input("starts_at", "Starts (your local time)", localTime(c?.starts_at || now), "datetime-local", "required")}${input("ends_at", "Ends (your local time)", localTime(c?.ends_at || new Date(now.getTime() + 7 * 86400000)), "datetime-local", "required")}${area("image_url", "Artwork URL", c?.image_url || "")}${uploadField()}${input("video_url", "Optional video URL", c?.video_url || "")}${input("category_id", "Category ID (or link products below)", c?.category_id || "", "number", "min=1")}${area("product_slugs", "Linked product slugs (comma separated, up to 8)", c?.product_slugs?.join(", ") || "")}${area("branch_names", "Branches (comma separated, leave blank for all)", c?.branch_names?.join(", ") || "")}${check("member_only", "Members only", c?.member_only)}${check("published", "Publish on schedule", c?.published)}<p class="help full">For an offer, create its code under Promotions and include that code in the campaign description. Campaigns do not change checkout prices automatically.</p></div>`,
+    `<div class="form-grid">${input("title", "Campaign title", c?.title || "", "text", "required minlength=3 maxlength=100")}${input("template", "Template", c?.template || "spotlight", "text", 'required pattern="spotlight|celebration|offer"')}${area("description", "Campaign description", c?.description || "")}${input("starts_at", "Starts (your local time)", localTime(c?.starts_at || now), "datetime-local", "required")}${input("ends_at", "Ends (your local time)", localTime(c?.ends_at || new Date(now.getTime() + 7 * 86400000)), "datetime-local", "required")}${area("image_url", "Artwork URL", c?.image_url || "")}${uploadField()}${input("video_url", "Optional video URL", c?.video_url || "")}${input("category_id", "Category ID (or link products below)", c?.category_id || "", "number", "min=1")}${area("product_slugs", "Linked product slugs (comma separated, up to 8)", c?.product_slugs?.join(", ") || "")}${area("branch_names", "Branches (comma separated, leave blank for all)", c?.branch_names?.join(", ") || "")}${choices(
+      "segment",
+      "Audience",
+      [
+        "all",
+        "new",
+        "first_time",
+        "repeat",
+        "high_spenders",
+        "inactive",
+        "checkout_pending",
+      ].map((s) => [s, s.replaceAll("_", " ")]),
+      c?.segment || "all",
+    )}${check("member_only", "Members only", c?.member_only)}${check("published", "Publish on schedule", c?.published)}<p class="help full">For an offer, create its code under Promotions and include that code in the campaign description. Campaigns do not change checkout prices automatically.</p></div>`,
     async (f) => {
       await request(
         `/v1/admin/content/campaigns${c ? `/${c.id}` : ""}`,
@@ -730,6 +769,7 @@ function campaignEditor(c) {
             ? Number(f.get("category_id"))
             : null,
           branch_names: list(f.get("branch_names")),
+          segment: f.get("segment") || "all",
           member_only: f.has("member_only"),
           published: f.has("published"),
           template: f.get("template"),
@@ -742,14 +782,18 @@ function campaignEditor(c) {
 function promotionEditor(c) {
   openEditor(
     c ? `Promotion · ${c.code.toUpperCase()}` : "New promotion",
-    `<div class="form-grid">${input("code", "Promotion code", c?.code || "", "text", `required minlength=3 maxlength=80 pattern="[a-zA-Z0-9][a-zA-Z0-9_-]{2,79}" ${c ? "readonly" : ""}`)}${input("amount", "Discount amount (KES)", (c?.amount_minor || 0) / 100, "number", "required min=0.01 step=0.01 max=10000000")}${input("minimum", "Minimum cart subtotal (KES)", (c?.minimum_minor || 0) / 100, "number", "required min=0 step=0.01 max=10000000")}${input("usage_limit", "Total redemption limit", c?.usage_limit || 100, "number", `required min=${Math.max(1, (c?.uses || 0) + (c?.reserved || 0))} max=1000000 step=1`)}${input("expires_at", "Expiry (your local time, optional)", c?.expires_at ? localTime(c.expires_at) : "", "datetime-local")}${check("enabled", "Enable this code", c?.enabled ?? true)}<p class="help full">Discounts apply to the cart subtotal and cannot exceed it. Redeemed and reserved uses are preserved. Disable a code to stop new orders from using it.</p></div>`,
+    `<div class="form-grid">${input("code", "Promotion code", c?.code || "", "text", `required minlength=3 maxlength=80 pattern="[a-zA-Z0-9][a-zA-Z0-9_-]{2,79}" ${c ? "readonly" : ""}`)}${input("amount", "Discount amount (KES)", (c?.amount_minor || 10000) / 100, "number", "required min=0.01 step=0.01 max=10000000")}${promotionFields(c)}${input("minimum", "Minimum cart subtotal (KES)", (c?.minimum_minor || 0) / 100, "number", "required min=0 step=0.01 max=10000000")}${input("usage_limit", "Total redemption limit", c?.usage_limit || 100, "number", `required min=${Math.max(1, (c?.uses || 0) + (c?.reserved || 0))} max=1000000 step=1`)}${input("expires_at", "Expiry (your local time, optional)", c?.expires_at ? localTime(c.expires_at) : "", "datetime-local")}${check("enabled", "Enable this code", c?.enabled ?? true)}<p class="help full">Discounts apply to the cart subtotal and cannot exceed it. Redeemed and reserved uses are preserved. Disable a code to stop new orders from using it.</p></div>`,
     async (f) => {
       await request(
         `/v1/admin/dashboard/promotions/${encodeURIComponent(f.get("code").trim())}`,
         "PUT",
         {
           version: c?.version || "",
-          amount_minor: Math.round(Number(f.get("amount")) * 100),
+          amount_minor:
+            f.get("discount_type") === "percentage"
+              ? 1
+              : Math.round(Number(f.get("amount")) * 100),
+          ...promotionPayload(f),
           minimum_minor: Math.round(Number(f.get("minimum")) * 100),
           usage_limit: Number(f.get("usage_limit")),
           enabled: f.has("enabled"),
@@ -760,6 +804,7 @@ function promotionEditor(c) {
       );
     },
   );
+  installPromotionPreview();
 }
 $("create").onclick = () =>
   ({

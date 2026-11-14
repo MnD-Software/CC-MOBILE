@@ -93,6 +93,29 @@ export function CampaignEditor({
         disabled={busy}
         onPress={onClose}
       />
+      <Disclosure title="Campaign audience">
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+          {[
+            "all",
+            "new",
+            "first_time",
+            "repeat",
+            "high_spenders",
+            "inactive",
+            "checkout_pending",
+          ].map((segment) => (
+            <Button
+              key={segment}
+              size="sm"
+              label={segment.replaceAll("_", " ")}
+              variant={
+                (form.segment || "all") === segment ? "primary" : "outline"
+              }
+              onPress={() => change({ segment })}
+            />
+          ))}
+        </View>
+      </Disclosure>
       <View style={{ flexDirection: "row", gap: 8 }}>
         {["Photo & words", "Choose cakes", "Preview"].map((label, index) => (
           <View key={label} style={{ flex: 1, gap: 8 }}>

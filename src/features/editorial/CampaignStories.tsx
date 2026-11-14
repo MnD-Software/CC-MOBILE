@@ -21,7 +21,7 @@ export function CampaignStories({ members = false }: { members?: boolean }) {
   const { colors } = useTheme();
   const [now, setNow] = useState(Date.now());
   const query = useQuery({
-    queryKey: ["editorial-campaigns"],
+    queryKey: ["editorial-campaigns", customer?.id],
     queryFn: ({ signal }) => contentApi.campaigns(signal),
     staleTime: 30_000,
     retry: 1,

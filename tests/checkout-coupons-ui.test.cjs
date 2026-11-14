@@ -7,7 +7,12 @@ function screen(coupons, code = "") {
   const changes = [];
   const jsx = (type, props) => ({ type, props });
   const modules = {
-    react: {useEffect(){},useRef(value){return {current:value};}},
+    react: {
+      useEffect() {},
+      useRef(value) {
+        return { current: value };
+      },
+    },
     "react/jsx-runtime": { jsx, jsxs: jsx },
     "@tanstack/react-query": { useQuery: () => ({ data: { coupons } }) },
     "react-native": { Pressable: "Checkbox", View: "View" },
@@ -15,6 +20,7 @@ function screen(coupons, code = "") {
     zod: require("zod"),
     "@/api/client": { api: { post: async () => ({ coupons }) } },
     "@/components/ui/Typography": { Text: "Text" },
+    "@/components/ui/Skeleton": { Skeleton: "Skeleton" },
     "@/components/ui/Input": { Input: "Input" },
     "@/components/ui/Disclosure": { Disclosure: "Disclosure" },
     "@/theme/ThemeProvider": { useTheme: () => ({ colors: {} }) },

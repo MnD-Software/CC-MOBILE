@@ -116,6 +116,9 @@ def queue(_: Customer = Depends(require("enquiries.read")), db: Session = Depend
 
 @router.patch("/v1/admin/enquiries/{identity}")
 def reply(identity: str, data: StaffReply, actor: Customer = Depends(require("enquiries.write")), db: Session = Depends(get_db)):
+    if actor.role == 'call_center_agent':
+        from .service_desk import access
+        access(db,actor,'enquiry',identity)
     record = db.scalar(select(Enquiry).where(Enquiry.id == identity).with_for_update())
     if not record:
         raise HTTPException(404, "Request not found")

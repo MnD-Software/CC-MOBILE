@@ -18,6 +18,12 @@ const billingProfileSchema = z.object({
   // Older saved profiles retain their contact/address fields and ask for the
   // missing postal code on their next save or checkout.
   postcode: z.string().trim().max(16).default(""),
+  kraPin: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^$|^[A-Z]\d{9}[A-Z]$/, "Enter an 11-character KRA PIN.")
+    .default(""),
 });
 
 export type BillingProfile = z.infer<typeof billingProfileSchema>;
@@ -27,7 +33,7 @@ type ProfileRequirements = {
 };
 
 export function validateBillingProfile(
-  profile: BillingProfile,
+  profile: z.input<typeof billingProfileSchema>,
   requirements: ProfileRequirements = {},
 ): BillingProfile {
   const parsed = billingProfileSchema.safeParse(profile);
@@ -84,7 +90,7 @@ export async function loadBillingProfile(customerId: string) {
 
 export async function saveBillingProfile(
   customerId: string,
-  profile: BillingProfile,
+  profile: z.input<typeof billingProfileSchema>,
   requirements: ProfileRequirements = {},
 ) {
   if (!customerId.trim())

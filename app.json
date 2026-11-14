@@ -19,7 +19,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#FFF5FA",
+        "backgroundColor": "#FFC4E4",
         "foregroundImage": "./assets/cake-city-icon-foreground.png"
       },
       "versionCode": 19,

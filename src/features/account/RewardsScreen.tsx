@@ -1,5 +1,6 @@
 import { HeaderActions } from "@/components/storefront/HeaderActions";
 import { ClubMembership } from "./ClubMembership";
+import { PromotionsShelf } from "@/features/commerce/PromotionsShelf";
 import { ClubWelcome } from "./ClubWelcome";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -106,6 +107,7 @@ export function RewardsScreen() {
       }
     >
       <ClubWelcome name={customer?.first_name} />
+      <PromotionsShelf />
       <View onLayout={(event) => setMemberY(event.nativeEvent.layout.y)}>
         <ClubMembership
           key={wallet.scope}

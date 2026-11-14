@@ -1,4 +1,7 @@
+import { useReducedMotion } from "@/design/useReducedMotion";
+import { useScreenActive } from "@/design/useScreenActive";
 import { HomeWelcome } from "./HomeWelcome";
+import { PromotionsShelf } from "./PromotionsShelf";
 import { WelcomeCoupon } from "@/features/account/WelcomeCoupon";
 import { appMedia } from "./app-media";
 import { HeaderActions } from "@/components/storefront/HeaderActions";
@@ -10,7 +13,7 @@ import { LoadingImage } from "@/components/ui/LoadingImage";
 import { LinearGradient } from "expo-linear-gradient";
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   FlatList,
   type NativeScrollEvent,
@@ -40,7 +43,11 @@ import { homeCollections } from "./collection-artwork";
 import { HomeSearchBar } from "./HomeSearchBar";
 import { money, plainText, productPrice, type StoreProduct } from "./contracts";
 import { usePreferences } from "./store";
-import { dealCarouselProducts, isDealsAndSteals } from "./home-catalogue";
+import {
+  carouselProductTitle,
+  dealCarouselProducts,
+  isDealsAndSteals,
+} from "./home-catalogue";
 
 // Zustand requires a stable snapshot when there is no account history.
 const EMPTY_RECENT_SLUGS: readonly string[] = [];
@@ -161,6 +168,10 @@ export function HomeScreen() {
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const [activeSlide, setActiveSlide] = useState(0);
+  const carouselRef = useRef<FlatList<CarouselItem>>(null);
+  const touchingCarousel = useRef(false);
+  const screenActive = useScreenActive();
+  const reduceMotion = useReducedMotion();
   const availableWidth = Math.max(1, width - insets.left - insets.right);
   const contentWidth = Math.max(1, Math.min(availableWidth, 600) - 32);
   const collectionCardWidth = Math.max(0, (contentWidth - 12) / 2);
@@ -207,6 +218,25 @@ export function HomeScreen() {
       })),
     [dealsAndSteals],
   );
+  useEffect(() => {
+    if (!screenActive || reduceMotion || carouselItems.length < 2) return;
+    const timer = setInterval(() => {
+      if (touchingCarousel.current) return;
+      const next = (activeSlide + 1) % carouselItems.length;
+      carouselRef.current?.scrollToOffset({
+        offset: next * contentWidth,
+        animated: true,
+      });
+      setActiveSlide(next);
+    }, 6000);
+    return () => clearInterval(timer);
+  }, [
+    screenActive,
+    reduceMotion,
+    activeSlide,
+    carouselItems.length,
+    contentWidth,
+  ]);
   // FlatList measures its paging cells once. Re-key it when an orientation,
   // safe-area, or live-deal change alters their width/order, so it cannot hold
   // a partial old page with an incorrect indicator.
@@ -328,6 +358,7 @@ export function HomeScreen() {
           <ActiveOrderCard compact />
         </View>
         <HomeWelcome />
+        <PromotionsShelf />
         {catalogue.isPending ? (
           <HomeSkeleton cardWidth={collectionCardWidth} />
         ) : catalogue.isError ? (
@@ -349,6 +380,16 @@ export function HomeScreen() {
                 <EmptyDealSlide onPress={openShop} width={contentWidth} />
               ) : (
                 <FlatList
+                  ref={carouselRef}
+                  onTouchStart={() => {
+                    touchingCarousel.current = true;
+                  }}
+                  onTouchEnd={() => {
+                    touchingCarousel.current = false;
+                  }}
+                  onTouchCancel={() => {
+                    touchingCarousel.current = false;
+                  }}
                   key={carouselLayoutKey}
                   data={carouselItems}
                   decelerationRate="fast"
@@ -536,7 +577,7 @@ function DealSlide({
           </Text>
         </View>
         <Text numberOfLines={2} style={styles.dealTitle}>
-          {plainText(product.name)}
+          {carouselProductTitle(product)}
         </Text>
         <View style={styles.dealFooter}>
           <View>

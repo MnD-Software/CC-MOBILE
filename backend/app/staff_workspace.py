@@ -34,6 +34,10 @@ def modules(role):
     result = [{"id": "overview", "label": "Overview", "href": "/workspace"}]
     def add(identity, label, href="/workspace"):
         result.append({"id": identity, "label": label, "href": href})
+    if role in MANAGERS | {"call_center_agent","call_center_manager","customer_service","sales"}: add("service-desk", "Call centre & assisted orders")
+    if role in MANAGERS | {"marketing_manager","content_manager"}:
+        add("marketing", "Marketing command centre")
+        if role not in MANAGERS: add("promotions", "Discounts & coupons")
     if role in DISPATCH | RIDERS | {"finance"}: add("earnings", "Rider earnings & payments")
     if role in MANAGERS | {"corporate_manager", "corporate_assistant", "corporate_agent", "corporate_sales"}: add("corporate", "Corporate CRM & accounts")
     if role in KITCHEN: add("kitchen", "Kitchen & production", "/kitchen")
@@ -51,12 +55,15 @@ def modules(role):
     if role in CONTENT: add("campaigns", "Campaign studio")
     if role in MANAGERS | SALES: add("enquiries", "Customer enquiries")
     if role in REPORTERS: add("issues", "Exceptions")
-    if role == "admin": add("team", "Team directory")
+    if role == "admin":
+        add("team", "Team directory")
+        add("compliance", "Tax & privacy desk")
     if "audit.read" in ROLE_PERMISSIONS.get(role, set()): add("audit", "Audit trail")
     return result
 
 
 def department(role):
+    if role in {"call_center_agent","call_center_manager"}: return "Call centre"
     if role in MANAGERS: return "Command centre"
     if role in KITCHEN: return "Kitchen & production"
     if role in DISPATCH: return "Dispatch & delivery"

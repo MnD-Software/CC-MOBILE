@@ -51,6 +51,7 @@ function BillingForm({
     area: "",
     city: "Nairobi",
     postcode: "",
+    kraPin: "",
   });
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -107,6 +108,7 @@ function BillingForm({
           ["area", "Area"],
           ["city", "City"],
           ["postcode", "Postal code"],
+          ["kraPin", "KRA PIN (optional)"],
         ] as const
       ).map(([key, label]) => (
         <Input
@@ -124,13 +126,19 @@ function BillingForm({
                   : "default"
           }
           autoComplete={key === "postcode" ? "postal-code" : undefined}
-          maxLength={key === "postcode" ? 5 : undefined}
+          maxLength={key === "postcode" ? 5 : key === "kraPin" ? 11 : undefined}
           hint={
             key === "postcode"
               ? "Enter the postal code for your address."
               : undefined
           }
-          autoCapitalize={key === "email" ? "none" : "sentences"}
+          autoCapitalize={
+            key === "email"
+              ? "none"
+              : key === "kraPin"
+                ? "characters"
+                : "sentences"
+          }
           onChangeText={(text) => {
             setValue((current) => ({ ...current, [key]: text }));
             setMessage("");

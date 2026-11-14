@@ -41,6 +41,9 @@ export function notificationRoute(data: Record<string, unknown>): Href | null {
     "/account/moments": "/moments",
     "/offers": "/offers",
     "/checkout": "/cart",
+    "/cart": "/cart",
+    "/account-privacy": "/account-privacy",
+    "/corporate": "/corporate",
   };
   return Object.hasOwn(routes, url) ? routes[url] : null;
 }

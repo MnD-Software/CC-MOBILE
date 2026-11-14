@@ -1,3 +1,6 @@
+import { AppState } from "react-native";
+import { useScreenActive } from "@/design/useScreenActive";
+import type { BagLine } from "./contracts";
 import { env } from "@/config/env";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
@@ -60,10 +63,18 @@ const optionsSchema = z.object({
   ),
 });
 
-export function PesapalCheckoutForm() {
+export function PesapalCheckoutForm({
+  corporateQuoteId,
+  linesOverride,
+}: { corporateQuoteId?: string; linesOverride?: BagLine[] } = {}) {
   const { customer } = useAuth();
   return customer ? (
-    <AppCheckout key={customer.id} owner={customer.id} />
+    <AppCheckout
+      key={customer.id + String(corporateQuoteId || "")}
+      owner={customer.id}
+      corporateQuoteId={corporateQuoteId}
+      linesOverride={linesOverride}
+    />
   ) : (
     <>
       <Notice message="Sign in to keep your app orders, payments and receipts together." />
@@ -75,10 +86,24 @@ export function PesapalCheckoutForm() {
   );
 }
 
-function AppCheckout({ owner }: { owner: string }) {
+function AppCheckout({
+  owner,
+  corporateQuoteId,
+  linesOverride,
+}: {
+  owner: string;
+  corporateQuoteId?: string;
+  linesOverride?: BagLine[];
+}) {
   const { customer } = useAuth();
   const { colors } = useTheme();
-  const lines = useBag((s) => s.lines);
+  const bagLines = useBag((s) => s.lines);
+  const lines = linesOverride || bagLines;
+  const screenActive = useScreenActive();
+  const checkoutItems = lines
+    .map((l) => l.selection.variation_id || l.product_id)
+    .filter(Boolean)
+    .join(",");
   const itemCount = lines.reduce((count, line) => count + line.quantity, 0);
   const settle = useBag((s) => s.settle);
   const [billing, setBilling] = useState({
@@ -90,6 +115,7 @@ function AppCheckout({ owner }: { owner: string }) {
     area: "",
     city: "Nairobi",
     postcode: "",
+    kraPin: "",
   });
   const [fulfilment, setFulfilment] = useState<"pickup" | "delivery">(
     "delivery",
@@ -126,7 +152,24 @@ function AppCheckout({ owner }: { owner: string }) {
   const [restored, setRestored] = useState(false);
   const [unresolvedCreation, setUnresolvedCreation] = useState(false);
   const recoveryFailed = useRef(false);
-  const key = `cakecity.app-checkout.${owner}`;
+  const key = `cakecity.app-checkout.${owner}${corporateQuoteId ? "." + corporateQuoteId : ""}`;
+  useEffect(() => {
+    if (!screenActive || order?.payment_state === "completed") return;
+    const save = () => {
+      if (AppState.currentState !== "active" && AppState.currentState !== null)
+        return;
+      void api
+        .put(
+          "/v1/account/checkout-activity",
+          { product_ids: checkoutItems.split(",").filter(Boolean).map(Number) },
+          { auth: true },
+        )
+        .catch(() => {});
+    };
+    save();
+    const timer = setInterval(save, 60000);
+    return () => clearInterval(timer);
+  }, [screenActive, checkoutItems, owner, order?.payment_state]);
   const fingerprint = JSON.stringify({
     lines,
     billing,
@@ -313,7 +356,8 @@ function AppCheckout({ owner }: { owner: string }) {
             delivery_location:
               fulfilment === "delivery" ? deliveryLocation : null,
             delivery_quote_id: deliveryQuote?.id || null,
-            coupon_code: coupon.trim() || null,
+            corporate_quote_id: corporateQuoteId || null,
+            coupon_code: corporateQuoteId ? null : coupon.trim() || null,
             billing: {
               first_name: valid.firstName,
               last_name: valid.lastName,
@@ -323,6 +367,7 @@ function AppCheckout({ owner }: { owner: string }) {
               area: valid.area,
               city: valid.city,
               postcode: valid.postcode,
+              kra_pin: valid.kraPin,
             },
             notes,
             recipient_name: recipient,
@@ -544,9 +589,15 @@ function AppCheckout({ owner }: { owner: string }) {
                   quantity: l.quantity,
                   ...l.selection,
                 })) as CheckoutInput["items"];
-                void settle(order.reference, items)
+                void (
+                  corporateQuoteId
+                    ? Promise.resolve()
+                    : settle(order.reference, items)
+                )
                   .then(() => deleteStorageItem(key))
-                  .then(() => router.replace("/(tabs)"));
+                  .then(() =>
+                    router.replace(corporateQuoteId ? "/corporate" : "/(tabs)"),
+                  );
               }}
             />
           </>
@@ -808,6 +859,18 @@ function AppCheckout({ owner }: { owner: string }) {
                 </View>
               ))}
             </View>
+            <Input
+              label="KRA PIN for your receipt (optional)"
+              value={billing.kraPin}
+              autoCapitalize="characters"
+              maxLength={11}
+              onChangeText={(value) =>
+                setBilling((b) => ({
+                  ...b,
+                  kraPin: value.toUpperCase().trim(),
+                }))
+              }
+            />
           </CheckoutSection>
           <CheckoutSection
             step="02"
@@ -981,16 +1044,20 @@ function AppCheckout({ owner }: { owner: string }) {
             />
             <Input label="Order notes" value={notes} onChangeText={setNotes} />
           </Disclosure>
-          <CheckoutCoupons
-            owner={owner}
-            subtotalMinor={Math.round(
-              lines.reduce((sum, line) => sum + line.price * line.quantity, 0) *
-                100,
-            )}
-            code={coupon}
-            onChange={setCoupon}
-            disabled={busy}
-          />
+          {!corporateQuoteId ? (
+            <CheckoutCoupons
+              owner={owner}
+              subtotalMinor={Math.round(
+                lines.reduce(
+                  (sum, line) => sum + line.price * line.quantity,
+                  0,
+                ) * 100,
+              )}
+              code={coupon}
+              onChange={setCoupon}
+              disabled={busy}
+            />
+          ) : null}
         </View>
         <View style={checkoutStyles.summaryColumn}>
           <CheckoutSection

@@ -34,6 +34,13 @@ module.exports = ({ config }) => {
       enableBackgroundPlayback: false,
     },
   ]);
+  plugins.push([
+    "expo-local-authentication",
+    {
+      faceIDPermission:
+        "Cake City uses Face ID to unlock your signed-in account on this phone.",
+    },
+  ]);
   plugins.push("expo-app-intents", "./plugins/with-cakecity-shortcuts");
   if (
     !plugins.some(
