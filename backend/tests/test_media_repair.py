@@ -12,3 +12,25 @@ def test_repair_rejects_html_error_pages_even_with_an_image_content_type():
     assert not valid_image(b"<html>Access denied</html>")
     assert valid_image(b"\x89PNG\r\n\x1a\nrest")
     assert valid_image(b"\x00\x00\x00\x20ftypavifrest")
+
+
+def test_only_copied_owner_images_are_public_and_upload_restores_listing(system):
+    from sqlalchemy.orm import Session
+    from app.commerce_models import AppMedia, AppProduct
+    s = system
+    source = "https://cakecity.co.ke/wp-content/uploads/test-missing.jpg"
+    with Session(s['engine']) as db:
+        db.add(AppProduct(id=31, slug="photo-hold-cake", enabled=True, price_minor=100000, allocation=2,
+                          payload={"id":31,"name":"Photo Hold Cake 2kg","type":"simple","images":[{"src":source}]}))
+        db.commit()
+    assert 31 not in {p['id'] for p in s['client'].get('/v1/catalogue/products?per_page=100').json()}
+    assert 31 not in {p['id'] for p in s['client'].get('/v1/diy/inventory').json()}
+    with Session(s['engine']) as db:
+        assert db.get(AppProduct,31).enabled
+        db.add(AppMedia(id="test-photo", source_url=source, mime="image/png", data=b"\x89PNG\r\n\x1a\nimage"))
+        db.commit()
+    assert 31 in {p['id'] for p in s['client'].get('/v1/catalogue/products?per_page=100').json()}
+    assert 31 in {p['id'] for p in s['client'].get('/v1/diy/inventory').json()}
+
+
+from test_pesapal import system

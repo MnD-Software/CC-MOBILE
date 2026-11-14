@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from .db import get_db
 from .commerce_models import AppProduct
 from .routes_club import member
-from .product_rules import whole_cake, has_image, cake_colour, cake_weight
+from .product_rules import whole_cake, has_image, image_available, media_index, cake_colour, cake_weight
 
 router = APIRouter(prefix="/v1/diy", tags=["inventory-diy"])
 
@@ -26,10 +26,10 @@ def available(product):
         product.payload.get('order_mode') == 'made_to_order' or product.allocation-product.reserved-product.sold > 0)
 
 
-def product_view(db, product):
+def product_view(db, product, copied=None):
     p=product.payload
     return {'id':product.id,'parent_id':product.parent_id,'name':p.get('name',product.slug),'slug':product.slug,
-            'price_minor':product.price_minor,'image':next(iter(p.get('images',[])),{}).get('src'),
+            'price_minor':product.price_minor,'image':next((image.get('src') for image in (p.get('images') or []) if image_available(image, copied)), None),
             'attributes':p.get('variation_attributes',[]),'type':p.get('type','simple'),'kind':kind(product), 'canvas_colour':cake_colour(product)}
 
 
@@ -38,15 +38,16 @@ def inventory(search: str = '', group: str = 'cake', db: Session = Depends(get_d
     if group not in {'cake','decor'} or len(search)>100: raise HTTPException(422,'Choose a valid inventory search.')
     query=select(AppProduct).where(AppProduct.parent_id.is_(None),AppProduct.enabled.is_(True))
     if search.strip(): query=query.where(AppProduct.payload['name'].as_string().icontains(search.strip(),autoescape=True))
+    copied=media_index(db)
     result=[]
     for p in db.scalars(query.order_by(AppProduct.price_minor,AppProduct.id)):
-        if kind(p)!=group or p.payload.get('payment_test') or not has_image(p): continue
+        if kind(p)!=group or p.payload.get('payment_test') or not has_image(p, copied): continue
         children=list(db.scalars(select(AppProduct).where(AppProduct.parent_id==p.id).order_by(AppProduct.price_minor))) if p.payload.get('type')=='variable' else []
         options=[c for c in children if available(c) and (cake_weight(c,p) or 0)>=2] if group=='cake' else [c for c in children if available(c)]
         if group=='cake' and not children and (cake_weight(p) or 0)<2: continue
         if p.payload.get('type')=='variable' and not options: continue
         if children and not options or not children and not available(p): continue
-        result.append({**product_view(db,p),'variants':[product_view(db,c) for c in options]})
+        result.append({**product_view(db,p,copied),'variants':[product_view(db,c,copied) for c in options]})
         if len(result)==40: break
     return result
 

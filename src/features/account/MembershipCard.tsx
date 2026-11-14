@@ -132,10 +132,10 @@ export function MembershipCard({
           minHeight: faceHeight,
           borderRadius: 26,
           shadowColor: "#21131B",
-          shadowOpacity: 0.2,
-          shadowRadius: 16,
-          shadowOffset: { width: 0, height: 9 },
-          elevation: 6,
+          shadowOpacity: 0.32,
+          shadowRadius: 22,
+          shadowOffset: { width: 0, height: 13 },
+          elevation: 10,
         }}
       >
         <Animated.View
@@ -170,6 +170,53 @@ export function MembershipCard({
             style={face}
           >
             <View
+              pointerEvents="none"
+              accessible={false}
+              style={StyleSheet.absoluteFill}
+            >
+              <LinearGradient
+                colors={[
+                  palette.ink === "#FFFFFF"
+                    ? "rgba(255,255,255,0.14)"
+                    : "rgba(255,255,255,0.50)",
+                  "rgba(255,255,255,0.05)",
+                  "rgba(0,0,0,0.12)",
+                ]}
+                locations={[0, 0.45, 1]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 0.8, y: 1 }}
+                style={StyleSheet.absoluteFill}
+              />
+              <View
+                style={{
+                  position: "absolute",
+                  width: 340,
+                  height: 340,
+                  right: -150,
+                  top: -210,
+                  borderRadius: 170,
+                  borderWidth: 28,
+                  borderColor: "rgba(255,255,255,0.18)",
+                  transform: [{ scaleX: 1.5 }, { rotate: "-25deg" }],
+                }}
+              />
+              <View
+                style={{
+                  position: "absolute",
+                  left: 2,
+                  right: 2,
+                  top: 2,
+                  bottom: 2,
+                  borderRadius: 24,
+                  borderWidth: 1,
+                  borderTopColor: "rgba(255,255,255,0.9)",
+                  borderLeftColor: "rgba(255,255,255,0.6)",
+                  borderRightColor: "rgba(0,0,0,0.10)",
+                  borderBottomColor: "rgba(0,0,0,0.22)",
+                }}
+              />
+            </View>
+            <View
               style={{
                 flexDirection: "row",
                 alignItems: "center",
@@ -186,11 +233,7 @@ export function MembershipCard({
               >
                 CAKE CITY CLUB
               </Text>
-              <Ionicons
-                name="diamond-outline"
-                size={25}
-                color={palette.accent}
-              />
+              <Ionicons name="diamond" size={25} color={palette.accent} />
             </View>
             <Text
               style={{ color: palette.ink, fontSize: 22, fontWeight: "700" }}
@@ -301,7 +344,9 @@ export function MembershipCard({
                   <LinearGradient
                     colors={[
                       "rgba(255,255,255,0)",
-                      "rgba(255,255,255,0.32)",
+                      palette.ink === "#FFFFFF"
+                        ? "rgba(255,255,255,0.25)"
+                        : "rgba(255,255,255,0.52)",
                       "rgba(255,255,255,0)",
                     ]}
                     start={{ x: 0, y: 0 }}

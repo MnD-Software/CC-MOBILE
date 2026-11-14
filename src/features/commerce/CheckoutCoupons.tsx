@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Pressable, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { z } from "zod";
@@ -8,7 +8,7 @@ import { Text } from "@/components/ui/Typography";
 import { Input } from "@/components/ui/Input";
 import { Disclosure } from "@/components/ui/Disclosure";
 import { useTheme } from "@/theme/ThemeProvider";
-import { useCouponWallet } from "./coupon-wallet";
+import { useCouponWallet, selectCouponCode } from "./coupon-wallet";
 import { money } from "./contracts";
 import { Skeleton } from "@/components/ui/Skeleton";
 
@@ -44,6 +44,8 @@ export function CheckoutCoupons({
 }) {
   const { colors } = useTheme();
   const wallet = useCouponWallet(owner);
+  const [showAll, setShowAll] = useState(false);
+  const [walletError, setWalletError] = useState("");
   const offers = useQuery({
     queryKey: ["checkout-coupons", owner, wallet.codes, subtotalMinor],
     enabled: wallet.ready,
@@ -60,10 +62,14 @@ export function CheckoutCoupons({
         ),
       ),
   });
-  const coupons = offers.data?.coupons ?? [];
+  const coupons = [...(offers.data?.coupons ?? [])].sort(
+    (a, b) =>
+      Number(b.code === code) - Number(a.code === code) ||
+      Number(b.eligible) - Number(a.eligible) ||
+      (b.saving_minor ?? b.amount_minor) - (a.saving_minor ?? a.amount_minor),
+  );
   const eligible = coupons.filter((coupon) => coupon.eligible);
   const selected = coupons.find((coupon) => coupon.code === code);
-  const recommended = selected?.eligible ? selected : eligible[0];
   const restoredSelection = useRef(false);
   useEffect(() => {
     if (!wallet.ready || !offers.isSuccess || restoredSelection.current) return;
@@ -92,7 +98,16 @@ export function CheckoutCoupons({
         disabled: disabled || !coupon.eligible,
       }}
       disabled={disabled || !coupon.eligible}
-      onPress={() => onChange(code === coupon.code ? "" : coupon.code)}
+      onPress={() => {
+        const next = code === coupon.code ? "" : coupon.code;
+        setWalletError("");
+        onChange(next);
+        void selectCouponCode(wallet.scope, next || null).catch(() =>
+          setWalletError(
+            "Your checkout selection is updated, but could not be saved for next time.",
+          ),
+        );
+      }}
       style={{
         flexDirection: "row",
         alignItems: "center",
@@ -101,7 +116,7 @@ export function CheckoutCoupons({
         paddingHorizontal: 12,
         borderRadius: 17,
         borderWidth: 1,
-        borderStyle: "dashed",
+        borderStyle: "solid",
         borderColor: code === coupon.code ? colors.brandStrong : colors.border,
         backgroundColor:
           code === coupon.code ? colors.brandLight : colors.surface,
@@ -152,18 +167,33 @@ export function CheckoutCoupons({
         </Text>
       </View>
       {offers.isPending ? <Skeleton height={64} radius={17} /> : null}
-      {recommended
-        ? checkbox(recommended)
-        : coupons[0]
-          ? checkbox(coupons[0])
-          : null}
-      {coupons.length > 1 ? (
-        <Disclosure title="Choose another coupon">
-          {coupons.filter((coupon) => coupon !== recommended).map(checkbox)}
-          <Text style={{ color: colors.muted, fontSize: 12 }}>
-            One coupon per order.
+      <Text style={{ color: colors.muted, fontSize: 12, lineHeight: 18 }}>
+        Tap a coupon to select it. Tap it again to remove it. Your confirmed
+        total updates when your checkout details are complete.
+      </Text>
+      {(showAll ? coupons : coupons.slice(0, 3)).map(checkbox)}
+      {coupons.length > 3 ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={
+            showAll ? "Show fewer coupons" : "Show all available coupons"
+          }
+          onPress={() => setShowAll((value) => !value)}
+          style={{ minHeight: 44, justifyContent: "center" }}
+        >
+          <Text
+            style={{
+              color: colors.brandStrong,
+              fontWeight: "700",
+              fontSize: 12,
+            }}
+          >
+            {showAll ? "Show fewer" : `See all ${coupons.length} coupons`}
           </Text>
-        </Disclosure>
+        </Pressable>
+      ) : null}
+      {walletError ? (
+        <Text style={{ color: colors.muted, fontSize: 12 }}>{walletError}</Text>
       ) : null}
       {offers.isError ? (
         <Text style={{ color: colors.muted, fontSize: 13 }}>

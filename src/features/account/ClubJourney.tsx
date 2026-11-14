@@ -80,7 +80,8 @@ export function ClubJourney({
         style={{
           flexDirection: "row",
           gap: 8,
-          padding: 16,
+          padding: 12,
+          paddingTop: 20,
           borderRadius: 24,
           backgroundColor: colors.surfaceRaised,
         }}
@@ -98,27 +99,68 @@ export function ClubJourney({
             >
               <View
                 style={{
-                  width: 38,
-                  height: 38,
-                  borderRadius: 15,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  backgroundColor: membershipPalette(step.name).gradient[0],
-                  borderWidth: chapter === step.name ? 2 : 0,
-                  borderColor: membershipPalette(step.name).accent,
+                  width: 44,
+                  height: 50,
+                  borderRadius: 19,
+                  backgroundColor: membershipPalette(step.name).accent,
+                  paddingBottom: 5,
+                  shadowColor: membershipPalette(step.name).accent,
+                  shadowOpacity: 0.32,
+                  shadowRadius: 6,
+                  shadowOffset: { width: 0, height: 5 },
+                  elevation: 5,
+                  transform: [{ translateY: chapter === step.name ? -4 : 0 }],
                 }}
               >
-                <Ionicons
-                  name={
-                    unlocked
-                      ? "checkmark"
-                      : index === journey.milestones.length - 1
-                        ? "diamond-outline"
-                        : "ribbon-outline"
-                  }
-                  color={membershipPalette(step.name).ink}
-                  size={20}
-                />
+                <LinearGradient
+                  colors={membershipPalette(step.name).gradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={{
+                    flex: 1,
+                    borderRadius: 18,
+                    borderWidth: chapter === step.name ? 2 : 1,
+                    borderColor: "rgba(255,255,255,0.85)",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    overflow: "hidden",
+                  }}
+                >
+                  <LinearGradient
+                    pointerEvents="none"
+                    colors={["rgba(255,255,255,0.65)", "rgba(255,255,255,0)"]}
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: 24,
+                    }}
+                  />
+                  <Ionicons
+                    name={
+                      index === journey.milestones.length - 1
+                        ? "diamond"
+                        : "ribbon"
+                    }
+                    color={membershipPalette(step.name).ink}
+                    size={27}
+                  />
+                  {unlocked ? (
+                    <View
+                      style={{
+                        position: "absolute",
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: colors.success,
+                        borderRadius: 7,
+                        padding: 1,
+                      }}
+                    >
+                      <Ionicons name="checkmark" color="#FFFFFF" size={11} />
+                    </View>
+                  ) : null}
+                </LinearGradient>
               </View>
               <Text
                 style={{

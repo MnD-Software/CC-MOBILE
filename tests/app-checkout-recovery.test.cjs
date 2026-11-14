@@ -81,10 +81,10 @@ function checkout(optionOverrides = {}) {
       if (path === "/v1/app-checkout/quote")
         return {
           id: randomUUID(),
-          total_minor: 250000,
+          total_minor: body.coupon_code ? 240000 : 250000,
           subtotal_minor: 250000,
           delivery_minor: 0,
-          discount_minor: 0,
+          discount_minor: body.coupon_code ? 10000 : 0,
           tax_minor: 0,
         };
       if (path === "/v1/app-orders") {
@@ -220,7 +220,27 @@ function checkout(optionOverrides = {}) {
       ...(node.props?.children ? notices(node.props.children) : []),
     ];
   }
-  return { calls, saved, flush, buttons, notices, starts: () => starts };
+  function findType(type, node = tree) {
+    if (!node || typeof node !== "object") return null;
+    if (Array.isArray(node)) {
+      for (const child of node) {
+        const found = findType(type, child);
+        if (found) return found;
+      }
+      return null;
+    }
+    if (node.type === type) return node;
+    return node.props?.children ? findType(type, node.props.children) : null;
+  }
+  return {
+    calls,
+    saved,
+    flush,
+    buttons,
+    notices,
+    findType,
+    starts: () => starts,
+  };
 }
 test("unconfigured fulfilment explains the disabled checkout beside its total", async () => {
   const c = checkout({ pickup_enabled: false });
@@ -312,4 +332,33 @@ test("lost app-order response locks new checkout and recovery reuses the origina
     1,
   );
   assert.match(c.saved.get("cakecity.app-checkout.buyer"), /APP-RECOVERED/);
+});
+
+test("selecting and removing a checkout coupon refreshes the confirmed total without an Apply button or payment", async () => {
+  const c = checkout({ pickup_enabled: true, delivery_zones: [] });
+  await c.flush();
+  c.buttons()
+    .find((b) => b.props.label === "Review confirmed total")
+    .props.onPress();
+  await c.flush();
+  assert.equal(
+    c.calls.filter((x) => x.path === "/v1/app-checkout/quote").length,
+    1,
+  );
+  const coupons = c.findType("Coupons");
+  assert.ok(coupons);
+  coupons.props.onChange("welcome-buyer");
+  await c.flush();
+  let quotes = c.calls.filter((x) => x.path === "/v1/app-checkout/quote");
+  assert.equal(quotes.length, 2);
+  assert.equal(quotes[1].body.coupon_code, "welcome-buyer");
+  assert.ok(c.buttons().some((b) => b.props.label === "Pay KES 2400"));
+  c.findType("Coupons").props.onChange("");
+  await c.flush();
+  quotes = c.calls.filter((x) => x.path === "/v1/app-checkout/quote");
+  assert.equal(quotes.length, 3);
+  assert.equal(quotes[2].body.coupon_code, null);
+  assert.ok(c.buttons().some((b) => b.props.label === "Pay KES 2500"));
+  assert.equal(c.starts(), 0);
+  assert.equal(c.calls.filter((x) => x.path === "/v1/app-orders").length, 0);
 });

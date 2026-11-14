@@ -12,6 +12,9 @@ export function appMedia(source: string) {
       (url.hostname === "cc-mobile-1.onrender.com" ||
         url.hostname === "127.0.0.1" ||
         url.hostname === "localhost" ||
+        /^192\.168\.|^10\.|^172\.(?:1[6-9]|2[0-9]|3[01])\./.test(
+          url.hostname,
+        ) ||
         url.hostname.endsWith(".on.expo.app") ||
         url.hostname.endsWith(".exp.direct"))
     ) {

@@ -26,6 +26,9 @@ test("cached image URLs follow the current preview tunnel without changing unrel
   const image = context.exports.appMedia;
   for (const host of [
     "http://127.0.0.1:8010",
+    "http://192.168.0.70:8010",
+    "http://10.0.0.2:8010",
+    "http://172.16.0.2:8010",
     "https://old.on.expo.app/__cakecity-review",
     "https://cc-mobile-1.onrender.com",
   ])

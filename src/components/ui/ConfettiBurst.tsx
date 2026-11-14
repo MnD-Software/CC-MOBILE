@@ -1,16 +1,16 @@
 import { memo } from "react";
 import { Animated, StyleSheet, View, useWindowDimensions } from "react-native";
 
-const pieces = Array.from({ length: 152 }, (_, index) => ({
+const pieces = Array.from({ length: 240 }, (_, index) => ({
   index,
   side: index % 2,
-  delay: Math.floor(index / 34) * 0.065 + (index % 8) * 0.006,
+  delay: Math.floor(index / 60) * 0.09 + (index % 8) * 0.006,
   energy: 0.58 + ((index * 17) % 35) / 100,
   color: ["#EC008C", "#EAC46B", "#FFF1C2", "#51C4DC", "#F58FC5", "#BE87C5"][
     index % 6
   ],
 }));
-const times = Array.from({ length: 13 }, (_, i) => i / 12);
+const times = Array.from({ length: 25 }, (_, i) => i / 24);
 
 /** Two cannons, ballistic arcs, fluttering ribbons; one native-driven clock. */
 export const ConfettiBurst = memo(function ConfettiBurst({
@@ -30,7 +30,7 @@ export const ConfettiBurst = memo(function ConfettiBurst({
     >
       {pieces.map((piece) => {
         const time = motion.interpolate({
-          inputRange: [piece.delay, 0.76 + piece.delay],
+          inputRange: [piece.delay, 0.66 + piece.delay],
           outputRange: [0, 1],
           extrapolate: "clamp",
         });
@@ -52,11 +52,18 @@ export const ConfettiBurst = memo(function ConfettiBurst({
                   ? -24
                   : height * (0.62 + piece.side * 0.08),
               width: piece.index % 4 === 0 ? 6 : 5 + (piece.index % 5),
-              height: piece.index % 4 === 0 ? 6 : 11 + (piece.index % 9),
-              borderRadius: piece.index % 4 === 0 ? 4 : 1,
+              height:
+                piece.index % 4 === 0
+                  ? 6
+                  : piece.index % 9 === 0
+                    ? 29
+                    : 10 + (piece.index % 9),
+              borderRadius: piece.index % 4 === 0 ? 4 : 2,
+              borderWidth: 0.5,
+              borderColor: "rgba(255,255,255,0.45)",
               backgroundColor: piece.color,
               opacity: time.interpolate({
-                inputRange: [0, 0.025, 0.7, 1],
+                inputRange: [0, 0.025, 0.86, 1],
                 outputRange: [0, 1, 1, 0],
               }),
               transform: [
@@ -68,7 +75,9 @@ export const ConfettiBurst = memo(function ConfettiBurst({
                         (piece.index % 4 === 0 ? 0.18 : piece.side ? -1 : 1) *
                           velocity *
                           (1 - Math.exp(-2.7 * t)) +
-                        Math.sin(t * 11 + piece.index) * 14 * t,
+                        Math.sin(t * (8 + (piece.index % 5)) + piece.index) *
+                          (18 + (piece.index % 14)) *
+                          Math.sin(Math.PI * t),
                     ),
                   }),
                 },

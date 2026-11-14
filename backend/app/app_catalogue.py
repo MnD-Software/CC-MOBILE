@@ -54,8 +54,12 @@ def own_media(value):
     return value
 
 
-def product_view(row):
-    value = own_media(row.payload)
+def product_view(row, copied=None):
+    from .product_rules import image_available
+    payload = row.payload
+    if copied is not None:
+        payload = {**payload, 'images': [image for image in (payload.get('images') or []) if image_available(image, copied)]}
+    value = own_media(payload)
     if row.parent_id is not None:
         value["parent"] = row.parent_id
     # Imported product availability is not permission to spend shared website stock.
@@ -98,7 +102,8 @@ def is_cookie(row):
 
 
 def products(db, params):
-    from .product_rules import has_image
+    from .product_rules import has_image, media_index
+    copied = media_index(db)
     query = select(AppProduct)
     if params.get("slug"):
         query = query.where(AppProduct.slug == params["slug"])
@@ -107,7 +112,7 @@ def products(db, params):
         query = query.where(AppProduct.id.in_(ids))
     query = query.where(AppProduct.parent_id.is_not(None) if params.get("type") == "variation" else AppProduct.parent_id.is_(None))
     rows = [r for r in db.scalars(query) if not r.payload.get("payment_test") and r.enabled
-            and has_image(db.get(AppProduct, r.parent_id) if r.parent_id else r)]
+            and has_image(db.get(AppProduct, r.parent_id) if r.parent_id else r, copied)]
     if str(params.get("exclude_accessories", "")).lower() == "true":
         rows = [row for row in rows if not is_accessory(row)]
     if str(params.get("accessories_only", "")).lower() == "true":
@@ -150,7 +155,7 @@ def products(db, params):
         key = lambda r: r.id
     rows.sort(key=key, reverse=str(params.get("order", "asc")).lower() == "desc")
     page, per_page = int(params.get("page", 1)), int(params.get("per_page", 24))
-    return [product_view(r) for r in rows[(page-1)*per_page:page*per_page]], (len(rows)+per_page-1)//per_page
+    return [product_view(r, copied) for r in rows[(page-1)*per_page:page*per_page]], (len(rows)+per_page-1)//per_page
 
 
 @router.get("/v1/app-media/source")
@@ -171,10 +176,11 @@ def media(identity: str, db: Session = Depends(get_db)):
 
 @router.get("/v1/catalogue/categories")
 def categories(db: Session = Depends(get_db)):
-    from .product_rules import has_image
+    from .product_rules import has_image, media_index
+    copied = media_index(db)
     found = {}
     for row in db.scalars(select(AppProduct).where(AppProduct.parent_id.is_(None))):
-        if not row.enabled or not has_image(row): continue
+        if not row.enabled or not has_image(row, copied): continue
         for category in row.payload.get("categories", []):
             found[category["id"]] = {**category, "count": found.get(category["id"], {}).get("count", 0) + 1}
     return sorted(found.values(), key=lambda item: item.get("name", ""))

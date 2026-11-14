@@ -1,14 +1,37 @@
 """Public merchandising rules; historical orders and staff inventory stay intact."""
 import re
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, parse_qs
 
 
-def has_image(product):
+def media_index(db):
+    from sqlalchemy import select, func
+    from .commerce_models import AppMedia
+    values = set()
+    for identity, source in db.execute(select(AppMedia.id, AppMedia.source_url).where(func.length(AppMedia.data) > 0)):
+        values.add(source)
+        values.add('/v1/app-media/' + identity)
+    return values
+
+
+def image_available(image, copied=None):
+    if not isinstance(image, dict) or not isinstance(image.get('src'), str): return False
+    source = image['src']
+    parsed = urlsplit(source)
+    if not (source.startswith('/v1/') or parsed.scheme == 'https'): return False
+    if re.search(r'placeholder|woocommerce-placeholder|no[-_]image', source, re.I): return False
+    if copied is None: return True
+    if parsed.path.endswith('/v1/app-media/source'):
+        return parse_qs(parsed.query).get('url', [''])[0] in copied
+    if '/v1/app-media/' in parsed.path:
+        return parsed.path[parsed.path.index('/v1/app-media/'):] in copied
+    if parsed.hostname in {'cakecity.co.ke', 'www.cakecity.co.ke', 'i0.wp.com', 'i1.wp.com', 'i2.wp.com'}:
+        return source in copied
+    return True
+
+
+def has_image(product, copied=None):
     if product is None: return False
-    return any(isinstance(image, dict) and isinstance(image.get('src'), str)
-               and (image['src'].startswith('/v1/') or urlsplit(image['src']).scheme == 'https')
-               and not re.search(r'placeholder|woocommerce-placeholder|no[-_]image', image['src'], re.I)
-               for image in (product.payload.get('images') or []) if image)
+    return any(image_available(image, copied) for image in (product.payload.get('images') or []))
 
 
 def whole_cake(product):

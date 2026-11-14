@@ -1,3 +1,6 @@
+import { useEffect, useState } from "react";
+import { useScreenActive } from "@/design/useScreenActive";
+import { clubWelcomeCopy } from "./club-welcome-copy";
 import { StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -5,6 +8,15 @@ import { Text } from "@/components/ui/Typography";
 import { tokens } from "@/theme/tokens";
 
 export function ClubWelcome({ name }: { name?: string }) {
+  const active = useScreenActive();
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    if (!active) return;
+    setNow(new Date());
+    const timer = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(timer);
+  }, [active]);
+  const copy = clubWelcomeCopy(now);
   return (
     <View style={styles.shadow}>
       <LinearGradient
@@ -15,22 +27,20 @@ export function ClubWelcome({ name }: { name?: string }) {
       >
         <View pointerEvents="none" style={styles.orbit} />
         <View style={styles.top}>
-          <Text style={styles.eyebrow}>THE SWEETER SIDE OF CAKE CITY</Text>
+          <Text style={styles.eyebrow}>
+            {name?.trim()
+              ? `A LITTLE JOY, ${name.trim().toUpperCase()}`
+              : "YOUR CAKE CITY CLUB"}
+          </Text>
           <View style={styles.mark}>
             <Ionicons name="sparkles-outline" color="#FFE1A8" size={20} />
           </View>
         </View>
-        <Text style={styles.greeting}>
-          {name?.trim()
-            ? `${name.trim()}'s sweeter chapter`
-            : "Your sweeter chapter"}
-        </Text>
-        <Text style={styles.copy}>
-          Your celebrations. A little more rewarding.
-        </Text>
+        <Text style={styles.greeting}>{copy.title}</Text>
+        <Text style={styles.copy}>{copy.message}</Text>
         <View style={styles.footer}>
           <View style={styles.dot} />
-          <Text style={styles.footerText}>Made for your next celebration</Text>
+          <Text style={styles.footerText}>{copy.label}</Text>
         </View>
       </LinearGradient>
     </View>
@@ -38,7 +48,7 @@ export function ClubWelcome({ name }: { name?: string }) {
 }
 const styles = StyleSheet.create({
   shadow: {
-    marginTop: 8,
+    marginTop: 0,
     marginBottom: 8,
     borderRadius: 30,
     ...tokens.shadow.floating,

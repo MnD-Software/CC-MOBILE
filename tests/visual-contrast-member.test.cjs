@@ -117,3 +117,20 @@ test("key text pairs keep contrast under approximate warm colour shifts", () => 
     }
   }
 });
+
+test("personal Club tier backgrounds keep body text readable in both themes", () => {
+  const {
+    membershipSurface,
+  } = require("../src/features/account/member-card.ts");
+  for (const colors of [tokens.color, darkColors]) {
+    for (const tier of ["Bronze", "Silver", "Gold", "Diamond", "Platinum"]) {
+      const background = membershipSurface(tier, colors.background);
+      assert.notEqual(background, colors.background);
+      for (const foreground of [colors.ink, colors.muted])
+        assert.ok(
+          contrast(foreground, background) >= 4.5,
+          `${tier}: ${foreground} on ${background}`,
+        );
+    }
+  }
+});

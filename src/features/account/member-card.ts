@@ -77,3 +77,17 @@ export function membershipPalette(tier: string) {
     membershipPalettes.Silver
   );
 }
+
+/** Subtle tier tint preserves the current theme's readable foregrounds, including Platinum. */
+export function membershipSurface(tier: string, background: string) {
+  const tint = membershipPalette(tier).gradient[1];
+  const blend = [1, 3, 5].map((i) =>
+    Math.round(
+      parseInt(background.slice(i, i + 2), 16) * 0.94 +
+        parseInt(tint.slice(i, i + 2), 16) * 0.06,
+    )
+      .toString(16)
+      .padStart(2, "0"),
+  );
+  return "#" + blend.join("");
+}

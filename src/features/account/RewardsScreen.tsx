@@ -1,3 +1,4 @@
+import { ClubAppearanceControl, useClubPageColour } from "./ClubAppearance";
 import { HeaderActions } from "@/components/storefront/HeaderActions";
 import { ClubMembership } from "./ClubMembership";
 import { PromotionsShelf } from "@/features/commerce/PromotionsShelf";
@@ -37,6 +38,7 @@ import { BrandLogo } from "@/components/BrandLogo";
 import { useScreenActive } from "@/design/useScreenActive";
 
 export function RewardsScreen() {
+  const clubBackground = useClubPageColour();
   const { milestone } = useLocalSearchParams<{ milestone?: string }>();
   const scrollRef = useRef<ScrollViewInstance>(null);
   const focused = useScreenActive();
@@ -94,6 +96,7 @@ export function RewardsScreen() {
 
   return (
     <Screen
+      backgroundColor={clubBackground}
       scrollRef={scrollRef}
       header={
         <CommerceBrowseHeader
@@ -108,6 +111,7 @@ export function RewardsScreen() {
     >
       <ClubWelcome name={customer?.first_name} />
       <PromotionsShelf />
+      <ClubAppearanceControl />
       <View onLayout={(event) => setMemberY(event.nativeEvent.layout.y)}>
         <ClubMembership
           key={wallet.scope}

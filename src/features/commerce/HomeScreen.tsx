@@ -2,7 +2,7 @@ import { useReducedMotion } from "@/design/useReducedMotion";
 import { useScreenActive } from "@/design/useScreenActive";
 import { HomeWelcome } from "./HomeWelcome";
 import { PromotionsShelf } from "./PromotionsShelf";
-import { WelcomeCoupon } from "@/features/account/WelcomeCoupon";
+import { useHomeOrders } from "./useHomeOrders";
 import { appMedia } from "./app-media";
 import { HeaderActions } from "@/components/storefront/HeaderActions";
 import { ActiveOrderCard } from "./ActiveOrderCard";
@@ -159,6 +159,8 @@ export function HomeScreen() {
   const styles = useThemedStyles(baseStyles);
   const { colors } = useTheme();
   const { customer } = useAuth();
+  const homeOrders = useHomeOrders();
+  const hasHomeOrders = !!homeOrders.data?.data.length;
   const ownerKey = customer?.id ? String(customer.id) : null;
   const recentSlugs = usePreferences((state) =>
     ownerKey
@@ -284,7 +286,7 @@ export function HomeScreen() {
       .map((product) => product.images[0]?.src)
       .filter((url): url is string => Boolean(url));
     if (urls.length)
-      void Image.prefetch(urls, "memory-disk").catch(() => false);
+      void Image.prefetch(urls.map(appMedia), "memory-disk").catch(() => false);
   }, [dealsAndSteals]);
 
   useEffect(() => {
@@ -293,7 +295,7 @@ export function HomeScreen() {
       .map((product) => product.images[0]?.src)
       .filter((url): url is string => Boolean(url));
     if (urls.length)
-      void Image.prefetch(urls, "memory-disk").catch(() => false);
+      void Image.prefetch(urls.map(appMedia), "memory-disk").catch(() => false);
   }, [signatureProducts]);
 
   useEffect(() => {
@@ -333,7 +335,6 @@ export function HomeScreen() {
         </CommerceBrowseHeader>
       }
     >
-      <WelcomeCoupon />
       <ScrollView
         contentContainerStyle={[
           styles.content,
@@ -342,23 +343,24 @@ export function HomeScreen() {
         keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
-        stickyHeaderIndices={[0]}
+        stickyHeaderIndices={hasHomeOrders ? [0] : []}
       >
-        <View
-          collapsable={false}
-          style={{
-            backgroundColor: colors.background,
-            // Cover the page gutters too, so scrolling rails cannot show
-            // beside the rounded card while this header is pinned.
-            marginHorizontal: -16,
-            paddingHorizontal: 16,
-            overflow: "hidden",
-          }}
-        >
-          <ActiveOrderCard compact />
-        </View>
+        {hasHomeOrders ? (
+          <View
+            collapsable={false}
+            style={{
+              backgroundColor: colors.background,
+              // Cover the page gutters too, so scrolling rails cannot show
+              // beside the rounded card while this header is pinned.
+              marginHorizontal: -16,
+              paddingHorizontal: 16,
+              overflow: "hidden",
+            }}
+          >
+            <ActiveOrderCard compact />
+          </View>
+        ) : null}
         <HomeWelcome />
-        <PromotionsShelf />
         {catalogue.isPending ? (
           <HomeSkeleton cardWidth={collectionCardWidth} />
         ) : catalogue.isError ? (
@@ -380,6 +382,8 @@ export function HomeScreen() {
                 <EmptyDealSlide onPress={openShop} width={contentWidth} />
               ) : (
                 <FlatList
+                  style={{ flexGrow: 0, minHeight: 260 }}
+                  initialNumToRender={2}
                   ref={carouselRef}
                   onTouchStart={() => {
                     touchingCarousel.current = true;
@@ -527,6 +531,7 @@ export function HomeScreen() {
           </>
         )}
       </ScrollView>
+      <PromotionsShelf floating />
     </Screen>
   );
 }
@@ -823,9 +828,9 @@ const baseStyles = StyleSheet.create({
     maxWidth: 600,
     alignSelf: "center",
     paddingHorizontal: 16,
-    paddingTop: 14,
+    paddingTop: 4,
     paddingBottom: 128,
-    gap: 30,
+    gap: 20,
     overflow: "hidden",
   },
   brandBlock: {
@@ -845,7 +850,7 @@ const baseStyles = StyleSheet.create({
   },
   carouselSection: { gap: 4 },
   dealHero: {
-    minHeight: 238,
+    minHeight: 260,
     justifyContent: "flex-end",
     padding: 18,
     overflow: "hidden",

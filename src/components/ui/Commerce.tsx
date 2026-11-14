@@ -293,6 +293,7 @@ export function Screen({
   scroll = true,
   contentStyle,
   scrollRef,
+  backgroundColor,
 }: {
   title?: string;
   subtitle?: string;
@@ -302,12 +303,16 @@ export function Screen({
   header?: ReactNode;
   scroll?: boolean;
   contentStyle?: StyleProp<ViewStyle>;
+  backgroundColor?: string;
   scrollRef?: import("react").Ref<import("react-native").ScrollViewInstance>;
 }) {
   const insets = useSafeAreaInsets();
   const themed = useThemedStyles(ui);
   return (
-    <SafeAreaView edges={["top", "left", "right"]} style={themed.page}>
+    <SafeAreaView
+      edges={["top", "left", "right"]}
+      style={[themed.page, backgroundColor ? { backgroundColor } : undefined]}
+    >
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : undefined}

@@ -292,8 +292,21 @@ function AppCheckout({
       alive.current = false;
     };
   }, [owner]);
+  const latestFingerprint = useRef(fingerprint);
+  latestFingerprint.current = fingerprint;
+  const previousCoupon = useRef(coupon);
   useEffect(() => {
+    const changed = previousCoupon.current !== coupon;
+    previousCoupon.current = coupon;
+    const updateTotal =
+      changed &&
+      !!quote &&
+      !order &&
+      !flight.current &&
+      restored &&
+      !unresolvedCreation;
     setQuote(null);
+    if (updateTotal) void review();
   }, [fingerprint]);
   async function verify() {
     if (!order || flight.current) return;
@@ -376,7 +389,7 @@ function AppCheckout({
           { auth: true },
         ),
       );
-      if (!alive.current) return;
+      if (!alive.current || latestFingerprint.current !== fingerprint) return;
       setQuote(result);
       void saveBillingProfile(owner, valid, requirements).catch(() => {});
       attempt.current = { quote_id: result.id, key: randomUUID(), fingerprint };

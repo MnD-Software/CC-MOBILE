@@ -8,6 +8,9 @@ function screen(coupons, code = "") {
   const jsx = (type, props) => ({ type, props });
   const modules = {
     react: {
+      useState(value) {
+        return [value, () => {}];
+      },
       useEffect() {},
       useRef(value) {
         return { current: value };
@@ -24,7 +27,10 @@ function screen(coupons, code = "") {
     "@/components/ui/Input": { Input: "Input" },
     "@/components/ui/Disclosure": { Disclosure: "Disclosure" },
     "@/theme/ThemeProvider": { useTheme: () => ({ colors: {} }) },
-    "./coupon-wallet": { useCouponWallet: () => ({ codes: [], ready: true }) },
+    "./coupon-wallet": {
+      selectCouponCode: async () => {},
+      useCouponWallet: () => ({ codes: [], ready: true }),
+    },
     "./contracts": { money: (value) => `KSh ${value}` },
   };
   const context = {

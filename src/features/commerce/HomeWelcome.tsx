@@ -1,3 +1,6 @@
+import { useState } from "react";
+import { BottomSheet } from "@/components/ui/BottomSheet";
+import { ClubAppearanceControl } from "@/features/account/ClubAppearance";
 import { Pressable, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
@@ -7,29 +10,61 @@ import { Text } from "@/components/ui/Typography";
 import { useTheme } from "@/theme/ThemeProvider";
 
 export function HomeWelcome() {
+  const [appearanceOpen, setAppearanceOpen] = useState(false);
   const { customer } = useAuth();
   const { colors } = useTheme();
   const hour = (new Date().getUTCHours() + 3) % 24;
   const greeting =
     hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
   return (
-    <View style={{ gap: 8, paddingVertical: 5 }}>
-      <View style={{ gap: 4 }}>
-        <Text
-          style={{
-            color: colors.ink,
-            fontSize: 24,
-            fontWeight: "800",
-            letterSpacing: -0.7,
-          }}
-        >
-          {greeting}
-          {customer?.first_name ? `, ${customer.first_name}` : ""}.
-        </Text>
-        <Text style={{ color: colors.muted, fontSize: 13 }}>
-          A little happiness, baked around you.
-        </Text>
+    <View style={{ gap: 10, paddingTop: 0, paddingBottom: 2 }}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+        <View style={{ gap: 4, flex: 1, paddingRight: 46 }}>
+          <Text
+            style={{
+              color: colors.ink,
+              fontSize: 24,
+              fontWeight: "800",
+              letterSpacing: -0.7,
+            }}
+          >
+            {greeting}
+            {customer?.first_name ? `, ${customer.first_name}` : ""}.
+          </Text>
+          <Text style={{ color: colors.muted, fontSize: 13 }}>
+            A little happiness, baked around you.
+          </Text>
+        </View>
       </View>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Personalise your Club colours"
+        onPress={() => setAppearanceOpen(true)}
+        style={{
+          position: "absolute",
+          right: 0,
+          top: 0,
+          width: 44,
+          height: 44,
+          alignItems: "center",
+          justifyContent: "center",
+          borderRadius: 16,
+          backgroundColor: colors.surfaceRaised,
+        }}
+      >
+        <Ionicons
+          name="color-palette-outline"
+          size={22}
+          color={colors.brandStrong}
+        />
+      </Pressable>
+      <BottomSheet
+        visible={appearanceOpen}
+        title="Make Club your own"
+        onClose={() => setAppearanceOpen(false)}
+      >
+        <ClubAppearanceControl />
+      </BottomSheet>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Open the cake playground"

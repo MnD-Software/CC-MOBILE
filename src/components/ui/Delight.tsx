@@ -1,5 +1,7 @@
+import { ConfettiBurst } from "./ConfettiBurst";
+import { useConfettiLayer } from "./ConfettiLayer";
 import { useEffect, useRef, useState } from "react";
-import { Animated, AppState, View, type ViewProps } from "react-native";
+import { Animated, AppState, Easing, View, type ViewProps } from "react-native";
 import { useScreenActive as useIsFocused } from "@/design/useScreenActive";
 import { useReducedMotion } from "@/design";
 import { Text } from "./Typography";
@@ -100,6 +102,7 @@ export function AnimatedNumber({
 
 /** Short, bounded confetti only after a confirmed successful action. */
 export function SuccessBurst({ trigger }: { trigger: number }) {
+  const register = useConfettiLayer();
   const reduce = useReducedMotion();
   const focused = useIsFocused();
   const [visible, setVisible] = useState(false);
@@ -119,7 +122,9 @@ export function SuccessBurst({ trigger }: { trigger: number }) {
     progress.setValue(0);
     const animation = Animated.timing(progress, {
       toValue: 1,
-      duration: 650,
+      duration: 6200,
+      easing: Easing.linear,
+      isInteraction: false,
       useNativeDriver: true,
     });
     animation.start(({ finished }) => {
@@ -127,51 +132,28 @@ export function SuccessBurst({ trigger }: { trigger: number }) {
     });
     return () => {
       animation.stop();
+      setVisible(false);
     };
   }, [trigger, reduce, focused, progress]);
-  if (!visible || reduce || !focused) return null;
+  useEffect(() => {
+    if (!visible || reduce || !focused || !register) return;
+    return register(progress);
+  }, [visible, reduce, focused, register, progress]);
+  if (!visible || reduce || !focused || register) return null;
   return (
-    <View
-      pointerEvents="none"
-      accessible={false}
-      style={{ height: 64, alignItems: "center", overflow: "hidden" }}
-    >
-      {Array.from({ length: 12 }, (_, index) => (
-        <Animated.View
-          key={index}
-          style={{
-            position: "absolute",
-            width: 7,
-            height: 10,
-            borderRadius: 2,
-            backgroundColor: ["#EC008C", "#B68527", "#1685A8"][index % 3],
-            opacity: progress.interpolate({
-              inputRange: [0, 0.7, 1],
-              outputRange: [1, 1, 0],
-            }),
-            transform: [
-              {
-                translateX: progress.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0, (index - 5.5) * 23],
-                }),
-              },
-              {
-                translateY: progress.interpolate({
-                  inputRange: [0, 0.4, 1],
-                  outputRange: [42, index % 2 ? 0 : 12, 65],
-                }),
-              },
-              {
-                rotate: progress.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: ["0deg", `${index % 2 ? 180 : -160}deg`],
-                }),
-              },
-            ],
-          }}
-        />
-      ))}
+    <View pointerEvents="none" style={{ height: 0, zIndex: 100 }}>
+      <View
+        pointerEvents="none"
+        style={{
+          position: "absolute",
+          top: -200,
+          left: -16,
+          right: -16,
+          height: 600,
+        }}
+      >
+        <ConfettiBurst motion={progress} testID="reward-success-confetti" />
+      </View>
     </View>
   );
 }

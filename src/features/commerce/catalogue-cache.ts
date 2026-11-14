@@ -3,7 +3,7 @@ import { z } from "zod";
 import { recordPerformanceMetric } from "@/observability/commerce-events";
 import { storeProductSchema, type StoreProduct } from "./contracts";
 
-const CATALOGUE_CACHE_KEY = "cakecity.live-catalogue.v1";
+const CATALOGUE_CACHE_KEY = "cakecity.live-catalogue.v2";
 const MAX_PRODUCTS = 72;
 const MAX_CACHE_AGE_MS = 24 * 60 * 60_000;
 
