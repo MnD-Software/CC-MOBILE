@@ -708,7 +708,7 @@ export function InventoryStudio() {
                   />
                   <TextInput
                     accessibilityLabel="Search flavours, cake styles or themes"
-                    placeholder="Find your favourite flavour?"
+                    placeholder="Find your favourite flavour..."
                     placeholderTextColor={colors.muted}
                     value={search}
                     onChangeText={setSearch}
@@ -1081,7 +1081,7 @@ export function InventoryStudio() {
                             paddingBottom: 12,
                           }}
                         >
-                          Your saved design preview ? final finish confirmed by
+                          Your saved design preview - final finish confirmed by
                           our kitchen
                         </Text>
                       </View>
