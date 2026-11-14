@@ -1,7 +1,8 @@
+import { publicEntryRoute } from "./route-access";
 import { rememberCustomerRoute } from "./post-login";
 import { useEffect, type PropsWithChildren } from "react";
 import { ActivityIndicator, View } from "react-native";
-import { router, usePathname } from "expo-router";
+import { router, usePathname, useRootNavigationState } from "expo-router";
 import { useAuth } from "./AuthProvider";
 import { isStaffRole, staffRouteAllowed } from "./staff-routing";
 import { useTheme } from "@/theme/ThemeProvider";
@@ -11,23 +12,16 @@ export function StaffRouteBoundary({ children }: PropsWithChildren) {
   const { customer, restoring } = useAuth();
   const { colors } = useTheme();
   const path = usePathname();
-  const anonymousBlocked =
-    !customer &&
-    ![
-      "/sign-in",
-      "/register",
-      "/forgot-password",
-      "/reset-password",
-      "/rider-login",
-    ].includes(path) &&
-    !path.startsWith("/page/");
+  const navigation = useRootNavigationState();
+  const anonymousBlocked = !customer && !publicEntryRoute(path);
   const blocked =
     anonymousBlocked ||
     (!!customer &&
+      !publicEntryRoute(path) &&
       isStaffRole(customer.role) &&
       !staffRouteAllowed(customer.role, path));
   useEffect(() => {
-    if (!restoring && blocked) {
+    if (navigation?.key && !restoring && blocked) {
       if (!customer) rememberCustomerRoute(path);
       router.replace(
         !customer
@@ -37,7 +31,7 @@ export function StaffRouteBoundary({ children }: PropsWithChildren) {
             : "/workspace",
       );
     }
-  }, [restoring, blocked, path, customer?.role]);
+  }, [navigation?.key, restoring, blocked, path, customer?.role]);
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <View

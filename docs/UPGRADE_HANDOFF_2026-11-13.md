@@ -129,3 +129,6 @@ Restart the existing Expo terminal with Ctrl+C, then `npm run start:go:tunnel`. 
 
 
 Latest continuation: [UX, marketing, call centre and corporate handoff - 14 November 2026](UX_OPERATIONS_2026-11-14.md).
+
+
+Login/account-switch stability and New sketch follow-up: [AUTH_DIY_STABILITY_2026-11-14.md](AUTH_DIY_STABILITY_2026-11-14.md).

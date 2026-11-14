@@ -19,6 +19,12 @@ export function BiometricGate({ children }: PropsWithChildren) {
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
   const away = useRef(0);
+  const currentOwner = useRef(customer?.id);
+  currentOwner.current = customer?.id;
+  useEffect(() => {
+    setBusy(false);
+    away.current = 0;
+  }, [customer?.id]);
   useEffect(() => {
     setLocked(!customer || !recentlyUnlocked(customer.id));
     setError("");
@@ -76,12 +82,24 @@ export function BiometricGate({ children }: PropsWithChildren) {
             loading={busy}
             disabled={!pref.ready || busy}
             onPress={() => {
+              const owner = customer!.id;
               setBusy(true);
               setError("");
-              void unlockDevice(customer!.id)
-                .then(() => setLocked(false))
-                .catch((e) => setError(e.message))
-                .finally(() => setBusy(false));
+              void unlockDevice(owner)
+                .then(() => {
+                  if (currentOwner.current === owner) setLocked(false);
+                })
+                .catch((e) => {
+                  if (currentOwner.current === owner)
+                    setError(
+                      e instanceof Error
+                        ? e.message
+                        : "Unlock could not be completed.",
+                    );
+                })
+                .finally(() => {
+                  if (currentOwner.current === owner) setBusy(false);
+                });
             }}
           />
           <Button
@@ -89,7 +107,13 @@ export function BiometricGate({ children }: PropsWithChildren) {
             label="Sign in with account password"
             onPress={() => {
               const owner = customer!.id;
-              void logout().then(() => disableBiometricUnlock(owner));
+              void logout()
+                .then(() => disableBiometricUnlock(owner))
+                .catch(() => {
+                  setError(
+                    "Your device could not finish signing out. Please retry.",
+                  );
+                });
             }}
           />
         </View>

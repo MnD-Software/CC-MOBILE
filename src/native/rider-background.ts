@@ -47,6 +47,7 @@ export async function backgroundTrip() {
 export async function stopBackgroundSharing(expectedToken?: string) {
   if (Platform.OS === "web") return;
   const grant = await read();
+  if (!grant) return;
   if (expectedToken && grant?.token !== expectedToken) return;
   await SecureStore.deleteItemAsync(KEY);
   if (await Location.hasStartedLocationUpdatesAsync(TASK))

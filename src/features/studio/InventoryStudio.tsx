@@ -1,3 +1,4 @@
+import { randomUUID } from "expo-crypto";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -294,6 +295,11 @@ export function CakeCanvas({
 }
 
 export function InventoryStudio() {
+  const { customer } = useAuth();
+  return <InventoryEditor key={customer?.id || "guest"} />;
+}
+
+export function InventoryEditor() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const { customer } = useAuth();
@@ -303,6 +309,9 @@ export function InventoryStudio() {
   const drafts = usePreferences((s) => s.designs[owner] ?? EMPTY_DESIGNS);
   const saveDesign = usePreferences((s) => s.saveDesign);
   const deleteDesign = usePreferences((s) => s.deleteDesign);
+  const [draftId, setDraftId] = useState(() => randomUUID());
+  const [saved, setSaved] = useState(false);
+  const requestVersion = useRef(0);
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
   const [mode, setMode] = useState<"diy" | "inspo">("diy");
   const [step, setStep] = useState(0),
@@ -323,9 +332,10 @@ export function InventoryStudio() {
   const cakes = useQuery({
     enabled: mode === "diy",
     queryKey: ["diy-inventory", submitted],
-    queryFn: () =>
+    queryFn: ({ signal }) =>
       api.get<Item[]>(
         `/v1/diy/inventory?search=${encodeURIComponent(submitted)}`,
+        { signal },
       ),
     staleTime: 60000,
   });
@@ -336,16 +346,37 @@ export function InventoryStudio() {
     staleTime: 60000,
   });
   useEffect(() => {
+    requestVersion.current += 1;
     setQuote(null);
+    setSaved(false);
     setCompletedSteps((steps) => steps.filter((s) => s !== 3));
   }, [cake, variant, extras, colour, message]);
   const sku = variant || cake;
   const estimate =
     (sku?.price_minor || 0) + extras.reduce((s, x) => s + x.price_minor, 0);
+  function newSketch() {
+    if (busy) return;
+    if (cake && !saved) saveDraft();
+    requestVersion.current += 1;
+    setDraftId(randomUUID());
+    setCake(null);
+    setVariant(null);
+    setExtras([]);
+    setColour("#FFF8EE");
+    setMessage("");
+    setQuote(null);
+    setError("");
+    setSearch("");
+    setSubmitted("");
+    setCompletedSteps([]);
+    setStep(0);
+    setMode("diy");
+    setSaved(false);
+  }
   function saveDraft() {
     if (!cake) return;
     saveDesign(owner, {
-      id: `inventory-${cake.id}-${variant?.id || 0}`,
+      id: draftId,
       name: cake.name,
       version: "inventory-v1",
       selections: {
@@ -360,6 +391,7 @@ export function InventoryStudio() {
       message,
       updated_at: new Date().toISOString(),
     });
+    setSaved(true);
     toast("Your creation is saved in your sketchbook on this device.");
   }
   async function restoreDraft(draft: (typeof drafts)[number]) {
@@ -393,6 +425,7 @@ export function InventoryStudio() {
         throw Error(
           "An extra in this design is unavailable. Choose current decorations before continuing.",
         );
+      setDraftId(draft.id);
       setCake(chosen);
       setVariant(chosenVariant || null);
       setExtras(selected);
@@ -414,6 +447,7 @@ export function InventoryStudio() {
     }
     setBusy(true);
     setError("");
+    const version = requestVersion.current;
     try {
       const value = await api.post<Quote>(
         "/v1/diy/quote",
@@ -426,6 +460,7 @@ export function InventoryStudio() {
         },
         { auth: true },
       );
+      if (version !== requestVersion.current) return;
       setQuote(value);
       setCompletedSteps([0, 1, 2, 3]);
     } catch (e) {
@@ -463,6 +498,7 @@ export function InventoryStudio() {
     );
     if (ok) {
       toast("Your creation is in the bag. Let’s make it a celebration.");
+      newSketch();
       router.push("/cart");
     } else
       setError("Your bag is full. Make some room before adding this design.");
@@ -472,6 +508,17 @@ export function InventoryStudio() {
       title="Your cake playground"
       subtitle="Dream it. Shape it. Make their day."
       back
+      right={
+        cake ? (
+          <Button
+            label="New sketch"
+            size="sm"
+            variant="outline"
+            disabled={busy}
+            onPress={newSketch}
+          />
+        ) : undefined
+      }
       scroll={false}
     >
       <View
@@ -1046,7 +1093,7 @@ export function InventoryStudio() {
             </View>
             {cake ? (
               <Button
-                label="Save to my sketchbook"
+                label={saved ? "Sketch saved" : "Save to my sketchbook"}
                 variant="outline"
                 disabled={busy}
                 onPress={saveDraft}

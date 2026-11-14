@@ -1,10 +1,11 @@
+import { markAccountUnlocked } from "./session-unlock";
+export { recentlyUnlocked } from "./session-unlock";
 import { useEffect, useState } from "react";
 import { Platform } from "react-native";
 import Constants from "expo-constants";
 import * as LocalAuthentication from "expo-local-authentication";
 import { getStorageItem, setStorageItem } from "./secure-storage";
 const listeners = new Set<() => void>();
-const unlocked = new Map<string, number>();
 const key = (owner: string) => `cakecity.biometric-unlock.v1.${owner}`;
 export async function unlockDevice(owner: string) {
   if (Platform.OS === "web")
@@ -38,35 +39,34 @@ export async function unlockDevice(owner: string) {
     throw Error(
       "Unlock was not completed. Retry or sign in with your account password.",
     );
-  unlocked.set(owner, Date.now());
+  markAccountUnlocked(owner);
 }
 export async function disableBiometricUnlock(owner: string) {
   await setStorageItem(key(owner), "0");
   for (const listener of listeners) listener();
 }
-export const recentlyUnlocked = (owner: string) =>
-  Date.now() - (unlocked.get(owner) || 0) < 15000;
 export function useBiometricPreference(owner?: string) {
-  const [enabled, setValue] = useState(false),
-    [ready, setReady] = useState(false);
+  const [preference, setPreference] = useState<{
+    owner?: string;
+    enabled: boolean;
+    ready: boolean;
+  }>({ enabled: false, ready: false });
   useEffect(() => {
     let alive = true;
-    setReady(false);
+    setPreference({ owner, enabled: false, ready: false });
     const read = () => {
       if (!owner) {
-        setValue(false);
-        setReady(true);
+        setPreference({ owner, enabled: false, ready: true });
         return;
       }
       void getStorageItem(key(owner))
         .then((value) => {
           if (alive) {
-            setValue(value === "1");
-            setReady(true);
+            setPreference({ owner, enabled: value === "1", ready: true });
           }
         })
         .catch(() => {
-          if (alive) setReady(true);
+          if (alive) setPreference({ owner, enabled: true, ready: true });
         });
     };
     read();
@@ -77,8 +77,8 @@ export function useBiometricPreference(owner?: string) {
     };
   }, [owner]);
   return {
-    enabled,
-    ready,
+    enabled: preference.owner === owner && preference.enabled,
+    ready: preference.owner === owner && preference.ready,
     setEnabled: async (value: boolean) => {
       if (!owner) throw Error("Sign in first.");
       await unlockDevice(owner);

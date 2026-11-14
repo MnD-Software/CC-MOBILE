@@ -1,3 +1,4 @@
+import { validatedPreferences } from "./preference-validation";
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -186,6 +187,10 @@ export const usePreferences = create<Preferences>()(
       // v3 drops the old negative-ID reference favourites rather than letting
       // presentation-only catalogue data appear as customer content.
       name: "cakecity.preferences.v3",
+      merge: (saved, current) => ({
+        ...current,
+        ...validatedPreferences(saved),
+      }),
       version: 1,
       // Discard history recorded by background detail screens; preserve all other preferences.
       migrate: (saved) => ({

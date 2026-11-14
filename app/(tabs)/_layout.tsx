@@ -33,7 +33,10 @@ export default function TabLayout() {
   );
 
   if (restoring) return null;
-  if (isStaffRole(customer?.role)) return <Redirect href="/workspace" />;
+  if (!customer) return <Redirect href="/sign-in" />;
+  if (customer.role === "corporate_client")
+    return <Redirect href="/corporate" />;
+  if (isStaffRole(customer.role)) return <Redirect href="/workspace" />;
   return (
     <Tabs
       tabBar={() => null}

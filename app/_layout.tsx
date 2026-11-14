@@ -131,8 +131,10 @@ function CustomerUpdates() {
   if (restoring || isStaffRole(customer?.role)) return null;
   return (
     <>
-      <MilestoneCelebrationObserver />
-      <OrderUpdateBanner />
+      <MilestoneCelebrationObserver
+        key={`milestones:${customer?.id || "guest"}`}
+      />
+      <OrderUpdateBanner key={`updates:${customer?.id || "guest"}`} />
     </>
   );
 }

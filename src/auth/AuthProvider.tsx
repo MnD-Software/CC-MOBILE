@@ -1,3 +1,4 @@
+import { markAccountUnlocked, forgetAccountUnlock } from "./session-unlock";
 import {
   createContext,
   PropsWithChildren,
@@ -150,6 +151,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
       if (expected !== generation.current) return;
       clearPrivateQueryCache(cache);
       await accept(next, expected);
+      if (expected === generation.current)
+        markAccountUnlocked(next.customer.id);
     },
     [accept, cache],
   );
@@ -188,6 +191,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         ++signInAttempt.current;
         ++generation.current;
         clearAccessToken();
+        if (sessionOwner.current) forgetAccountUnlock(sessionOwner.current);
         sessionOwner.current = null;
         setSession(null);
         expiry.current = 0;

@@ -93,6 +93,8 @@ function load(storageOverrides = {}, apiOverrides = {}) {
             ...apiOverrides,
           },
         };
+      if (name === "./session-unlock")
+        return { markAccountUnlocked() {}, forgetAccountUnlock() {} };
       if (name === "./query-privacy") return { clearPrivateQueryCache() {} };
       if (name.endsWith("website-checkout-session"))
         return {

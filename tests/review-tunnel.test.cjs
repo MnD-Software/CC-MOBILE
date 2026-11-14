@@ -6,9 +6,10 @@ const ts = require("typescript");
 const http = require("node:http");
 const connect = require("connect");
 const { reviewApiProxy } = require("../scripts/review-api-proxy.cjs");
-function config(dev, review, host) {
+function config(dev, review, host, location) {
   const context = {
     exports: {},
+    window: location ? { location } : undefined,
     __DEV__: dev,
     process: { env: { EXPO_PUBLIC_REVIEW_TUNNEL: review } },
     require: () => ({
@@ -137,4 +138,16 @@ test("review proxy forwards only API paths to a fixed local backend and preserve
   assert.equal(request.path, "/v1/app-orders?limit=1");
   assert.equal(request.headers.authorization, "Bearer own-test-session");
   assert.equal(request.headers.host, "127.0.0.1:8010");
+});
+
+test("browser review starts without an Expo Go host and stays on its local proxy", () => {
+  const location = { protocol: "http:", origin: "http://localhost:8096" };
+  assert.equal(
+    config(true, "1", undefined, location).apiUrl,
+    "http://localhost:8096/__cakecity-review",
+  );
+  assert.equal(
+    config(false, "1", undefined, location).apiUrl,
+    "https://cc-mobile-1.onrender.com",
+  );
 });

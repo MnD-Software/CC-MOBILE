@@ -8,6 +8,14 @@ export const CAKE_CITY_API_URL = "https://cc-mobile-1.onrender.com";
 
 function reviewTunnelUrl() {
   if (!__DEV__ || process.env.EXPO_PUBLIC_REVIEW_TUNNEL !== "1") return "";
+  // Web review has no Expo Go hostUri. Use this exact development origin,
+  // preserving the isolated API proxy rather than falling through to production.
+  if (
+    typeof window !== "undefined" &&
+    window.location &&
+    /^https?:$/.test(window.location.protocol)
+  )
+    return window.location.origin + "/__cakecity-review";
   const Constants = (
     require("expo-constants") as typeof import("expo-constants")
   ).default;
