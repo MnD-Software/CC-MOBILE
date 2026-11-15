@@ -29,8 +29,9 @@ export function validatedPreferences(value: unknown) {
   const saved = record(value);
   const branch = branchSchema.nullable().safeParse(saved.branch);
   return {
-    savedProductSlugs: strings.safeParse(saved.savedProductSlugs).data ?? [],
-    recentSearches: strings.safeParse(saved.recentSearches).data ?? [],
+    // Legacy device-global savedProductSlugs/recentSearches are ignored.
+    savedSlugsByOwner: validEntries(saved.savedSlugsByOwner, strings),
+    recentSearchesByOwner: validEntries(saved.recentSearchesByOwner, strings),
     recentSlugsByOwner: validEntries(saved.recentSlugsByOwner, strings),
     profileAvatars: validEntries(
       saved.profileAvatars,

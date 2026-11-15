@@ -25,7 +25,11 @@ test("page colour choices apply only to recognised customer pages", () => {
 });
 test("confetti launches one full burst with a continuous slow fall", () => {
   const pieces = celebrationPieces();
-  assert.equal(pieces.length, 420);
+  assert.equal(pieces.length, 320);
+  // Large foil pieces: every piece is clearly visible on a phone screen.
+  assert.ok(pieces.every((p) => p.width >= 8 && p.height >= 16));
+  assert.ok(pieces.filter((p) => p.kind === "ribbon").length > 100);
+  assert.ok(celebrationPieces(true).every((p) => p.width <= p.height * 2));
   assert.deepEqual([...new Set(pieces.map((p) => p.burst))], [0]);
   assert.ok(Math.max(...pieces.map((p) => p.delay)) <= 0.024);
   assert.ok(pieces.every((p) => p.delay + 0.94 <= 1));

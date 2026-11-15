@@ -10,7 +10,7 @@ import { tokens } from "@/theme/tokens";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import { CheckoutProgress } from "@/components/storefront/CheckoutProgress";
 import { money } from "./contracts";
-import { useBag, usePreferences } from "./store";
+import { selectSavedSlugs, useBag, usePreferences } from "./store";
 import { CelebrationArtwork } from "@/components/ui/CelebrationArtwork";
 import { AnimatedNumber } from "@/components/ui/Delight";
 import { CartSuggestions } from "./CartSuggestions";
@@ -194,9 +194,9 @@ export function CartScreen() {
                   accessibilityRole="button"
                   onPress={() => {
                     if (
-                      !usePreferences
-                        .getState()
-                        .savedProductSlugs.includes(line.slug)
+                      !selectSavedSlugs(usePreferences.getState()).includes(
+                        line.slug,
+                      )
                     )
                       saveCake(line.slug);
                     bag.remove(line.key);

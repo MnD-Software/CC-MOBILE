@@ -33,7 +33,7 @@ import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 import { plainText, type StoreProduct } from "./contracts";
 import { CATALOGUE_GC_TIME_MS, CATALOGUE_STALE_TIME_MS, shopApi } from "./api";
 import { suggestedSearchTerm, browseSearchIdeas } from "./search-intelligence";
-import { usePreferences } from "./store";
+import { selectRecentSearches, usePreferences } from "./store";
 import { shopSorts, type ShopSort, parseBudget } from "./shop-browse";
 import { ShopOptionsSheet, type ShopSheetMode } from "./ShopOptionsSheet";
 
@@ -102,7 +102,7 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
     {},
   );
   const rememberSearch = usePreferences((s) => s.search);
-  const recentSearches = usePreferences((s) => s.recentSearches);
+  const recentSearches = usePreferences(selectRecentSearches);
   const categoryList = useQuery({
     queryKey: ["catalogue", "categories"],
     queryFn: ({ signal }) => shopApi.categories(signal),

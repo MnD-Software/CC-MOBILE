@@ -27,6 +27,23 @@ def test_member_can_choose_small_point_amount_and_retry_without_double_spend(sys
     assert c.post('/v1/club/redeem',json={'points':0,'request_key':uuid4().hex}).status_code==422
 
 
+def test_debited_redemption_retry_issues_coupon_even_when_review_is_required(system):
+    from app.models import ClubRedemption
+    from app.commerce_models import AppCoupon
+    s=system;c=s['client'];actor('buyer','customer')
+    key=uuid4().hex
+    with Session(s['engine']) as db:
+        db.add(ClubAccount(customer_id='buyer',points=0,review_required=True))
+        db.add(ClubRedemption(id=str(uuid4()),customer_id='buyer',request_key=key,points=20,code='ccclub-retry-'+uuid4().hex,status='pending'))
+        db.commit()
+    retry=c.post('/v1/club/redeem',json={'points':20,'request_key':key})
+    assert retry.status_code==200,retry.text
+    assert retry.json()['status']=='issued'
+    with Session(s['engine']) as db:
+        assert db.get(AppCoupon,retry.json()['code']) is not None
+    assert c.post('/v1/club/redeem',json={'points':20,'request_key':uuid4().hex}).status_code==409
+
+
 def test_full_slot_waitlist_notifies_once_without_booking_and_is_private(system):
     s=system;c=s['client'];slot,data=window(c)
     actor('buyer','customer');s['payload']['delivery_slot_id']=slot['id']

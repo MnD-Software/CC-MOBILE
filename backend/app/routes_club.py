@@ -284,9 +284,9 @@ async def redeem(payload: Redeem, customer: Customer = Depends(member), db: Sess
         raise HTTPException(409, "This request was used for another reward")
     if not record and payload.points < settings.club_minimum_redemption:
         raise HTTPException(422, f"Choose at least {settings.club_minimum_redemption} points.")
-    if value.review_required:
-        raise HTTPException(409, "An order requires staff reconciliation before redemption")
     if not record:
+        if value.review_required:
+            raise HTTPException(409, "An order requires staff reconciliation before redemption")
         if value.debt or value.points < payload.points:
             raise HTTPException(409, "Insufficient available points")
         consume(db, customer.id, payload.points)
@@ -301,11 +301,22 @@ async def redeem(payload: Redeem, customer: Customer = Depends(member), db: Sess
     db.commit()
     if record.status != "issued":
         from .commerce_models import AppCoupon
+        redemption_id = record.id
         if not db.get(AppCoupon, record.code):
             amount = record.points*settings.club_point_value_minor
             db.add(AppCoupon(code=record.code, customer_id=customer.id, amount_minor=amount,
                              minimum_minor=amount*10, usage_limit=1,
                              expires_at=datetime.now(UTC)+timedelta(days=90)))
         record.status = "issued"
-        db.commit()
+        try:
+            db.commit()
+        except IntegrityError:
+            # A concurrent retry already issued this coupon; re-read its committed state.
+            db.rollback()
+            record = db.get(ClubRedemption, redemption_id)
+            if not db.get(AppCoupon, record.code):
+                raise
+            if record.status != "issued":
+                record.status = "issued"
+                db.commit()
     return {"id": record.id, "status": "issued", "code": record.code}

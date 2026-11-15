@@ -20,7 +20,18 @@ type Design = {
   message: string;
   updated_at: string;
 };
+/** Stable empty list so selectors never return a fresh array per render. */
+const EMPTY: string[] = [];
+/**
+ * The signed-in account that device-local shopping state belongs to. Set by
+ * the auth provider before a session becomes visible, and checked when the
+ * persisted bag finishes hydrating so a late read cannot resurrect another
+ * account's bag.
+ */
+let activeOwner: string | null = null;
 type BagState = {
+  /** Account the bag belongs to; a bag is never shown to a different owner. */
+  owner: string | null;
   lines: BagLine[];
   settled: string[];
   settle: (id: string, items: CheckoutInput["items"]) => Promise<void>;
@@ -33,6 +44,7 @@ type BagState = {
 export const useBag = create<BagState>()(
   persist(
     (set) => ({
+      owner: null,
       lines: [],
       settled: [],
       addBundle: (lines) => {
@@ -84,25 +96,40 @@ export const useBag = create<BagState>()(
       // cannot survive into the server-authoritative catalogue experience.
       name: "cakecity.bag.v3",
       storage: createJSONStorage(() => AsyncStorage),
-      partialize: (s) => ({ lines: s.lines, settled: s.settled }),
+      partialize: (s) => ({
+        owner: s.owner,
+        lines: s.lines,
+        settled: s.settled,
+      }),
       merge: (saved, current) => {
         const result = z
           .object({
+            // Bags written before ownership was recorded have no owner and
+            // are dropped on the next sign-in rather than adopted.
+            owner: z.string().nullable().default(null),
             lines: bagLineSchema.array().max(30),
             settled: z.array(z.string()).max(100).default([]),
           })
           .safeParse(saved);
+        const data = result.success
+          ? result.data
+          : { owner: null, lines: [], settled: [] };
         return {
           ...current,
-          ...(result.success ? result.data : { lines: [], settled: [] }),
+          ...(activeOwner !== null && data.owner !== activeOwner
+            ? { owner: activeOwner, lines: [], settled: [] }
+            : data),
         };
       },
     },
   ),
 );
 type Preferences = {
-  /** Device-local saves; product records are revalidated before display. */
-  savedProductSlugs: string[];
+  /** Signed-in account the owner-keyed lists below are read for (not persisted). */
+  owner: string | null;
+  /** Device-local saves per account; product records are revalidated before display. */
+  savedSlugsByOwner: Record<string, string[]>;
+  /** Saves for the current account; a no-op while signed out. */
   toggleSavedProduct: (slug: string) => void;
   profileAvatars: Record<string, { kind: "photo" | "preset"; value: string }>;
   setProfileAvatar: (
@@ -110,11 +137,12 @@ type Preferences = {
     avatar: { kind: "photo" | "preset"; value: string },
   ) => void;
   branch: Branch | null;
-  recentSearches: string[];
+  recentSearchesByOwner: Record<string, string[]>;
   /** Recently viewed products are account-scoped; guests are not profiled. */
   recentSlugsByOwner: Record<string, string[]>;
   designs: Record<string, Design[]>;
   setBranch: (branch: Branch) => void;
+  /** Remembers a search for the current account; a no-op while signed out. */
   search: (term: string) => void;
   view: (owner: string | null | undefined, slug: string) => void;
   saveDesign: (owner: string, design: Design) => void;
@@ -123,13 +151,21 @@ type Preferences = {
 export const usePreferences = create<Preferences>()(
   persist(
     (set) => ({
-      savedProductSlugs: [],
+      owner: null,
+      savedSlugsByOwner: {},
       toggleSavedProduct: (slug) =>
-        set((state) => ({
-          savedProductSlugs: (state.savedProductSlugs ?? []).includes(slug)
-            ? state.savedProductSlugs.filter((saved) => saved !== slug)
-            : [...(state.savedProductSlugs ?? []), slug].slice(0, 30),
-        })),
+        set((state) => {
+          if (!state.owner) return state;
+          const saved = state.savedSlugsByOwner?.[state.owner] ?? [];
+          return {
+            savedSlugsByOwner: {
+              ...(state.savedSlugsByOwner ?? {}),
+              [state.owner]: saved.includes(slug)
+                ? saved.filter((value) => value !== slug)
+                : [...saved, slug].slice(0, 30),
+            },
+          };
+        }),
       profileAvatars: {},
       setProfileAvatar: (owner, avatar) =>
         set((state) => ({
@@ -139,17 +175,25 @@ export const usePreferences = create<Preferences>()(
           },
         })),
       branch: null,
-      recentSearches: [],
+      recentSearchesByOwner: {},
       recentSlugsByOwner: {},
       designs: {},
       setBranch: (branch) => set({ branch }),
       search: (term) =>
-        set((s) => ({
-          recentSearches: [
-            term,
-            ...s.recentSearches.filter((v) => v !== term),
-          ].slice(0, 8),
-        })),
+        set((s) => {
+          if (!s.owner) return s;
+          return {
+            recentSearchesByOwner: {
+              ...(s.recentSearchesByOwner ?? {}),
+              [s.owner]: [
+                term,
+                ...(s.recentSearchesByOwner?.[s.owner] ?? []).filter(
+                  (v) => v !== term,
+                ),
+              ].slice(0, 8),
+            },
+          };
+        }),
       view: (owner, slug) => {
         const key = owner?.trim();
         if (!key) return;
@@ -191,13 +235,38 @@ export const usePreferences = create<Preferences>()(
         ...current,
         ...validatedPreferences(saved),
       }),
-      version: 1,
-      // Discard history recorded by background detail screens; preserve all other preferences.
-      migrate: (saved) => ({
-        ...(saved as Record<string, unknown>),
-        recentSlugsByOwner: {},
-      }),
+      version: 2,
+      migrate: (saved, version) => {
+        // v2: favourites and searches used to be device-global. Their owner is
+        // unknown, so drop them instead of handing them to the next sign-in.
+        const {
+          savedProductSlugs: _saved,
+          recentSearches: _searches,
+          ...rest
+        } = (saved ?? {}) as Record<string, unknown>;
+        // v1: discard history recorded by background detail screens.
+        return version < 1 ? { ...rest, recentSlugsByOwner: {} } : rest;
+      },
+      partialize: ({ owner: _owner, ...persisted }) => persisted,
       storage: createJSONStorage(() => AsyncStorage),
     },
   ),
 );
+export const selectSavedSlugs = (s: Preferences) =>
+  (s.owner && s.savedSlugsByOwner?.[s.owner]) || EMPTY;
+export const selectRecentSearches = (s: Preferences) =>
+  (s.owner && s.recentSearchesByOwner?.[s.owner]) || EMPTY;
+/** Binds device-local bag and preferences to a signed-in account. */
+export function claimDeviceState(owner: string) {
+  activeOwner = owner;
+  if (useBag.getState().owner !== owner)
+    useBag.setState({ owner, lines: [], settled: [] });
+  if (usePreferences.getState().owner !== owner)
+    usePreferences.setState({ owner });
+}
+/** Clears the signed-out account's bag; saved lists stay keyed by owner. */
+export function releaseDeviceState() {
+  activeOwner = null;
+  useBag.setState({ owner: null, lines: [], settled: [] });
+  usePreferences.setState({ owner: null });
+}

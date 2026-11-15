@@ -178,7 +178,12 @@ def test_corporate_accepted_quote_becomes_one_app_order_at_the_approved_discount
     from uuid import uuid4
     placed=c.post('/v1/app-orders',json={'quote_id':q.json()['id']},headers={'Idempotency-Key':uuid4().hex})
     assert placed.status_code==200,placed.text
-    assert c.get(root+'/orders').json()[0]['reference']==placed.json()['reference']
+    own=c.get(root+'/orders').json()[0]
+    assert own['reference']==placed.json()['reference'] and 'snapshot' in own
+    actor('corporate-admin','admin')
+    other=c.get(root+'/orders').json()[0]
+    assert other['can_open'] is False and not {'snapshot','payment_url','tracking_id'}&other.keys()
+    actor('buyer','corporate_client')
     assert c.post('/v1/app-orders',json={'quote_id':q.json()['id']},headers={'Idempotency-Key':uuid4().hex}).status_code==409
     actor('other','customer');assert c.get(root+'/orders').status_code==404
     assert not s['calls']
@@ -192,3 +197,15 @@ def test_corporate_accepted_quote_becomes_one_app_order_at_the_approved_discount
         documents=db.query(CorporateDocument).filter(CorporateDocument.organization_id==company.json()['id']).all()
         assert len([d for d in documents if d.kind=='invoice'])==1
         assert len([d for d in documents if d.kind=='payment' and d.status=='verified'])==1
+
+
+def test_first_order_promotion_counts_reserved_unpaid_orders(system):
+    from test_pesapal import place
+    s=system;c=s['client'];actor(role='marketing_manager')
+    assert c.put('/v1/admin/dashboard/promotions/firstcake',json=offer(first_order_only=True)).status_code==200
+    actor('buyer','customer');s['payload']['coupon_code']='firstcake'
+    assert c.post('/v1/app-checkout/quote',json=s['payload']).status_code==200
+    s['payload']['coupon_code']=None
+    assert place(s).status_code==200  # reserved, payment still pending
+    s['payload']['coupon_code']='firstcake'
+    assert c.post('/v1/app-checkout/quote',json=s['payload']).status_code==409

@@ -245,3 +245,64 @@ def test_created_rider_accepts_only_their_assigned_delivery(delivery):
     accepted = s["client"].patch(f"/v1/rider/tasks/{task['id']}", json={"revision": task["revision"], "status": "accepted"})
     assert accepted.status_code == 200 and accepted.json()["status"] == "accepted"
     assert s["client"].get("/v1/logistics/riders").status_code == 403
+
+
+def test_service_desk_detail_is_operational_only_for_kitchen_and_dispatch(delivery):
+    s = delivery
+    assign(s)
+    ref = s["reference"]
+    actor("chef", "production")
+    detail = s["client"].get("/v1/service-desk/records/order/"+ref)
+    assert detail.status_code == 200, detail.text
+    body = detail.json()
+    assert not {"customer", "checkout_contacts", "recipient", "order_value_minor"} & body.keys()
+    assert not {"snapshot", "payment_url", "tracking_id", "total_minor"} & body["order"].keys()
+    assert body["production"]["assigned_to"] == "chef"
+    assert s["client"].get(f"/v1/service-desk/orders/{ref}/receipt").status_code == 403
+    actor("dispatcher", "dispatch")
+    body = s["client"].get("/v1/service-desk/records/order/"+ref).json()
+    assert not {"customer", "checkout_contacts"} & body.keys() and "snapshot" not in body["order"]
+    assert "recipient" in body
+    assert s["client"].get(f"/v1/service-desk/orders/{ref}/receipt").status_code == 403
+    actor()
+    body = s["client"].get("/v1/service-desk/records/order/"+ref).json()
+    assert {"customer", "checkout_contacts"} <= body.keys() and "snapshot" in body["order"]
+    assert s["client"].get(f"/v1/service-desk/orders/{ref}/receipt").status_code == 200
+
+
+def test_admin_fulfilment_preparing_requires_assignment_and_design_approval(delivery):
+    from app.commerce_models import AppOrder
+    from app.journey import DesignProof
+    s = delivery
+    ref = s["reference"]
+    actor("chef", "production")
+    response = s["client"].patch(f"/v1/admin/app-orders/{ref}", json={"status": "preparing"})
+    assert response.status_code == 409 and "Assign" in response.text
+    assign(s)
+    with Session(s["engine"]) as db:
+        order = db.scalar(select(AppOrder).where(AppOrder.reference == ref))
+        db.add(DesignProof(order_id=order.id, state="awaiting_approval", payload={}))
+        db.commit()
+    actor("chef", "production")
+    response = s["client"].patch(f"/v1/admin/app-orders/{ref}", json={"status": "preparing"})
+    assert response.status_code == 409 and "approve" in response.text
+    actor()
+    assert s["client"].patch(f"/v1/admin/app-orders/{ref}", json={"status": "preparing"}).status_code == 409
+    with Session(s["engine"]) as db:
+        order = db.scalar(select(AppOrder).where(AppOrder.reference == ref))
+        db.get(DesignProof, order.id).state = "approved"
+        db.commit()
+    actor("chef", "production")
+    assert s["client"].patch(f"/v1/admin/app-orders/{ref}", json={"status": "preparing"}).status_code == 200
+
+
+def test_dispatch_cannot_allocate_rider_from_another_location(delivery):
+    s = delivery
+    assign(s)
+    with Session(s["engine"]) as db:
+        db.add(LogisticsScope(customer_id="other-rider", plant="branch:westlands"))
+        db.commit()
+    actor()
+    response = s["client"].post(f"/v1/logistics/orders/{s['reference']}/tasks", json={"rider_id": "other-rider"})
+    assert response.status_code == 422, response.text
+    trip(s)  # an HQ rider without explicit grants remains assignable to HQ work

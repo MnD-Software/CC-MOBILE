@@ -186,9 +186,14 @@ def fulfil(reference: str, data: FulfilmentInput, actor: Customer = Depends(fulf
     from .logistics import require_plant
     production = db.get(ProductionTask, row.id)
     require_plant(db, actor, production.plant if production else "hq")
+    if actor.role == "production" and not production:
+        raise HTTPException(409, "Assign the kitchen task and production location first.")
     if production:
         if actor.role == "production" and production.assigned_to != actor.id:
             raise HTTPException(403, "This kitchen task belongs to another team member.")
+    if data.status == "preparing":
+        from .journey import require_design_approval
+        require_design_approval(db, row)
     trips = list(db.scalars(select(LogisticsTask).where(LogisticsTask.order_id == row.id)))
     managed_delivery = any(task.service_type == "delivery" for task in trips)
     unfinished_transfer = any(task.status not in {"delivered", "cancelled"} for task in trips)

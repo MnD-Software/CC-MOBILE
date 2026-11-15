@@ -55,6 +55,13 @@ def purchasing(identity:str,person=Depends(member),db:Session=Depends(get_db)):
     return {'manage':manage,'revision':payload.get('revision',0),'members':[{'id':p.id,'name':f'{p.first_name} {p.last_name}'.strip(),'role':m.role,
         'approval_limit_minor':payload.get('limits',{}).get(p.id)} for m,p in db.execute(query.order_by(Customer.first_name))]}
 
+def require_approval_limit(db,identity,membership,amount_minor):
+    """Owners are unrestricted; a missing/null per-approver limit means unlimited."""
+    if membership.role=='owner': return
+    policy=db.get(AppPolicy,'cp:'+identity)
+    limit=policy.payload.get('limits',{}).get(membership.customer_id) if policy else None
+    if limit is not None and (amount_minor or 0)>limit: raise HTTPException(403,'This quotation exceeds your approval limit. Ask a company owner or an authorised approver to accept it.')
+
 class PurchasingInput(BaseModel):
     model_config=ConfigDict(extra='forbid')
     revision:int=Field(ge=0)
@@ -340,10 +347,7 @@ def transition(identity: str, document_id: str, data: Transition, person=Depends
                 raise HTTPException(403, "A client approver must accept or reject this quote.")
             if row.status != "issued" or datetime.fromisoformat(row.payload["expires_at"]) <= datetime.now(UTC):
                 raise HTTPException(409, "Only a current issued quote can be accepted or rejected.")
-            if data.status=='accepted' and membership.role!='owner':
-                policy=db.get(AppPolicy,'cp:'+identity)
-                limit=policy.payload.get('limits',{}).get(person.id) if policy else None
-                if limit is not None and row.total_minor>limit: raise HTTPException(403,'This quotation exceeds your approval limit. Ask a company owner or an authorised approver to accept it.')
+            if data.status=='accepted': require_approval_limit(db,identity,membership,row.total_minor)
         else: raise HTTPException(409, "Invalid quote transition.")
     elif row.kind == "payment":
         if person.role not in MANAGERS | {"corporate_assistant", "finance"} or data.status != "verified" or row.status != "submitted":
@@ -468,7 +472,7 @@ def company_orders(identity:str,person=Depends(member),db:Session=Depends(get_db
     from .app_commerce import order_view
     documents=select(CorporateDocument.id).where(CorporateDocument.organization_id==identity,CorporateDocument.kind=='quote')
     orders=db.scalars(select(AppOrder).where(AppOrder.snapshot['checkout']['corporate_quote_id'].as_string().in_(documents)).order_by(AppOrder.created_at.desc()).limit(100))
-    return [{**order_view(o),'can_open':o.customer_id==person.id} for o in orders]
+    return [{**order_view(o,private=o.customer_id==person.id),'can_open':o.customer_id==person.id} for o in orders]
 
 
 class RepeatQuote(BaseModel):

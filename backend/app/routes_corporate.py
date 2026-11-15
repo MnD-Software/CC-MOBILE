@@ -179,13 +179,15 @@ def request_quote(identity: str, data: NewEnquiry, customer: Customer = Depends(
 @router.post("/organizations/{identity}/quotes/{quote_id}/accept")
 def accept_quote(identity: str, quote_id: str, data: AcceptQuote, customer: Customer = Depends(member), db: Session = Depends(get_db)):
     db.execute(update(Organization).where(Organization.id == identity).values(name=Organization.name))
-    organization_access(db, identity, customer, {"owner", "approver"})
+    membership = organization_access(db, identity, customer, {"owner", "approver"})
     link = db.get(OrganizationEnquiry, quote_id)
     if not link or link.organization_id != identity:
         raise HTTPException(404, "Quote not found")
     row = db.get(Enquiry, quote_id)
     if row.status == "accepted" and row.revision == data.revision + 1:
         return output(row)
+    from .business import require_approval_limit
+    require_approval_limit(db, identity, membership, row.quote_minor)
     changed = db.execute(update(Enquiry).where(Enquiry.id == quote_id, Enquiry.status == "quoted",
                          Enquiry.revision == data.revision, Enquiry.quote_expires_at > datetime.now(UTC))
                          .values(status="accepted", revision=Enquiry.revision + 1).execution_options(synchronize_session=False))

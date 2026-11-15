@@ -1,4 +1,4 @@
-import { markAccountUnlocked, forgetAccountUnlock } from "./session-unlock";
+import { markAccountUnlocked } from "./session-unlock";
 import {
   createContext,
   PropsWithChildren,
@@ -23,12 +23,13 @@ import {
   setStorageItem,
 } from "./secure-storage";
 import { authApi, Customer, MobileSession } from "./api";
-import {
-  clearWebsiteCheckoutSession,
-  clearWebsitePaymentAttempt,
-} from "@/features/commerce/website-checkout-session";
-import { clearLegacyWebsiteOrderHistory } from "@/features/commerce/website-order-history";
 import { clearPrivateQueryCache } from "./query-privacy";
+import { claimDeviceState, wipeLocalSession } from "./local-session";
+import { restoreCanWait } from "./restore-policy";
+import {
+  connectivityState,
+  subscribeToConnectivity,
+} from "@/platform/connectivity";
 const REFRESH_KEY = "cakecity.refresh-token";
 type AuthContextValue = {
   customer: Customer | null;
@@ -59,24 +60,42 @@ export function AuthProvider({ children }: PropsWithChildren) {
     storageFlight.current = next;
     return next;
   }, []);
+  const revoke = useCallback((token: string) => {
+    void authApi.logout(token).catch(() => undefined);
+  }, []);
   const accept = useCallback(
     async (next: MobileSession, expected = generation.current) => {
       await withStorage(async () => {
-        if (expected !== generation.current) return;
+        // A session superseded by sign-out or an account switch is revoked so
+        // its server session and push binding do not outlive the device copy.
+        if (expected !== generation.current) return revoke(next.refresh_token);
         await setStorageItem(REFRESH_KEY, next.refresh_token);
         if (expected !== generation.current) {
           await deleteStorageItem(REFRESH_KEY);
-          return;
+          return revoke(next.refresh_token);
         }
         if (sessionOwner.current !== next.customer.id) clearAccessToken();
+        claimDeviceState(next.customer.id);
         sessionOwner.current = next.customer.id;
         setAccessToken(next.access_token);
         expiry.current = Date.now() + next.expires_in * 1000;
         setSession(next);
       });
     },
-    [withStorage],
+    [revoke, withStorage],
   );
+  /** Hides every private trace of the current session, memory first. */
+  const dropLocalSession = useCallback(() => {
+    const owner = sessionOwner.current;
+    clearAccessToken();
+    sessionOwner.current = null;
+    expiry.current = 0;
+    setSession(null);
+    void import("@/native/rider-background")
+      .then((m) => m.stopBackgroundSharing())
+      .catch(() => undefined);
+    return wipeLocalSession(cache, owner);
+  }, [cache]);
   const refresh = useCallback(() => {
     if (flight.current) return flight.current;
     const expected = generation.current;
@@ -96,14 +115,11 @@ export function AuthProvider({ children }: PropsWithChildren) {
           [401, 403].includes(error.status ?? 0) &&
           expected === generation.current
         ) {
-          clearAccessToken();
-          sessionOwner.current = null;
-          expiry.current = 0;
-          setSession(null);
-          clearPrivateQueryCache(cache);
+          const cleanup = dropLocalSession();
           await withStorage(async () => {
             if (expected === generation.current)
               await deleteStorageItem(REFRESH_KEY);
+            await cleanup;
           });
         }
         throw error;
@@ -112,22 +128,58 @@ export function AuthProvider({ children }: PropsWithChildren) {
       flight.current = null;
     });
     return flight.current;
-  }, [accept, cache, withStorage]);
+  }, [accept, dropLocalSession, withStorage]);
   useEffect(() => {
     setSessionRefresher(refresh);
-    void refresh()
-      .catch(() => undefined)
-      .finally(() => setRestoring(false));
+    let mounted = true;
+    // While a saved token cannot be checked (offline/service outage) the app
+    // stays in its restoring state instead of bouncing to sign-in, and retries
+    // on reconnect, on foreground and with a capped backoff.
+    let waiting = false;
+    let delay = 5_000;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const restore = () => {
+      if (timer !== undefined) clearTimeout(timer);
+      timer = undefined;
+      const started = generation.current;
+      void refresh().then(
+        () => {
+          waiting = false;
+          if (mounted) setRestoring(false);
+        },
+        (error) => {
+          waiting =
+            mounted &&
+            started === generation.current &&
+            restoreCanWait(error);
+          if (!waiting) {
+            if (mounted) setRestoring(false);
+            return;
+          }
+          timer = setTimeout(restore, delay);
+          delay = Math.min(delay * 2, 60_000);
+        },
+      );
+    };
+    restore();
+    const stopConnectivity = subscribeToConnectivity(() => {
+      if (waiting && connectivityState() === "online") {
+        delay = 5_000;
+        restore();
+      }
+    });
     const listener = AppState.addEventListener("change", (state) => {
-      if (
-        state === "active" &&
-        (!expiry.current || Date.now() > expiry.current - 60000)
-      )
+      if (state !== "active") return;
+      if (waiting) restore();
+      else if (!expiry.current || Date.now() > expiry.current - 60000)
         void getStorageItem(REFRESH_KEY)
           .then((token) => (token ? refresh() : undefined))
           .catch(() => undefined);
     });
     return () => {
+      mounted = false;
+      if (timer !== undefined) clearTimeout(timer);
+      stopConnectivity();
       setSessionRefresher(null);
       listener.remove();
     };
@@ -144,17 +196,17 @@ export function AuthProvider({ children }: PropsWithChildren) {
         return;
       const expected = ++generation.current;
       const next = await operation();
-      if (expected !== generation.current) return;
+      if (expected !== generation.current) return revoke(next.refresh_token);
       await import("@/native/rider-background")
         .then((m) => m.stopBackgroundSharing())
         .catch(() => undefined);
-      if (expected !== generation.current) return;
+      if (expected !== generation.current) return revoke(next.refresh_token);
       clearPrivateQueryCache(cache);
       await accept(next, expected);
       if (expected === generation.current)
         markAccountUnlocked(next.customer.id);
     },
-    [accept, cache],
+    [accept, cache, revoke],
   );
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -190,29 +242,16 @@ export function AuthProvider({ children }: PropsWithChildren) {
       logout: async () => {
         ++signInAttempt.current;
         ++generation.current;
-        clearAccessToken();
-        if (sessionOwner.current) forgetAccountUnlock(sessionOwner.current);
-        sessionOwner.current = null;
-        setSession(null);
-        expiry.current = 0;
-        clearPrivateQueryCache(cache);
-        void import("@/native/rider-background")
-          .then((m) => m.stopBackgroundSharing())
-          .catch(() => undefined);
+        const cleanup = dropLocalSession();
         const token = await withStorage(async () => {
           const stored = await getStorageItem(REFRESH_KEY).catch(() => null);
-          await Promise.all([
-            deleteStorageItem(REFRESH_KEY),
-            clearWebsiteCheckoutSession(),
-            clearWebsitePaymentAttempt(),
-            clearLegacyWebsiteOrderHistory(),
-          ]);
+          await Promise.all([deleteStorageItem(REFRESH_KEY), cleanup]);
           return stored;
         });
         if (token) await authApi.logout(token).catch(() => undefined);
       },
     }),
-    [restoring, session, signIn, cache, withStorage],
+    [restoring, session, signIn, cache, withStorage, dropLocalSession],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

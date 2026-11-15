@@ -96,6 +96,7 @@ test("shared buttons announce busy and disabled states in the real web renderer"
     useReducedMotion: () => true,
     getPressScale: () => 1,
     ActivityIndicator: () => null,
+    GlossSheen: () => null,
     selectionFeedback: async () => {},
   });
   const html = renderToStaticMarkup(

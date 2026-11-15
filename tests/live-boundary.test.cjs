@@ -132,7 +132,7 @@ test("account hub uses authenticated and device-local data without invented acco
   const account = read("src", "features", "account", "AccountScreen.tsx");
 
   assert.match(account, /ProfileAvatar/);
-  assert.match(account, /savedProductSlugs/);
+  assert.match(account, /selectSavedSlugs/);
   assert.match(account, /state\.designs\[customer\?\.id \?\? "guest"\]/);
   assert.match(account, /tel:\+254709729000/);
   assert.match(account, /Cake City Club/);

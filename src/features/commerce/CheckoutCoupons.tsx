@@ -12,6 +12,8 @@ import { useCouponWallet, selectCouponCode } from "./coupon-wallet";
 import { money } from "./contracts";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { LinearGradient } from "expo-linear-gradient";
+import { GlossSheen } from "@/components/ui/GlossSheen";
+import { CouponPerforation } from "@/components/ui/CouponPerforation";
 
 const offersSchema = z.object({
   coupons: z.array(
@@ -118,6 +120,10 @@ export function CheckoutCoupons({
         backgroundColor:
           code === coupon.code ? colors.brandLight : colors.surface,
         minHeight: 48,
+        shadowColor: "#B80068",
+        shadowOpacity: code === coupon.code ? 0.22 : 0,
+        shadowRadius: 12,
+        shadowOffset: { width: 0, height: 5 },
       }}
     >
       <LinearGradient
@@ -132,6 +138,7 @@ export function CheckoutCoupons({
           gap: 8,
         }}
       >
+        <GlossSheen strength={0.8} />
         <Ionicons name="ticket-outline" size={16} color="#FFE6AF" />
         <Text
           style={{ color: "#FFFFFF", fontSize: 13, fontWeight: "800", flex: 1 }}
@@ -145,6 +152,7 @@ export function CheckoutCoupons({
           <Ionicons name="checkmark-circle" size={16} color="#FFFFFF" />
         ) : null}
       </LinearGradient>
+      <CouponPerforation cutout={colors.surface} line={colors.border} size={12} />
       <View
         style={{
           flexDirection: "row",

@@ -29,6 +29,7 @@ import {
   StyleProp,
   View,
   ViewStyle,
+  useWindowDimensions,
 } from "react-native";
 import { Text } from "@/components/ui/Typography";
 import {
@@ -48,7 +49,11 @@ import {
   money,
   type StoreProduct,
 } from "@/features/commerce/contracts";
-import { useBag, usePreferences } from "@/features/commerce/store";
+import {
+  selectSavedSlugs,
+  useBag,
+  usePreferences,
+} from "@/features/commerce/store";
 import { CakeArtwork } from "./ReferenceArtwork";
 import { useAuth } from "@/auth/AuthProvider";
 export const ui = StyleSheet.create({
@@ -309,6 +314,8 @@ export function Screen({
 }) {
   const insets = useSafeAreaInsets();
   const themed = useThemedStyles(ui);
+  // Small phones keep whole words in the title instead of breaking mid-word.
+  const narrow = useWindowDimensions().width < 360;
   return (
     <SafeAreaView
       edges={["top", "left", "right"]}
@@ -344,7 +351,13 @@ export function Screen({
             <View style={{ flex: 1, gap: 7 }}>
               <BrandLogo width={84} />
               {title ? (
-                <Text accessibilityRole="header" style={themed.title}>
+                <Text
+                  accessibilityRole="header"
+                  style={[
+                    themed.title,
+                    narrow ? { fontSize: 21, lineHeight: 26 } : undefined,
+                  ]}
+                >
                   {title}
                 </Text>
               ) : null}
@@ -586,7 +599,7 @@ export function FavouriteButton({
   const toast = useToast();
   const { colors } = useTheme();
   const { customer } = useAuth();
-  const saved = usePreferences((state) => state.savedProductSlugs);
+  const saved = usePreferences(selectSavedSlugs);
   const toggle = usePreferences((state) => state.toggleSavedProduct);
   const selected = (saved ?? []).includes(product.slug);
   const reduceMotion = useReducedMotion();

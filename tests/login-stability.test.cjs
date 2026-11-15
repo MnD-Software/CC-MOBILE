@@ -25,15 +25,15 @@ test("broken saved preferences cannot crash account/profile/DIY after login", ()
     null,
     [],
     "old state",
-    { savedProductSlugs: null, designs: null, profileAvatars: null },
+    { savedSlugsByOwner: null, designs: null, profileAvatars: null },
   ]) {
     const prefs = validatedPreferences(bad);
-    assert.equal(prefs.savedProductSlugs.length, 0);
+    assert.deepEqual(prefs.savedSlugsByOwner, {});
     assert.deepEqual(prefs.designs, {});
   }
   const prefs = validatedPreferences({
     designs: { alice: [null, { id: "broken" }, good], bob: "broken" },
-    savedProductSlugs: ["cake"],
+    savedSlugsByOwner: { alice: ["cake"], bob: "broken" },
     profileAvatars: {
       alice: { kind: "photo", value: "file:///photo.jpg" },
       bob: null,
@@ -42,7 +42,7 @@ test("broken saved preferences cannot crash account/profile/DIY after login", ()
   assert.deepEqual(prefs.designs.alice, [good]);
   assert.deepEqual(prefs.designs.bob, []);
   assert.equal(prefs.profileAvatars.bob, undefined);
-  assert.deepEqual(prefs.savedProductSlugs, ["cake"]);
+  assert.deepEqual(prefs.savedSlugsByOwner, { alice: ["cake"] });
 });
 test("sign up/reset/legal are public, shopping and departments require an account", () => {
   for (const route of [
@@ -239,6 +239,7 @@ test("new DIY sketches preserve prior saves even when the same cake and size are
     Ionicons: "Icon",
     CakeCanvas: "Canvas",
     CakeStage: "CakeStage",
+    cakeWeightKg: () => null,
     CustomCakeBrief: "Inspo",
     SizeFinishPicker: "Sizes",
     Notice: "Notice",

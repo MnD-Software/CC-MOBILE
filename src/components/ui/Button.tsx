@@ -7,6 +7,7 @@ import {
   ViewStyle,
 } from "react-native";
 import { Text } from "@/components/ui/Typography";
+import { GlossSheen } from "@/components/ui/GlossSheen";
 import { tokens } from "@/theme/tokens";
 import { selectionFeedback } from "@/native/haptics";
 import { useTheme } from "@/theme/ThemeProvider";
@@ -140,6 +141,9 @@ export function Button({
         style,
       ]}
     >
+      {variant !== "ghost" && variant !== "outline" ? (
+        <GlossSheen strength={variant === "secondary" ? 0.75 : 1} />
+      ) : null}
       {loading ? (
         <ActivityIndicator color={v.text} size="small" />
       ) : (

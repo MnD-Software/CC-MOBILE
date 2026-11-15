@@ -111,3 +111,25 @@ def test_concurrent_company_registration_creates_one_company(client):
     assert all(result.status_code==201 for result in results)
     assert len({result.json()['id'] for result in results})==1
     assert len(client.get('/v1/corporate/organizations',headers=owner).json())==1
+
+
+def test_corporate_quote_acceptance_enforces_approver_limit(client):
+    owner,_=login(client); approver,email=login(client); seller,_=login(client,'corporate_sales')
+    identity=company(client,owner); path=f'/v1/corporate/organizations/{identity}'
+    token=client.post(path+'/invitations',headers=owner,json={'email':email,'role':'approver'}).json()['token']
+    assert client.post('/v1/corporate/invitations/accept',headers=approver,json={'token':token}).status_code==200
+    with SessionLocal() as db:
+        approver_id=db.scalar(select(Customer.id).where(Customer.email==email))
+    def quoted():
+        quote=client.post(path+'/quotes',headers=approver,json={'request_key':str(uuid4()),'kind':'corporate','subject':'Annual party','details':'Twenty people, next month, Nairobi'}).json()
+        reply={'revision':1,'status':'quoted','response':'Cake and delivery quotation','quote_minor':500000,'quote_expires_at':(datetime.now(UTC)+timedelta(days=2)).isoformat()}
+        assert client.patch('/v1/admin/enquiries/'+quote['id'],headers=seller,json=reply).status_code==200
+        return quote['id']
+    limited=client.put(f'/v1/business/companies/{identity}/purchasing',headers=owner,json={'revision':0,'customer_id':approver_id,'role':'approver','approval_limit_minor':100000})
+    assert limited.status_code==200,limited.text
+    first=quoted()
+    assert client.post(path+f'/quotes/{first}/accept',headers=approver,json={'revision':2}).status_code==403
+    assert client.post(path+f'/quotes/{first}/accept',headers=owner,json={'revision':2}).status_code==200
+    assert client.put(f'/v1/business/companies/{identity}/purchasing',headers=owner,json={'revision':1,'customer_id':approver_id,'role':'approver','approval_limit_minor':None}).status_code==200
+    second=quoted()
+    assert client.post(path+f'/quotes/{second}/accept',headers=approver,json={'revision':2}).status_code==200

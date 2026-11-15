@@ -67,6 +67,12 @@ def test_full_simulated_order_club_kitchen_dispatch_tracking_without_pesapal(sys
     receipt=s["client"].get(f"/v1/app-orders/{reference}/receipt").json()
     assert "No money charged" in receipt["notice"] and receipt["payment_test"]
     role(s,"production")
+    with Session(s["engine"]) as db:
+        from datetime import UTC, datetime
+        from app.logistics_models import ProductionTask
+        order_id=db.scalar(select(AppOrder.id).where(AppOrder.reference==reference))
+        db.add(ProductionTask(order_id=order_id,plant="hq",assigned_to="buyer",assigned_at=datetime.now(UTC)))
+        db.commit()
     assert s["client"].get("/v1/admin/app-orders").status_code == 200
     for state in ("preparing","ready"):
         response=s["client"].patch(f"/v1/admin/app-orders/{reference}",json={"status":state})

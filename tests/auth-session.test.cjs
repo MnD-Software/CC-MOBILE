@@ -1,3 +1,4 @@
+require("./register.cjs");
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
@@ -24,6 +25,15 @@ function session(id) {
   };
 }
 function load(storageOverrides = {}, apiOverrides = {}) {
+  const calls = { claimed: [], wiped: [], revoked: [] };
+  class ApiError extends Error {
+    constructor(message, init = {}) {
+      super(message);
+      this.code = init.code;
+      this.status = init.status ?? null;
+    }
+  }
+  const connectivity = { state: "unknown", listeners: new Set() };
   const slots = [];
   const effects = [];
   let cursor = 0;
@@ -53,6 +63,8 @@ function load(storageOverrides = {}, apiOverrides = {}) {
     },
   };
   const context = {
+    setTimeout,
+    clearTimeout,
     exports: {},
     require(name) {
       if (name === "react") return react;
@@ -65,7 +77,7 @@ function load(storageOverrides = {}, apiOverrides = {}) {
         };
       if (name === "@/api/client")
         return {
-          ApiError: class extends Error {},
+          ApiError,
           setAccessToken: (value) => {
             token = value;
           },
@@ -89,20 +101,32 @@ function load(storageOverrides = {}, apiOverrides = {}) {
         return {
           authApi: {
             login: async (id) => session(id),
-            logout: async () => {},
+            logout: async (token) => {
+              calls.revoked.push(token);
+            },
             ...apiOverrides,
           },
         };
       if (name === "./session-unlock")
         return { markAccountUnlocked() {}, forgetAccountUnlock() {} };
       if (name === "./query-privacy") return { clearPrivateQueryCache() {} };
-      if (name.endsWith("website-checkout-session"))
+      if (name === "./local-session")
         return {
-          clearWebsiteCheckoutSession: async () => {},
-          clearWebsitePaymentAttempt: async () => {},
+          claimDeviceState: (owner) => calls.claimed.push(owner),
+          wipeLocalSession: async (_cache, owner) => {
+            calls.wiped.push(owner);
+          },
         };
-      if (name.endsWith("website-order-history"))
-        return { clearLegacyWebsiteOrderHistory: async () => {} };
+      if (name === "./restore-policy")
+        return require("../src/auth/restore-policy.ts");
+      if (name === "@/platform/connectivity")
+        return {
+          connectivityState: () => connectivity.state,
+          subscribeToConnectivity(listener) {
+            connectivity.listeners.add(listener);
+            return () => connectivity.listeners.delete(listener);
+          },
+        };
       throw new Error(name);
     },
   };
@@ -114,6 +138,13 @@ function load(storageOverrides = {}, apiOverrides = {}) {
     },
     storage,
     effects,
+    calls,
+    slots,
+    ApiError,
+    goOnline() {
+      connectivity.state = "online";
+      for (const listener of connectivity.listeners) listener();
+    },
     token: () => token,
   };
 }
@@ -286,4 +317,106 @@ test("an older in-flight refresh cannot overwrite a confirmed profile save", asy
   });
   await save;
   assert.equal(value.render().customer.first_name, "New name");
+});
+
+test("each sign-in claims device state for its owner and logout wipes it", async () => {
+  const value = load();
+  await value.render().login("first", "password");
+  await value.render().login("second", "password");
+  assert.deepEqual(value.calls.claimed, ["first", "second"]);
+  await value.render().logout();
+  assert.deepEqual(value.calls.wiped, ["second"]);
+  assert.deepEqual(value.calls.revoked, ["refresh-second"]);
+});
+
+test("a revoked refresh runs the same local wipe as logout", async () => {
+  let fail;
+  const value = load(
+    {},
+    {
+      refresh: () =>
+        new Promise((_resolve, reject) => {
+          fail = reject;
+        }),
+    },
+  );
+  await value.render().login("first", "password");
+  value.render();
+  value.effects[0]();
+  await turn();
+  fail(new value.ApiError("Expired", { code: "AUTH_EXPIRED", status: 401 }));
+  await turn();
+  await turn();
+  assert.equal(value.render().customer, null);
+  assert.equal(value.render().restoring, false);
+  assert.deepEqual(value.calls.wiped, ["first"]);
+  assert.equal(value.storage.has("cakecity.refresh-token"), false);
+});
+
+test("a refresh that lands after sign-out revokes the rotated token", async () => {
+  let finish;
+  const value = load(
+    {},
+    {
+      refresh: () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    },
+  );
+  await value.render().login("first", "password");
+  value.render();
+  value.effects[0]();
+  await turn();
+  const logout = value.render().logout();
+  finish({ ...session("first"), refresh_token: "rotated-first" });
+  await logout;
+  await turn();
+  await turn();
+  assert.equal(value.render().customer, null);
+  assert.ok(value.calls.revoked.includes("rotated-first"));
+  assert.equal(value.storage.has("cakecity.refresh-token"), false);
+});
+
+test("an offline cold start keeps restoring and retries when the connection returns", async () => {
+  let attempts = 0;
+  const value = load(
+    {},
+    {
+      refresh: async () => {
+        if (++attempts === 1)
+          throw new value.ApiError("Offline", { code: "NETWORK_ERROR" });
+        return session("first");
+      },
+    },
+  );
+  value.storage.set("cakecity.refresh-token", "refresh-first");
+  value.render();
+  value.effects[0]();
+  for (let i = 0; i < 5; i++) await turn();
+  assert.equal(value.render().restoring, true);
+  assert.equal(value.render().customer, null);
+  assert.equal(value.storage.get("cakecity.refresh-token"), "refresh-first");
+  value.goOnline();
+  for (let i = 0; i < 5; i++) await turn();
+  assert.equal(attempts, 2);
+  assert.equal(value.render().customer.id, "first");
+  assert.equal(value.render().restoring, false);
+});
+
+test("a rejected saved token still signs out on cold start", async () => {
+  const value = load(
+    {},
+    {
+      refresh: async () => {
+        throw new value.ApiError("Revoked", { code: "AUTH", status: 403 });
+      },
+    },
+  );
+  value.storage.set("cakecity.refresh-token", "refresh-first");
+  value.render();
+  value.effects[0]();
+  for (let i = 0; i < 5; i++) await turn();
+  assert.equal(value.render().restoring, false);
+  assert.equal(value.storage.has("cakecity.refresh-token"), false);
 });

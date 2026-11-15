@@ -27,6 +27,7 @@ import { Screen, Notice, Feedback, useToast } from "@/components/ui/Commerce";
 import { useTheme } from "@/theme/ThemeProvider";
 import { useMotionAccessibilityPreference } from "@/design/useReducedMotion";
 import { CakeStage } from "./CakeStage";
+import { cakeWeightKg } from "./cake-scene";
 import { CustomCakeBrief } from "./CustomCakeBrief";
 import { SizeFinishPicker } from "./SizeFinishPicker";
 import { appMedia } from "@/features/commerce/app-media";
@@ -517,6 +518,7 @@ export function InventoryEditor() {
             variant="outline"
             disabled={busy}
             onPress={newSketch}
+            style={{ alignSelf: "center" }}
           />
         ) : undefined
       }
@@ -673,6 +675,10 @@ export function InventoryEditor() {
             colour={colour}
             message={message}
             candles={extras.some((x) => /candle|candel|sparkler/i.test(x.name))}
+            sprinkles={extras.some((x) =>
+              /sprinkle|hundreds|nonpareil|confetti/i.test(x.name),
+            )}
+            sizeKg={cakeWeightKg((variant || cake)?.attributes)}
             price={
               sku ? cash(quote?.subtotal_minor ?? estimate) : "Choose a cake"
             }

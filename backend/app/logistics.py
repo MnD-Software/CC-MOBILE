@@ -32,6 +32,12 @@ def require_plant(db, actor, plant):
         raise HTTPException(403, "This production location is outside your assigned workspace.")
 
 
+def rider_serves_plant(db, rider, plant):
+    """Riders work from their granted locations; legacy riders without any grant are HQ riders."""
+    plants = set(db.scalars(select(LogisticsScope.plant).where(LogisticsScope.customer_id == rider.id)))
+    return plant in plants if plants else plant == "hq"
+
+
 def paid_order(db, reference):
     row = db.scalar(select(AppOrder).where(AppOrder.reference == reference).with_for_update())
     if not row or row.payment_state != "completed" or row.state in ("review_required", "cancelled", "payment_failed"):
@@ -134,6 +140,8 @@ def new_trip(db, actor, reference, data, commit=True):
     rider = db.get(Customer, data.rider_id)
     if not rider or rider.role not in RIDERS:
         raise HTTPException(422, "Choose a provisioned rider or driver account.")
+    if actor is not None and not rider_serves_plant(db, rider, production.plant):
+        raise HTTPException(422, "Choose a rider assigned to this production location.")
     if data.service_type == "delivery" and order.snapshot.get("checkout", {}).get("fulfilment") != "delivery":
         raise HTTPException(409, "Customer pickup needs a separate branch-transfer task, not a delivery.")
     if data.resource_type == "external_rider" and (data.service_type != "delivery" and len(data.external_reason.strip()) < 10):

@@ -42,7 +42,8 @@ export function AccountPrivacyScreen() {
           ...data,
           on_this_device: {
             billing: await loadBillingProfile(owner),
-            favourites: prefs.savedProductSlugs,
+            favourites: prefs.savedSlugsByOwner[owner] ?? [],
+            recent_searches: prefs.recentSearchesByOwner[owner] ?? [],
             recently_viewed: prefs.recentSlugsByOwner[owner] ?? [],
             designs: prefs.designs[owner] ?? [],
           },
@@ -99,14 +100,17 @@ export function AccountPrivacyScreen() {
       const { [owner]: avatar, ...profileAvatars } = p.profileAvatars;
       const { [owner]: recent, ...recentSlugsByOwner } = p.recentSlugsByOwner;
       const { [owner]: design, ...designs } = p.designs;
+      const { [owner]: saved, ...savedSlugsByOwner } = p.savedSlugsByOwner;
+      const { [owner]: searches, ...recentSearchesByOwner } =
+        p.recentSearchesByOwner;
       usePreferences.setState({
         profileAvatars,
         recentSlugsByOwner,
         designs,
-        savedProductSlugs: [],
-        recentSearches: [],
+        savedSlugsByOwner,
+        recentSearchesByOwner,
       });
-      useBag.setState({ lines: [] });
+      useBag.setState({ lines: [], settled: [] });
       await clearBillingProfile(owner).catch(() => undefined);
       await logout();
       router.replace("/sign-in");

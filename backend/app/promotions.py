@@ -30,7 +30,8 @@ def eligibility(db, coupon, customer_id):
     from .marketing_crm import matches
     if not matches(db,customer_id,rule.get('segment','all')): return False
     if rule.get('first_order_only') and db.scalar(select(AppOrder.id).where(
-            AppOrder.customer_id == customer_id, AppOrder.payment_state == 'completed').limit(1)): return False
+            AppOrder.customer_id == customer_id, AppOrder.state.notin_(['cancelled','payment_failed']),
+            ((AppOrder.inventory_state=='reserved') | (AppOrder.payment_state=='completed'))).limit(1)): return False
     limit = rule.get('per_customer_limit')
     if limit:
         existing = list(db.scalars(select(AppOrder.id).where(AppOrder.customer_id == customer_id,

@@ -44,7 +44,14 @@ export function AppOrderScreen() {
     queryFn: () => appOrders.detail(reference),
     refetchInterval: (query) =>
       !active ||
-      ["completed", "cancelled", "failed", "reversed"].includes(
+      [
+        "completed",
+        "cancelled",
+        "failed",
+        "payment_failed",
+        "reversed",
+        "review_required",
+      ].includes(
         query.state.data?.status || "",
       )
         ? false

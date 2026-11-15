@@ -7,7 +7,7 @@ import {
   CATALOGUE_STALE_TIME_MS,
   shopApi,
 } from "@/features/commerce/api";
-import { usePreferences } from "@/features/commerce/store";
+import { selectSavedSlugs, usePreferences } from "@/features/commerce/store";
 import { CelebrationArtwork } from "@/components/ui/CelebrationArtwork";
 
 /**
@@ -17,7 +17,7 @@ import { CelebrationArtwork } from "@/components/ui/CelebrationArtwork";
  */
 export default function Favourites() {
   const { customer } = useAuth();
-  const saved = usePreferences((state) => state.savedProductSlugs);
+  const saved = usePreferences(selectSavedSlugs);
   const query = useQuery({
     queryKey: ["saved-products", ...saved],
     enabled: saved.length > 0,

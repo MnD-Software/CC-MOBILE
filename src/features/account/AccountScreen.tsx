@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/Commerce";
 import { Button } from "@/components/ui/Button";
 import { ProfileDetailsForm } from "./ProfileDetailsForm";
-import { usePreferences } from "@/features/commerce/store";
+import { selectSavedSlugs, usePreferences } from "@/features/commerce/store";
 import { tokens } from "@/theme/tokens";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 
@@ -309,7 +309,9 @@ export function AccountScreen() {
   });
   const defaultAddress =
     addresses.data?.find((value) => value.is_default) ?? addresses.data?.[0];
-  const savedCount = usePreferences((state) => state.savedProductSlugs.length);
+  const savedCount = usePreferences(
+    (state) => selectSavedSlugs(state).length,
+  );
   const avatar = usePreferences((state) =>
     customer ? state.profileAvatars?.[customer.id] : undefined,
   );

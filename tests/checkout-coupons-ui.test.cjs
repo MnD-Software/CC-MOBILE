@@ -27,6 +27,8 @@ function screen(coupons, code = "") {
     "@/components/ui/Skeleton": { Skeleton: "Skeleton" },
     "@/components/ui/Input": { Input: "Input" },
     "@/components/ui/Disclosure": { Disclosure: "Disclosure" },
+    "@/components/ui/GlossSheen": { GlossSheen: "GlossSheen" },
+    "@/components/ui/CouponPerforation": { CouponPerforation: "CouponPerforation" },
     "@/theme/ThemeProvider": { useTheme: () => ({ colors: {} }) },
     "./coupon-wallet": {
       selectCouponCode: async () => {},

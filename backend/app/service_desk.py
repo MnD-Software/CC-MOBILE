@@ -67,6 +67,11 @@ def access(db,actor,kind,identity):
     raise HTTPException(403,'Claim this record first, or ask the assigned agent or manager.')
 
 
+def operational_only(actor,case):
+    """True when access comes only from a kitchen/dispatch role, not a call-centre relationship."""
+    return actor.role not in LEADS and not (actor.role in AGENTS and case and case.agent_id==actor.id)
+
+
 @router.get('/agents')
 def agents(actor=Depends(agent),db:Session=Depends(get_db)):
     if actor.role not in LEADS: return [{'id':actor.id,'name':f"{getattr(actor,'first_name','Agent')} {getattr(actor,'last_name','')}".strip()}]
@@ -152,6 +157,12 @@ def detail(kind:Literal['order','enquiry'],identity:str,actor=Depends(member),db
         production=db.get(ProductionTask,row.id)
         result['production']={'plant':production.plant,'assigned_to':production.assigned_to} if production else None
         result['enquiries']=[output(e) for e in db.scalars(select(Enquiry).join(OrderSupportLink,OrderSupportLink.enquiry_id==Enquiry.id).where(OrderSupportLink.order_id==row.id))]
+        if operational_only(actor,case):
+            # Kitchen/dispatch see fulfilment facts only, never customer contact or payment data.
+            result.pop('customer',None); result.pop('checkout_contacts',None); result.pop('order_value_minor',None)
+            if actor.role not in DISPATCH: result.pop('recipient',None)
+            for key in ('snapshot','payment_url','tracking_id','total_minor','payment_account','tax_invoice'):
+                result['order'].pop(key,None)
     else:
         from .routes_enquiries import output,OrderSupportLink
         result['enquiry']=output(row)
@@ -176,7 +187,8 @@ def report(actor=Depends(agent),db:Session=Depends(get_db)):
 
 @router.get('/orders/{reference}/receipt')
 def receipt(reference:str,actor=Depends(member),db:Session=Depends(get_db)):
-    order,_=access(db,actor,'order',reference)
+    order,case=access(db,actor,'order',reference)
+    if operational_only(actor,case): raise HTTPException(403,'Receipts are available to the customer service team only.')
     if order.payment_state!='completed': raise HTTPException(409,'A receipt requires confirmed payment. This order is still awaiting payment.')
     logo=base64.b64encode((Path(__file__).parent/'dashboard'/'cake-city-logo.png').read_bytes()).decode()
     cash=lambda n:f'KES {n/100:,.2f}'
