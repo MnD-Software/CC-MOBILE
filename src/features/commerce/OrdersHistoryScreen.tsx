@@ -21,6 +21,7 @@ import { orderHistoryAction } from "./order-history";
 import { OrderDateField } from "./OrderDateField";
 import { money } from "./contracts";
 import { useHomeOrders, useAcknowledgeOrder } from "./useHomeOrders";
+import { selectionFeedback } from "@/native/haptics";
 
 type Filters = { from_date?: string; to_date?: string; cake?: string };
 export function OrdersHistoryScreen() {
@@ -424,40 +425,89 @@ export function OrdersHistoryScreen() {
             <Text style={{ color: colors.muted, fontSize: 11 }}>
               {order.reference}
             </Text>
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
-              <Button
-                variant={tab === "past" ? "outline" : "primary"}
-                style={{ flex: 1, minWidth: 130 }}
-                label={orderHistoryAction(order)}
-                onPress={() =>
+            {tab === "active" ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`${orderHistoryAction(order)} ${order.reference}`}
+                onPress={() => {
+                  void selectionFeedback();
                   router.push({
                     pathname: "/order/[reference]",
                     params: { reference: order.reference },
-                  })
-                }
-              />
-              {awaitingReceipt ? (
+                  });
+                }}
+                style={({ pressed }) => ({
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 9,
+                  minHeight: 48,
+                  paddingVertical: 12,
+                  paddingHorizontal: 4,
+                  borderTopWidth: 1,
+                  borderTopColor: colors.border,
+                  borderRadius: 8,
+                  backgroundColor: pressed
+                    ? colors.surfaceRaised
+                    : "transparent",
+                })}
+              >
+                <Ionicons
+                  name="navigate-outline"
+                  size={18}
+                  color={colors.brandStrong}
+                />
+                <Text
+                  style={{
+                    flex: 1,
+                    color: colors.brandStrong,
+                    fontSize: 14,
+                    fontWeight: "600",
+                  }}
+                >
+                  {orderHistoryAction(order)}
+                </Text>
+                <Ionicons
+                  name="chevron-forward"
+                  size={17}
+                  color={colors.brandStrong}
+                />
+              </Pressable>
+            ) : (
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
                 <Button
-                  label="Received, thank you"
-                  variant="secondary"
+                  variant="outline"
                   style={{ flex: 1, minWidth: 130 }}
-                  disabled={acknowledge.isPending}
-                  loading={
-                    acknowledge.isPending &&
-                    acknowledge.variables === order.reference
-                  }
+                  label={orderHistoryAction(order)}
                   onPress={() =>
-                    acknowledge.mutate(order.reference, {
-                      onSuccess: () =>
-                        router.push({
-                          pathname: "/order/[reference]",
-                          params: { reference: order.reference },
-                        }),
+                    router.push({
+                      pathname: "/order/[reference]",
+                      params: { reference: order.reference },
                     })
                   }
                 />
-              ) : null}
-            </View>
+                {awaitingReceipt ? (
+                  <Button
+                    label="Received, thank you"
+                    variant="secondary"
+                    style={{ flex: 1, minWidth: 130 }}
+                    disabled={acknowledge.isPending}
+                    loading={
+                      acknowledge.isPending &&
+                      acknowledge.variables === order.reference
+                    }
+                    onPress={() =>
+                      acknowledge.mutate(order.reference, {
+                        onSuccess: () =>
+                          router.push({
+                            pathname: "/order/[reference]",
+                            params: { reference: order.reference },
+                          }),
+                      })
+                    }
+                  />
+                ) : null}
+              </View>
+            )}
           </View>
         ))
       )}

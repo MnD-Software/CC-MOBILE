@@ -14,6 +14,10 @@ The owner also reported the card becoming taller when its colour changes. Both f
 
 Follow-up validation: all 276 frontend tests and `npm run typecheck` passed. No backend, native dependencies, real customer tiers or active preview processes were changed for this feature.
 
+## Active-order actions
+
+Active order cards now use a simple 48 dp tracking row with a small navigation icon, label and chevron, separated from the order summary by a light divider. The pressed state uses the themed raised surface rather than a glossy full-width pill. Tracking navigation and selection haptics remain; past-order and receipt-confirmation actions are unchanged. This update is limited to `OrdersHistoryScreen.tsx`; concurrent DIY work is excluded.
+
 Owner decisions in this session:
 - Confetti stays **one giant burst**, as chosen in today's commit and re-confirmed by the owner. The older "three-wave" wording in the brief is superseded. Pieces should be much larger and glossier.
 - The DIY 3D view should become a far richer, interactive simulation of the customer's choices. It remains an original procedural **design illustration**, not a photorealistic product scan.
