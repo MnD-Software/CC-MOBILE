@@ -22,6 +22,10 @@ async function session(existing = false, failBackend = false) {
           const child = {
             pid: 100 + launches.length,
             exitCode: null,
+            emit: (name, ...args) => {
+              if (name === "exit") child.exitCode = args[0];
+              handlers[name]?.(...args);
+            },
             on: (name, callback) => {
               handlers[name] = callback;
             },
@@ -55,13 +59,14 @@ async function session(existing = false, failBackend = false) {
     process: state,
     console: { log() {}, error() {} },
     AbortSignal,
+    clearTimeout,
     setTimeout: (callback) => setTimeout(callback, 1),
     fetch: async (url) =>
       url.includes("local-preview/status")
         ? {
             ok: true,
             json: async () => ({
-                local_preview: !failBackend && (existing || ++checks > 1),
+              local_preview: !failBackend && (existing || ++checks > 1),
               live_integrations: false,
             }),
           }
@@ -97,5 +102,49 @@ test("reusing an existing isolated API does not stop someone else's backend", as
 test("backend startup failure prevents an orphaned Metro session", async () => {
   const s = await session(false, true);
   assert.equal(s.launches.length, 1);
+  assert.equal(s.state.exitCode, 1);
+});
+test("unexpected tunnel exits recover without restarting or killing the API", async () => {
+  const s = await session();
+  s.launches[1].child.emit("exit", 1);
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(s.launches.length, 3);
+  assert.equal(s.killed.length, 0);
+  assert.equal(
+    s.files.filter(([name]) => name.endsWith("EXPO-GO-REVIEW-QR.svg")).length,
+    2,
+  );
+  s.signals.SIGINT();
+  assert.equal(s.killed.length, 2);
+});
+test("a reported tunnel disconnection terminates stale Metro and recovers", async () => {
+  const s = await session(true);
+  s.launches[0].child.emit("message", { type: "cakecity:tunnel-disconnected" });
+  s.launches[0].child.emit("message", { type: "cakecity:tunnel-disconnected" });
+  assert.equal(s.killed.length, 1);
+  s.launches[0].child.emit("exit", 1);
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(s.launches.length, 2);
+  s.signals.SIGINT();
+});
+test("intentional exits and Ctrl+C cancel recovery", async () => {
+  const s = await session(true);
+  s.launches[0].child.emit("exit", 0);
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(s.launches.length, 1);
+  assert.equal(s.state.exitCode, 0);
+  const pending = await session(true);
+  pending.launches[0].child.emit("exit", 1);
+  pending.signals.SIGINT();
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(pending.launches.length, 1);
+});
+test("repeated startup failures stop after five retries", async () => {
+  const s = await session(true);
+  for (let i = 0; i < 6; i++) {
+    s.launches[i].child.emit("exit", 1);
+    await new Promise((resolve) => setTimeout(resolve, 15));
+  }
+  assert.equal(s.launches.length, 6);
   assert.equal(s.state.exitCode, 1);
 });

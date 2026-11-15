@@ -4,10 +4,14 @@ const path = require("node:path");
 const fs = require("node:fs");
 const children = [];
 let stopping = false;
+let tunnelGeneration = 0;
+let retryTimer;
 const root = path.resolve(__dirname, "..");
 function stop(code = 0) {
   if (stopping) return;
   stopping = true;
+  clearTimeout(retryTimer);
+  tunnelGeneration++;
   for (const child of children) {
     if (child.exitCode !== null) continue;
     if (process.platform === "win32" && child.pid)
@@ -21,11 +25,11 @@ function stop(code = 0) {
 }
 process.on("SIGINT", () => stop());
 process.on("SIGTERM", () => stop());
-function launch(args, env = process.env) {
+function launch(args, env = process.env, onExit) {
   const child = spawn(process.execPath, args, {
     cwd: root,
     env,
-    stdio: "inherit",
+    stdio: onExit ? ["inherit", "inherit", "inherit", "ipc"] : "inherit",
     windowsHide: true,
   });
   children.push(child);
@@ -33,8 +37,11 @@ function launch(args, env = process.env) {
     console.error(error.message);
     stop(1);
   });
-  child.on("exit", (code) => {
-    if (!stopping) stop(code ?? 1);
+  child.on("exit", (code, signal) => {
+    if (!stopping) {
+      if (onExit) onExit(code, signal);
+      else stop(code ?? 1);
+    }
   });
   return child;
 }
@@ -54,15 +61,25 @@ async function backendReady() {
   }
 }
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-async function saveQr(port) {
-  for (let attempts = 0; attempts < 360 && !stopping; attempts++) {
+async function saveQr(port, generation) {
+  for (
+    let attempts = 0;
+    attempts < 360 && !stopping && generation === tunnelGeneration;
+    attempts++
+  ) {
     try {
       const response = await fetch(`http://127.0.0.1:${port}/`, {
         headers: { "expo-platform": "ios", accept: "application/expo+json" },
-        signal: AbortSignal.timeout(2000),
+        signal: AbortSignal.timeout(15000),
       });
       const host = (await response.json()).extra?.expoClient?.hostUri;
-      if (!response.ok || !host || !/^[a-zA-Z0-9.:-]+$/.test(host))
+      if (stopping || generation !== tunnelGeneration) return;
+      if (
+        !response.ok ||
+        !host ||
+        !/^[a-zA-Z0-9.:-]+$/.test(host) ||
+        /^(?:localhost|\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}|\[?::1)/i.test(host)
+      )
         throw new Error("Tunnel starting");
       const url = "exp://" + host;
       const cli = path.join(
@@ -91,6 +108,10 @@ async function saveQr(port) {
       await pause(1000);
     }
   }
+  if (!stopping && generation === tunnelGeneration)
+    console.error(
+      "Could not save the tunnel QR. Use the current URL shown by Expo in this terminal.",
+    );
 }
 async function main() {
   const extra = process.argv.slice(2);
@@ -121,27 +142,68 @@ async function main() {
   console.log(
     "Isolated Expo Go checkout: no real charges. Sign-in: artifacts/local-preview/LOGIN.txt. Ctrl+C stops this session.",
   );
-  launch(
-    [
-      path.join(__dirname, "expo.cjs"),
-      "start",
-      "--go",
-      "--tunnel",
-      ...(portIndex < 0 ? ["--port", String(port)] : []),
-      "--max-workers",
-      "2",
-      ...extra,
-    ],
-    {
-      ...process.env,
-      EXPO_PUBLIC_API_URL: "",
-      EXPO_PUBLIC_REVIEW_TUNNEL: "1",
-      EXPO_PUBLIC_LOCAL_REVIEW: "1",
-      EXPO_PUBLIC_PURCHASE_TEST_URL: "",
-      CAKECITY_REVIEW_PROXY: "1",
-    },
-  );
-  void saveQr(port);
+  const args = [
+    path.join(__dirname, "expo.cjs"),
+    "start",
+    "--go",
+    "--tunnel",
+    ...(portIndex < 0 ? ["--port", String(port)] : []),
+    "--max-workers",
+    "2",
+    ...extra,
+  ];
+  const env = {
+    ...process.env,
+    EXPO_PUBLIC_API_URL: "",
+    EXPO_PUBLIC_REVIEW_TUNNEL: "1",
+    EXPO_PUBLIC_LOCAL_REVIEW: "1",
+    EXPO_PUBLIC_PURCHASE_TEST_URL: "",
+    CAKECITY_REVIEW_PROXY: "1",
+    CAKECITY_TUNNEL_SUPERVISOR: "1",
+  };
+  let failures = 0;
+  function startTunnel() {
+    if (stopping) return;
+    const generation = ++tunnelGeneration;
+    const started = Date.now();
+    const child = launch(args, env, (code, signal) => {
+      tunnelGeneration++;
+      // An intentional CLI exit (q/Ctrl+C) should never restart the session.
+      if (code === 0 || signal === "SIGINT" || signal === "SIGTERM")
+        return stop();
+      if (Date.now() - started > 120000) failures = 0;
+      if (++failures > 5) {
+        console.error(
+          "Expo stopped repeatedly. Check the error above and your internet connection, then run npm run start:go:tunnel again.",
+        );
+        return stop(1);
+      }
+      const delay = Math.min(30000, 3000 * 2 ** (failures - 1));
+      console.error(
+        `Expo tunnel stopped (${signal || code}). Reconnecting in ${delay / 1000}s (${failures}/5). The test backend stays running. Ctrl+C cancels.`,
+      );
+      retryTimer = setTimeout(startTunnel, delay);
+    });
+    let disconnected = false;
+    child.on("message", (message) => {
+      if (
+        stopping ||
+        disconnected ||
+        message?.type !== "cakecity:tunnel-disconnected"
+      )
+        return;
+      disconnected = true;
+      // The CLI may leave Metro alive after losing its public tunnel.
+      if (process.platform === "win32" && child.pid)
+        spawnSync("taskkill", ["/PID", String(child.pid), "/T", "/F"], {
+          windowsHide: true,
+          stdio: "ignore",
+        });
+      else child.kill("SIGKILL");
+    });
+    void saveQr(port, generation);
+  }
+  startTunnel();
 }
 main().catch((error) => {
   console.error(error.message);
