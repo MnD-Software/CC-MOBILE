@@ -159,7 +159,7 @@ def new_trip(db, actor, reference, data, commit=True):
         external_reason=data.external_reason, destination=destination,
         recipient=data.recipient or checkout.get("recipient_name") or " ".join(filter(None, [billing.get("first_name"), billing.get("last_name")])),
         phone=data.phone or checkout.get("recipient_phone") or billing.get("phone", ""), items=items,
-        scheduled_at=data.scheduled_at, slot=data.slot, pv_reference=data.pv_reference, status="assigned")
+        scheduled_at=data.scheduled_at, slot=data.slot or order.snapshot.get('fulfilment_window',{}).get('label',''), pv_reference=data.pv_reference, status="assigned")
     db.add(task)
     db.flush()
     route = order.snapshot.get("route") or {}
@@ -190,7 +190,7 @@ def task_view(db, task, history=False):
         "rider_name": " ".join([rider.first_name, rider.last_name]) if rider else None,
         "feedback": for_task(db, task),
         "payment_test": order.channel == "app_test", "review_checkout": bool(order.snapshot.get("review_checkout")),
-        "delivery_notes": str(order.snapshot.get("checkout", {}).get("notes", ""))}
+        "delivery_notes": str(order.snapshot.get("checkout", {}).get("notes", "")) + ("\nGift message: " + str(order.snapshot['checkout']['gift_message']) if order.snapshot.get('checkout',{}).get('gift_message') else '') + ('\nGift delivery: keep prices off the recipient note.' if order.snapshot.get('checkout',{}).get('hide_gift_prices') else '')}
     checkout = order.snapshot.get("checkout", {})
     expected = (order.snapshot.get("route") or {}).get("destination_address") or checkout.get("billing", {}).get("address")
     result["destination_point"] = ((order.snapshot.get("route") or {}).get("destination") or checkout.get("delivery_location")) if task.destination == expected else None

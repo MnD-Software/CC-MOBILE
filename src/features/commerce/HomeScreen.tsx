@@ -1,6 +1,7 @@
 import { useReducedMotion } from "@/design/useReducedMotion";
 import { useScreenActive } from "@/design/useScreenActive";
 import { HomeWelcome } from "./HomeWelcome";
+import { ExperienceShortcut } from "@/features/experience/ExperienceScreen";
 import { PromotionsShelf } from "./PromotionsShelf";
 import { useHomeOrders } from "./useHomeOrders";
 import { appMedia } from "./app-media";
@@ -361,6 +362,7 @@ export function HomeScreen() {
           </View>
         ) : null}
         <HomeWelcome />
+        <ExperienceShortcut />
         {catalogue.isPending ? (
           <HomeSkeleton cardWidth={collectionCardWidth} />
         ) : catalogue.isError ? (

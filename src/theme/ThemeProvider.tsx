@@ -35,6 +35,7 @@ type ThemeContextValue = {
   setPreference: (value: AppearancePreference) => void;
   persistenceError: boolean;
   highContrast: boolean;
+  scoped?: boolean;
 };
 const ThemeContext = createContext<ThemeContextValue>({
   colors: tokens.color,
@@ -139,7 +140,42 @@ export function ThemeProvider({ children }: PropsWithChildren) {
 
 export const useTheme = () => useContext(ThemeContext);
 
+/** A page-local palette never changes another tab or the stored app appearance. */
+export function ThemeScope({
+  colors,
+  children,
+}: PropsWithChildren<{ colors?: ThemeColors }>) {
+  const parent = useTheme();
+  const value = useMemo(
+    () => (colors ? { ...parent, colors, scoped: true } : parent),
+    [parent, colors],
+  );
+  return (
+    <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
+  );
+}
+
 export function useThemedStyles<T extends Record<string, object>>(base: T): T {
-  const { isDark } = useTheme();
-  return useMemo(() => themedStyleMap(base, isDark), [base, isDark]);
+  const { isDark, colors, scoped } = useTheme();
+  return useMemo(() => {
+    if (!scoped) return themedStyleMap(base, isDark);
+    return Object.fromEntries(
+      Object.entries(base).map(([name, style]) => [
+        name,
+        Object.fromEntries(
+          Object.entries(style).map(([property, value]) => {
+            const key = Object.entries(tokens.color).find(
+              ([key, color]) =>
+                color === value &&
+                !(
+                  property === "color" &&
+                  (key === "surface" || key === "white")
+                ),
+            )?.[0] as keyof ThemeColors | undefined;
+            return [property, key ? colors[key] : value];
+          }),
+        ),
+      ]),
+    ) as T;
+  }, [base, isDark, colors, scoped]);
 }

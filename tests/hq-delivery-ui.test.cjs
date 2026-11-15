@@ -110,7 +110,16 @@ function pickup() {
     if (!node || typeof node !== "object") return [];
     if (Array.isArray(node)) return node.flatMap(visit);
     return [
-      ...(node.type === "Button" ? [node] : node.type === "BranchPicker" ? node.props.branches.map(b=>({props:{label:b.name,onPress:()=>node.props.onSelect(b.id)}})) : []),
+      ...(node.type === "Button"
+        ? [node]
+        : node.type === "BranchPicker"
+          ? node.props.branches.map((b) => ({
+              props: {
+                label: b.name,
+                onPress: () => node.props.onSelect(b.id),
+              },
+            }))
+          : []),
       ...visit(node.props?.children),
     ];
   }
@@ -126,12 +135,11 @@ function pickup() {
     },
   };
 }
-test("HQ and branch pickup calculate their server quote automatically without another confirmation button", async () => {
+test("only a selected branch is quoted automatically; HQ is not a pickup choice", async () => {
   const ui = pickup();
   await ui.flush();
-  assert.equal(ui.calls.length, 1);
-  assert.equal(ui.calls[0].branch, "hq");
-  assert.equal(ui.confirmed.at(-1).fee_minor, 0);
+  assert.equal(ui.calls.length, 0);
+  assert.equal(ui.confirmed.at(-1), null);
   assert(
     !ui
       .buttons()
@@ -142,14 +150,14 @@ test("HQ and branch pickup calculate their server quote automatically without an
     .props.onPress();
   assert.equal(ui.confirmed.at(-1), null);
   await ui.flush();
-  assert.equal(ui.calls.length, 2);
-  assert.equal(ui.calls[1].branch, "branch");
+  assert.equal(ui.calls.length, 1);
+  assert.equal(ui.calls[0].branch, "branch");
   assert.equal(ui.confirmed.at(-1).fee_minor, 13250);
   ui.buttons()
     .find((b) => b.props.label === "Branch collection")
     .props.onPress();
   await ui.flush();
-  assert.equal(ui.calls.length, 3);
+  assert.equal(ui.calls.length, 2);
   assert.equal(ui.confirmed.at(-1).fee_minor, 13250);
   assert(
     !ui

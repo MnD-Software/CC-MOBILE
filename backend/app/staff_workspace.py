@@ -34,6 +34,8 @@ def modules(role):
     result = [{"id": "overview", "label": "Overview", "href": "/workspace"}]
     def add(identity, label, href="/workspace"):
         result.append({"id": identity, "label": label, "href": href})
+    from .experience import OPERATORS, MARKETING
+    if role in OPERATORS | MARKETING: add('experience','Service & growth')
     if role in MANAGERS | {"call_center_agent","call_center_manager","customer_service","sales"}: add("service-desk", "Call centre & assisted orders")
     if role in MANAGERS | {"marketing_manager","content_manager"}:
         add("marketing", "Marketing command centre")

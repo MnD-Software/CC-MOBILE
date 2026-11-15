@@ -6,8 +6,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { Text } from "@/components/ui/Typography";
 import { tokens } from "@/theme/tokens";
+import { useTheme } from "@/theme/ThemeProvider";
 
 export function ClubWelcome({ name }: { name?: string }) {
+  const { colors, scoped } = useTheme();
   const active = useScreenActive();
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
@@ -20,7 +22,11 @@ export function ClubWelcome({ name }: { name?: string }) {
   return (
     <View style={styles.shadow}>
       <LinearGradient
-        colors={["#261A34", "#6E255B", "#8F315F"]}
+        colors={
+          scoped
+            ? [colors.action, colors.action, colors.action]
+            : ["#261A34", "#6E255B", "#8F315F"]
+        }
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.card}

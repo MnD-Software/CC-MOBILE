@@ -1,4 +1,5 @@
 from .marketing_crm import router as marketing_crm_router
+from .experience import router as experience_router
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -120,3 +121,4 @@ def database_ready():
     return {"status": "ready", "database": "ok"}
 
 app.include_router(marketing_crm_router)
+app.include_router(experience_router)

@@ -28,7 +28,13 @@ function checkout(optionOverrides = {}) {
   };
   const options = {
     pickup_enabled: true,
-    pickup_instructions: "Collect at HQ",
+    pickup_instructions: "Collect from your selected branch",
+    distance_delivery: {
+      enabled: false,
+      pickup_stores: [
+        { id: "branch", name: "Branch collection", address: "Branch address" },
+      ],
+    },
     delivery_zones: [],
     ...optionOverrides,
   };
@@ -97,6 +103,9 @@ function checkout(optionOverrides = {}) {
   };
   const jsx = (type, props) => ({ type, props });
   const modules = {
+    "@/features/experience/FulfilmentSlots": {
+      FulfilmentSlots: "FulfilmentSlots",
+    },
     react,
     "react/jsx-runtime": { jsx, jsxs: jsx },
     "react-native": { View: "View", StyleSheet: { create: (v) => v } },
@@ -295,6 +304,8 @@ test("a missing distance quote explains how to unlock checkout", async () => {
 test("lost app-order response locks new checkout and recovery reuses the original request without initiating payment", async () => {
   const c = checkout();
   await c.flush();
+  c.findType("PickupPicker").props.onSelect("branch");
+  await c.flush();
   c.buttons()
     .find((b) => b.props.label === "Review confirmed total")
     .props.onPress();
@@ -336,6 +347,8 @@ test("lost app-order response locks new checkout and recovery reuses the origina
 
 test("selecting and removing a checkout coupon refreshes the confirmed total without an Apply button or payment", async () => {
   const c = checkout({ pickup_enabled: true, delivery_zones: [] });
+  await c.flush();
+  c.findType("PickupPicker").props.onSelect("branch");
   await c.flush();
   c.buttons()
     .find((b) => b.props.label === "Review confirmed total")

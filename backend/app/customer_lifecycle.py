@@ -35,9 +35,12 @@ def export(response: Response, actor=Depends(member), db: Session = Depends(get_
     from .models import ClubEntry, ClubProfile
     from .compliance import PrivacyRequest,TaxInvoiceRequest
     from .marketing_crm import MarketingConsent,CheckoutActivity
+    from .experience import DiscoveryPreference,my_care
     response.headers["Cache-Control"] = "private, no-store"
     response.headers["Content-Disposition"] = 'attachment; filename="cake-city-account.json"'
     return {"version": 1, "exported_at": datetime.now(UTC), "profile": customer_payload(actor),
+        "discovery_preferences": rows(db,DiscoveryPreference,actor.id,["payload"]),
+        "customer_care": my_care(actor,db),
         "tax_invoice_requests": [{"reference":o.reference,"buyer_pin":r.buyer_pin,"status":r.payload} for r,o in db.execute(select(TaxInvoiceRequest,AppOrder).join(AppOrder,AppOrder.id==TaxInvoiceRequest.order_id).where(AppOrder.customer_id==actor.id))],
         "privacy_requests": rows(db, PrivacyRequest, actor.id, ["id","payload"]),
         "checkout_activity": rows(db, CheckoutActivity, actor.id, ["updated_at","payload"]),
@@ -91,6 +94,8 @@ def close(data: Closure, actor=Depends(member), db: Session = Depends(get_db)):
     for model in [MarketingConsent,CheckoutActivity,Address, Celebration, AppQuote, AppDeliveryQuote, PasswordResetToken, NotificationPreference]:
         db.execute(delete(model).where(model.customer_id == owner.id))
     from .models import ClubProfile
+    from .experience import DiscoveryPreference
+    db.execute(delete(DiscoveryPreference).where(DiscoveryPreference.customer_id==owner.id))
     db.execute(delete(ClubProfile).where(ClubProfile.customer_id == owner.id))
     db.execute(update(AppCoupon).where(AppCoupon.customer_id == owner.id).values(enabled=False))
     # Order/payment/loyalty/support history remains for reconciliation and retention obligations.

@@ -102,6 +102,15 @@ export function BusinessPortal() {
     [requestKey, setRequestKey] = useState(randomUUID()),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
+  const favourites = useQuery({
+    queryKey: ["company-favourites", customer?.id, company],
+    queryFn: () =>
+      api.get<{ id: string; reference: string; lines: { name: string }[] }[]>(
+        `/v1/experience/companies/${company}/favourites`,
+        { auth: true },
+      ),
+    enabled: !!company,
+  });
   const companyOrders = useQuery({
     queryKey: ["company-orders", customer?.id, company],
     enabled: !!company,
@@ -183,6 +192,7 @@ export function BusinessPortal() {
       await Promise.all([
         cache.invalidateQueries({ queryKey: ["business-companies"] }),
         cache.invalidateQueries({ queryKey: ["business-company"] }),
+        cache.invalidateQueries({ queryKey: ["company-favourites"] }),
       ]);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Please retry.");
@@ -397,6 +407,38 @@ export function BusinessPortal() {
                 )
               }
             />
+          </View>
+        </Disclosure>
+      ) : null}
+      {company && favourites.data?.length ? (
+        <Disclosure title="Company favourites">
+          <View style={{ gap: 12 }}>
+            {favourites.data.map((f) => (
+              <View key={f.id} style={panel}>
+                <Text style={{ color: colors.ink, fontWeight: "800" }}>
+                  {f.lines.map((l) => l.name).join(", ")}
+                </Text>
+                <Text style={{ color: colors.muted, fontSize: 12 }}>
+                  Fresh prices and your normal quotation approval steps apply.
+                </Text>
+                <Button
+                  size="sm"
+                  label="Request these again"
+                  disabled={busy}
+                  onPress={() =>
+                    void work(
+                      () =>
+                        api.post(
+                          `/v1/business/companies/${company}/documents/${f.id}/repeat`,
+                          { request_key: randomUUID() },
+                          { auth: true },
+                        ),
+                      false,
+                    )
+                  }
+                />
+              </View>
+            ))}
           </View>
         </Disclosure>
       ) : null}
@@ -683,6 +725,52 @@ export function BusinessPortal() {
                           Corporate saving {cash(d.discount_minor)} -{" "}
                           {(d.discount_bps || 0) / 100}% - {d.cake_kg} kg
                         </Text>
+                      ) : null}
+                      {d.kind === "quote" ? (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          label={
+                            favourites.data?.some((f) => f.id === d.id)
+                              ? "Remove company favourite"
+                              : "Save company favourite"
+                          }
+                          disabled={busy}
+                          onPress={() =>
+                            void work(
+                              () =>
+                                api.put(
+                                  `/v1/experience/companies/${company}/favourites/${d.id}`,
+                                  {
+                                    enabled: !favourites.data?.some(
+                                      (f) => f.id === d.id,
+                                    ),
+                                  },
+                                  { auth: true },
+                                ),
+                              false,
+                            )
+                          }
+                        />
+                      ) : null}
+                      {d.kind === "quote" ? (
+                        <Button
+                          label="Repeat these cakes"
+                          size="sm"
+                          variant="outline"
+                          disabled={busy}
+                          onPress={() =>
+                            void work(
+                              () =>
+                                api.post(
+                                  `/v1/business/companies/${company}/documents/${d.id}/repeat`,
+                                  { request_key: randomUUID() },
+                                  { auth: true },
+                                ),
+                              false,
+                            )
+                          }
+                        />
                       ) : null}
                       {d.kind === "quote" &&
                       ["requested", "issued"].includes(d.status) &&

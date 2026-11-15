@@ -1,4 +1,4 @@
-import { ClubAppearanceControl, useClubPageColour } from "./ClubAppearance";
+import { ClubAppearanceControl, ClubPageTheme } from "./ClubAppearance";
 import { HeaderActions } from "@/components/storefront/HeaderActions";
 import { ClubMembership } from "./ClubMembership";
 import { PromotionsShelf } from "@/features/commerce/PromotionsShelf";
@@ -38,7 +38,13 @@ import { BrandLogo } from "@/components/BrandLogo";
 import { useScreenActive } from "@/design/useScreenActive";
 
 export function RewardsScreen() {
-  const clubBackground = useClubPageColour();
+  return (
+    <ClubPageTheme>
+      <RewardsContent />
+    </ClubPageTheme>
+  );
+}
+function RewardsContent() {
   const { milestone } = useLocalSearchParams<{ milestone?: string }>();
   const scrollRef = useRef<ScrollViewInstance>(null);
   const focused = useScreenActive();
@@ -96,7 +102,7 @@ export function RewardsScreen() {
 
   return (
     <Screen
-      backgroundColor={clubBackground}
+      backgroundColor={colors.background}
       scrollRef={scrollRef}
       header={
         <CommerceBrowseHeader

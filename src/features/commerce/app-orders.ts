@@ -91,6 +91,15 @@ export const appOrderSchema = z.object({
       discount_minor: z.number(),
       tax_minor: z.number(),
       pickup_instructions: z.string().optional(),
+      fulfilment_window: z
+        .object({
+          id: z.string(),
+          label: z.string(),
+          starts_at: z.string(),
+          ends_at: z.string(),
+          revision: z.number(),
+        })
+        .optional(),
       route: z
         .object({
           origin_name: z.string(),

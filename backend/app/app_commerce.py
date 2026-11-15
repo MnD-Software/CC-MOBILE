@@ -59,6 +59,9 @@ class CheckoutData(BaseModel):
     notes: str = Field(default="", max_length=1500)
     pickup_location_id: str | None = Field(default=None, max_length=80)
     delivery_location: dict[str, float] | None = None
+    delivery_slot_id: str | None = Field(default=None, max_length=36)
+    gift_message: str = Field(default='', max_length=500)
+    hide_gift_prices: bool = False
 
 
 class PlaceOrder(BaseModel):
@@ -67,9 +70,17 @@ class PlaceOrder(BaseModel):
 
 
 def calculate(db, customer_id, data):
+    from .experience import validate_slot
+    fulfilment_window = validate_slot(db, data)
+    if data.gift_message or data.hide_gift_prices:
+        import re
+        if not data.recipient_name.strip() or not re.fullmatch(r'(?:\+?254|0)[17][0-9]{8}',data.recipient_phone.strip()):
+            raise HTTPException(422,'Add the gift recipient name and valid phone number.')
     from .payment_test import PRODUCT_ID, require_tester
     from .models import Customer
     payment_test = any(item.product_id == PRODUCT_ID or item.variation_id == PRODUCT_ID for item in data.items)
+    if not payment_test and data.fulfilment=='pickup' and data.pickup_location_id=='hq':
+        raise HTTPException(422,'Choose a pickup branch. HQ/Wambugu is not available for collection.')
     if payment_test:
         require_tester(db.get(Customer, customer_id))
         if (len(data.items) != 1 or data.items[0].product_id != PRODUCT_ID
@@ -216,7 +227,7 @@ def calculate(db, customer_id, data):
         pickup_instructions = f"Collect from {pickup_branch.name}, {pickup_branch.address}, once your cake is ready. Present your order reference."
     if route_snapshot and data.fulfilment == "pickup" and route_snapshot.get("pickup_location_id") != "hq":
         pickup_instructions = f"Collect from {route_snapshot['destination_name']}, {route_snapshot['destination_address']}, after your order is marked ready. Present your APP order reference."
-    return {**({"payment_test": True} if payment_test else {}), "lines": lines, "quantities": {str(k): v for k, v in quantities.items()}, "subtotal_minor": subtotal,
+    return {**({'fulfilment_window':fulfilment_window} if fulfilment_window else {}), **({"payment_test": True} if payment_test else {}), "lines": lines, "quantities": {str(k): v for k, v in quantities.items()}, "subtotal_minor": subtotal,
             "delivery_minor": fee, "discount_minor": discount, "tax_minor": tax, "prices_include_tax": included,
             "total_minor": total, "currency": "KES", "coupon_code": coupon_code, "zone_revision": zone_revision,
             "zone_name": zone_name, "route": route_snapshot, "policy_digest": digest(policy), "checkout": data.model_dump(mode="json"), "pickup_instructions": pickup_instructions}
@@ -232,6 +243,9 @@ def quote(db, customer_id, data):
 
 
 def record_event(db, order, kind, **details):
+    if kind in {'fulfilment_cancelled','payment_reversed'}:
+        from .experience import release_slot
+        release_slot(db,order)
     if kind=='payment_completed':
         from .marketing_crm import CheckoutActivity
         activity=db.get(CheckoutActivity,order.customer_id)
@@ -322,6 +336,8 @@ def place(db, customer_id, quote_id, request_key, account_id, environment, *, re
                          coupon_code=current["coupon_code"], channel="app_test" if current.get("payment_test") else "app")
         db.add(order)
         db.flush()
+        from .experience import reserve_slot
+        reserve_slot(db,order)
         record_event(db, order, "order_created", channel=order.channel, account_id=account_id)
         db.commit()
         return order
@@ -337,6 +353,9 @@ def place(db, customer_id, quote_id, request_key, account_id, environment, *, re
 
 
 def inventory_transition(db, order, paid=False):
+    if not paid:
+        from .experience import release_slot
+        release_slot(db,order)
     if order.inventory_state != "reserved":
         return
     for identity, quantity in sorted(order.snapshot["quantities"].items(), key=lambda item: int(item[0])):

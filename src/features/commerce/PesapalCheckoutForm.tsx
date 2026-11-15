@@ -1,4 +1,6 @@
 import { AppState } from "react-native";
+import { Switch } from "react-native";
+import { FulfilmentSlots } from "@/features/experience/FulfilmentSlots";
 import { useScreenActive } from "@/design/useScreenActive";
 import type { BagLine } from "./contracts";
 import { env } from "@/config/env";
@@ -121,7 +123,7 @@ function AppCheckout({
     "delivery",
   );
   const [zone, setZone] = useState("");
-  const [pickupLocation, setPickupLocation] = useState("hq");
+  const [pickupLocation, setPickupLocation] = useState("");
   const [deliveryLocation, setDeliveryLocation] = useState<AddressPoint | null>(
     null,
   );
@@ -132,6 +134,10 @@ function AppCheckout({
   const [notes, setNotes] = useState("");
   const [recipient, setRecipient] = useState("");
   const [recipientPhone, setRecipientPhone] = useState("");
+  const [deliverySlot, setDeliverySlot] = useState("");
+  const [giftMessage, setGiftMessage] = useState("");
+  const [hideGiftPrices, setHideGiftPrices] = useState(false);
+  useEffect(() => setDeliverySlot(""), [fulfilment]);
   const [quote, setQuote] = useState<z.infer<typeof quoteSchema> | null>(null);
   const [order, setOrder] = useState<AppOrder | null>(null);
   const [payment, setPayment] = useState<string | null>(null);
@@ -182,6 +188,9 @@ function AppCheckout({
     notes,
     recipient,
     recipientPhone,
+    deliverySlot,
+    giftMessage,
+    hideGiftPrices,
   });
   const options = useQuery({
     queryKey: ["app-checkout-options"],
@@ -349,6 +358,12 @@ function AppCheckout({
               : ("full" as const),
         postcode: false,
       };
+      if (
+        fulfilment === "pickup" &&
+        !options.data?.distance_delivery?.enabled &&
+        !pickupLocation
+      )
+        throw new Error("Choose a pickup branch before reviewing your total.");
       const valid = validateBillingProfile(billing, requirements);
       if (lines.some((l) => !l.product_id || l.selection.studio_quote_id))
         throw new Error(
@@ -385,6 +400,9 @@ function AppCheckout({
             notes,
             recipient_name: recipient,
             recipient_phone: recipientPhone,
+            delivery_slot_id: deliverySlot || null,
+            gift_message: giftMessage,
+            hide_gift_prices: hideGiftPrices,
           },
           { auth: true },
         ),
@@ -951,14 +969,7 @@ function AppCheckout({
               <PickupBranchPicker
                 selected={pickupLocation}
                 onSelect={setPickupLocation}
-                branches={[
-                  {
-                    id: "hq",
-                    name: options.data.distance_delivery.origin_name,
-                    address: options.data.distance_delivery.origin_address,
-                  },
-                  ...options.data.distance_delivery.pickup_stores,
-                ]}
+                branches={options.data.distance_delivery.pickup_stores}
               />
             ) : null}
             {fulfilment === "delivery" ? (
@@ -1044,7 +1055,12 @@ function AppCheckout({
               <Notice message="Pickup and delivery are not configured yet. Your bag is saved; payment will be available once Cake City confirms these options." />
             ) : null}
           </CheckoutSection>
-          <Disclosure title="Sending a gift? Add recipient details">
+          <FulfilmentSlots
+            fulfilment={fulfilment}
+            value={deliverySlot}
+            onChange={setDeliverySlot}
+          />
+          <Disclosure title="Sending a gift? Make it personal">
             <Input
               label="Recipient name (for a gift)"
               value={recipient}
@@ -1056,6 +1072,31 @@ function AppCheckout({
               onChangeText={setRecipientPhone}
             />
             <Input label="Order notes" value={notes} onChangeText={setNotes} />
+            <Input
+              label="Your gift message"
+              value={giftMessage}
+              onChangeText={setGiftMessage}
+              maxLength={500}
+              multiline
+            />
+            <View
+              style={{ flexDirection: "row", alignItems: "center", gap: 12 }}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: colors.ink, fontWeight: "700" }}>
+                  Price-free gift note
+                </Text>
+                <Text style={{ color: colors.muted, fontSize: 12 }}>
+                  Your receipt stays in your account. The gift note hides
+                  prices.
+                </Text>
+              </View>
+              <Switch
+                accessibilityLabel="Hide prices on the gift note"
+                value={hideGiftPrices}
+                onValueChange={setHideGiftPrices}
+              />
+            </View>
           </Disclosure>
           {!corporateQuoteId ? (
             <CheckoutCoupons

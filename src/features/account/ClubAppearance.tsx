@@ -5,9 +5,10 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/auth/AuthProvider";
 import { getStorageItem, setStorageItem } from "@/auth/secure-storage";
 import { Text } from "@/components/ui/Typography";
-import { useTheme } from "@/theme/ThemeProvider";
+import { ThemeScope, useTheme } from "@/theme/ThemeProvider";
+import { useMemo, type PropsWithChildren } from "react";
 import { clubApi } from "./club-api";
-import { membershipSurface } from "./member-card";
+import { membershipSurface, membershipPagePalette } from "./member-card";
 
 const choices = create<{ values: Record<string, boolean> }>(() => ({
   values: {},
@@ -16,7 +17,7 @@ const writes = new Map<string, Promise<void>>();
 export function useClubAppearance() {
   const { customer } = useAuth();
   const owner = customer?.id ? String(customer.id) : "guest";
-  const enabled = choices((s) => s.values[owner] ?? false);
+  const enabled = choices((s) => s.values[owner] ?? owner !== "guest");
   const [error, setError] = useState(false);
   const interacted = useRef<string | null>(null);
   useEffect(() => {
@@ -31,7 +32,7 @@ export function useClubAppearance() {
             choices.getState().values[owner] === undefined
           )
             choices.setState((s) => ({
-              values: { ...s.values, [owner]: value === "1" },
+              values: { ...s.values, [owner]: value !== "0" },
             }));
         })
         .catch(() => {
@@ -75,7 +76,7 @@ export function ClubAppearanceControl() {
             Match Club to my card
           </Text>
           <Text style={{ color: colors.muted, fontSize: 12, lineHeight: 18 }}>
-            A personal colour wash that follows your membership tier.
+            Your entire Club page, dressed in your membership colour.
           </Text>
         </View>
         <Switch
@@ -92,6 +93,26 @@ export function ClubAppearanceControl() {
       ) : null}
     </View>
   );
+}
+export function ClubPageTheme({ children }: PropsWithChildren) {
+  const { customer } = useAuth();
+  const { enabled } = useClubAppearance();
+  const parent = useTheme();
+  const query = useQuery({
+    queryKey: ["club", customer?.id, null],
+    queryFn: ({ signal }) => clubApi.overview(signal),
+    enabled: !!customer && enabled,
+    staleTime: 60000,
+  });
+  const tier = query.data?.tier;
+  const colors = useMemo(
+    () =>
+      enabled && tier && !parent.highContrast
+        ? { ...parent.colors, ...membershipPagePalette(tier, parent.isDark) }
+        : undefined,
+    [enabled, tier, parent.colors, parent.isDark, parent.highContrast],
+  );
+  return <ThemeScope colors={colors}>{children}</ThemeScope>;
 }
 export function useClubPageColour() {
   const { customer } = useAuth();

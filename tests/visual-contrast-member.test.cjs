@@ -134,3 +134,32 @@ test("personal Club tier backgrounds keep body text readable in both themes", ()
     }
   }
 });
+
+test("full Club palettes visibly follow tiers while preserving readable text", () => {
+  const {
+    membershipPagePalette,
+  } = require("../src/features/account/member-card.ts");
+  for (const dark of [false, true])
+    for (const tier of ["Bronze", "Silver", "Gold", "Diamond", "Platinum"]) {
+      const page = membershipPagePalette(tier, dark);
+      for (const surface of [page.background, page.surface, page.surfaceRaised])
+        for (const foreground of [page.ink, page.muted, page.brandStrong])
+          assert.ok(
+            contrast(foreground, surface) >= 4.5,
+            `${tier} ${dark}: ${foreground} on ${surface}`,
+          );
+      assert.ok(contrast(page.onAction, page.action) >= 4.5);
+    }
+  const gold = membershipPagePalette("Gold", false);
+  assert.notEqual(
+    gold.background,
+    membershipPagePalette("Silver", false).background,
+  );
+  assert.deepEqual(gold, membershipPagePalette("gold", false));
+  assert.ok(
+    parseInt(gold.background.slice(1, 3), 16) -
+      parseInt(gold.background.slice(5, 7), 16) >
+      70,
+    "Gold must be visibly gold, not white with a tiny tint",
+  );
+});

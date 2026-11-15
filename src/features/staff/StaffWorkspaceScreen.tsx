@@ -1,4 +1,5 @@
 import { ComplianceDesk } from "./ComplianceDesk";
+import { ExperienceDesk } from "@/features/experience/ExperienceDesk";
 import { AdminFunnel } from "./MarketingSegments";
 import { useEffect, useState } from "react";
 import { BackHandler, Pressable, ScrollView, View } from "react-native";
@@ -119,7 +120,9 @@ export function StaffWorkspaceScreen() {
           />
         }
       >
-        {section === "compliance" ? (
+        {section === "experience" ? (
+          <ExperienceDesk />
+        ) : section === "compliance" ? (
           <ComplianceDesk />
         ) : section === "service-desk" ? (
           <ServiceDesk />

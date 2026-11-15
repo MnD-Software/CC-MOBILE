@@ -47,14 +47,12 @@ def test_delivery_charge_is_verified_through_payment_and_receipt(system, monkeyp
     assert receipt["snapshot"]["delivery_minor"] == 16500
 
 
-def test_hq_pickup_is_free_without_google(system, monkeypatch):
+def test_hq_pickup_is_not_a_customer_collection_point(system, monkeypatch):
     s = system; configure(s, monkeypatch)
     monkeypatch.setattr(get_settings(), "google_maps_api_key", "")
-    r = route(s, "pickup"); assert r.status_code == 200, r.text
-    assert r.json()["fee_minor"] == r.json()["distance_meters"] == 0
+    r = route(s, "pickup")
+    assert r.status_code == 422 and 'pickup branch' in r.text
     assert not s.get("maps_calls")
-    s["payload"]["delivery_quote_id"] = r.json()["id"]
-    assert place(s).status_code == 200
 
 
 def test_transfer_uses_half_delivery_fee(system, monkeypatch):

@@ -21,7 +21,11 @@ export function PickupBranchPicker({
   const [open, setOpen] = useState(false),
     [search, setSearch] = useState("");
   const active = branches.filter(
-    (b) => !b.id.includes("athi-river") && !/athi river/i.test(b.name),
+    (b) =>
+      !b.id.includes("athi-river") &&
+      !/athi river|wambugu|head office|\bhq\b/i.test(
+        `${b.id} ${b.name} ${b.address}`,
+      ),
   );
   const current = active.find((b) => b.id === selected);
   return (

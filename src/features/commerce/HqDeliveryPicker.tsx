@@ -36,7 +36,7 @@ export function HqDeliveryPicker({
     (DeliveryPoint & { address: string })[]
   >([]);
   const [address, setAddress] = useState("");
-  const [pickup, setPickup] = useState("hq");
+  const [pickup, setPickup] = useState("");
   const [route, setRoute] = useState<DeliveryRouteQuote | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -50,7 +50,7 @@ export function HqDeliveryPicker({
     setBusy(false);
     setError("");
     latestChange.current(null);
-    if (fulfilment === "pickup" && (pickup === "hq" || options.maps_ready)) {
+    if (fulfilment === "pickup" && pickup && options.maps_ready) {
       void work(
         () => appDelivery.quote("pickup", null, pickup),
         (value) => {
@@ -256,35 +256,28 @@ export function HqDeliveryPicker({
       ) : (
         <>
           <Text style={detailStyle}>
-            Collect at HQ for free, or choose an available store. Transfers cost
-            50% of the applicable delivery fee from HQ.
+            Choose your preferred Cake City branch. Transfers cost 50% of the
+            applicable delivery fee from HQ.
           </Text>
           <PickupBranchPicker
             selected={pickup}
-            branches={[
-              {
-                id: "hq",
-                name: options.origin_name,
-                address: options.origin_address,
-              },
-              ...options.pickup_stores,
-            ]}
-                onSelect={(identity) => {
-                  generation.current++;
-                  setPickup(identity);
-                  setRoute(null);
-                  setBusy(false);
-                  onChange(null);
-                  if (identity === pickup) confirm(null);
-                }}
+            branches={[...options.pickup_stores]}
+            onSelect={(identity) => {
+              generation.current++;
+              setPickup(identity);
+              setRoute(null);
+              setBusy(false);
+              onChange(null);
+              if (identity === pickup) confirm(null);
+            }}
           />
         </>
       )}
       {!options.maps_ready && (fulfilment === "delivery" || pickup !== "hq") ? (
-        <Notice message="Maps setup is pending. Delivery quotes are unavailable; HQ collection can still be configured separately." />
+        <Notice message="Maps setup is pending. Delivery and branch transport quotes need staff configuration." />
       ) : null}
       {error ? <Notice error message={error} /> : null}
-      {fulfilment === "delivery" || (!route && !busy) ? (
+      {fulfilment === "delivery" || (pickup && !route && !busy) ? (
         <Button
           variant="outline"
           label={
@@ -298,7 +291,7 @@ export function HqDeliveryPicker({
           disabled={
             busy ||
             (fulfilment === "delivery" && (!point || !options.maps_ready)) ||
-            (fulfilment === "pickup" && pickup !== "hq" && !options.maps_ready)
+            (fulfilment === "pickup" && (!pickup || !options.maps_ready))
           }
           onPress={() => confirm()}
         />

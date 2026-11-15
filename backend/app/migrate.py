@@ -12,6 +12,7 @@ from . import ecosystem_models
 from . import promotions
 from . import service_desk
 from . import marketing_crm
+from . import experience
 from . import compliance
 from . import notification_models
 from . import club_celebrations

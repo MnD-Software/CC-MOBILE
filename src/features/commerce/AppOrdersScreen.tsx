@@ -1,4 +1,7 @@
 import { OrderJourney } from "./OrderJourney";
+import { repeatOrder } from "@/features/experience/ExperienceScreen";
+import { useBag } from "./store";
+import { shareBusinessDocument } from "@/features/staff/report-export";
 import { useScreenActive } from "@/design/useScreenActive";
 import { useTheme } from "@/theme/ThemeProvider";
 import { useQuery } from "@tanstack/react-query";
@@ -171,6 +174,33 @@ export function AppOrderScreen() {
               : ""}
           </Text>
           <Disclosure title="Order details & receipt">
+            {value.snapshot?.fulfilment_window ? (
+              <Notice
+                message={`${value.snapshot.fulfilment_window.label}: ${new Date(value.snapshot.fulfilment_window.starts_at).toLocaleString()} - ${new Date(value.snapshot.fulfilment_window.ends_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`}
+              />
+            ) : null}
+            {value.paid_at ? (
+              <Button
+                variant="outline"
+                label="Order these again"
+                disabled={busy}
+                onPress={() => {
+                  if (busy) return;
+                  setBusy(true);
+                  setError("");
+                  void repeatOrder(value.reference)
+                    .then((lines) => {
+                      if (!useBag.getState().addBundle(lines))
+                        throw Error(
+                          "Your bag is full. Review it before adding more.",
+                        );
+                      router.push("/cart");
+                    })
+                    .catch((e) => setError(e.message))
+                    .finally(() => setBusy(false));
+                }}
+              />
+            ) : null}
             {value.snapshot?.lines.map((line, i) => (
               <Text key={i}>
                 {line.quantity} × {line.name} — {money(line.line_minor / 100)}
@@ -197,7 +227,31 @@ export function AppOrderScreen() {
                 onPress={() => void shareReceipt()}
               />
             ) : null}
+            {value.paid_at && value.snapshot?.checkout?.recipient_name ? (
+              <Button
+                variant="outline"
+                label="Share price-free gift note"
+                disabled={busy}
+                onPress={() => {
+                  if (busy) return;
+                  setBusy(true);
+                  void shareBusinessDocument(
+                    `/v1/experience/orders/${encodeURIComponent(value.reference)}/gift-note`,
+                  )
+                    .catch((e) => setError(e.message))
+                    .finally(() => setBusy(false));
+                }}
+              />
+            ) : null}
           </Disclosure>
+          {value.received_at ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              label="Customer-care updates"
+              onPress={() => router.push("/for-you")}
+            />
+          ) : null}
           {error ? <Notice error message={error} /> : null}
           {!value.payment_test &&
           ["not_started", "pending"].includes(value.payment_state) ? (

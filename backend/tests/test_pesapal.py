@@ -244,7 +244,7 @@ def test_signed_website_sales_are_separate_idempotent_and_do_not_duplicate_app_s
     assert send({**payload,"version":2,"reversed_minor":100000}).status_code==200
     app.dependency_overrides[member]=lambda: SimpleNamespace(id="buyer",role="finance")
     report=s["client"].get("/v1/admin/channel-sales").json()
-    assert report["channels"]==[{"channel":"website","orders":1,"gross_minor":250000,"reversed_minor":100000,"net_minor":150000}]
+    assert report["channels"]==[]  # Website ledger is retained but owner requested app-only sales reporting.
     assert s["client"].get("/v1/admin/channel-sales?environment=sandbox").json()["channels"]==[]
 
 

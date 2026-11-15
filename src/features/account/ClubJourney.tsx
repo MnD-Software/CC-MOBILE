@@ -43,6 +43,39 @@ export function ClubJourney({
       : palette.accent;
   return (
     <View testID="club-journey" style={{ gap: 12 }}>
+      <View
+        style={{
+          padding: 16,
+          borderRadius: 22,
+          gap: 8,
+          backgroundColor: colors.surfaceRaised,
+        }}
+      >
+        <Text
+          style={{
+            color: points >= minimum ? colors.success : colors.ink,
+            fontWeight: "800",
+            fontSize: 16,
+          }}
+        >
+          {points >= minimum
+            ? "Your next reward is ready"
+            : `${Math.max(0, minimum - points)} points to your next reward`}
+        </Text>
+        <Text style={{ color: colors.muted, fontSize: 12, lineHeight: 18 }}>
+          {points >= minimum
+            ? "Turn your points into a coupon in Rewards. Checkout will confirm where it applies."
+            : "Every qualifying purchase brings your next treat closer."}
+        </Text>
+        <MilestoneProgressBar
+          current={Math.min(points, minimum)}
+          total={Math.max(1, minimum)}
+          color={colors.success}
+          trackColor={colors.border}
+          label="Progress to reward redemption"
+          height={6}
+        />
+      </View>
       <View style={{ gap: 10, paddingVertical: 12 }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
           <Ionicons

@@ -1,4 +1,142 @@
 /* Same authenticated APIs as the native workspaces. No credentials in URLs. */
+sections.experience = [
+  "S",
+  "Service & growth",
+  "Capacity, customer care and promotion outcomes.",
+];
+let experienceCare = [],
+  experienceSlots = [];
+views.experience = async () => {
+  const role = session.customer.role,
+    managers = ["admin", "staff", "ecommerce_manager"],
+    careRoles = [
+      ...managers,
+      "call_center_manager",
+      "call_center_agent",
+      "customer_service",
+      "sales",
+    ],
+    marketing = [...managers, "marketing_manager", "content_manager"];
+  const parts = [];
+  if (!["marketing_manager", "content_manager"].includes(role)) {
+    const result = await request("/v1/experience/staff/exceptions");
+    parts.push(
+      `<section class="panel"><h2>Attention desk</h2><p>15-minute assignment, 60-minute trip-update and 24-hour care-response thresholds; these are internal prompts.</p>${result.items.map((a) => `<div class="workload-row"><strong>${esc(a.label)}</strong><span>${esc(a.reference)} · ${a.minutes} minutes</span></div>`).join("") || "<p>No operational exceptions in your authorised workload.</p>"}</section>`,
+    );
+  }
+  if (careRoles.includes(role)) {
+    experienceCare = await request("/v1/experience/staff/care");
+    parts.push(
+      `<section class="panel"><h2>Customer-care follow-through</h2>${experienceCare.map((c) => `<article class="panel"><h3>${esc(c.reference)}</h3><p>${esc(c.feedback.rating)}/5 · ${esc(c.feedback.condition)} · ${esc(c.feedback.timing)}</p><p>${esc(c.feedback.comment)}</p><p>Respond by ${esc(date(c.due_at))}</p><button data-care-edit="${esc(c.id)}">Follow up</button></article>`).join("") || "<p>No open delivery-care cases.</p>"}</section>`,
+    );
+  }
+  if ([...managers, "dispatch"].includes(role)) {
+    experienceSlots = await request("/v1/experience/staff/slots");
+    parts.push(
+      `<section class="panel"><div class="panel-heading"><h2>Fulfilment windows</h2><button data-slot-edit="new">Add window</button></div><p>Publish only capacity your kitchen and dispatch team can fulfil. Booked windows cannot be moved.</p>${experienceSlots.map((s) => `<article class="panel"><h3>${esc(s.label)}</h3><p>${esc(date(s.starts_at))} – ${esc(date(s.ends_at))} · ${esc(s.fulfilment)}</p><p>${s.full ? "FULL - " : ""}${s.remaining}/${s.capacity} places free · ${s.enabled ? "Open" : "Closed"}</p><button data-slot-edit="${esc(s.id)}">Manage capacity</button>${role === "dispatch" && !s.booking_closed && s.enabled ? `<button data-slot-override="${esc(s.id)}">${s.full ? "Override full window" : "Add capacity with reason"}</button>` : ""}</article>`).join("")}</section>`,
+    );
+  }
+  if (marketing.includes(role)) {
+    const results = await request("/v1/experience/staff/promotion-results");
+    parts.push(
+      `<section class="panel"><h2>Promotion outcomes</h2><p>${esc(results.definition)}</p>${table(
+        [
+          "Promotion",
+          "Paid orders",
+          "First buyers",
+          "Returning",
+          "Net collected",
+          "Discounts",
+          "Review orders",
+        ],
+        results.items.map(
+          (p) =>
+            `<tr><td>${esc(p.title)}</td><td>${p.orders}</td><td>${p.first_buyers}</td><td>${p.repeat_buyers}</td><td>${money(p.net_collected_minor)}</td><td>${money(p.discount_minor)}</td><td>${p.review_orders}</td></tr>`,
+        ),
+      )}</section>`,
+    );
+  }
+  return parts.join("");
+};
+document.addEventListener("click", async (e) => {
+  const button = e.target.closest("button");
+  if (!button) return;
+  if (button.dataset.careEdit) {
+    const c = experienceCare.find((c) => c.id === button.dataset.careEdit);
+    if (!c) return;
+    openEditor(
+      "Customer-care follow-up",
+      `<p>Responses are visible to the customer. Confirm the outcome before resolving.</p>${area("reply", "Customer update", c.reply || "")}${choices(
+        "state",
+        "Outcome",
+        [
+          ["contacted", "Send update"],
+          ["resolved", "Resolved"],
+        ],
+        "contacted",
+      )}`,
+      async (f) => {
+        await request(`/v1/experience/staff/care/${c.id}`, "PUT", {
+          revision: c.revision,
+          state: f.get("state"),
+          reply: f.get("reply"),
+        });
+        await show("experience", true);
+      },
+    );
+  }
+  if (button.dataset.slotEdit) {
+    const s = experienceSlots.find((s) => s.id === button.dataset.slotEdit) || {
+      id: crypto.randomUUID(),
+      label: "",
+      fulfilment: "delivery",
+      capacity: 10,
+      enabled: true,
+      revision: 0,
+    };
+    openEditor(
+      "Fulfilment capacity",
+      `${input("label", "Window label", s.label, "text", "required maxlength=100")}${choices(
+        "fulfilment",
+        "Type",
+        [
+          ["delivery", "Delivery"],
+          ["pickup", "Pickup"],
+        ],
+        s.fulfilment,
+      )}${[
+        ["cutoff_at", "Order cutoff"],
+        ["starts_at", "Window starts"],
+        ["ends_at", "Window ends"],
+      ]
+        .map(([key, label]) =>
+          input(
+            key,
+            label,
+            s[key] ? localTime(s[key]) : "",
+            "datetime-local",
+            "required",
+          ),
+        )
+        .join(
+          "",
+        )}${input("capacity", "Order capacity", s.capacity, "number", "required min=1 max=10000 step=1")}${check("enabled", "Accept bookings", s.enabled)}`,
+      async (f) => {
+        await request(`/v1/experience/staff/slots/${s.id}`, "PUT", {
+          label: f.get("label"),
+          fulfilment: f.get("fulfilment"),
+          cutoff_at: new Date(f.get("cutoff_at")).toISOString(),
+          starts_at: new Date(f.get("starts_at")).toISOString(),
+          ends_at: new Date(f.get("ends_at")).toISOString(),
+          capacity: Number(f.get("capacity")),
+          enabled: f.get("enabled") === "on",
+          revision: s.revision,
+        });
+        await show("experience", true);
+      },
+    );
+  }
+});
 function choices(name, label, options, value) {
   return `<fieldset class="choice-field"><legend>${esc(label)}</legend><div class="choice-chips">${options.map(([id, title]) => `<label><input type="radio" name="${esc(name)}" value="${esc(id)}" ${id === value ? "checked" : ""}>${esc(title)}</label>`).join("")}</div></fieldset>`;
 }
@@ -292,7 +430,7 @@ views.corporate = async () => {
     return `<section class="ecosystem-hero"><span class="eyebrow">CAKE CITY / BUSINESS</span><h2>Great teams. Great celebrations.</h2><p>Your clients, conversations and commercial documents in one clear workspace.</p>${corporateOnboard() ? '<button data-business-new="client" class="primary">Add corporate client</button>' : ""}</section><div class="cards">${companies.map((c) => `<button class="panel company-tile" data-business-company="${esc(c.id)}"><span class="eyebrow">COMPANY ACCOUNT</span><h2>${esc(c.name)}</h2><p>${esc(c.billing_address)}</p><strong>Open account →</strong></button>`).join("") || empty("Your companies", "A corporate manager or assistant can create your account and provide access.")}</div>`;
   const d = await request(`/v1/business/companies/${businessCompany}`);
   businessDetails = d;
-  return `<button data-business-back>← All companies</button><section class="ecosystem-hero"><span class="eyebrow">YOUR CORPORATE DESK</span><img class="company-brand" src="/admin/assets/cake-city-logo.png" alt="Cake City">${d.branding?.logo_url ? `<img class="company-brand" src="${esc(d.branding.logo_url)}" alt="${esc(d.name)} logo">` : ""}<p>${new Date().getHours() < 12 ? "Good morning" : new Date().getHours() < 17 ? "Good afternoon" : "Good evening"}, ${esc(session.customer.first_name || "there")}.</p><h2>${esc(d.name)}</h2><p>${esc(d.billing_address)}</p><div class="stats">${stat("Invoiced", money(d.totals.invoiced_minor), "Issued invoices")}${stat("Verified paid", money(d.totals.paid_minor), "Reconciled receipts")}${stat("Outstanding", money(d.totals.balance_minor), "Account balance")}</div></section><div class="ecosystem-actions">${[["quote", "New quotation"], ["lpo", "Add LPO"], ["payment", "Submit payment evidence"], ...(d.permissions.team ? [["crm", "Log CRM activity"]] : []), ...(d.permissions.onboard ? [["assign", "Assign team member"]] : [])].map(([kind, label]) => `<button data-business-new="${kind}">${label}</button>`).join("")}<button data-ecosystem-download="/v1/business/companies/${esc(d.id)}/report.xlsx" data-filename="corporate-statement.xlsx">Excel statement</button></div><h2>Commercial desk</h2><div class="cards">${d.documents.map((doc) => `<section class="panel"><div class="ecosystem-actions"><span class="eyebrow">${esc(doc.kind.toUpperCase())} · ${esc(doc.id.slice(0, 8).toUpperCase())}</span><span class="pill ${["verified", "accepted"].includes(doc.status) ? "good" : ""}">${esc(doc.status)}</span></div><h2>${money(doc.total_minor)}</h2><p>${esc(doc.reference)}</p><details><summary>${doc.lines.length} items · Details</summary>${doc.lines.map((l) => `<p>${l.quantity} × ${esc(l.name)} · ${money(l.total_minor)}</p>`).join("")}<p>${esc(doc.notes)}</p></details><div class="ecosystem-actions"><button data-ecosystem-download="/v1/business/companies/${esc(d.id)}/documents/${esc(doc.id)}/print" data-filename="cake-city-${esc(doc.kind)}.html">Download document</button>${["lpo", "payment"].includes(doc.kind) ? `<button data-business-attachment="${esc(doc.id)}">${doc.attachment_mime ? "Download evidence" : "Attach PDF / receipt"}</button>` : ""}${doc.kind === "quote" && doc.status === "accepted" && !d.permissions.team ? `<button data-company-checkout="${esc(doc.id)}">Order these cakes</button>` : ""}${doc.kind === "quote" && doc.status === "issued" && !d.permissions.team ? `<button data-business-status="accepted" data-document="${esc(doc.id)}">Accept quote</button><button data-business-status="rejected" data-document="${esc(doc.id)}">Decline</button>` : ""}${doc.kind === "quote" && ["requested", "issued"].includes(doc.status) && d.permissions.team ? `<button data-business-status="recalled" data-document="${esc(doc.id)}">Recall quote</button>` : ""}${doc.discount_minor ? `<p>Corporate saving ${money(doc.discount_minor)} - ${doc.discount_bps / 100}% - ${doc.cake_kg} kg</p>` : ""}${doc.kind === "quote" && doc.status === "requested" && d.permissions.team ? `<button data-business-status="issued" data-document="${esc(doc.id)}">Issue quote</button>` : ""}${doc.kind === "quote" && doc.status === "accepted" && d.permissions.team ? `<button data-business-invoice="${esc(doc.id)}">Create invoice</button>` : ""}${doc.kind === "payment" && doc.status === "submitted" && d.permissions.onboard ? `<button data-business-status="verified" data-document="${esc(doc.id)}">Verify receipt</button>` : ""}</div></section>`).join("") || empty("Start a celebration quotation", "Choose real inventory products and share a clear commercial document with your client.")}</div>${d.permissions.team ? `<h2>Relationship timeline</h2><div class="cards">${d.activities.map((a) => `<section class="panel"><span class="pill">${esc(a.stage)}</span><p>${esc(a.note)}</p><small>${esc(a.actor)} · ${esc(date(a.created_at))}</small>${a.follow_up_at ? `<p>Follow up ${esc(date(a.follow_up_at))}</p>` : ""}</section>`).join("") || "<p>No CRM activities recorded yet.</p>"}</div>` : ""}`;
+  return `<button data-business-back>← All companies</button><section class="ecosystem-hero"><span class="eyebrow">YOUR CORPORATE DESK</span><img class="company-brand" src="/admin/assets/cake-city-logo.png" alt="Cake City">${d.branding?.logo_url ? `<img class="company-brand" src="${esc(d.branding.logo_url)}" alt="${esc(d.name)} logo">` : ""}<p>${new Date().getHours() < 12 ? "Good morning" : new Date().getHours() < 17 ? "Good afternoon" : "Good evening"}, ${esc(session.customer.first_name || "there")}.</p><h2>${esc(d.name)}</h2><p>${esc(d.billing_address)}</p><div class="stats">${stat("Invoiced", money(d.totals.invoiced_minor), "Issued invoices")}${stat("Verified paid", money(d.totals.paid_minor), "Reconciled receipts")}${stat("Outstanding", money(d.totals.balance_minor), "Account balance")}</div></section><div class="ecosystem-actions">${[["quote", "New quotation"], ["lpo", "Add LPO"], ["payment", "Submit payment evidence"], ...(d.permissions.team ? [["crm", "Log CRM activity"]] : []), ...(d.permissions.onboard ? [["assign", "Assign team member"]] : [])].map(([kind, label]) => `<button data-business-new="${kind}">${label}</button>`).join("")}<button data-ecosystem-download="/v1/business/companies/${esc(d.id)}/report.xlsx" data-filename="corporate-statement.xlsx">Excel statement</button></div><h2>Commercial desk</h2><div class="cards">${d.documents.map((doc) => `<section class="panel"><div class="ecosystem-actions"><span class="eyebrow">${esc(doc.kind.toUpperCase())} · ${esc(doc.id.slice(0, 8).toUpperCase())}</span><span class="pill ${["verified", "accepted"].includes(doc.status) ? "good" : ""}">${esc(doc.status)}</span></div><h2>${money(doc.total_minor)}</h2><p>${esc(doc.reference)}</p><details><summary>${doc.lines.length} items · Details</summary>${doc.lines.map((l) => `<p>${l.quantity} × ${esc(l.name)} · ${money(l.total_minor)}</p>`).join("")}<p>${esc(doc.notes)}</p></details><div class="ecosystem-actions"><button data-ecosystem-download="/v1/business/companies/${esc(d.id)}/documents/${esc(doc.id)}/print" data-filename="cake-city-${esc(doc.kind)}.html">Download document</button>${["lpo", "payment"].includes(doc.kind) ? `<button data-business-attachment="${esc(doc.id)}">${doc.attachment_mime ? "Download evidence" : "Attach PDF / receipt"}</button>` : ""}${doc.kind === "quote" ? `<button data-quote-favourite="${esc(doc.id)}">Save company favourite</button>` : ""}${doc.kind === "quote" ? `<button data-repeat-quote="${esc(doc.id)}">Repeat these cakes</button>` : ""}${doc.kind === "quote" && doc.status === "accepted" && !d.permissions.team ? `<button data-company-checkout="${esc(doc.id)}">Order these cakes</button>` : ""}${doc.kind === "quote" && doc.status === "issued" && !d.permissions.team ? `<button data-business-status="accepted" data-document="${esc(doc.id)}">Accept quote</button><button data-business-status="rejected" data-document="${esc(doc.id)}">Decline</button>` : ""}${doc.kind === "quote" && ["requested", "issued"].includes(doc.status) && d.permissions.team ? `<button data-business-status="recalled" data-document="${esc(doc.id)}">Recall quote</button>` : ""}${doc.discount_minor ? `<p>Corporate saving ${money(doc.discount_minor)} - ${doc.discount_bps / 100}% - ${doc.cake_kg} kg</p>` : ""}${doc.kind === "quote" && doc.status === "requested" && d.permissions.team ? `<button data-business-status="issued" data-document="${esc(doc.id)}">Issue quote</button>` : ""}${doc.kind === "quote" && doc.status === "accepted" && d.permissions.team ? `<button data-business-invoice="${esc(doc.id)}">Create invoice</button>` : ""}${doc.kind === "payment" && doc.status === "submitted" && d.permissions.onboard ? `<button data-business-status="verified" data-document="${esc(doc.id)}">Verify receipt</button>` : ""}</div></section>`).join("") || empty("Start a celebration quotation", "Choose real inventory products and share a clear commercial document with your client.")}</div>${d.permissions.team ? `<h2>Relationship timeline</h2><div class="cards">${d.activities.map((a) => `<section class="panel"><span class="pill">${esc(a.stage)}</span><p>${esc(a.note)}</p><small>${esc(a.actor)} · ${esc(date(a.created_at))}</small>${a.follow_up_at ? `<p>Follow up ${esc(date(a.follow_up_at))}</p>` : ""}</section>`).join("") || "<p>No CRM activities recorded yet.</p>"}</div>` : ""}`;
 };
 
 function businessEditor(kind) {
@@ -815,11 +953,30 @@ document.addEventListener("click", async (e) => {
       `/v1/business/companies/${businessCompany}/documents/${id}/basket`,
     );
     const c = session.customer;
+    const pickupOptions = await request("/v1/app-checkout/options");
+    const branches = (
+      pickupOptions.distance_delivery?.pickup_stores || []
+    ).filter((b) => b.id !== "hq" && !/wambugu/i.test(b.name));
     openEditor(
       "Order your company cakes",
-      `${input("first_name", "First name", c.first_name || "", "text", "required")}${input("last_name", "Last name", c.last_name || "", "text", "required")}${input("email", "Email", c.email || "", "email", "required")}${input("phone", "Phone", c.phone || "", "tel", "required")}<p>Collect from HQ. Your approved corporate savings will appear in the confirmed total. Delivery ordering is available in your native corporate portal.</p>${area("notes", "Order notes", "")}`,
+      `${input("first_name", "First name", c.first_name || "", "text", "required")}${input("last_name", "Last name", c.last_name || "", "text", "required")}${input("email", "Email", c.email || "", "email", "required")}${input("phone", "Phone", c.phone || "", "tel", "required")}${choices(
+        "pickup_branch",
+        "Pickup branch",
+        branches.map((b) => [b.id, b.name]),
+        "",
+      )}<p>Collect from your selected branch. Review transport charges and corporate savings in your confirmed total.</p>${area("notes", "Order notes", "")}`,
       async (f) => {
+        const branch = f.get("pickup_branch");
+        if (!branches.some((b) => b.id === branch))
+          throw Error("Choose a pickup branch.");
+        const route = pickupOptions.distance_delivery?.enabled
+          ? await request("/v1/app-delivery/quote", "POST", {
+              fulfilment: "pickup",
+              pickup_location_id: branch,
+            })
+          : null;
         const q = await request("/v1/app-checkout/quote", "POST", {
+          delivery_quote_id: route?.id || null,
           corporate_quote_id: id,
           items: basket.lines.map((l) => ({
             product_id: l.product_id,
@@ -827,7 +984,7 @@ document.addEventListener("click", async (e) => {
             ...l.selection,
           })),
           fulfilment: "pickup",
-          pickup_location_id: "hq",
+          pickup_location_id: branch,
           billing: {
             first_name: f.get("first_name"),
             last_name: f.get("last_name"),
@@ -847,6 +1004,11 @@ const companyViewWithoutCheckout = views.corporate;
 views.corporate = async () => {
   let html = await companyViewWithoutCheckout();
   if (businessCompany) {
+    const favourites = await request(
+      `/v1/experience/companies/${businessCompany}/favourites`,
+    );
+    if (favourites.length)
+      html += `<section class="panel"><h2>Your company favourites</h2><p>Repeat selections with fresh prices and the normal quote approval steps.</p>${favourites.map((f) => `<article class="panel"><h3>${esc(f.lines.map((l) => l.name).join(", "))}</h3><div class="ecosystem-actions"><button data-repeat-quote="${esc(f.id)}">Request these again</button><button data-quote-favourite="${esc(f.id)}" data-remove-favourite="true">Remove favourite</button></div></article>`).join("")}</section>`;
     const orders = await request(
       `/v1/business/companies/${businessCompany}/orders`,
     );
@@ -929,4 +1091,60 @@ document.addEventListener("click", async (e) => {
   } finally {
     b.disabled = false;
   }
+});
+
+document.addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-repeat-quote]");
+  if (!b || b.disabled) return;
+  b.disabled = true;
+  try {
+    await request(
+      `/v1/business/companies/${businessCompany}/documents/${b.dataset.repeatQuote}/repeat`,
+      "POST",
+      { request_key: crypto.randomUUID() },
+    );
+    await show("corporate", true);
+    notice("A fresh quotation is ready for review at current prices.");
+  } catch (error) {
+    notice(error.message, true);
+  } finally {
+    b.disabled = false;
+  }
+});
+
+document.addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-quote-favourite]");
+  if (!b || b.disabled) return;
+  b.disabled = true;
+  try {
+    await request(
+      `/v1/experience/companies/${businessCompany}/favourites/${b.dataset.quoteFavourite}`,
+      "PUT",
+      { enabled: b.dataset.removeFavourite !== "true" },
+    );
+    await show("corporate", true);
+  } catch (error) {
+    notice(error.message, true);
+  } finally {
+    b.disabled = false;
+  }
+});
+
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-slot-override]");
+  if (!b || session.customer.role !== "dispatch") return;
+  const s = experienceSlots.find((s) => s.id === b.dataset.slotOverride);
+  if (!s) return;
+  openEditor(
+    "Dispatch Manager override",
+    `<p>Confirm kitchen and rider capacity first. Your reason is recorded in the audit trail.</p>${input("extra_places", "Extra order places", 1, "number", "required min=1 max=100 step=1")}${area("reason", "Reason for override", "")}`,
+    async (f) => {
+      await request(`/v1/experience/staff/slots/${s.id}/override`, "POST", {
+        revision: s.revision,
+        extra_places: Number(f.get("extra_places")),
+        reason: f.get("reason"),
+      });
+      await show("experience", true);
+    },
+  );
 });

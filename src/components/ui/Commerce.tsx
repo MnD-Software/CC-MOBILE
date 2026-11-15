@@ -238,8 +238,9 @@ export function CommerceBrowseHeader({
   right?: ReactNode;
 }) {
   const browseHeader = useThemedStyles(browseHeaderStyles);
+  const { colors } = useTheme();
   return (
-    <View style={browseHeader.shell}>
+    <View style={[browseHeader.shell, { backgroundColor: colors.surface }]}>
       <View style={browseHeader.topRow}>
         <View style={browseHeader.brand}>{brand}</View>
         <View style={browseHeader.actions}>

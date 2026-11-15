@@ -73,9 +73,66 @@ export const membershipPalettes = {
 
 export function membershipPalette(tier: string) {
   return (
-    membershipPalettes[tier as keyof typeof membershipPalettes] ??
-    membershipPalettes.Silver
+    Object.entries(membershipPalettes).find(
+      ([name]) => name.toLowerCase() === tier.toLowerCase(),
+    )?.[1] ?? membershipPalettes.Silver
   );
+}
+
+export function membershipPagePalette(tier: string, dark: boolean) {
+  const palette = membershipPalette(tier);
+  const blend = (colour: string, target: string, weight: number) =>
+    "#" +
+    [1, 3, 5]
+      .map((i) =>
+        Math.round(
+          parseInt(colour.slice(i, i + 2), 16) * (1 - weight) +
+            parseInt(target.slice(i, i + 2), 16) * weight,
+        )
+          .toString(16)
+          .padStart(2, "0"),
+      )
+      .join("");
+  const metallic = palette.gradient[1];
+  const light =
+    tier.toLowerCase() === "platinum" ? "#B7C2D6" : palette.gradient[0];
+  const accent =
+    (
+      {
+        bronze: "#49301D",
+        silver: "#283A50",
+        gold: "#523704",
+        diamond: "#164353",
+        platinum: "#27374D",
+      } as Record<string, string>
+    )[tier.toLowerCase()] || "#283A50";
+  return {
+    background: dark
+      ? blend(metallic, "#141015", 0.84)
+      : blend(metallic, light, tier.toLowerCase() === "platinum" ? 0.88 : 0.32),
+    surface: dark
+      ? blend(metallic, "#171319", 0.86)
+      : blend(light, "#FFFFFF", 0.5),
+    surfaceRaised: dark ? blend(metallic, "#211B24", 0.78) : light,
+    border: dark
+      ? blend(metallic, "#403240", 0.6)
+      : blend(metallic, "#654719", 0.22),
+    ink: dark ? "#FFF8EB" : "#302313",
+    muted: dark ? "#E9DCC7" : "#49351F",
+    mutedSoft: dark ? "#E9DCC7" : "#49351F",
+    cocoa: dark ? "#FFF8EB" : "#302313",
+    brandStrong: dark
+      ? tier.toLowerCase() === "platinum"
+        ? "#D4E6FF"
+        : palette.gradient[0]
+      : accent,
+    brandLight: dark ? blend(metallic, "#211B24", 0.75) : light,
+    action: accent,
+    onAction: "#FFFFFF",
+    success: dark ? "#9CE7BD" : "#075334",
+    error: dark ? "#FFABB7" : "#852039",
+    warning: dark ? "#FFD890" : "#523704",
+  };
 }
 
 /** Subtle tier tint preserves the current theme's readable foregrounds, including Platinum. */

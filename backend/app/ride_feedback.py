@@ -45,5 +45,7 @@ def submit(reference: str, identity: str, data: RideFeedback, actor=Depends(memb
     db.add(AppOrderEvent(id=str(uuid4()), order_id=order.id,
         event_key=f"{order.reference}:delivery_feedback:{task.id}", kind="delivery_feedback",
         details={"task_id": task.id, **payload}))
+    from .experience import open_care
+    open_care(db,order,payload)
     db.commit()
     return payload

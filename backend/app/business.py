@@ -429,6 +429,18 @@ def company_orders(identity:str,person=Depends(member),db:Session=Depends(get_db
     return [{**order_view(o),'can_open':o.customer_id==person.id} for o in orders]
 
 
+class RepeatQuote(BaseModel):
+    request_key: str = Field(min_length=16,max_length=80)
+
+@router.post('/companies/{identity}/documents/{document_id}/repeat',status_code=201)
+def repeat_quote(identity:str,document_id:str,data:RepeatQuote,person=Depends(member),db:Session=Depends(get_db)):
+    access(db,person,identity,write=True)
+    original=linked_document(db,identity,document_id,'quote')
+    return create_document(identity,DocumentInput(request_key=data.request_key,kind='quote',
+        lines=[Line(product_id=l['product_id'],quantity=l['quantity']) for l in original.payload['lines']],
+        notes='Repeat selection from '+original.id+'. Review current pricing and fulfilment.'),person,db)
+
+
 def validate_checkout_invoice(db,document,total):
     from .commerce_models import AppOrder
     invoice=db.scalar(select(CorporateDocument).where(CorporateDocument.organization_id==document.organization_id,CorporateDocument.kind=='invoice',CorporateDocument.payload['linked_id'].as_string()==document.id))

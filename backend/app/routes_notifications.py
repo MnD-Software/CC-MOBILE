@@ -187,6 +187,8 @@ def submit_review(reference: str, data: ReviewInput, actor=Depends(member), db: 
     row = OrderReview(order_id=order.id, customer_id=actor.id, rating=data.rating, comment=data.comment.strip(),
                       simulated=order.channel == "app_test" or order.environment != "live")
     db.add(row)
+    from .experience import open_care
+    open_care(db,order,{'rating':data.rating,'comment':data.comment.strip(),'condition':'good','timing':'not_sure'})
     db.commit()
     db.refresh(row)
     return review_view(row)

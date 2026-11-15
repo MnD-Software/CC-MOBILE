@@ -146,7 +146,7 @@ async def destination_for(config, fulfilment, point, pickup_id):
         raise HTTPException(503, "HQ distance delivery is not enabled yet.")
     if fulfilment == "pickup":
         if pickup_id == "hq":
-            return config.origin, config.origin_name, config.origin_address
+            raise HTTPException(422, "Choose a Cake City pickup branch. HQ/Wambugu is not a customer collection point.")
         store = next((s for s in config.pickup_stores if s.id == pickup_id), None)
         if not store:
             raise HTTPException(422, "Select a configured pickup store.")
@@ -155,7 +155,7 @@ async def destination_for(config, fulfilment, point, pickup_id):
         else:
             matches = await geocode(address=store.address)
             if len(matches) != 1:
-                raise HTTPException(409, "This branch pin needs staff confirmation. Choose another branch or HQ pickup.")
+                raise HTTPException(409, "This branch pin needs staff confirmation. Choose another branch.")
             destination = Point(latitude=matches[0]["latitude"], longitude=matches[0]["longitude"])
         return destination, store.name, store.address
     if point is None:
