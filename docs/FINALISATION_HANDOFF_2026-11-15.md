@@ -6,6 +6,14 @@ Base commit: `53ec327` (one commit after the referenced `4d39a5b`; it fixes the 
 
 The owner rejected the large foil confetti and the decorated coupon treatment after this handoff was committed. The six presentation/test files were restored to their `53ec327` versions: one dense burst of 420 smaller pieces with a gentle fall; the compact floating rewards shortcut without the pulse ring or count badge; and smaller pink-header coupons without gloss overlays, perforated seams or selected-card glow. Coupon eligibility, selection and redemption rules are unchanged. All account-isolation, permission and DIY improvements from this finalisation remain. The older work log below describes the superseded visual treatment.
 
+## Final-card colour choice
+
+Platinum members can now choose Silver, Gold, Diamond or Platinum under Club → Choose my page colours. Four compact gradient swatches apply immediately to the membership card and any enabled page themes. The existing independent Club/page switches and high-contrast behaviour are retained. The actual server tier, benefits, points, barcode and milestone progress do not change. Lower tiers cannot apply the override, and a saved preference is ignored if the account no longer has Platinum. Selection is stored privately per account on this device, not synchronised between devices. Regression checks cover all four choices, invalid preferences, account switching and restoring saved values; existing palette contrast and page-colour tests are included.
+
+The owner also reported the card becoming taller when its colour changes. Both faces previously measured their gradient surface and fed its rounded height back into that same surface's minimum height. Natural content is now measured in separate front/back wrappers, outside that feedback loop. The shared height is derived from their current content plus padding/borders; it can shrink when the viewport or text size changes. Deferred updates still snapshot native events safely. Regression coverage checks 100 repeated measurements, shrinking and reverse-face visibility. Phone runtime acceptance remains separate from these component checks.
+
+Follow-up validation: all 276 frontend tests and `npm run typecheck` passed. No backend, native dependencies, real customer tiers or active preview processes were changed for this feature.
+
 Owner decisions in this session:
 - Confetti stays **one giant burst**, as chosen in today's commit and re-confirmed by the owner. The older "three-wave" wording in the brief is superseded. Pieces should be much larger and glossier.
 - The DIY 3D view should become a far richer, interactive simulation of the customer's choices. It remains an original procedural **design illustration**, not a photorealistic product scan.

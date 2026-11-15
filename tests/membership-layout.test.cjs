@@ -55,7 +55,7 @@ test("membership reverse face cannot show through before the card turns over", (
       "only one face can be visible during the spin",
     );
 });
-test("both membership faces snapshot native layout before deferred state updates", () => {
+test("membership measures natural content without a growing minimum-height feedback loop", () => {
   const source = ts.createSourceFile(
     "MembershipCard.tsx",
     fs.readFileSync("src/features/account/MembershipCard.tsx", "utf8"),
@@ -63,34 +63,44 @@ test("both membership faces snapshot native layout before deferred state updates
     true,
     ts.ScriptKind.TSX,
   );
-  const declarations = new Map();
-  const handlers = [];
+  let handler;
+  const sides = [];
   function visit(node) {
     if (
       ts.isVariableDeclaration(node) &&
       ts.isIdentifier(node.name) &&
+      node.name.text === "measureFace" &&
       node.initializer
     )
-      declarations.set(node.name.text, node.initializer);
+      handler = node.initializer;
     if (
       ts.isJsxAttribute(node) &&
       node.name.getText(source) === "onLayout" &&
-      node.initializer?.expression
-    )
-      handlers.push(node.initializer.expression);
+      node.initializer?.expression &&
+      node.initializer.expression.getText(source).startsWith("measureFace(")
+    ) {
+      const element = node.parent.parent;
+      assert.equal(
+        element.tagName.getText(source),
+        "View",
+        "measure content, not the gradient surface",
+      );
+      assert.ok(element.getText(source).includes("membership-"));
+      assert.ok(!element.getText(source).includes("minHeight"));
+      sides.push(node.initializer.expression.arguments[0].text);
+    }
     ts.forEachChild(node, visit);
   }
   visit(source);
-  let faces = 0;
-  for (const expression of handlers) {
-    const handler = ts.isIdentifier(expression)
-      ? declarations.get(expression.text)
-      : expression;
-    if (!handler || !handler.getText(source).includes("setFaceHeight"))
-      continue;
-    faces++;
+  assert.deepEqual(sides, ["front", "back"]);
+  assert.ok(handler);
+  for (const side of sides) {
     const pending = [];
-    const context = { setFaceHeight: (updater) => pending.push(updater), Math };
+    const context = {
+      setFaceHeights: (updater) => pending.push(updater),
+      Math,
+      Number,
+    };
     vm.createContext(context);
     const js = ts.transpileModule(
       "const handler = " + handler.getText(source) + ";",
@@ -98,15 +108,22 @@ test("both membership faces snapshot native layout before deferred state updates
     ).outputText;
     vm.runInContext(js + "globalThis.handle=handler;", context);
     const event = { nativeEvent: { layout: { height: 347.2 } } };
-    context.handle(event);
+    context.handle(side)(event);
     event.nativeEvent = null; // React Native recycles the event after dispatch.
     assert.equal(pending.length, 1);
-    assert.equal(pending[0](300), 348);
-    assert.equal(pending[0](380), 380);
+    const first = pending[0]({ front: 266, back: 266 });
+    assert.equal(first[side], 390);
+    let current = first;
+    for (let change = 0; change < 100; change++) current = pending[0](current);
+    assert.equal(
+      current,
+      first,
+      "colour-only renders must not keep increasing height",
+    );
+    assert.equal(
+      pending[0]({ ...first, [side]: 700 })[side],
+      390,
+      "card can shrink after a narrower layout or larger text is removed",
+    );
   }
-  assert.equal(
-    faces,
-    2,
-    "both front and barcode face must use the safe handler",
-  );
 });

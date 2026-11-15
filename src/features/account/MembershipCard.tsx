@@ -26,6 +26,7 @@ export function MembershipCard({
   id,
   name,
   tier,
+  colourTier,
   points,
   pointValue,
   rewards,
@@ -36,6 +37,7 @@ export function MembershipCard({
   id: string;
   name: string;
   tier: string;
+  colourTier?: string;
   points: number;
   pointValue: number;
   rewards: number;
@@ -43,7 +45,8 @@ export function MembershipCard({
   revealToken?: string;
   minimumRedemption?: number;
 }) {
-  const [faceHeight, setFaceHeight] = useState(266);
+  const [faceHeights, setFaceHeights] = useState({ front: 266, back: 266 });
+  const faceHeight = Math.max(266, faceHeights.front, faceHeights.back);
   const shine = useRef(new Animated.Value(0)).current;
   const [back, setBack] = useState(false);
   const [barcodeWidth, setBarcodeWidth] = useState(0);
@@ -56,7 +59,7 @@ export function MembershipCard({
     turn.stopAnimation();
     turn.setValue(0);
   }, [revealToken, turn]);
-  const palette = membershipPalette(tier);
+  const palette = membershipPalette(colourTier || tier);
   const code = useMemo(() => memberBarcode(id), [id]);
   const modules = useMemo(() => barcodeModules(code), [code]);
   const scale = PixelRatio.get();
@@ -93,11 +96,18 @@ export function MembershipCard({
     animation.start();
     return () => animation.stop();
   }, [back, reduced, shine, active]);
-  const measureFace = (event: LayoutChangeEvent) => {
-    // Snapshot the height before React Native releases its synthetic event.
-    const measuredHeight = event.nativeEvent.layout.height;
-    setFaceHeight((height) => Math.max(height, Math.ceil(measuredHeight)));
-  };
+  const measureFace =
+    (side: "front" | "back") => (event: LayoutChangeEvent) => {
+      // Measure natural content, never the surface whose minHeight this updates.
+      // Include the surface's padding and border; snapshot before event recycling.
+      const measuredHeight = Math.ceil(event.nativeEvent.layout.height) + 42;
+      if (!Number.isFinite(measuredHeight) || measuredHeight <= 42) return;
+      setFaceHeights((heights) =>
+        heights[side] === measuredHeight
+          ? heights
+          : { ...heights, [side]: measuredHeight },
+      );
+    };
   const flip = () => {
     const next = !back;
     setBack(next);
@@ -166,7 +176,6 @@ export function MembershipCard({
             colors={palette.gradient}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
-            onLayout={measureFace}
             style={face}
           >
             <View
@@ -217,105 +226,113 @@ export function MembershipCard({
               />
             </View>
             <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "space-between",
-              }}
+              testID="membership-front-content"
+              onLayout={measureFace("front")}
+              style={{ gap: 8 }}
             >
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <Text
+                  style={{
+                    color: palette.ink,
+                    fontSize: 12,
+                    letterSpacing: 1.5,
+                    fontWeight: "700",
+                  }}
+                >
+                  CAKE CITY CLUB
+                </Text>
+                <Ionicons name="diamond" size={25} color={palette.accent} />
+              </View>
+              <Text
+                style={{ color: palette.ink, fontSize: 22, fontWeight: "700" }}
+              >
+                {tier} membership
+              </Text>
               <Text
                 style={{
                   color: palette.ink,
-                  fontSize: 12,
-                  letterSpacing: 1.5,
-                  fontWeight: "700",
+                  fontSize: 32,
+                  lineHeight: 39,
+                  fontWeight: "800",
                 }}
               >
-                CAKE CITY CLUB
-              </Text>
-              <Ionicons name="diamond" size={25} color={palette.accent} />
-            </View>
-            <Text
-              style={{ color: palette.ink, fontSize: 22, fontWeight: "700" }}
-            >
-              {tier} membership
-            </Text>
-            <Text
-              style={{
-                color: palette.ink,
-                fontSize: 32,
-                lineHeight: 39,
-                fontWeight: "800",
-              }}
-            >
-              {points.toLocaleString()}{" "}
-              <Text style={{ fontSize: 16 }}>
-                {points === 1 ? "point" : "points"}
-              </Text>
-            </Text>
-            <Text style={{ color: palette.muted, fontSize: 12 }}>
-              {progress
-                ? `${progress.current} of ${progress.total} purchases to ${progress.target}`
-                : points >= minimumRedemption
-                  ? "Your next reward is ready to explore"
-                  : `${minimumRedemption - points} ${minimumRedemption - points === 1 ? "point" : "points"} to your next reward`}
-            </Text>
-            <MilestoneProgressBar
-              current={progress?.current ?? Math.min(minimumRedemption, points)}
-              total={progress?.total ?? minimumRedemption}
-              label={
-                progress
-                  ? `${progress.current} of ${progress.total} purchases to ${progress.target}`
-                  : "Progress to your next reward"
-              }
-              color={palette.accent}
-              trackColor="rgba(100,110,125,0.22)"
-            />
-            {progress ? (
-              <Text style={{ color: palette.muted, fontSize: 12 }}>
-                {progress.next}
-              </Text>
-            ) : null}
-            <View
-              style={{
-                flexDirection: "row",
-                justifyContent: "space-between",
-                gap: 12,
-                marginTop: 4,
-              }}
-            >
-              <Text style={{ color: palette.ink, fontSize: 12 }}>
-                Points value {money(points * pointValue)}
-              </Text>
-              <Text style={{ color: palette.ink, fontSize: 12 }}>
-                {rewards} issued rewards
-              </Text>
-            </View>
-            <View
-              style={{
-                flexDirection: "row",
-                justifyContent: "space-between",
-                alignItems: "center",
-                gap: 10,
-              }}
-            >
-              <Text
-                numberOfLines={1}
-                style={{ color: palette.ink, fontWeight: "700", flex: 1 }}
-              >
-                {name}
-              </Text>
-              <View
-                style={{ flexDirection: "row", alignItems: "center", gap: 5 }}
-              >
-                <Text style={{ color: palette.muted, fontSize: 11 }}>
-                  Tap to flip
+                {points.toLocaleString()}{" "}
+                <Text style={{ fontSize: 16 }}>
+                  {points === 1 ? "point" : "points"}
                 </Text>
-                <Ionicons
-                  name="sync-outline"
-                  size={18}
-                  color={palette.accent}
-                />
+              </Text>
+              <Text style={{ color: palette.muted, fontSize: 12 }}>
+                {progress
+                  ? `${progress.current} of ${progress.total} purchases to ${progress.target}`
+                  : points >= minimumRedemption
+                    ? "Your next reward is ready to explore"
+                    : `${minimumRedemption - points} ${minimumRedemption - points === 1 ? "point" : "points"} to your next reward`}
+              </Text>
+              <MilestoneProgressBar
+                current={
+                  progress?.current ?? Math.min(minimumRedemption, points)
+                }
+                total={progress?.total ?? minimumRedemption}
+                label={
+                  progress
+                    ? `${progress.current} of ${progress.total} purchases to ${progress.target}`
+                    : "Progress to your next reward"
+                }
+                color={palette.accent}
+                trackColor="rgba(100,110,125,0.22)"
+              />
+              {progress ? (
+                <Text style={{ color: palette.muted, fontSize: 12 }}>
+                  {progress.next}
+                </Text>
+              ) : null}
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  gap: 12,
+                  marginTop: 4,
+                }}
+              >
+                <Text style={{ color: palette.ink, fontSize: 12 }}>
+                  Points value {money(points * pointValue)}
+                </Text>
+                <Text style={{ color: palette.ink, fontSize: 12 }}>
+                  {rewards} issued rewards
+                </Text>
+              </View>
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: 10,
+                }}
+              >
+                <Text
+                  numberOfLines={1}
+                  style={{ color: palette.ink, fontWeight: "700", flex: 1 }}
+                >
+                  {name}
+                </Text>
+                <View
+                  style={{ flexDirection: "row", alignItems: "center", gap: 5 }}
+                >
+                  <Text style={{ color: palette.muted, fontSize: 11 }}>
+                    Tap to flip
+                  </Text>
+                  <Ionicons
+                    name="sync-outline"
+                    size={18}
+                    color={palette.accent}
+                  />
+                </View>
               </View>
             </View>
             <View
@@ -394,60 +411,63 @@ export function MembershipCard({
             ],
           }}
         >
-          <LinearGradient
-            colors={palette.gradient}
-            onLayout={measureFace}
-            style={face}
-          >
-            <Text
-              style={{ color: palette.ink, fontSize: 20, fontWeight: "700" }}
-            >
-              Your Club pass
-            </Text>
-            <Text style={{ color: palette.muted, fontSize: 12 }}>
-              Your membership, ready at the counter.
-            </Text>
+          <LinearGradient colors={palette.gradient} style={face}>
             <View
-              onLayout={(event) =>
-                setBarcodeWidth(event.nativeEvent.layout.width)
-              }
-              style={{
-                backgroundColor: "#FFFFFF",
-                paddingVertical: 16,
-                alignItems: "center",
-                borderRadius: 12,
-                marginVertical: 8,
-              }}
+              testID="membership-back-content"
+              onLayout={measureFace("back")}
+              style={{ gap: 8 }}
             >
-              <View
-                accessible={false}
-                style={{ flexDirection: "row", height: 78 }}
+              <Text
+                style={{ color: palette.ink, fontSize: 20, fontWeight: "700" }}
               >
-                {moduleWidth > 0
-                  ? Array.from(modules, (bit, index) => (
-                      <View
-                        key={index}
-                        style={{
-                          width: moduleWidth,
-                          height: 78,
-                          backgroundColor: bit === "1" ? "#000000" : "#FFFFFF",
-                        }}
-                      />
-                    ))
-                  : null}
+                Your Club pass
+              </Text>
+              <Text style={{ color: palette.muted, fontSize: 12 }}>
+                Your membership, ready at the counter.
+              </Text>
+              <View
+                onLayout={(event) =>
+                  setBarcodeWidth(event.nativeEvent.layout.width)
+                }
+                style={{
+                  backgroundColor: "#FFFFFF",
+                  paddingVertical: 16,
+                  alignItems: "center",
+                  borderRadius: 12,
+                  marginVertical: 8,
+                }}
+              >
+                <View
+                  accessible={false}
+                  style={{ flexDirection: "row", height: 78 }}
+                >
+                  {moduleWidth > 0
+                    ? Array.from(modules, (bit, index) => (
+                        <View
+                          key={index}
+                          style={{
+                            width: moduleWidth,
+                            height: 78,
+                            backgroundColor:
+                              bit === "1" ? "#000000" : "#FFFFFF",
+                          }}
+                        />
+                      ))
+                    : null}
+                </View>
+                <Text style={{ color: "#222222", fontSize: 10, marginTop: 8 }}>
+                  {code}
+                </Text>
               </View>
-              <Text style={{ color: "#222222", fontSize: 10, marginTop: 8 }}>
-                {code}
+              <Text
+                style={{ color: palette.ink, fontWeight: "700", fontSize: 13 }}
+              >
+                {name} / {tier}
+              </Text>
+              <Text style={{ color: palette.accent, fontSize: 12 }}>
+                Tap to flip back
               </Text>
             </View>
-            <Text
-              style={{ color: palette.ink, fontWeight: "700", fontSize: 13 }}
-            >
-              {name} / {tier}
-            </Text>
-            <Text style={{ color: palette.accent, fontSize: 12 }}>
-              Tap to flip back
-            </Text>
           </LinearGradient>
         </Animated.View>
       </Pressable>

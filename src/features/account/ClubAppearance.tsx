@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { Switch, View } from "react-native";
+import { Pressable, Switch, View } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { Ionicons } from "@expo/vector-icons";
 import { create } from "zustand";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/auth/AuthProvider";
@@ -8,7 +10,18 @@ import { Text } from "@/components/ui/Typography";
 import { ThemeScope, useTheme } from "@/theme/ThemeProvider";
 import { useMemo, type PropsWithChildren } from "react";
 import { clubApi } from "./club-api";
-import { membershipSurface, membershipPagePalette } from "./member-card";
+import {
+  membershipSurface,
+  membershipPagePalette,
+  membershipPalette,
+} from "./member-card";
+import {
+  cardColours,
+  cardColourTier,
+  hasFinalCard,
+  parseCardColour,
+  type CardColour,
+} from "./card-colour";
 import { usePathname } from "expo-router";
 import {
   cardPages,
@@ -61,6 +74,53 @@ const choices = create<{ values: Record<string, boolean> }>(() => ({
   values: {},
 }));
 const writes = new Map<string, Promise<void>>();
+const colourChoices = create<{ values: Record<string, CardColour | null> }>(
+  () => ({ values: {} }),
+);
+export function useCardColour(tier?: string) {
+  const { customer } = useAuth();
+  const owner = customer?.id || "guest";
+  const choice = colourChoices((state) => state.values[owner]);
+  const [error, setError] = useState(false);
+  useEffect(() => {
+    let active = true;
+    setError(false);
+    if (
+      owner !== "guest" &&
+      colourChoices.getState().values[owner] === undefined
+    )
+      void getStorageItem(`cakecity.card-colour.v1.${owner}`)
+        .then((value) => {
+          if (active && colourChoices.getState().values[owner] === undefined)
+            colourChoices.setState((state) => ({
+              values: {
+                ...state.values,
+                [owner]: parseCardColour(value) || null,
+              },
+            }));
+        })
+        .catch(() => {
+          if (active) setError(true);
+        });
+    return () => {
+      active = false;
+    };
+  }, [owner]);
+  const canChoose = owner !== "guest" && hasFinalCard(tier);
+  const choose = (value: CardColour) => {
+    if (!canChoose || !parseCardColour(value)) return;
+    colourChoices.setState((state) => ({
+      values: { ...state.values, [owner]: value },
+    }));
+    const key = `colour:${owner}`;
+    const write = (writes.get(key) || Promise.resolve())
+      .catch(() => {})
+      .then(() => setStorageItem(`cakecity.card-colour.v1.${owner}`, value));
+    writes.set(key, write);
+    void write.then(() => setError(false)).catch(() => setError(true));
+  };
+  return { tier: cardColourTier(tier, choice), canChoose, choose, error };
+}
 export function useClubAppearance() {
   const { customer } = useAuth();
   const owner = customer?.id ? String(customer.id) : "guest";
@@ -104,9 +164,17 @@ export function useClubAppearance() {
   return { enabled, setEnabled, error };
 }
 export function ClubAppearanceControl() {
+  const { customer } = useAuth();
   const { colors } = useTheme();
   const { enabled, setEnabled, error } = useClubAppearance();
   const pages = useCardPages();
+  const query = useQuery({
+    queryKey: ["club", customer?.id, null],
+    queryFn: ({ signal }) => clubApi.overview(signal),
+    enabled: !!customer,
+    staleTime: 60000,
+  });
+  const colour = useCardColour(query.data?.tier);
   return (
     <View
       style={{
@@ -118,6 +186,70 @@ export function ClubAppearanceControl() {
         gap: 6,
       }}
     >
+      {colour.canChoose ? (
+        <View style={{ gap: 8, paddingBottom: 12 }}>
+          <Text style={{ color: colors.ink, fontSize: 16, fontWeight: "800" }}>
+            Your card. Your colour.
+          </Text>
+          <Text style={{ color: colors.muted, fontSize: 12, lineHeight: 18 }}>
+            Platinum unlocks all four colours. Choose a look for your card and
+            the pages you select below. Your Platinum benefits stay the same.
+          </Text>
+          <View
+            accessibilityRole="radiogroup"
+            accessibilityLabel="Membership colour"
+            style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}
+          >
+            {cardColours.map((value) => {
+              const palette = membershipPalette(value);
+              const selected = colour.tier === value;
+              return (
+                <Pressable
+                  key={value}
+                  accessibilityRole="radio"
+                  accessibilityLabel={`${value} card colour`}
+                  accessibilityState={{ checked: selected }}
+                  onPress={() => colour.choose(value)}
+                  style={{
+                    width: "48%",
+                    borderRadius: 16,
+                    overflow: "hidden",
+                    borderWidth: 2,
+                    borderColor: selected ? colors.brandStrong : colors.border,
+                  }}
+                >
+                  <LinearGradient
+                    colors={palette.gradient}
+                    style={{
+                      minHeight: 64,
+                      padding: 12,
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 6,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        flex: 1,
+                        color: palette.ink,
+                        fontSize: 14,
+                        fontWeight: "800",
+                      }}
+                    >
+                      {value}
+                    </Text>
+                    <Ionicons
+                      name={selected ? "checkmark-circle" : "ellipse-outline"}
+                      size={20}
+                      color={palette.ink}
+                    />
+                  </LinearGradient>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+      ) : null}
       <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
         <View style={{ flex: 1, gap: 4 }}>
           <Text style={{ color: colors.ink, fontWeight: "700", fontSize: 14 }}>
@@ -164,7 +296,7 @@ export function ClubAppearanceControl() {
           </View>
         ))}
       </View>
-      {error || pages.error ? (
+      {error || pages.error || colour.error ? (
         <Text style={{ color: colors.muted, fontSize: 12 }}>
           Changed for this session. Your preference could not be saved.
         </Text>
@@ -186,7 +318,7 @@ export function CustomerPageTheme({ children }: PropsWithChildren) {
     enabled,
     staleTime: 60000,
   });
-  const tier = query.data?.tier;
+  const { tier } = useCardColour(query.data?.tier);
   const colors = useMemo(
     () =>
       enabled && tier && !parent.highContrast
@@ -206,7 +338,7 @@ export function ClubPageTheme({ children }: PropsWithChildren) {
     enabled: !!customer && enabled,
     staleTime: 60000,
   });
-  const tier = query.data?.tier;
+  const { tier } = useCardColour(query.data?.tier);
   const colors = useMemo(
     () =>
       enabled && tier && !parent.highContrast
@@ -226,7 +358,8 @@ export function useClubPageColour() {
     enabled: !!customer && enabled,
     staleTime: 60_000,
   });
-  return enabled && query.data && !highContrast
-    ? membershipSurface(query.data.tier, colors.background)
+  const { tier } = useCardColour(query.data?.tier);
+  return enabled && tier && !highContrast
+    ? membershipSurface(tier, colors.background)
     : colors.background;
 }

@@ -29,6 +29,7 @@ import { MilestoneProgressBar } from "./MilestoneProgressBar";
 import { ClubJourney } from "./ClubJourney";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { NumberWheel } from "@/components/ui/NumberWheel";
+import { useCardColour } from "./ClubAppearance";
 import { trackCommerceEvent } from "@/observability/commerce-events";
 
 export function ClubMembership({
@@ -64,6 +65,7 @@ export function ClubMembership({
     retry: false,
     staleTime: 60_000,
   });
+  const cardColour = useCardColour(query.data?.tier);
   useFocusEffect(
     useCallback(() => {
       if (customer && query.isStale) void query.refetch();
@@ -160,6 +162,7 @@ export function ClubMembership({
                 .join(" ") || "Club member"
             }
             tier={data.tier}
+            colourTier={cardColour.tier}
             points={data.points}
             minimumRedemption={data.rules.minimum_redemption}
             pointValue={data.rules.point_value_kes}
