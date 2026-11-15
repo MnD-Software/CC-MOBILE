@@ -2,6 +2,10 @@
 
 Base commit: `53ec327` (one commit after the referenced `4d39a5b`; it fixes the DIY null-attribute crash and switches to a single confetti burst). Working tree at start: clean, apart from the untracked `downloads/*.apk` and `integrations/woocommerce/*`. Those are left untouched.
 
+## Latest owner correction: confetti and coupons
+
+The owner rejected the large foil confetti and the decorated coupon treatment after this handoff was committed. The six presentation/test files were restored to their `53ec327` versions: one dense burst of 420 smaller pieces with a gentle fall; the compact floating rewards shortcut without the pulse ring or count badge; and smaller pink-header coupons without gloss overlays, perforated seams or selected-card glow. Coupon eligibility, selection and redemption rules are unchanged. All account-isolation, permission and DIY improvements from this finalisation remain. The older work log below describes the superseded visual treatment.
+
 Owner decisions in this session:
 - Confetti stays **one giant burst**, as chosen in today's commit and re-confirmed by the owner. The older "three-wave" wording in the brief is superseded. Pieces should be much larger and glossier.
 - The DIY 3D view should become a far richer, interactive simulation of the customer's choices. It remains an original procedural **design illustration**, not a photorealistic product scan.

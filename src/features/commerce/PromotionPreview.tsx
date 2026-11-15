@@ -1,8 +1,6 @@
 import { View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { GlossSheen } from "@/components/ui/GlossSheen";
-import { CouponPerforation } from "@/components/ui/CouponPerforation";
 import { LoadingImage } from "@/components/ui/LoadingImage";
 import { Text } from "@/components/ui/Typography";
 import { useTheme } from "@/theme/ThemeProvider";
@@ -53,7 +51,6 @@ export function PromotionPreview({
         end={{ x: 1, y: 1 }}
         style={{ padding: 12, gap: 4 }}
       >
-        <GlossSheen strength={0.75} />
         <View
           style={{
             flexDirection: "row",
@@ -85,8 +82,15 @@ export function PromotionPreview({
           {item.scope === "delivery" ? " - delivery" : ""}
         </Text>
       </LinearGradient>
-      <CouponPerforation cutout={colors.surface} line={colors.border} />
-      <View style={{ padding: 10, paddingTop: 12, gap: 4 }}>
+      <View
+        style={{
+          padding: 10,
+          gap: 4,
+          borderTopWidth: 1,
+          borderStyle: "dashed",
+          borderColor: colors.border,
+        }}
+      >
         <Text style={{ color: colors.ink, fontWeight: "700", fontSize: 12 }}>
           {selected ? "Selected for checkout" : "Select this offer at checkout"}
         </Text>

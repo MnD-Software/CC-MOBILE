@@ -4,10 +4,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useScreenActive } from "@/design/useScreenActive";
 import { tokens } from "@/theme/tokens";
 import { PromotionPreview } from "./PromotionPreview";
-import { useEffect, useRef, useState } from "react";
-import { Animated, Easing, Platform, Pressable, View } from "react-native";
-import { GlossSheen } from "@/components/ui/GlossSheen";
-import { useReducedMotion } from "@/design/useReducedMotion";
+import { useState } from "react";
+import { Pressable, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useQuery } from "@tanstack/react-query";
@@ -49,8 +47,6 @@ export function PromotionsShelf({ floating = false }: { floating?: boolean }) {
   const [tab, setTab] = useState<"available" | "selected">("available");
   const [busy, setBusy] = useState(false);
   const active = useScreenActive();
-  const reduceMotion = useReducedMotion();
-  const pulse = useRef(new Animated.Value(0)).current;
   const query = useQuery({
     queryKey: ["discoverable-promotions", customer?.id, wallet.codes],
     enabled: active && wallet.ready,
@@ -103,32 +99,6 @@ export function PromotionsShelf({ floating = false }: { floating?: boolean }) {
       setBusy(false);
     }
   };
-  const showPulse = floating && active && !reduceMotion && offers.length > 0;
-  useEffect(() => {
-    if (!showPulse) {
-      pulse.setValue(0);
-      return;
-    }
-    // A calm "you have a coupon" breath: two soft beats, then a long rest.
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulse, {
-          toValue: 1,
-          duration: 1400,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: Platform.OS !== "web",
-        }),
-        Animated.timing(pulse, {
-          toValue: 0,
-          duration: 0,
-          useNativeDriver: Platform.OS !== "web",
-        }),
-        Animated.delay(2600),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [showPulse, pulse]);
   if (!open && (query.isPending || query.isError || !offers.length))
     return null;
   return (
@@ -149,33 +119,6 @@ export function PromotionsShelf({ floating = false }: { floating?: boolean }) {
             : undefined
         }
       >
-        {showPulse ? (
-          <Animated.View
-            pointerEvents="none"
-            style={{
-              position: "absolute",
-              top: 0,
-              right: 0,
-              bottom: 0,
-              left: 0,
-              borderRadius: 28,
-              borderWidth: 2,
-              borderColor: "#EC008C",
-              opacity: pulse.interpolate({
-                inputRange: [0, 0.15, 1],
-                outputRange: [0, 0.55, 0],
-              }),
-              transform: [
-                {
-                  scale: pulse.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [1, 1.35],
-                  }),
-                },
-              ],
-            }}
-          />
-        ) : null}
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`Your rewards, ${offers.length} available offers${selected ? ", one selected for checkout" : ""}`}
@@ -200,7 +143,6 @@ export function PromotionsShelf({ floating = false }: { floating?: boolean }) {
               paddingVertical: floating ? 6 : 10,
             }}
           >
-            <GlossSheen />
             <View
               style={{
                 width: 28,
@@ -216,31 +158,6 @@ export function PromotionsShelf({ floating = false }: { floating?: boolean }) {
                 color="#FFE1A8"
                 size={18}
               />
-              {floating && !selected ? (
-                <View
-                  accessible={false}
-                  style={{
-                    position: "absolute",
-                    top: -5,
-                    right: -7,
-                    minWidth: 17,
-                    height: 17,
-                    paddingHorizontal: 4,
-                    borderRadius: 9,
-                    backgroundColor: "#FFC53D",
-                    borderWidth: 1.5,
-                    borderColor: "#AC0066",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <Text
-                    style={{ color: "#4A1236", fontSize: 10, fontWeight: "900" }}
-                  >
-                    {offers.length > 9 ? "9+" : offers.length}
-                  </Text>
-                </View>
-              ) : null}
             </View>
             <View style={{ gap: 2 }}>
               <Text
