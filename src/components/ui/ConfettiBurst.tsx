@@ -26,7 +26,7 @@ export const ConfettiBurst = memo(function ConfettiBurst({
     >
       {(compact ? compactPieces : fullPieces).map((piece) => {
         const time = motion.interpolate({
-          inputRange: [piece.delay, 0.62 + piece.delay],
+          inputRange: [piece.delay, 0.94 + piece.delay],
           outputRange: [0, 1],
           extrapolate: "clamp",
         });

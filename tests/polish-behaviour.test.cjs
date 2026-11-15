@@ -23,11 +23,12 @@ test("page colour choices apply only to recognised customer pages", () => {
   );
   assert.deepEqual(parseCardPages("corrupt"), {});
 });
-test("confetti has three distinct waves and a continuous slow fall", () => {
+test("confetti launches one full burst with a continuous slow fall", () => {
   const pieces = celebrationPieces();
   assert.equal(pieces.length, 420);
-  assert.deepEqual([...new Set(pieces.map((p) => p.burst))], [0, 1, 2]);
-  assert.ok(pieces.every((p) => p.delay + 0.62 <= 1));
+  assert.deepEqual([...new Set(pieces.map((p) => p.burst))], [0]);
+  assert.ok(Math.max(...pieces.map((p) => p.delay)) <= 0.024);
+  assert.ok(pieces.every((p) => p.delay + 0.94 <= 1));
   assert.ok(Math.abs(gracefulFall(0, 400, 844)) === 0);
   assert.equal(gracefulFall(1, 400, 844), 844);
   assert.ok(

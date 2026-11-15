@@ -25,9 +25,24 @@ def test_inventory_diy_reprices_the_actual_variation_and_extras(system):
     assert quote.json()['subtotal_minor']==390000
     assert quote.json()['lines'][0]['size']=='2kg'
     with Session(s['engine']) as db:
-        db.get(AppProduct,13).price_minor=360000
+        variant=db.get(AppProduct,13)
+        variant.price_minor=360000
+        variant.payload={**variant.payload,'variation_attributes':[
+            *variant.payload['variation_attributes'],
+            {'name':'Type of Cake','value':None},
+            {'name':'Empty','value':''},
+            {'name':'Invalid','value':{}},
+            None,
+        ]}
         db.commit()
-    assert s['client'].post('/v1/diy/quote',json=data).json()['subtotal_minor']==400000
+    revised=s['client'].post('/v1/diy/quote',json=data)
+    assert revised.status_code==200,revised.text
+    assert revised.json()['subtotal_minor']==400000
+    assert revised.json()['lines'][0]['size']=='2kg'
+    assert len(revised.json()['lines'][0]['attributes'])==2
+    from app.diy import product_view
+    with Session(s['engine']) as db:
+        assert len(product_view(db,db.get(AppProduct,13))['attributes'])==2
     assert s['client'].post('/v1/diy/quote',json={**data,'extras':[14,14]}).status_code==422
     assert s['client'].post('/v1/diy/quote',json={**data,'variation_id':99999}).status_code==409
     assert s['client'].post('/v1/diy/quote',json={**data,'colour':'<script>'}).status_code==422

@@ -5,11 +5,24 @@ import { useTheme } from "@/theme/ThemeProvider";
 type Choice = {
   id: number;
   price_minor: number;
-  attributes: { name?: string; attribute?: string; value: string }[];
+  attributes?: unknown;
 };
+type Attribute = { name?: string; attribute?: string; value: string };
+const attributes = (choice: Choice): Attribute[] =>
+  Array.isArray(choice.attributes)
+    ? choice.attributes.filter(
+        (a): a is Attribute =>
+          a != null &&
+          typeof a.value === "string" &&
+          a.value.trim().length > 0 &&
+          ((typeof a.name === "string" && a.name.trim().length > 0) ||
+            (typeof a.attribute === "string" && a.attribute.trim().length > 0)),
+      )
+    : [];
 const label = (text: string) =>
   text.replace(/^pa_/, "").replaceAll("-", " ").replaceAll("_", " ");
-const name = (a: Choice["attributes"][number]) => a.name || a.attribute || "";
+const name = (a: Attribute) =>
+  (typeof a.name === "string" && a.name.trim()) || a.attribute || "";
 export function SizeFinishPicker<T extends Choice>({
   variants,
   selected,
@@ -20,7 +33,7 @@ export function SizeFinishPicker<T extends Choice>({
   onSelect: (v: T) => void;
 }) {
   const { colors } = useTheme();
-  const groups = [...new Set(variants.flatMap((v) => v.attributes.map(name)))];
+  const groups = [...new Set(variants.flatMap((v) => attributes(v).map(name)))];
   if (!groups.length)
     return (
       <Text style={{ color: colors.muted }}>
@@ -33,11 +46,13 @@ export function SizeFinishPicker<T extends Choice>({
         const values = [
           ...new Set(
             variants.flatMap((v) =>
-              v.attributes.filter((a) => name(a) === group).map((a) => a.value),
+              attributes(v)
+                .filter((a) => name(a) === group)
+                .map((a) => a.value),
             ),
           ),
         ];
-        const current = selected.attributes.find(
+        const current = attributes(selected).find(
           (a) => name(a) === group,
         )?.value;
         const title = /size|weight/i.test(group)
@@ -59,16 +74,16 @@ export function SizeFinishPicker<T extends Choice>({
             >
               {values.map((value) => {
                 const matching = variants.filter((v) =>
-                  v.attributes.some(
+                  attributes(v).some(
                     (a) => name(a) === group && a.value === value,
                   ),
                 );
                 const next =
                   matching.find((v) =>
-                    selected.attributes.every(
+                    attributes(selected).every(
                       (a) =>
                         name(a) === group ||
-                        v.attributes.some(
+                        attributes(v).some(
                           (b) => name(b) === name(a) && b.value === a.value,
                         ),
                     ),

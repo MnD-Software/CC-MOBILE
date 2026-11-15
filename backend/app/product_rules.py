@@ -57,7 +57,9 @@ def cake_colour(product):
 
 def cake_weight(product, parent=None):
     p=product.payload
-    attributes=' '.join(str(a.get('value','')) for a in p.get('variation_attributes',[]))
+    raw=p.get('variation_attributes')
+    attributes=' '.join(a['value'] for a in (raw if isinstance(raw,list) else [])
+                        if isinstance(a,dict) and isinstance(a.get('value'),str))
     text=attributes+' '+str(p.get('name',''))+' '+str((parent.payload if parent else {}).get('name',''))
     match=re.search(r'(\d+)(?:[.\-](\d+))?\s*[- ]?kg',text,re.I)
     return float(match.group(1)+('.'+match.group(2) if match.group(2) else '')) if match else None

@@ -28,7 +28,7 @@ Club redemption now accepts 1–500 points, within the member's available balanc
 - Smaller coupon sheets/cards retain readable terms and the previous pink header. Checkout shows the best/selected offer first, with other offers disclosed on demand. Empty coupon sections and technical sync wording are removed.
 - The header opens **Your kind of celebration**. Its Plan tab contains the happy-moment planning card, removing the duplicate Home section.
 - Club colour preferences now have switches for Home, Shop, Orders, Profile, DIY, checkout and celebration pages. Preferences are stored privately per account on this device. The Club toggle remains independent. Staff/authentication screens and high-contrast accessibility mode keep their own treatment.
-- Payment and reward celebrations have three waves of 140 particles over nine seconds, with a gentler fall. Reduced-motion handling remains supported. Welcome artwork uses a smaller burst.
+- Payment and reward celebrations have one full burst of 420 particles over nine seconds, with a gentler fall. This replaces the earlier three-wave treatment at the owner's request. Reduced-motion handling remains supported. Welcome artwork uses a smaller burst.
 - DIY tabs, steps, cake stage and flavour search stay outside the scrolling choices. The actual product photo and a rotatable, offline 3D **design illustration** are separate views. Caramel styling, icing colour, piping and a ring of candles respond to the design.
 - The 3D illustration is original procedural geometry, not an exact Cake City scan or a promise of hyperrealistic output. Matching photogrammetry/artist models are still needed for exact flavour-specific realism. No third-party cake model was downloaded or incorporated.
 
@@ -62,3 +62,7 @@ Render's existing `python -m app.start` startup runs migrations before serving. 
 - Private logs/screenshots are under ignored `artifacts/local-preview/polish-*`; credentials and the validation database are not deliverables or Git content.
 
 Still requires acceptance on a physical phone: camera scanning, native WebView 3D gestures, native date/time wheels, animation performance and biometric flows. Remote push/email delivery depends on configured providers and has not been proven by these local checks. Exact hyperrealistic cake assets and hosted Render deployment verification remain outstanding.
+
+## Follow-up: DIY size/finish crash
+
+The review catalogue contains variation attributes such as `Type of Cake` with a null value. The picker previously passed those values to string formatting, causing a render crash. It now skips missing, non-text and blank attributes, retains valid size/icing options, and selects the original inventory SKU. DIY inventory and quote responses apply the same filtering; weight parsing ignores malformed attributes. No catalogue records, prices or allocations are changed. Two picker regression tests and five DIY/welcome backend tests passed. The celebration was also changed to one simultaneous burst while retaining the fuller particle count and extending the graceful fall through most of the animation.

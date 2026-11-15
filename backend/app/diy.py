@@ -26,11 +26,20 @@ def available(product):
         product.payload.get('order_mode') == 'made_to_order' or product.allocation-product.reserved-product.sold > 0)
 
 
+def attributes(product):
+    raw = product.payload.get('variation_attributes')
+    if not isinstance(raw, list):
+        return []
+    return [a for a in raw if isinstance(a, dict)
+            and isinstance(a.get('value'), str) and a['value'].strip()
+            and any(isinstance(a.get(key), str) and a[key].strip() for key in ('name', 'attribute'))]
+
+
 def product_view(db, product, copied=None):
     p=product.payload
     return {'id':product.id,'parent_id':product.parent_id,'name':p.get('name',product.slug),'slug':product.slug,
             'price_minor':product.price_minor,'image':next((image.get('src') for image in (p.get('images') or []) if image_available(image, copied)), None),
-            'attributes':p.get('variation_attributes',[]),'type':p.get('type','simple'),'kind':kind(product), 'canvas_colour':cake_colour(product)}
+            'attributes':attributes(product),'type':p.get('type','simple'),'kind':kind(product), 'canvas_colour':cake_colour(product)}
 
 
 @router.get('/inventory')
@@ -78,10 +87,10 @@ def quote(data:Design,person=Depends(member),db:Session=Depends(get_db)):
     import re
     def size(p,s):
         if kind(p)=='decor': return 'Item'
-        text=' '.join(a.get('value','') for a in s.payload.get('variation_attributes',[]))+' '+p.payload.get('name','')
+        text=' '.join(a['value'] for a in attributes(s))+' '+p.payload.get('name','')
         match=re.search(r'(\d+)(?:[.\-](\d+))?\s*kg',text,re.I)
         return (match.group(1)+('.'+match.group(2) if match.group(2) else '')+'kg') if match else '1kg'
     return {'subtotal_minor':sum(s.price_minor for _,s in parts),'currency':'KES','expires_at':(datetime.now(UTC)+timedelta(minutes=10)).isoformat(),
             'colour':data.colour,'message':data.message,'preview_notice':'Illustrative design. Custom icing, colours and decorations need kitchen confirmation if they are not included in the selected inventory product.',
             'lines':[{'product_id':p.id,'variation_id':s.id if s.parent_id else None,'name':p.payload.get('name',p.slug),'slug':p.slug,'image':next(iter(p.payload.get('images',[])),{}).get('src'),
-                      'unit_minor':s.price_minor,'size':size(p,s),'attributes':s.payload.get('variation_attributes',[]),'kind':kind(p)} for p,s in parts]}
+                      'unit_minor':s.price_minor,'size':size(p,s),'attributes':attributes(s),'kind':kind(p)} for p,s in parts]}

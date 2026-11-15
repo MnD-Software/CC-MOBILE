@@ -1,11 +1,11 @@
 export const CELEBRATION_DURATION = 9000;
 export function celebrationPieces(compact = false) {
-  const perBurst = compact ? 36 : 140;
-  return Array.from({ length: perBurst * 3 }, (_, index) => ({
+  const count = compact ? 108 : 420;
+  return Array.from({ length: count }, (_, index) => ({
     index,
     side: index % 2,
-    burst: Math.floor(index / perBurst),
-    delay: Math.floor(index / perBurst) * 0.17 + (index % 7) * 0.004,
+    burst: 0,
+    delay: (index % 7) * 0.004,
     energy: 0.58 + ((index * 17) % 35) / 100,
     color: [
       "#EC008C",
