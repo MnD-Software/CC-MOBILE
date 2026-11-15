@@ -11,6 +11,7 @@ import { useTheme } from "@/theme/ThemeProvider";
 import { useCouponWallet, selectCouponCode } from "./coupon-wallet";
 import { money } from "./contracts";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { LinearGradient } from "expo-linear-gradient";
 
 const offersSchema = z.object({
   coupons: z.array(
@@ -109,12 +110,8 @@ export function CheckoutCoupons({
         );
       }}
       style={{
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 12,
-        paddingVertical: 12,
-        paddingHorizontal: 12,
-        borderRadius: 17,
+        overflow: "hidden",
+        borderRadius: 14,
         borderWidth: 1,
         borderStyle: "solid",
         borderColor: code === coupon.code ? colors.brandStrong : colors.border,
@@ -123,33 +120,69 @@ export function CheckoutCoupons({
         minHeight: 48,
       }}
     >
-      <Ionicons
-        name={code === coupon.code ? "checkbox" : "square-outline"}
-        size={24}
-        color={coupon.eligible ? colors.brandStrong : colors.muted}
-      />
-      <View style={{ flex: 1, gap: 4 }}>
-        <Text style={{ color: colors.ink, fontWeight: "700", fontSize: 15 }}>
-          {code === coupon.code
-            ? `${coupon.discount_type === "percentage" ? `${(coupon.percentage_bps || 0) / 100}% off` : coupon.scope === "delivery" ? "Delivery offer" : money((coupon.saving_minor ?? Math.min(coupon.amount_minor, subtotalMinor)) / 100) + " savings"} selected`
-            : coupon.discount_type === "percentage"
-              ? `${(coupon.percentage_bps || 0) / 100}% off ${coupon.scope === "delivery" ? "delivery" : "your order"}`
-              : `Save up to ${money(coupon.amount_minor / 100)}`}
+      <LinearGradient
+        colors={["#B80068", "#DF2588"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={{
+          paddingVertical: 7,
+          paddingHorizontal: 12,
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 8,
+        }}
+      >
+        <Ionicons name="ticket-outline" size={16} color="#FFE6AF" />
+        <Text
+          style={{ color: "#FFFFFF", fontSize: 13, fontWeight: "800", flex: 1 }}
+        >
+          {coupon.discount_type === "percentage"
+            ? `${(coupon.percentage_bps || 0) / 100}% OFF`
+            : `${money(coupon.amount_minor / 100)} OFF`}
+          {coupon.scope === "delivery" ? " DELIVERY" : ""}
         </Text>
-        <Text style={{ color: colors.muted, fontSize: 12, lineHeight: 18 }}>
-          {coupon.eligible
-            ? `Minimum spend ${money(coupon.minimum_minor / 100)} · savings confirmed in your total`
-            : `Add ${money(coupon.remaining_to_minimum_minor / 100)} to meet the minimum spend`}
-        </Text>
+        {code === coupon.code ? (
+          <Ionicons name="checkmark-circle" size={16} color="#FFFFFF" />
+        ) : null}
+      </LinearGradient>
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 10,
+          paddingHorizontal: 10,
+          paddingVertical: 8,
+        }}
+      >
+        <Ionicons
+          name={code === coupon.code ? "checkbox" : "square-outline"}
+          size={24}
+          color={coupon.eligible ? colors.brandStrong : colors.muted}
+        />
+        <View style={{ flex: 1, gap: 4 }}>
+          <Text style={{ color: colors.ink, fontWeight: "700", fontSize: 15 }}>
+            {code === coupon.code
+              ? `${coupon.discount_type === "percentage" ? `${(coupon.percentage_bps || 0) / 100}% off` : coupon.scope === "delivery" ? "Delivery offer" : money((coupon.saving_minor ?? Math.min(coupon.amount_minor, subtotalMinor)) / 100) + " savings"} selected`
+              : coupon.discount_type === "percentage"
+                ? `${(coupon.percentage_bps || 0) / 100}% off ${coupon.scope === "delivery" ? "delivery" : "your order"}`
+                : `Save up to ${money(coupon.amount_minor / 100)}`}
+          </Text>
+          <Text style={{ color: colors.muted, fontSize: 12, lineHeight: 18 }}>
+            {coupon.eligible
+              ? `Minimum spend ${money(coupon.minimum_minor / 100)} · savings confirmed in your total`
+              : `Add ${money(coupon.remaining_to_minimum_minor / 100)} to meet the minimum spend`}
+          </Text>
+        </View>
       </View>
     </Pressable>
   );
+  if (!offers.data?.coupons.length) return null;
   return (
     <View
       testID="checkout-coupons"
       style={{
-        padding: 16,
-        borderRadius: 20,
+        padding: 12,
+        borderRadius: 18,
         borderWidth: 1,
         borderColor: colors.border,
         backgroundColor: colors.surface,
@@ -167,12 +200,8 @@ export function CheckoutCoupons({
         </Text>
       </View>
       {offers.isPending ? <Skeleton height={64} radius={17} /> : null}
-      <Text style={{ color: colors.muted, fontSize: 12, lineHeight: 18 }}>
-        Tap a coupon to select it. Tap it again to remove it. Your confirmed
-        total updates when your checkout details are complete.
-      </Text>
-      {(showAll ? coupons : coupons.slice(0, 3)).map(checkbox)}
-      {coupons.length > 3 ? (
+      {(showAll ? coupons : coupons.slice(0, 1)).map(checkbox)}
+      {coupons.length > 1 ? (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={

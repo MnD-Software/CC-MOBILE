@@ -1,24 +1,20 @@
 import { memo } from "react";
 import { Animated, StyleSheet, View, useWindowDimensions } from "react-native";
 
-const pieces = Array.from({ length: 240 }, (_, index) => ({
-  index,
-  side: index % 2,
-  delay: Math.floor(index / 60) * 0.09 + (index % 8) * 0.006,
-  energy: 0.58 + ((index * 17) % 35) / 100,
-  color: ["#EC008C", "#EAC46B", "#FFF1C2", "#51C4DC", "#F58FC5", "#BE87C5"][
-    index % 6
-  ],
-}));
+import { celebrationPieces, gracefulFall } from "./celebration-motion";
+const fullPieces = celebrationPieces();
+const compactPieces = celebrationPieces(true);
 const times = Array.from({ length: 25 }, (_, i) => i / 24);
 
 /** Two cannons, ballistic arcs, fluttering ribbons; one native-driven clock. */
 export const ConfettiBurst = memo(function ConfettiBurst({
   motion,
   testID,
+  compact = false,
 }: {
   motion: Animated.Value;
   testID: string;
+  compact?: boolean;
 }) {
   const { width, height } = useWindowDimensions();
   return (
@@ -28,9 +24,9 @@ export const ConfettiBurst = memo(function ConfettiBurst({
       accessible={false}
       style={[StyleSheet.absoluteFill, { overflow: "hidden", zIndex: 100 }]}
     >
-      {pieces.map((piece) => {
+      {(compact ? compactPieces : fullPieces).map((piece) => {
         const time = motion.interpolate({
-          inputRange: [piece.delay, 0.66 + piece.delay],
+          inputRange: [piece.delay, 0.62 + piece.delay],
           outputRange: [0, 1],
           extrapolate: "clamp",
         });
@@ -75,7 +71,7 @@ export const ConfettiBurst = memo(function ConfettiBurst({
                         (piece.index % 4 === 0 ? 0.18 : piece.side ? -1 : 1) *
                           velocity *
                           (1 - Math.exp(-2.7 * t)) +
-                        Math.sin(t * (8 + (piece.index % 5)) + piece.index) *
+                        Math.sin(t * (6 + (piece.index % 4)) + piece.index) *
                           (18 + (piece.index % 14)) *
                           Math.sin(Math.PI * t),
                     ),
@@ -86,8 +82,9 @@ export const ConfettiBurst = memo(function ConfettiBurst({
                     inputRange: times,
                     outputRange: times.map((t) =>
                       piece.index % 4 === 0
-                        ? (height + 40) * t + Math.sin(t * 9 + piece.index) * 12
-                        : -4 * rise * t + (height + 4 * rise) * t * t,
+                        ? (height + 40) * t ** 1.12 +
+                          Math.sin(t * 7 + piece.index) * 8
+                        : gracefulFall(t, rise, height),
                     ),
                   }),
                 },
@@ -96,7 +93,7 @@ export const ConfettiBurst = memo(function ConfettiBurst({
                     inputRange: [0, 1],
                     outputRange: [
                       `${piece.index * 31}deg`,
-                      `${piece.index * 31 + (piece.side ? -1 : 1) * (1080 + piece.index * 13)}deg`,
+                      `${piece.index * 31 + (piece.side ? -1 : 1) * (240 + (piece.index % 12) * 38)}deg`,
                     ],
                   }),
                 },
@@ -105,7 +102,7 @@ export const ConfettiBurst = memo(function ConfettiBurst({
                     inputRange: times,
                     outputRange: times.map(
                       (t) =>
-                        0.25 + Math.abs(Math.cos(t * 18 + piece.index)) * 0.75,
+                        0.25 + Math.abs(Math.cos(t * 8 + piece.index)) * 0.75,
                     ),
                   }),
                 },

@@ -7,6 +7,8 @@ function render(data, value = "") {
   const selected = [];
   const jsx = (type, props) => ({ type, props });
   const modules = {
+    react: { useState: (value) => [value, () => {}] },
+    "@/components/ui/Button": { Button: "Button" },
     "react/jsx-runtime": { jsx, jsxs: jsx },
     "react-native": { View: "View", Pressable: "Pressable" },
     "@tanstack/react-query": {

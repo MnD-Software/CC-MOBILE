@@ -9,6 +9,7 @@ import {
 } from "@/platform/connectivity";
 import { useTheme } from "@/theme/ThemeProvider";
 import { appMedia } from "@/features/commerce/app-media";
+import { recordPerformanceMetric } from "@/observability/commerce-events";
 
 function currentSource(source: ImageProps["source"]): ImageProps["source"] {
   if (typeof source === "string") return appMedia(source);
@@ -43,6 +44,8 @@ function ImageRequest({ style, onDisplay, onError, ...props }: ImageProps) {
   const { colors } = useTheme();
   const container = useRef<ComponentRef<typeof View>>(null);
   const [visible, setVisible] = useState(Platform.OS !== "web");
+  const started = useRef<number | null>(null);
+  const measured = useRef(false);
   const [displayed, setDisplayed] = useState(false);
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
@@ -133,8 +136,19 @@ function ImageRequest({ style, onDisplay, onError, ...props }: ImageProps) {
           style={StyleSheet.absoluteFill}
           cachePolicy={attempt ? "none" : (props.cachePolicy ?? "memory-disk")}
           transition={props.transition ?? 180}
+          onLoadStart={() => {
+            started.current = Date.now();
+            props.onLoadStart?.();
+          }}
           onDisplay={() => {
             setDisplayed(true);
+            if (!measured.current && started.current !== null) {
+              measured.current = true;
+              recordPerformanceMetric(
+                "image_load_ms",
+                Date.now() - started.current,
+              );
+            }
             onDisplay?.();
           }}
           onError={(event) => {

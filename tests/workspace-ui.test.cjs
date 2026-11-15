@@ -69,6 +69,8 @@ function render(screen, customer, states = {}) {
       if (name === "expo-crypto")
         return { randomUUID: () => "test-request-unique-id" };
       if (name === "expo-router") return { router: { push() {} } };
+      if (name.endsWith("/CompanyPurchasing"))
+        return { CompanyPurchasing: () => null };
       if (name.endsWith("/AuthProvider"))
         return { useAuth: () => ({ customer }) };
       if (name.endsWith("/client"))

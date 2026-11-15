@@ -101,16 +101,20 @@ export function WelcomeCoupon() {
           end={{ x: 1, y: 1 }}
           style={{
             borderRadius: 28,
-            padding: 28,
-            gap: 12,
+            padding: 18,
+            gap: 8,
             overflow: "hidden",
-            minHeight: 270,
+            minHeight: 180,
             alignItems: "center",
             justifyContent: "center",
           }}
         >
           {!reduceMotion && isResolved ? (
-            <ConfettiBurst motion={motion} testID="welcome-coupon-confetti" />
+            <ConfettiBurst
+              compact
+              motion={motion}
+              testID="welcome-coupon-confetti"
+            />
           ) : null}
           {Array.from({ length: 12 }, (_, i) => (
             <View
@@ -135,7 +139,7 @@ export function WelcomeCoupon() {
               backgroundColor: "rgba(255,255,255,0.15)",
             }}
           >
-            <Ionicons name="gift-outline" size={34} color="#FFE9B3" />
+            <Ionicons name="gift-outline" size={24} color="#FFE9B3" />
           </View>
           <Text
             style={{
@@ -151,7 +155,7 @@ export function WelcomeCoupon() {
             style={{
               color: "white",
               fontWeight: "900",
-              fontSize: 61,
+              fontSize: 44,
               letterSpacing: -3,
             }}
           >

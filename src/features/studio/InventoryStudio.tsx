@@ -26,6 +26,7 @@ import { Input } from "@/components/ui/Input";
 import { Screen, Notice, Feedback, useToast } from "@/components/ui/Commerce";
 import { useTheme } from "@/theme/ThemeProvider";
 import { useMotionAccessibilityPreference } from "@/design/useReducedMotion";
+import { CakeStage } from "./CakeStage";
 import { CustomCakeBrief } from "./CustomCakeBrief";
 import { SizeFinishPicker } from "./SizeFinishPicker";
 import { appMedia } from "@/features/commerce/app-media";
@@ -565,7 +566,7 @@ export function InventoryEditor() {
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={{
-                  minHeight: 62,
+                  minHeight: 48,
                   borderRadius: 19,
                   flexDirection: "row",
                   alignItems: "center",
@@ -664,6 +665,86 @@ export function InventoryEditor() {
             )}
           </View>
         ) : null}
+        {mode === "diy" ? (
+          <CakeStage
+            key={cake?.id || "new"}
+            image={cake?.image || null}
+            name={cake?.name || ""}
+            colour={colour}
+            message={message}
+            candles={extras.some((x) => /candle|candel|sparkler/i.test(x.name))}
+            price={
+              sku ? cash(quote?.subtotal_minor ?? estimate) : "Choose a cake"
+            }
+          />
+        ) : null}
+        {mode === "diy" && step === 0 ? (
+          <View testID="diy-fixed-search" style={{ paddingTop: 10 }}>
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 10,
+                minHeight: 50,
+                borderRadius: 25,
+                paddingHorizontal: 16,
+                backgroundColor: colors.surface,
+                borderWidth: 1,
+                borderColor: search ? colors.brandStrong : colors.border,
+                shadowColor: "#351A2B",
+                shadowOpacity: 0.04,
+                shadowRadius: 10,
+                shadowOffset: { width: 0, height: 3 },
+              }}
+            >
+              <Ionicons
+                name="search-outline"
+                size={22}
+                color={colors.brandStrong}
+              />
+              <TextInput
+                accessibilityLabel="Search flavours, cake styles or themes"
+                placeholder="Chocolate, vanilla, caramel?"
+                placeholderTextColor={colors.muted}
+                value={search}
+                onChangeText={setSearch}
+                onSubmitEditing={() => setSubmitted(search.trim())}
+                returnKeyType="search"
+                autoCorrect={false}
+                style={{
+                  flex: 1,
+                  color: colors.ink,
+                  fontSize: 15,
+                  paddingVertical: 14,
+                  minWidth: 0,
+                }}
+              />
+              {search ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Clear flavour search"
+                  hitSlop={8}
+                  onPress={() => {
+                    setSearch("");
+                    setSubmitted("");
+                  }}
+                  style={{
+                    width: 32,
+                    height: 36,
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Ionicons
+                    name="close-circle"
+                    size={22}
+                    color={colors.muted}
+                  />
+                </Pressable>
+              ) : null}
+            </View>
+          </View>
+        ) : null}
       </View>
       <ScrollView
         key={`${mode}-${step}`}
@@ -681,49 +762,6 @@ export function InventoryEditor() {
           <CustomCakeBrief />
         ) : (
           <>
-            <LinearGradient
-              colors={["#372034", "#6F2C54", "#AD3F7D"]}
-              style={{ borderRadius: 30, padding: 18, gap: 7 }}
-            >
-              <View
-                style={{
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
-              >
-                <Text
-                  style={{
-                    color: "#F7CEE3",
-                    fontWeight: "800",
-                    letterSpacing: 2,
-                    fontSize: 10,
-                  }}
-                >
-                  MADE BY YOU
-                </Text>
-                <Text
-                  style={{ color: "white", fontWeight: "800", fontSize: 18 }}
-                >
-                  {sku
-                    ? cash(quote?.subtotal_minor ?? estimate)
-                    : "Start creating"}
-                </Text>
-              </View>
-              <CakeCanvas
-                colour={colour}
-                message={message}
-                decorations={
-                  extras.filter((x) => /candle|candel|sparkler/i.test(x.name))
-                    .length
-                }
-              />
-              <Text
-                style={{ color: "#F5D6E6", textAlign: "center", fontSize: 12 }}
-              >
-                Every choice starts with real Cake City inventory.
-              </Text>
-            </LinearGradient>
             {step === 0 ? (
               <>
                 <Text
@@ -731,69 +769,6 @@ export function InventoryEditor() {
                 >
                   Find your flavour story
                 </Text>
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: 10,
-                    minHeight: 56,
-                    borderRadius: 20,
-                    paddingHorizontal: 16,
-                    backgroundColor: colors.surface,
-                    borderWidth: 1,
-                    borderColor: search ? colors.brandStrong : colors.border,
-                    shadowColor: "#351A2B",
-                    shadowOpacity: 0.04,
-                    shadowRadius: 10,
-                    shadowOffset: { width: 0, height: 3 },
-                  }}
-                >
-                  <Ionicons
-                    name="search-outline"
-                    size={22}
-                    color={colors.brandStrong}
-                  />
-                  <TextInput
-                    accessibilityLabel="Search flavours, cake styles or themes"
-                    placeholder="Find your favourite flavour..."
-                    placeholderTextColor={colors.muted}
-                    value={search}
-                    onChangeText={setSearch}
-                    onSubmitEditing={() => setSubmitted(search.trim())}
-                    returnKeyType="search"
-                    autoCorrect={false}
-                    style={{
-                      flex: 1,
-                      color: colors.ink,
-                      fontSize: 15,
-                      paddingVertical: 14,
-                      minWidth: 0,
-                    }}
-                  />
-                  {search ? (
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel="Clear flavour search"
-                      hitSlop={8}
-                      onPress={() => {
-                        setSearch("");
-                        setSubmitted("");
-                      }}
-                      style={{
-                        width: 32,
-                        height: 36,
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <Ionicons
-                        name="close-circle"
-                        size={22}
-                        color={colors.muted}
-                      />
-                    </Pressable>
-                  ) : null}
-                </View>
                 {!cakes.isPending && !cakes.isError ? (
                   <Text
                     accessibilityLiveRegion="polite"
@@ -956,7 +931,7 @@ export function InventoryEditor() {
                         }
                         style={{
                           padding: 15,
-                          borderRadius: 20,
+                          borderRadius: 25,
                           backgroundColor: extras.some((x) => x.id === item.id)
                             ? colors.brandLight
                             : colors.surface,

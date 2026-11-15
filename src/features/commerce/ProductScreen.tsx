@@ -58,6 +58,7 @@ import { contentApi, mediaSource } from "@/features/editorial/content";
 import { VideoClip } from "@/features/editorial/VideoClip";
 import { confirmedServings } from "@/features/celebrations/planning";
 import { Reveal } from "@/components/ui/Delight";
+import { ProductFacts } from "@/features/experience/ProductFacts";
 
 function ProductSkeleton() {
   const styles = useThemedStyles(baseStyles);
@@ -926,6 +927,7 @@ export function ProductScreen() {
               <Text style={styles.descriptionTitle}>About this cake</Text>
               <Text style={styles.description}>{description}</Text>
             </View>
+            <ProductFacts productId={cake.id} />
 
             <View style={styles.orderNotice}>
               <Ionicons name="bag-check-outline" size={22} color="#FFFFFF" />

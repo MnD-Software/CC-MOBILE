@@ -1,4 +1,5 @@
 import { ConfettiBurst } from "@/components/ui/ConfettiBurst";
+import { CELEBRATION_DURATION } from "@/components/ui/celebration-motion";
 import { useConfettiLayer } from "@/components/ui/ConfettiLayer";
 import { useEffect, useRef } from "react";
 import { Animated, Easing, Platform } from "react-native";
@@ -22,7 +23,7 @@ export function PaymentConfetti({ onComplete }: { onComplete: () => void }) {
     }
     const animation = Animated.timing(motion, {
       toValue: 1,
-      duration: 7400,
+      duration: CELEBRATION_DURATION,
       easing: Easing.linear,
       useNativeDriver: Platform.OS !== "web",
       isInteraction: false,

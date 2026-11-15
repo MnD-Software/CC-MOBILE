@@ -49,6 +49,49 @@ class SlotReservation(Base):
     slot_id: Mapped[str] = mapped_column(ForeignKey('fulfilment_slots.id'), index=True)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
 
+class SlotWaitlist(Base):
+    __tablename__ = 'fulfilment_slot_waitlist'
+    slot_id: Mapped[str] = mapped_column(ForeignKey('fulfilment_slots.id'), primary_key=True)
+    customer_id: Mapped[str] = mapped_column(ForeignKey('customers.id'), primary_key=True)
+    state: Mapped[str] = mapped_column(String(16), default='waiting')
+    revision: Mapped[int] = mapped_column(Integer, default=1)
+
+def notify_slot_waitlist(db, slot_id):
+    slot = db.get(FulfilmentSlot, slot_id)
+    # UPDATE callers may hold an older ORM instance.
+    if slot: db.refresh(slot)
+    if not slot or not slot.enabled or slot.occupied >= slot.capacity or utc(slot.cutoff_at) <= datetime.now(UTC): return
+    from .notifications import enqueue
+    rows = list(db.scalars(select(SlotWaitlist).where(SlotWaitlist.slot_id == slot_id, SlotWaitlist.state == 'waiting').limit(500)))
+    for row in rows:
+        revision = row.revision
+        changed = db.execute(update(SlotWaitlist).where(SlotWaitlist.slot_id == slot_id, SlotWaitlist.customer_id == row.customer_id,
+            SlotWaitlist.state == 'waiting', SlotWaitlist.revision == revision).values(state='notified', revision=revision+1))
+        if changed.rowcount == 1:
+            enqueue(db, row.customer_id, f'slot-open:{slot_id}:{row.customer_id}:{revision}', 'slot_available',
+                'A time window has opened', f'{slot.label} has space again. Check availability at checkout; your place is not reserved.', {'url':'/checkout'})
+
+class WaitlistInput(BaseModel):
+    enabled: bool
+
+@router.put('/slots/{identity}/waitlist')
+def waitlist(identity: str, data: WaitlistInput, actor=Depends(member), db: Session=Depends(get_db)):
+    permit(actor, {'customer','corporate_client'})
+    slot = db.get(FulfilmentSlot, identity)
+    if not slot or not slot.enabled: raise HTTPException(404, 'Time window not found.')
+    db.execute(update(FulfilmentSlot).where(FulfilmentSlot.id==identity).values(capacity=FulfilmentSlot.capacity))
+    db.refresh(slot)
+    row = db.get(SlotWaitlist, (identity, actor.id))
+    if data.enabled:
+        if utc(slot.cutoff_at) <= datetime.now(UTC): raise HTTPException(409, 'Booking has closed for this window.')
+        if slot.occupied < slot.capacity: raise HTTPException(409, 'This window has space. Select it at checkout instead.')
+        if not row:
+            row=SlotWaitlist(slot_id=identity,customer_id=actor.id,state='waiting');db.add(row)
+        elif row.state != 'waiting': row.state='waiting';row.revision+=1
+    elif row: row.state='cancelled';row.revision+=1
+    db.commit()
+    return {'state':row.state if row else 'cancelled'}
+
 class CareCase(Base):
     __tablename__ = 'customer_care_followups'
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
@@ -180,7 +223,7 @@ def slot_view(slot):
 @router.get('/slots')
 def slots(fulfilment: Literal['pickup','delivery']='delivery', actor=Depends(member), db: Session = Depends(get_db)):
     now = datetime.now(UTC)
-    return [slot_view(s) for s in db.scalars(select(FulfilmentSlot).where(FulfilmentSlot.fulfilment == fulfilment,
+    return [{**slot_view(s), 'waitlist_status': (r.state if (r := db.get(SlotWaitlist,(s.id,actor.id))) else None)} for s in db.scalars(select(FulfilmentSlot).where(FulfilmentSlot.fulfilment == fulfilment,
         FulfilmentSlot.enabled.is_(True), FulfilmentSlot.ends_at > now)
         .order_by(FulfilmentSlot.starts_at).limit(60))]
 
@@ -223,6 +266,8 @@ def save_slot(identity: str, data: SlotInput, actor=Depends(member), db: Session
         if data.revision: raise HTTPException(409, 'Slot no longer exists.')
         row = FulfilmentSlot(id=identity, **data.model_dump(exclude={'revision'}), occupied=0, revision=1); db.add(row)
     audit(db, actor.id, 'fulfilment.slot_updated', identity)
+    db.flush()
+    notify_slot_waitlist(db, identity)
     db.commit()
     return slot_view(row)
 
@@ -243,6 +288,7 @@ def override_slot(identity:str,data:SlotOverride,actor=Depends(member),db:Sessio
         FulfilmentSlot.capacity+data.extra_places<=10000).values(capacity=FulfilmentSlot.capacity+data.extra_places,revision=FulfilmentSlot.revision+1))
     if result.rowcount!=1:raise HTTPException(409,'Window changed. Reload before overriding.')
     audit(db,actor.id,'fulfilment.slot_override',identity,reason=data.reason,extra_places=data.extra_places,previous_capacity=previous,fulfilment=row.fulfilment)
+    notify_slot_waitlist(db, identity)
     db.commit();db.refresh(row)
     return slot_view(row)
 
@@ -271,6 +317,7 @@ def release_slot(db, order):
     claimed = db.execute(update(SlotReservation).where(SlotReservation.order_id==order.id,SlotReservation.active.is_(True)).values(active=False))
     if claimed.rowcount:
         db.execute(update(FulfilmentSlot).where(FulfilmentSlot.id==row.slot_id,FulfilmentSlot.occupied>0).values(occupied=FulfilmentSlot.occupied-1))
+        notify_slot_waitlist(db, row.slot_id)
 
 def open_care(db, order, feedback):
     if feedback['rating'] > 2 and feedback['condition']=='good' and feedback['timing']!='late': return

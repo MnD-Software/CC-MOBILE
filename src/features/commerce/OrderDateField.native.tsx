@@ -6,9 +6,11 @@ import DateTimePicker, {
 import { Button } from "@/components/ui/Button";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import type { OrderDateProps } from "./OrderDateField";
+import { useTheme } from "@/theme/ThemeProvider";
 const calendarDate = (date: Date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 export function OrderDateField({ label, value, onChange }: OrderDateProps) {
+  const { colors, isDark } = useTheme();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(new Date());
   const selected = value ? new Date(value + "T12:00:00") : new Date();
@@ -51,7 +53,11 @@ export function OrderDateField({ label, value, onChange }: OrderDateProps) {
           <DateTimePicker
             value={draft}
             mode="date"
-            display="inline"
+            display="spinner"
+            themeVariant={isDark ? "dark" : "light"}
+            textColor={colors.ink}
+            accentColor={colors.brandStrong}
+            style={{ width: "100%", height: 216 }}
             onChange={(_, date) => {
               if (date) setDraft(date);
             }}

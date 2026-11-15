@@ -24,6 +24,7 @@ import { EarningsPanel } from "./EarningsPanel";
 import { OrderAgentNotes } from "@/features/staff/ServiceDesk";
 import { api } from "@/api/client";
 import { Pressable } from "react-native";
+import { HandoverCode } from "@/features/experience/TripCode";
 
 export function OperationsScreen({ kitchen }: { kitchen: boolean }) {
   const { customer, logout } = useAuth();
@@ -584,6 +585,7 @@ function DispatchTask({ task }: { task: Trip }) {
         </>
       ) : null}
       <Text style={ui.heading}>{task.reference}</Text>
+      {task.status === "accepted" ? <HandoverCode taskId={task.id} /> : null}
       {task.status !== "delivered" ? (
         <Text style={ui.eyebrow}>{task.status.replaceAll("_", " ")}</Text>
       ) : null}

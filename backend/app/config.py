@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     cors_origins: str = "*"
     woocommerce_store_url: str = "https://cakecity.co.ke/wp-json/wc/store/v1"
     environment: str = "development"
+    club_minimum_redemption: int = Field(default=1, ge=1, le=500)
     club_event_secret: str = ""
     woocommerce_webhook_secret: str = ""
     woocommerce_api_url: str = "https://cakecity.co.ke/wp-json/wc/v3"

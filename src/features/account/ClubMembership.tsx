@@ -8,7 +8,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Share, View, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "@/components/ui/Typography";
-import { api } from "@/api/client";
+import { api, isApiError } from "@/api/client";
 import { z } from "zod";
 import { useAuth } from "@/auth/AuthProvider";
 import { Button } from "@/components/ui/Button";
@@ -16,10 +16,7 @@ import { Input } from "@/components/ui/Input";
 import { Disclosure } from "@/components/ui/Disclosure";
 import { Notice, Section } from "@/components/ui/Commerce";
 import { money } from "@/features/commerce/contracts";
-import {
-  saveCouponCode,
-  useCouponWallet,
-} from "@/features/commerce/coupon-wallet";
+import { saveCouponCode } from "@/features/commerce/coupon-wallet";
 import { useTheme } from "@/theme/ThemeProvider";
 import { clubApi, type Celebration } from "./club-api";
 import { MembershipCard } from "./MembershipCard";
@@ -31,6 +28,8 @@ import { milestoneProgress } from "./milestones";
 import { MilestoneProgressBar } from "./MilestoneProgressBar";
 import { ClubJourney } from "./ClubJourney";
 import { BottomSheet } from "@/components/ui/BottomSheet";
+import { NumberWheel } from "@/components/ui/NumberWheel";
+import { trackCommerceEvent } from "@/observability/commerce-events";
 
 export function ClubMembership({
   walletScope,
@@ -51,6 +50,10 @@ export function ClubMembership({
   const previousPoints = useRef<{ owner: string; points: number } | null>(null);
   const [transactionsOpen, setTransactionsOpen] = useState(false);
   const [reviewReward, setReviewReward] = useState(false);
+  const [rewardPoints, setRewardPoints] = useState(100);
+  const redemptionAttempt = useRef<{ points: number; key: string } | null>(
+    null,
+  );
   const [panel, setPanel] = useState<
     "rewards" | "perks" | "celebrations" | null
   >(null);
@@ -79,6 +82,7 @@ export function ClubMembership({
       if (identity.current.scope !== customer?.id) return;
       if (result.code) await saveCouponCode(walletScope, result.code);
       if (result.code) setCelebrationTrigger((value) => value + 1);
+      if (result.code) trackCommerceEvent("reward_redeemed");
       setNotice(
         result.code
           ? "Reward saved to your coupon wallet. Checkout verifies eligibility."
@@ -87,8 +91,24 @@ export function ClubMembership({
       identity.current.key = randomUUID();
       await client.invalidateQueries({ queryKey: key });
     },
+    onError: (error) => {
+      // A definitive validation rejection may be corrected. An ambiguous network
+      // result must retain both the amount and key until the same request succeeds.
+      if (
+        isApiError(error) &&
+        error.status &&
+        error.status >= 400 &&
+        error.status < 500
+      )
+        redemptionAttempt.current = null;
+    },
   });
   const data = query.data;
+  const minimumPoints = data?.rules.minimum_redemption ?? 100;
+  const maximumPoints = Math.min(500, data?.points ?? 0);
+  const selectedPoints =
+    redemptionAttempt.current?.points ??
+    Math.max(minimumPoints, Math.min(maximumPoints, rewardPoints));
   const progress = milestoneProgress(data?.purchase_progress);
   useEffect(() => {
     if (!customer || !data) return;
@@ -164,7 +184,7 @@ export function ClubMembership({
             </Text>
             <Text style={{ color: colors.muted, fontSize: 14, lineHeight: 21 }}>
               {data.points >= data.rules.minimum_redemption
-                ? `${money(data.rules.minimum_redemption * data.rules.point_value_kes)} reward available with ${data.rules.minimum_redemption} points`
+                ? `Turn up to ${maximumPoints} points into ${money(maximumPoints * data.rules.point_value_kes)} off a future order`
                 : `${Math.max(0, data.rules.minimum_redemption - data.points)} points to a ${money(data.rules.minimum_redemption * data.rules.point_value_kes)} reward`}
             </Text>
             <MilestoneProgressBar
@@ -179,13 +199,13 @@ export function ClubMembership({
               label={
                 data.points >= data.rules.minimum_redemption
                   ? "Review my reward"
-                  : "Explore my rewards"
+                  : "Find my next cake"
               }
               variant="outline"
               onPress={() =>
                 data.points >= data.rules.minimum_redemption
                   ? setReviewReward(true)
-                  : setPanel("rewards")
+                  : router.push("/(tabs)/shop")
               }
             />
           </View>
@@ -196,35 +216,78 @@ export function ClubMembership({
               onClose={() => !redeem.isPending && setReviewReward(false)}
               footer={
                 <Button
-                  label={`Use ${data.rules.minimum_redemption} points`}
+                  label={`${redemptionAttempt.current && redeem.isError ? "Retry" : "Use"} ${selectedPoints} points`}
                   loading={redeem.isPending}
                   disabled={
-                    !data.redemption_available ||
-                    data.review_required ||
-                    data.debt > 0 ||
-                    data.points < data.rules.minimum_redemption ||
-                    data.coupons.some((c) => c.status === "pending")
+                    !redemptionAttempt.current &&
+                    (!data.redemption_available ||
+                      data.review_required ||
+                      data.debt > 0 ||
+                      data.points < data.rules.minimum_redemption ||
+                      data.coupons.some((c) => c.status === "pending"))
                   }
-                  onPress={() =>
+                  onPress={() => {
+                    if (
+                      !redemptionAttempt.current ||
+                      redemptionAttempt.current.points !== selectedPoints
+                    ) {
+                      redemptionAttempt.current = {
+                        points: selectedPoints,
+                        key: randomUUID(),
+                      };
+                    }
                     redeem.mutate(
                       {
-                        points: data.rules.minimum_redemption,
-                        requestKey: identity.current.key,
+                        points: selectedPoints,
+                        requestKey: redemptionAttempt.current.key,
                       },
-                      { onSuccess: () => setReviewReward(false) },
-                    )
-                  }
+                      {
+                        onSuccess: () => {
+                          redemptionAttempt.current = null;
+                          setReviewReward(false);
+                        },
+                      },
+                    );
+                  }}
                 />
               }
             >
+              <Text
+                style={{
+                  color: colors.muted,
+                  fontSize: 14,
+                  textAlign: "center",
+                }}
+              >
+                Choose how much to turn into a treat.
+              </Text>
+              {maximumPoints >= minimumPoints ? (
+                <NumberWheel
+                  minimum={minimumPoints}
+                  maximum={maximumPoints}
+                  value={selectedPoints}
+                  onChange={setRewardPoints}
+                  label="points"
+                  disabled={redeem.isPending || !!redemptionAttempt.current}
+                />
+              ) : null}
+              <Text
+                style={{
+                  color: colors.muted,
+                  textAlign: "center",
+                  fontSize: 12,
+                }}
+              >
+                {data.points} available ·{" "}
+                {Math.max(0, data.points - selectedPoints)} left after
+                redemption
+              </Text>
               <Text style={text}>
-                Exchange {data.rules.minimum_redemption} points for a{" "}
+                Exchange {selectedPoints} points for a{" "}
+                {money(selectedPoints * data.rules.point_value_kes)} coupon.
+                Minimum order:{" "}
                 {money(
-                  data.rules.minimum_redemption * data.rules.point_value_kes,
-                )}{" "}
-                coupon. Minimum order:{" "}
-                {money(
-                  data.rules.minimum_redemption *
+                  selectedPoints *
                     data.rules.point_value_kes *
                     data.rules.minimum_order_multiple,
                 )}
@@ -369,12 +432,6 @@ export function ClubMembership({
             {(
               [
                 {
-                  id: "rewards",
-                  title: "My rewards",
-                  short: "Rewards",
-                  icon: "ticket-outline",
-                },
-                {
                   id: "perks",
                   title: "Member perks",
                   short: "Perks",
@@ -434,7 +491,10 @@ export function ClubMembership({
             onClose={() => setPanel(null)}
           >
             {panel === "rewards" ? (
-              <CloudCoupons walletScope={walletScope} />
+              <Text style={text}>
+                Keep earning points with every celebration. Your next reward
+                appears on your Club card.
+              </Text>
             ) : panel === "perks" ? (
               <MembershipBenefits />
             ) : panel === "celebrations" ? (
@@ -492,11 +552,12 @@ export function ClubMembership({
               <>
                 <Disclosure title="Reward details">
                   <Text style={text}>
-                    Exchange 100 points for a{" "}
-                    {money(100 * data.rules.point_value_kes)} coupon. Minimum
-                    order:{" "}
+                    Exchange {minimumPoints}–
+                    {Math.max(minimumPoints, maximumPoints)} points for a
+                    coupon. Each point is worth{" "}
+                    {money(data.rules.point_value_kes)}. Minimum order:{" "}
                     {money(
-                      100 *
+                      minimumPoints *
                         data.rules.point_value_kes *
                         data.rules.minimum_order_multiple,
                     )}
@@ -505,10 +566,10 @@ export function ClubMembership({
                   </Text>
                 </Disclosure>
                 <Button
-                  label="Redeem 100 points"
+                  label="Choose points to use"
                   loading={redeem.isPending}
                   disabled={
-                    data.points < 100 ||
+                    data.points < minimumPoints ||
                     data.debt > 0 ||
                     redeem.isPending ||
                     data.coupons.some((c) => c.status === "pending")
@@ -533,18 +594,6 @@ export function ClubMembership({
                   }
                 />
               ))}
-            <Disclosure title="Reward coupons">
-              {data.coupons
-                .filter((c) => c.code)
-                .map((c) => (
-                  <Button
-                    key={c.id}
-                    variant="outline"
-                    label={`Save reward ${c.code}`}
-                    onPress={() => void saveCouponCode(walletScope, c.code!)}
-                  />
-                ))}
-            </Disclosure>
           </Disclosure>
         </>
       ) : null}
@@ -928,89 +977,6 @@ export function Celebrations() {
           message="Could not remove this celebration. Please try again."
         />
       ) : null}
-    </View>
-  );
-}
-
-function CloudCoupons({ walletScope }: { walletScope: string }) {
-  const { customer } = useAuth();
-  const wallet = useCouponWallet(customer?.id);
-  const client = useQueryClient();
-  const { colors } = useTheme();
-  const key = ["club-coupons", customer?.id];
-  const query = useQuery({
-    queryKey: key,
-    queryFn: async ({ signal }) =>
-      z
-        .array(z.string())
-        .parse(await api.get("/v1/club/coupons", { auth: true, signal })),
-    enabled: !!customer,
-    retry: false,
-  });
-  const sync = useMutation({
-    mutationFn: () =>
-      api.post("/v1/club/coupons", { codes: wallet.codes }, { auth: true }),
-    onSuccess: () => client.invalidateQueries({ queryKey: key }),
-  });
-  const remove = useMutation({
-    mutationFn: (code: string) =>
-      api.post("/v1/club/coupons/remove", { code }, { auth: true }),
-    onSuccess: () => client.invalidateQueries({ queryKey: key }),
-  });
-  const [error, setError] = useState("");
-  return (
-    <View style={{ gap: 12 }}>
-      <Section title="Coupons across your devices" />
-      <Text style={{ color: colors.ink }}>
-        Sync your saved codes to this account. A saved code is verified for
-        eligibility only at checkout.
-      </Text>
-      <Button
-        variant="outline"
-        label="Sync saved codes from this device"
-        loading={sync.isPending}
-        disabled={sync.isPending || !wallet.codes.length}
-        onPress={() => sync.mutate()}
-      />
-      {query.isError ? (
-        <Button
-          variant="outline"
-          label="Retry cloud wallet"
-          onPress={() => void query.refetch()}
-        />
-      ) : null}
-      {query.data?.map((code) => (
-        <View key={code} style={{ gap: 6 }}>
-          <Text selectable style={{ color: colors.ink }}>
-            {code}
-          </Text>
-          <Button
-            variant="outline"
-            label="Save on this device"
-            onPress={() => {
-              setError("");
-              void saveCouponCode(walletScope, code).catch(() =>
-                setError(
-                  "Your wallet could not save the code. Remove an unused code and try again.",
-                ),
-              );
-            }}
-          />
-          <Button
-            variant="ghost"
-            label="Remove from cloud"
-            disabled={remove.isPending}
-            onPress={() => remove.mutate(code)}
-          />
-        </View>
-      ))}
-      {sync.isError || remove.isError ? (
-        <Notice
-          error
-          message="Cloud wallet could not be updated. It holds up to 20 codes; remove an unused cloud code if it is full."
-        />
-      ) : null}
-      {error ? <Notice error message={error} /> : null}
     </View>
   );
 }

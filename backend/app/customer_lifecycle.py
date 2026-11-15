@@ -35,11 +35,16 @@ def export(response: Response, actor=Depends(member), db: Session = Depends(get_
     from .models import ClubEntry, ClubProfile
     from .compliance import PrivacyRequest,TaxInvoiceRequest
     from .marketing_crm import MarketingConsent,CheckoutActivity
-    from .experience import DiscoveryPreference,my_care
+    from .experience import DiscoveryPreference,my_care,SlotWaitlist
+    from .journey import JourneyConsent,JourneySignal,DesignProof
     response.headers["Cache-Control"] = "private, no-store"
     response.headers["Content-Disposition"] = 'attachment; filename="cake-city-account.json"'
     return {"version": 1, "exported_at": datetime.now(UTC), "profile": customer_payload(actor),
         "discovery_preferences": rows(db,DiscoveryPreference,actor.id,["payload"]),
+        "slot_waitlist": rows(db,SlotWaitlist,actor.id,["slot_id","state"]),
+        "journey_consent": rows(db,JourneyConsent,actor.id,["enabled"]),
+        "journey_signals": rows(db,JourneySignal,actor.id,["event_id","name","value","environment","created_at"]),
+        "design_approvals": [{"reference":o.reference,"revision":p.revision,"state":p.state,"details":p.payload} for p,o in db.execute(select(DesignProof,AppOrder).join(AppOrder,AppOrder.id==DesignProof.order_id).where(AppOrder.customer_id==actor.id))],
         "customer_care": my_care(actor,db),
         "tax_invoice_requests": [{"reference":o.reference,"buyer_pin":r.buyer_pin,"status":r.payload} for r,o in db.execute(select(TaxInvoiceRequest,AppOrder).join(AppOrder,AppOrder.id==TaxInvoiceRequest.order_id).where(AppOrder.customer_id==actor.id))],
         "privacy_requests": rows(db, PrivacyRequest, actor.id, ["id","payload"]),
@@ -95,6 +100,10 @@ def close(data: Closure, actor=Depends(member), db: Session = Depends(get_db)):
         db.execute(delete(model).where(model.customer_id == owner.id))
     from .models import ClubProfile
     from .experience import DiscoveryPreference
+    from .experience import SlotWaitlist
+    from .journey import JourneyConsent,JourneySignal
+    for model in [SlotWaitlist,JourneyConsent,JourneySignal]:
+        db.execute(delete(model).where(model.customer_id==owner.id))
     db.execute(delete(DiscoveryPreference).where(DiscoveryPreference.customer_id==owner.id))
     db.execute(delete(ClubProfile).where(ClubProfile.customer_id == owner.id))
     db.execute(update(AppCoupon).where(AppCoupon.customer_id == owner.id).values(enabled=False))

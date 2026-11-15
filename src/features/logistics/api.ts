@@ -10,8 +10,11 @@ export const tripSchema = z.object({
   plant: z.string(),
   service_type: z.string(),
   destination: z.string(),
-  destination_point:z.object({latitude:z.number(),longitude:z.number()}).nullable().optional(),
-  expected_payout_minor:z.number().nullable().optional(),
+  destination_point: z
+    .object({ latitude: z.number(), longitude: z.number() })
+    .nullable()
+    .optional(),
+  expected_payout_minor: z.number().nullable().optional(),
   recipient: z.string(),
   phone: z.string(),
   rider_id: z.string().nullable(),
@@ -90,10 +93,22 @@ export const logisticsApi = {
     z
       .array(z.object({ id: z.string(), name: z.string(), role: z.string() }))
       .parse(await privateGet("/v1/logistics/riders", signal)),
-  progress: (task: Trip, status: string, note = "", proof = "") =>
+  progress: (
+    task: Trip,
+    status: string,
+    note = "",
+    proof = "",
+    verificationCode = "",
+  ) =>
     api.patch(
       `/v1/rider/tasks/${encodeURIComponent(task.id)}`,
-      { revision: task.revision, status, note, proof },
+      {
+        revision: task.revision,
+        status,
+        note,
+        proof,
+        verification_code: verificationCode,
+      },
       { auth: true },
     ),
   assignKitchen: (reference: string, plant: string, assigned_to: string) =>

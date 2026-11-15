@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { TripCodeInput } from "@/features/experience/TripCode";
 import { Linking, View } from "react-native";
 import { router } from "expo-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -109,11 +110,13 @@ function TripCard({ task }: { task: Trip }) {
   const ui = useThemedStyles(baseUi);
   const cache = useQueryClient();
   const [proof, setProof] = useState("");
+  const [verificationCode, setVerificationCode] = useState("");
   const [note, setNote] = useState("");
   const mutation = useMutation({
     mutationFn: (status: string) =>
-      logisticsApi.progress(task, status, note, proof),
+      logisticsApi.progress(task, status, note, proof, verificationCode),
     onSuccess: async () => {
+      setVerificationCode("");
       await cache.invalidateQueries({ queryKey: ["rider-tasks"] });
       await cache.invalidateQueries({ queryKey: ["app-order"] });
     },
@@ -198,6 +201,14 @@ function TripCard({ task }: { task: Trip }) {
           />
         ) : null}
       </View>
+      {task.status === "accepted" || task.status === "in_transit" ? (
+        <TripCodeInput
+          taskId={task.id}
+          purpose={task.status === "accepted" ? "handover" : "delivery"}
+          value={verificationCode}
+          onChange={setVerificationCode}
+        />
+      ) : null}
       {task.status === "in_transit" ? (
         <Input
           label="Delivery confirmation"

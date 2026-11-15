@@ -122,7 +122,7 @@ export function SuccessBurst({ trigger }: { trigger: number }) {
     progress.setValue(0);
     const animation = Animated.timing(progress, {
       toValue: 1,
-      duration: 6200,
+      duration: 9000,
       easing: Easing.linear,
       isInteraction: false,
       useNativeDriver: true,

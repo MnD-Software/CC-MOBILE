@@ -12,6 +12,7 @@ import { Feedback, Notice } from "@/components/ui/Commerce";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { CampaignDateField } from "@/components/ui/CampaignDateField";
 import type { Slot } from "./FulfilmentSlots";
+import { JourneyDesk } from "./JourneyDesk";
 
 const managers = ["admin", "staff", "ecommerce_manager"];
 const slotStaff = [...managers, "dispatch"];
@@ -54,6 +55,7 @@ export function ExperienceDesk() {
   const cache = useQueryClient();
   const role = customer?.role || "";
   const tabs = [
+    "journey",
     ...(role !== "marketing_manager" && role !== "content_manager"
       ? ["attention"]
       : []),
@@ -80,7 +82,7 @@ export function ExperienceDesk() {
     queryKey: ["experience-desk", customer?.id, tab],
     queryFn: () =>
       api.get<unknown>(`/v1/experience/staff/${suffix}`, { auth: true }),
-    enabled: !!customer && tabs.includes(tab),
+    enabled: !!customer && tabs.includes(tab) && tab !== "journey",
     refetchInterval: 30000,
   });
   const panel = {
@@ -137,6 +139,7 @@ export function ExperienceDesk() {
                   care: "Customer care",
                   slots: "Time slots",
                   results: "Promotion results",
+                  journey: "Tools & insights",
                 }[t as "care"]
               }
             </Text>
@@ -144,7 +147,9 @@ export function ExperienceDesk() {
         ))}
       </View>
       {error ? <Notice error message={error} /> : null}
-      {query.isPending ? (
+      {tab === "journey" ? (
+        <JourneyDesk />
+      ) : query.isPending ? (
         <Feedback loading />
       ) : query.isError ? (
         <Feedback error={query.error} onRetry={() => void query.refetch()} />

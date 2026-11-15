@@ -1,6 +1,10 @@
 from .marketing_crm import router as marketing_crm_router
 from .experience import router as experience_router
+from .journey import router as journey_router
 from contextlib import asynccontextmanager
+from contextlib import suppress
+import asyncio
+import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -59,9 +63,30 @@ async def lifespan(_: FastAPI):
     if get_settings().environment.casefold() != "production":
         Base.metadata.create_all(bind=engine)
     await catalogue.start()
+    from .db import SessionLocal
+    from .journey import purge_measurements
+
+    def purge():
+        with SessionLocal() as db:
+            purge_measurements(db)
+
+    async def retention():
+        while True:
+            try:
+                await asyncio.to_thread(purge)
+            except Exception:
+                logging.getLogger("cakecity.retention").exception(
+                    "Scheduled measurement retention could not complete"
+                )
+            await asyncio.sleep(3600)
+
+    task = asyncio.create_task(retention())
     try:
         yield
     finally:
+        task.cancel()
+        with suppress(asyncio.CancelledError):
+            await task
         await catalogue.close()
 
 
@@ -77,6 +102,7 @@ app.add_middleware(
 app.add_middleware(SharedRateLimit)
 app.add_middleware(RequestTelemetry)
 app.include_router(platform_router)
+app.include_router(journey_router)
 app.include_router(auth_router)
 app.include_router(addresses_router)
 app.include_router(profile_router)

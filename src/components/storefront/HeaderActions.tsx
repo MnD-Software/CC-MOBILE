@@ -55,14 +55,15 @@ export function HeaderActions() {
     <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Make my celebration"
+        accessibilityLabel="Your kind of celebration"
+        accessibilityHint="Discover your flavours, order your usual or plan a celebration"
         onPress={() => {
           setNewcomer(false);
           void AsyncStorage.setItem(
             "cakecity.celebration.discovered.v1",
             "1",
           ).catch(() => undefined);
-          router.push("/celebration-builder");
+          router.push("/for-you");
         }}
         style={{
           width: 44,

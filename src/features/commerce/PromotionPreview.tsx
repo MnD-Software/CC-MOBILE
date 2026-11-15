@@ -42,14 +42,14 @@ export function PromotionPreview({
         <LoadingImage
           source={{ uri: mediaSource(item.banner_url) }}
           contentFit="cover"
-          style={{ width: "100%", height: 135 }}
+          style={{ width: "100%", height: 82 }}
         />
       ) : null}
       <LinearGradient
-        colors={["#58223F", "#A7176B"]}
+        colors={["#B80068", "#DF2588"]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={{ padding: 17, gap: 5 }}
+        style={{ padding: 12, gap: 4 }}
       >
         <View
           style={{
@@ -71,10 +71,10 @@ export function PromotionPreview({
           <Ionicons
             name={selected ? "checkmark-circle" : "ticket-outline"}
             color="#FFFFFF"
-            size={24}
+            size={20}
           />
         </View>
-        <Text style={{ color: "#FFFFFF", fontSize: 29, fontWeight: "800" }}>
+        <Text style={{ color: "#FFFFFF", fontSize: 23, fontWeight: "800" }}>
           {value} OFF
         </Text>
         <Text numberOfLines={2} style={{ color: "#FFF1F8", fontSize: 13 }}>
@@ -84,7 +84,7 @@ export function PromotionPreview({
       </LinearGradient>
       <View
         style={{
-          padding: 13,
+          padding: 10,
           gap: 4,
           borderTopWidth: 1,
           borderStyle: "dashed",

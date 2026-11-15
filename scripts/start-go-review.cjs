@@ -186,6 +186,10 @@ async function main() {
     });
     let disconnected = false;
     child.on("message", (message) => {
+      if (!stopping && message?.type === "cakecity:tunnel-reconnected") {
+        void saveQr(port, generation);
+        return;
+      }
       if (
         stopping ||
         disconnected ||

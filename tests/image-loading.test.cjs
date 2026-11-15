@@ -16,6 +16,7 @@ function photo() {
   let appStateListener;
   const jsx = (type, props, key) => ({ type, props, key });
   const modules = {
+    "@/observability/commerce-events": { recordPerformanceMetric() {} },
     react: {
       createElement: (type, props, ...children) => ({
         type,

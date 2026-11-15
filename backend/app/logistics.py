@@ -73,6 +73,8 @@ def assign_production(db, actor, reference, data):
 
 def kitchen_status(db, actor, reference, status):
     order = paid_order(db, reference)
+    db.execute(update(AppOrder).where(AppOrder.id == order.id).values(state=AppOrder.state))
+    db.refresh(order)
     task = db.get(ProductionTask, order.id)
     if not task:
         raise HTTPException(409, "Assign the kitchen task and production location first.")
@@ -83,6 +85,9 @@ def kitchen_status(db, actor, reference, status):
         if order.state == status:
             return {"status": status}
         raise HTTPException(409, "This kitchen transition is not available.")
+    if status == 'preparing':
+        from .journey import require_design_approval
+        require_design_approval(db, order)
     order.state = status
     commerce.record_event(db, order, "fulfilment_" + status, actor_id=actor.id)
     audit(db, actor.id, "kitchen_status", reference, status=status)
@@ -222,6 +227,7 @@ class TaskUpdate(BaseModel):
     status: str = Field(pattern="^(accepted|collected|in_transit|delivered|failed|rescheduled|cancelled)$")
     note: str = Field(default="", max_length=1000)
     proof: str = Field(default="", max_length=1000)
+    verification_code: str = Field(default="", max_length=20)
     scheduled_at: datetime | None = None
 
     @field_validator("scheduled_at")
@@ -257,6 +263,9 @@ def update_task(db, actor, identity, data):
         raise HTTPException(422, "Record delivery confirmation before completing the task.")
     if data.scheduled_at and data.status != "rescheduled":
         raise HTTPException(422, "Use a dispatch reschedule to change the planned time.")
+    if actor and actor.role in RIDERS and data.status in {'collected','delivered'}:
+        from .journey import check_trip_verification
+        check_trip_verification(db,task,'handover' if data.status=='collected' else 'delivery',data.verification_code)
     changes = {"status": data.status, "revision": LogisticsTask.revision+1}
     if data.scheduled_at:
         changes["scheduled_at"] = data.scheduled_at

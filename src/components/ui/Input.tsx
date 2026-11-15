@@ -94,13 +94,13 @@ const baseStyles = StyleSheet.create({
     height: 50,
     borderWidth: 1,
     borderColor: tokens.color.border,
-    borderRadius: tokens.radius.md,
-    paddingHorizontal: 14,
+    borderRadius: 16,
+    paddingHorizontal: 16,
     paddingVertical: 0,
     fontSize: 15,
     lineHeight: 20,
     color: tokens.color.ink,
-    backgroundColor: tokens.color.surface,
+    backgroundColor: tokens.color.surfaceRaised,
   },
   inputMultiline: {
     height: 116,
@@ -112,12 +112,12 @@ const baseStyles = StyleSheet.create({
   inputFocused: {
     borderColor: tokens.color.brand,
     borderWidth: 2,
-    paddingHorizontal: 13,
+    paddingHorizontal: 15,
   },
   inputError: {
     borderColor: tokens.color.error,
     borderWidth: 2,
-    paddingHorizontal: 13,
+    paddingHorizontal: 15,
   },
   inputDisabled: {
     backgroundColor: tokens.color.background,

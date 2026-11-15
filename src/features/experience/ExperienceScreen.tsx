@@ -23,14 +23,20 @@ import {
 } from "@/features/commerce/contracts";
 import { useBag } from "@/features/commerce/store";
 import { CelebrationDashboard } from "@/features/celebrations/CelebrationDashboard";
+import { MomentHero } from "@/components/storefront/MomentHero";
+import { JourneyConsentControl } from "./JourneyMeasurement";
+import { trackCommerceEvent } from "@/observability/commerce-events";
 
 export async function repeatOrder(reference: string): Promise<BagLine[]> {
+  trackCommerceEvent("reorder_started");
   const result = await api.post<{ lines: unknown[] }>(
     `/v1/experience/orders/${encodeURIComponent(reference)}/reorder`,
     {},
     { auth: true },
   );
-  return bagLineSchema.array().min(1).max(30).parse(result.lines);
+  const lines = bagLineSchema.array().min(1).max(30).parse(result.lines);
+  trackCommerceEvent("reorder_completed");
+  return lines;
 }
 
 /** A compact Home doorway; the larger collections stay on their own screen. */
@@ -134,7 +140,7 @@ export function ExperienceScreen() {
   }
   return (
     <Screen
-      title="Made for you"
+      title="Your kind of celebration"
       subtitle="Less searching. More celebrating."
       back
     >
@@ -270,7 +276,22 @@ export function ExperienceScreen() {
           )}
         </>
       ) : null}
-      {tab === "plan" ? <CelebrationDashboard /> : null}
+      {tab === "plan" ? (
+        <>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Build a happy moment"
+            onPress={() => router.push("/celebration-builder")}
+          >
+            <MomentHero
+              name={customer?.first_name}
+              step={0}
+              title="Build a happy moment"
+            />
+          </Pressable>
+          <CelebrationDashboard />
+        </>
+      ) : null}
       {tab === "care" ? (
         <>
           {care.isPending ? (
@@ -412,6 +433,7 @@ export function ExperienceScreen() {
                 .finally(() => setBusy(false));
             }}
           />
+          <JourneyConsentControl />
           {error ? <Notice error message={error} /> : null}
         </View>
       </BottomSheet>

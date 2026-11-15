@@ -1,8 +1,32 @@
 const path = require("node:path");
 require("./windows-fs.cjs");
+// Install before the CLI creates its tunnel. Private Expo hooks are feature-tested;
+// the stream-based supervisor below remains a fallback for unsupported CLI versions.
+let tunnelRecoveryInstalled = false;
+if (process.env.CAKECITY_TUNNEL_SUPERVISOR === "1" && process.send) {
+  try {
+    const cliRoot = path.join(
+      path.dirname(require.resolve("expo/package.json")),
+      "node_modules/@expo/cli",
+    );
+    const { AsyncNgrok } = require(
+      path.join(cliRoot, "build/src/start/server/AsyncNgrok.js"),
+    );
+    tunnelRecoveryInstalled =
+      require("./tunnel-recovery.cjs").installTunnelRecovery(AsyncNgrok, {
+        report: (message) => process.connected && process.send(message),
+      });
+  } catch {
+    /* Version fallback: recover through the owning launcher. */
+  }
+}
 // Keep Expo's interactive terminal intact. Tell the owning review launcher when
 // the CLI reports a dead tunnel but leaves Metro running.
-if (process.env.CAKECITY_TUNNEL_SUPERVISOR === "1" && process.send) {
+if (
+  !tunnelRecoveryInstalled &&
+  process.env.CAKECITY_TUNNEL_SUPERVISOR === "1" &&
+  process.send
+) {
   let reported = false;
   for (const stream of [process.stdout, process.stderr]) {
     const write = stream.write.bind(stream);

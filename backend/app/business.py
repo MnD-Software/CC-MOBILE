@@ -43,6 +43,44 @@ def access(db, person, identity, write=False):
 def lock(db, identity):
     db.execute(update(Organization).where(Organization.id == identity).values(name=Organization.name))
 
+@router.get('/companies/{identity}/purchasing')
+def purchasing(identity:str,person=Depends(member),db:Session=Depends(get_db)):
+    access(db,person,identity)
+    own=db.get(OrganizationMember,(identity,person.id))
+    manage=person.role in MANAGERS or bool(own and own.role=='owner')
+    query=select(OrganizationMember,Customer).join(Customer,Customer.id==OrganizationMember.customer_id).where(OrganizationMember.organization_id==identity)
+    if not manage and person.role not in TEAM: query=query.where(Customer.id==person.id)
+    policy=db.get(AppPolicy,'cp:'+identity)
+    payload=policy.payload if policy else {}
+    return {'manage':manage,'revision':payload.get('revision',0),'members':[{'id':p.id,'name':f'{p.first_name} {p.last_name}'.strip(),'role':m.role,
+        'approval_limit_minor':payload.get('limits',{}).get(p.id)} for m,p in db.execute(query.order_by(Customer.first_name))]}
+
+class PurchasingInput(BaseModel):
+    model_config=ConfigDict(extra='forbid')
+    revision:int=Field(ge=0)
+    customer_id:str=Field(min_length=1,max_length=36)
+    role:Literal['approver','buyer','viewer']
+    approval_limit_minor:int|None=Field(default=None,ge=0,le=1000000000)
+
+@router.put('/companies/{identity}/purchasing')
+def save_purchasing(identity:str,data:PurchasingInput,person=Depends(member),db:Session=Depends(get_db)):
+    access(db,person,identity)
+    own=db.get(OrganizationMember,(identity,person.id))
+    if person.role not in MANAGERS and not (own and own.role=='owner'): raise HTTPException(403,'A company owner or corporate manager must manage purchasing access.')
+    lock(db,identity)
+    target=db.get(OrganizationMember,(identity,data.customer_id))
+    if not target: raise HTTPException(404,'Company member not found.')
+    if target.role=='owner': raise HTTPException(409,'Company owners retain approval authority. Contact support to transfer ownership.')
+    row=db.get(AppPolicy,'cp:'+identity)
+    payload=row.payload if row else {}
+    if payload.get('revision',0)!=data.revision: raise HTTPException(409,'Purchasing settings changed. Reload them.')
+    target.role=data.role
+    new={'revision':data.revision+1,'limits':{**payload.get('limits',{}),data.customer_id:data.approval_limit_minor}}
+    if row:row.payload=new
+    else:db.add(AppPolicy(id='cp:'+identity,payload=new))
+    audit(db,person.id,'corporate.purchasing_changed',data.customer_id,identity,role=data.role,approval_limit_minor=data.approval_limit_minor)
+    db.commit();return purchasing(identity,person,db)
+
 
 @router.get("/inventory")
 def inventory(search: str = "", person=Depends(member), db: Session = Depends(get_db)):
@@ -302,6 +340,10 @@ def transition(identity: str, document_id: str, data: Transition, person=Depends
                 raise HTTPException(403, "A client approver must accept or reject this quote.")
             if row.status != "issued" or datetime.fromisoformat(row.payload["expires_at"]) <= datetime.now(UTC):
                 raise HTTPException(409, "Only a current issued quote can be accepted or rejected.")
+            if data.status=='accepted' and membership.role!='owner':
+                policy=db.get(AppPolicy,'cp:'+identity)
+                limit=policy.payload.get('limits',{}).get(person.id) if policy else None
+                if limit is not None and row.total_minor>limit: raise HTTPException(403,'This quotation exceeds your approval limit. Ask a company owner or an authorised approver to accept it.')
         else: raise HTTPException(409, "Invalid quote transition.")
     elif row.kind == "payment":
         if person.role not in MANAGERS | {"corporate_assistant", "finance"} or data.status != "verified" or row.status != "submitted":

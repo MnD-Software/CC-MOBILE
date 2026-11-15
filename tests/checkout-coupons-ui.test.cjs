@@ -7,6 +7,7 @@ function screen(coupons, code = "") {
   const changes = [];
   const jsx = (type, props) => ({ type, props });
   const modules = {
+    "expo-linear-gradient": { LinearGradient: "Gradient" },
     react: {
       useState(value) {
         return [value, () => {}];

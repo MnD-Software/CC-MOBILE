@@ -89,7 +89,7 @@ async def overview(customer: Customer = Depends(member), db: Session = Depends(g
             "milestones": [{"name": name, "spend_kes": threshold/100} for threshold, name in TIERS]},
         "rules": {"earn_spend_kes": settings.club_earn_minor/100,
             "point_value_kes": settings.club_point_value_minor/100,
-            "expiry_days": settings.club_expiry_days, "minimum_redemption": 100,
+            "expiry_days": settings.club_expiry_days, "minimum_redemption": settings.club_minimum_redemption,
             "minimum_order_multiple": 10},
         "redemption_available": not value.review_required,
         "review_required": value.review_required,
@@ -267,7 +267,7 @@ def apply_order_event(event: OrderEvent, db: Session):
 
 
 class Redeem(BaseModel):
-    points: int = Field(ge=100, le=500)
+    points: int = Field(ge=1, le=500)
     request_key: str = Field(min_length=16, max_length=80, pattern=r"^[a-zA-Z0-9-]+$")
 
 
@@ -282,6 +282,8 @@ async def redeem(payload: Redeem, customer: Customer = Depends(member), db: Sess
         ClubRedemption.customer_id == customer.id, ClubRedemption.request_key == payload.request_key))
     if record and record.points != payload.points:
         raise HTTPException(409, "This request was used for another reward")
+    if not record and payload.points < settings.club_minimum_redemption:
+        raise HTTPException(422, f"Choose at least {settings.club_minimum_redemption} points.")
     if value.review_required:
         raise HTTPException(409, "An order requires staff reconciliation before redemption")
     if not record:

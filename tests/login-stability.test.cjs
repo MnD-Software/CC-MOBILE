@@ -238,6 +238,7 @@ test("new DIY sketches preserve prior saves even when the same cake and size are
     TextInput: "TextInput",
     Ionicons: "Icon",
     CakeCanvas: "Canvas",
+    CakeStage: "CakeStage",
     CustomCakeBrief: "Inspo",
     SizeFinishPicker: "Sizes",
     Notice: "Notice",

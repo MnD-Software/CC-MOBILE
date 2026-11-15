@@ -137,15 +137,16 @@ export function PromotionsShelf({ floating = false }: { floating?: boolean }) {
             style={{
               flexDirection: "row",
               alignItems: "center",
-              gap: 10,
-              paddingHorizontal: 16,
-              paddingVertical: floating ? 12 : 15,
+              gap: 7,
+              minHeight: 44,
+              paddingHorizontal: floating ? 12 : 14,
+              paddingVertical: floating ? 6 : 10,
             }}
           >
             <View
               style={{
-                width: 32,
-                height: 32,
+                width: 28,
+                height: 28,
                 borderRadius: 16,
                 backgroundColor: "#FFFFFF20",
                 alignItems: "center",
@@ -155,7 +156,7 @@ export function PromotionsShelf({ floating = false }: { floating?: boolean }) {
               <Ionicons
                 name={selected ? "checkmark-circle" : "gift-outline"}
                 color="#FFE1A8"
-                size={20}
+                size={18}
               />
             </View>
             <View style={{ gap: 2 }}>
@@ -164,11 +165,13 @@ export function PromotionsShelf({ floating = false }: { floating?: boolean }) {
               >
                 Your rewards
               </Text>
-              <Text style={{ color: "#F9D7E9", fontSize: 10 }}>
-                {selected
-                  ? "Offer selected"
-                  : `${offers.length} ${offers.length === 1 ? "offer" : "offers"} to explore`}
-              </Text>
+              {!floating ? (
+                <Text style={{ color: "#F9D7E9", fontSize: 10 }}>
+                  {selected
+                    ? "Offer selected"
+                    : `${offers.length} ${offers.length === 1 ? "offer" : "offers"} to explore`}
+                </Text>
+              ) : null}
             </View>
             <Ionicons name="chevron-forward" color="#FFFFFF" size={16} />
           </LinearGradient>

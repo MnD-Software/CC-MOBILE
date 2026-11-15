@@ -29,6 +29,8 @@ import { GlassPreferencesProvider } from "@/components/storefront/GlassSurface";
 import { OrderUpdateBanner } from "@/features/account/OrderUpdates";
 import { ConfettiLayerProvider } from "@/components/ui/ConfettiLayer";
 import { MilestoneCelebrationObserver } from "@/features/account/MilestoneCelebration";
+import { CustomerPageTheme } from "@/features/account/ClubAppearance";
+import { JourneyMeasurement } from "@/features/experience/JourneyMeasurement";
 
 const appShellModuleLoadedAt = Date.now();
 
@@ -87,6 +89,7 @@ function AppShell() {
               <BiometricGate>
                 <ToastProvider>
                   <NotificationObserver />
+                  <JourneyMeasurement />
                   <PushRegistration />
                   <ConciergeIntents />
                   <CelebrationReminderPrivacy />
@@ -94,27 +97,31 @@ function AppShell() {
                   <OfflineNotice />
                   <StatusBar style={isDark ? "light" : "dark"} />
                   <ConfettiLayerProvider>
-                    <StaffRouteBoundary>
-                      <Stack
-                        screenOptions={{
-                          headerShown: false,
-                          contentStyle: { backgroundColor: colors.background },
-                        }}
-                      >
-                        <Stack.Screen name="(tabs)" />
-                        <Stack.Screen
-                          name="branches"
-                          options={{ presentation: "card" }}
-                        />
-                        <Stack.Screen
-                          name="cart"
-                          options={{ presentation: "card" }}
-                        />
-                      </Stack>
-                      <FloatingTabBar />
-                      <BrandEntrance />
-                      <CustomerUpdates />
-                    </StaffRouteBoundary>
+                    <CustomerPageTheme>
+                      <StaffRouteBoundary>
+                        <Stack
+                          screenOptions={{
+                            headerShown: false,
+                            contentStyle: {
+                              backgroundColor: colors.background,
+                            },
+                          }}
+                        >
+                          <Stack.Screen name="(tabs)" />
+                          <Stack.Screen
+                            name="branches"
+                            options={{ presentation: "card" }}
+                          />
+                          <Stack.Screen
+                            name="cart"
+                            options={{ presentation: "card" }}
+                          />
+                        </Stack>
+                        <FloatingTabBar />
+                        <BrandEntrance />
+                        <CustomerUpdates />
+                      </StaffRouteBoundary>
+                    </CustomerPageTheme>
                   </ConfettiLayerProvider>
                 </ToastProvider>
               </BiometricGate>

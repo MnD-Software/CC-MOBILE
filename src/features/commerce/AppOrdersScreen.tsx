@@ -26,6 +26,8 @@ import { appReceiptHtml } from "./app-receipt";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import { DeliveryComplete } from "./DeliveryComplete";
+import { OrderDesign } from "@/features/experience/OrderDesign";
+import { DeliveryCodes } from "@/features/experience/TripCode";
 
 export { OrdersHistoryScreen as AppOrdersScreen } from "./OrdersHistoryScreen";
 
@@ -145,6 +147,10 @@ export function AppOrderScreen() {
         <Feedback error={order.error} onRetry={() => void order.refetch()} />
       ) : value ? (
         <>
+          <OrderDesign reference={reference} />
+          {value.status === "out_for_delivery" ? (
+            <DeliveryCodes reference={reference} />
+          ) : null}
           {value.payment_test && !value.review_checkout ? (
             <Text style={{ color: colors.muted, fontSize: 11, lineHeight: 18 }}>
               Preview · no charge. Follow your order through the kitchen and

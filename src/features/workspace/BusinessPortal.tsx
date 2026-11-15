@@ -2,6 +2,7 @@ import { router } from "expo-router";
 import { PesapalCheckoutForm } from "@/features/commerce/PesapalCheckoutForm";
 import { bagLineSchema, type BagLine } from "@/features/commerce/contracts";
 import { BrandLogo } from "@/components/BrandLogo";
+import { CompanyPurchasing } from "@/features/experience/CompanyPurchasing";
 import { LoadingImage } from "@/components/ui/LoadingImage";
 import { mediaSource } from "@/features/editorial/content";
 import { staffGreeting } from "@/auth/staff-routing";
@@ -554,6 +555,7 @@ export function BusinessPortal() {
             />
           ) : details.data ? (
             <>
+              <CompanyPurchasing key={company} company={company} />
               <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
                 {[
                   ["quote", "New quotation"],

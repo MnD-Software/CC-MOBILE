@@ -116,26 +116,16 @@ test("unconnected routes fail honestly and legacy website orders retain their se
   assert.doesNotMatch(checkout, /UnavailableExperience/);
 });
 
-test("Cake City Club manages real customer codes without inventing issued rewards", () => {
-  const rewardsRoute = read("app", "rewards.tsx");
+test("Club only shows real offers and has no empty coupon sync controls", () => {
   const rewards = read("src", "features", "account", "RewardsScreen.tsx");
-
-  assert.match(rewardsRoute, /RewardsScreen/);
-  assert.match(rewards, /Your coupon wallet/);
-  assert.match(rewards, /useCouponWallet/);
-  assert.match(rewards, /saveCouponCode/);
-  assert.match(rewards, /removeCouponCode/);
+  const checkout = read("src", "features", "commerce", "CheckoutCoupons.tsx");
+  assert.match(rewards, /PromotionsShelf/);
   assert.match(rewards, /ClubMembership/);
-  const club = read("src", "features", "account", "ClubMembership.tsx");
-  assert.match(club, /clubApi.overview/);
-  assert.match(club, /redemption_available/);
-  assert.match(rewards, /eligibility checked at checkout/);
-  assert.match(rewards, /Guest codes stay only in this app session/);
-  assert.doesNotMatch(rewards, /Saved cakes/);
   assert.doesNotMatch(
     rewards,
-    /accountCommerceApi|customerApi|useQuery|getRewards|points_balance|redeem/,
+    /Coupons across your devices|Sync saved codes|Guest codes|Ready when you have a code/,
   );
+  assert.match(checkout, /if \(!offers.data\?\.coupons.length\) return null/);
 });
 
 test("account hub uses authenticated and device-local data without invented account state", () => {
