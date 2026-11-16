@@ -70,6 +70,7 @@ def rider(customer: Customer = Depends(member)):
 
 
 def queue(db, actor):
+    from .journey import design_status
     result = []
     for order in db.scalars(select(AppOrder).where(AppOrder.payment_state == "completed",
             AppOrder.state.in_(["paid", "preparing", "ready", "out_for_delivery"]))
@@ -86,7 +87,9 @@ def queue(db, actor):
             "items": [{key: line[key] for key in ("name", "quantity", "sku_id", "image", "selection") if key in line}
                       for line in order.snapshot.get("lines", [])],
             "created_at": service.commerce.utc(order.created_at).isoformat(), "payment_test": order.channel == "app_test",
-            "review_checkout": bool(order.snapshot.get("review_checkout"))})
+            "review_checkout": bool(order.snapshot.get("review_checkout")),
+            # Custom cakes cannot start until the customer approves the design.
+            "design": design_status(db, order)})
     return result
 
 

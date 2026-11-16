@@ -44,6 +44,11 @@ export const workSchema = z.object({
   fulfilment: z.string(),
   payment_test: z.boolean(),
   review_checkout: z.boolean().optional(),
+  /** Present for custom cakes; production waits for "approved". */
+  design: z
+    .object({ state: z.string(), revision: z.number() })
+    .nullable()
+    .optional(),
   items: z.array(
     z.object({
       name: z.string(),

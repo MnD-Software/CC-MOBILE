@@ -207,6 +207,13 @@ def decide_design(reference:str,data:DesignDecision,actor=Depends(member),db:Ses
     audit(db,actor.id,'design.'+data.decision,reference,revision=data.revision)
     db.commit();db.refresh(row);return proof_view(row)
 
+def design_status(db,order):
+    """None for ordinary orders; otherwise where the custom design approval stands."""
+    row=db.get(DesignProof,order.id)
+    if not row and not any(line.get('selection',{}).get('design_colour') for line in order.snapshot.get('lines',[])):
+        return None
+    return {'state':row.state if row else 'not_published','revision':row.revision if row else 0}
+
 def require_design_approval(db,order):
     row=db.get(DesignProof,order.id)
     if not row and any(line.get('selection',{}).get('design_colour') for line in order.snapshot.get('lines',[])):

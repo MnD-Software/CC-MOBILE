@@ -445,7 +445,21 @@ function WorkCard({
               Assigned to another kitchen team member.
             </Text>
           ) : null}
-          {order.assigned_to && order.status === "paid" ? (
+          {order.assigned_to &&
+          order.status === "paid" &&
+          order.design &&
+          order.design.state !== "approved" ? (
+            // Custom cakes cannot start until the customer approves the design.
+            <Notice
+              message={`Custom design · ${
+                order.design.state === "awaiting_approval"
+                  ? "waiting for the customer to approve"
+                  : order.design.state === "changes_requested"
+                    ? "the customer asked for changes"
+                    : "not sent to the customer yet"
+              }. Publish it from the web workspace (Service & growth › Design approval); preparation can start once the customer approves.`}
+            />
+          ) : order.assigned_to && order.status === "paid" ? (
             <Button
               label="Start preparing"
               loading={mutation.isPending}

@@ -270,6 +270,8 @@ function notice(text, error = false) {
   $("notice").hidden = false;
   $("notice").className = error ? "error" : "";
   $("notice").textContent = text;
+  // Errors from a card far down the queue must not appear off-screen.
+  if (error) $("notice").scrollIntoView?.({ block: "nearest" });
 }
 async function show(next = tab, quiet = false) {
   const position =
@@ -361,8 +363,19 @@ async function workflowBoard(stage) {
       const remaining = o.items.reduce((n, i) => n + i.quantity, 0) - allocated;
       let actions = "";
       if (kitchen) {
+        const waiting =
+          o.status === "paid" && o.design && o.design.state !== "approved";
         if (!o.assigned_to)
           actions += `<button data-kitchen-assign="${esc(o.reference)}">Assign production to me</button>`;
+        else if (waiting)
+          // Custom cakes cannot start until the customer approves the design.
+          actions += `<p class="design-wait"><strong>Custom design · ${esc(
+            {
+              not_published: "Not sent to the customer yet",
+              awaiting_approval: "Waiting for the customer to approve",
+              changes_requested: "The customer asked for changes",
+            }[o.design.state] || o.design.state.replaceAll("_", " "),
+          )}.</strong> Preparation can start once the customer approves the design.</p><button data-design-open="${esc(o.reference)}">${o.design.state === "awaiting_approval" ? "View design sent" : "Prepare design for approval"}</button>`;
         else if (["paid", "preparing"].includes(o.status))
           actions += `<button data-kitchen-order="${esc(o.reference)}" data-status="${o.status === "paid" ? "preparing" : "ready"}">${o.status === "paid" ? "Start preparation" : "Kitchen complete — ready for dispatch"}</button>`;
       } else if (o.fulfilment === "pickup") {
@@ -1054,6 +1067,19 @@ document.addEventListener("click", async (e) => {
           [delivered ? "proof" : "note"]: f.get(delivered ? "proof" : "note"),
         }),
     );
+    return;
+  }
+  if (d.designOpen) {
+    // Jump to the Design approval form with this order already loaded.
+    await show("experience");
+    const form = document.querySelector("[data-design-form]");
+    if (!form) {
+      notice("Design approval is not available for your role.", true);
+      return;
+    }
+    form.elements.reference.value = d.designOpen;
+    form.querySelector("[data-design-load]")?.click();
+    form.closest("section")?.scrollIntoView({ block: "start" });
     return;
   }
   if (d.kitchenOrder || d.collection || d.trip) {
