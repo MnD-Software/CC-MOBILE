@@ -44,7 +44,13 @@ function CustomerLayout({
   const { reduceMotion } = useMotionAccessibilityPreference();
   const tier = useDeviceTier();
   const colour = item.selection?.design_colour;
-  if (typeof colour !== "string" || !item.image) return null;
+  // Only orders placed while the Real cake editor existed carry a layout.
+  if (
+    typeof colour !== "string" ||
+    !item.image ||
+    !item.selection?.design_placement
+  )
+    return null;
   const names = order.items.map((other) => other.name).join(" ");
   const message =
     typeof item.selection?.message === "string" ? item.selection.message : "";

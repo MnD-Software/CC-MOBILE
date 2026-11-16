@@ -239,6 +239,9 @@ test("new DIY sketches preserve prior saves even when the same cake and size are
     Ionicons: "Icon",
     CakeCanvas: "Canvas",
     CakeStage: "CakeStage",
+    useWindowDimensions: () => ({ height: 844, width: 390 }),
+    BrandLogo: "BrandLogo",
+    IconButton: "IconButton",
     cakeWeightKg: () => null,
     ...require("../src/features/studio/real-cake.ts"),
     CustomCakeBrief: "Inspo",
@@ -291,23 +294,10 @@ test("new DIY sketches preserve prior saves even when the same cake and size are
   render();
   assert.equal(designs.alice.length, 2);
   assert.notEqual(designs.alice[0].id, designs.alice[1].id);
-  // Placement chosen on the stage is saved with the sketch.
+  // The stage is 3D-only now: no photo placement editor, nothing to save.
   const stage = find(tree, (n) => n.type === "CakeStage");
-  stage.props.onPlacementChange({
-    plaque: { x: 0.31234, y: 0.7 },
-    topper: { x: 0.5, y: 0.2 },
-  });
-  render();
-  render(); // the "unsaved" effect re-renders
-  find(
-    tree,
-    (n) => n.type === "Button" && n.props.label === "Save to my sketchbook",
-  ).props.onPress();
-  render();
-  assert.deepEqual(
-    JSON.parse(JSON.stringify(designs.alice[0].placement)),
-    { plaque: { x: 0.312, y: 0.7 }, topper: { x: 0.5, y: 0.2 } },
-  );
+  assert.equal(stage.props.onPlacementChange, undefined);
+  assert.equal(designs.alice[0].placement, undefined);
 });
 
 test("biometric preferences never carry an old account's state through a switch", async () => {

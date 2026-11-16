@@ -9,6 +9,7 @@ import {
   ScrollView,
   TextInput,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
@@ -23,17 +24,18 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { Text } from "@/components/ui/Typography";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { Screen, Notice, Feedback, useToast } from "@/components/ui/Commerce";
+import { BrandLogo } from "@/components/BrandLogo";
+import {
+  Screen,
+  IconButton,
+  Notice,
+  Feedback,
+  useToast,
+} from "@/components/ui/Commerce";
 import { useTheme } from "@/theme/ThemeProvider";
 import { useMotionAccessibilityPreference } from "@/design/useReducedMotion";
 import { CakeStage } from "./CakeStage";
 import { cakeWeightKg } from "./cake-scene";
-import {
-  DEFAULT_PLACEMENT,
-  parsePlacement,
-  placementPayload,
-  type Placement,
-} from "./real-cake";
 import { CustomCakeBrief } from "./CustomCakeBrief";
 import { SizeFinishPicker } from "./SizeFinishPicker";
 import { appMedia } from "@/features/commerce/app-media";
@@ -308,6 +310,7 @@ export function InventoryStudio() {
 }
 
 export function InventoryEditor() {
+  const compact = useWindowDimensions().height < 640;
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const { customer } = useAuth();
@@ -330,7 +333,6 @@ export function InventoryEditor() {
     [extras, setExtras] = useState<Item[]>([]),
     [colour, setColour] = useState("#FFF8EE"),
     [message, setMessage] = useState(""),
-    [placement, setPlacement] = useState<Placement>(DEFAULT_PLACEMENT),
     [quote, setQuote] = useState<Quote | null>(null),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
@@ -360,8 +362,6 @@ export function InventoryEditor() {
     setSaved(false);
     setCompletedSteps((steps) => steps.filter((s) => s !== 3));
   }, [cake, variant, extras, colour, message]);
-  // Moving the plaque or candles changes the design, not the price.
-  useEffect(() => setSaved(false), [placement]);
   const sku = variant || cake;
   const estimate =
     (sku?.price_minor || 0) + extras.reduce((s, x) => s + x.price_minor, 0);
@@ -370,7 +370,6 @@ export function InventoryEditor() {
     if (cake && !saved) saveDraft();
     requestVersion.current += 1;
     setDraftId(randomUUID());
-    setPlacement(DEFAULT_PLACEMENT);
     setCake(null);
     setVariant(null);
     setExtras([]);
@@ -401,7 +400,6 @@ export function InventoryEditor() {
           : [],
       },
       message,
-      placement: placementPayload(placement),
       updated_at: new Date().toISOString(),
     });
     setSaved(true);
@@ -444,7 +442,6 @@ export function InventoryEditor() {
       setExtras(selected);
       setColour(draft.selections.colour?.[0] || swatches[0]);
       setMessage(draft.message);
-      setPlacement(parsePlacement(draft.placement));
       setStep(3);
     } catch (e) {
       setError(
@@ -504,8 +501,6 @@ export function InventoryEditor() {
           ...(l.kind === "cake"
             ? {
                 design_colour: colour,
-                // Kitchen sees the plaque and candles where the customer put them.
-                design_placement: placementPayload(placement),
               }
             : {}),
           ...(l.variation_id ? { variation_id: l.variation_id } : {}),
@@ -526,6 +521,49 @@ export function InventoryEditor() {
   return (
     <Screen
       title="DIY cake studio"
+      header={
+        compact ? (
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              paddingHorizontal: 16,
+              paddingVertical: 6,
+              gap: 8,
+            }}
+          >
+            <IconButton
+              name="arrow-back"
+              label="Go back"
+              onPress={() =>
+                router.canGoBack() ? router.back() : router.replace("/home")
+              }
+            />
+            <BrandLogo width={60} />
+            <Text
+              accessibilityRole="header"
+              style={{
+                flex: 1,
+                color: colors.ink,
+                fontWeight: "800",
+                fontSize: 18,
+              }}
+            >
+              DIY
+            </Text>
+            {cake ? (
+              <Button
+                label="New"
+                accessibilityLabel="Start a new sketch"
+                size="sm"
+                variant="outline"
+                disabled={busy}
+                onPress={newSketch}
+              />
+            ) : null}
+          </View>
+        ) : undefined
+      }
       back
       right={
         cake ? (
@@ -546,7 +584,7 @@ export function InventoryEditor() {
         testID="diy-fixed-tabs"
         style={{
           paddingHorizontal: 16,
-          paddingBottom: 12,
+          paddingBottom: compact ? 8 : 12,
           backgroundColor: colors.background,
           borderBottomWidth: 1,
           borderBottomColor: colors.border,
@@ -591,8 +629,8 @@ export function InventoryEditor() {
                   flexDirection: "row",
                   alignItems: "center",
                   justifyContent: "center",
-                  gap: 9,
-                  padding: 12,
+                  gap: compact ? 6 : 9,
+                  padding: compact ? 8 : 12,
                   borderWidth: 1,
                   borderColor:
                     mode === value ? "rgba(255,255,255,0.45)" : colors.border,
@@ -600,7 +638,7 @@ export function InventoryEditor() {
               >
                 <Ionicons
                   name={value === "diy" ? "color-wand" : "images"}
-                  size={24}
+                  size={compact ? 20 : 24}
                   color={mode === value ? "#FFFFFF" : colors.brandStrong}
                 />
                 <View style={{ gap: 3, flexShrink: 1 }}>
@@ -608,29 +646,34 @@ export function InventoryEditor() {
                     style={{
                       color: mode === value ? "#FFFFFF" : colors.ink,
                       fontWeight: "800",
-                      fontSize: 17,
+                      fontSize: compact ? 15 : 17,
                       letterSpacing: 0.3,
                     }}
                   >
                     {value === "diy" ? "DIY" : "Inspiration"}
                   </Text>
-                  <Text
-                    style={{
-                      color: mode === value ? "#FFFFFF" : colors.muted,
-                      fontSize: 10,
-                    }}
-                  >
-                    {value === "diy"
-                      ? "Mix. Match. Magic."
-                      : "Dream it. Make it."}
-                  </Text>
+                  {!compact ? (
+                    <Text
+                      style={{
+                        color: mode === value ? "#FFFFFF" : colors.muted,
+                        fontSize: 10,
+                      }}
+                    >
+                      {value === "diy"
+                        ? "Mix. Match. Magic."
+                        : "Dream it. Make it."}
+                    </Text>
+                  ) : null}
                 </View>
               </LinearGradient>
             </Pressable>
           ))}
         </View>
         {mode === "diy" && step === 0 ? (
-          <View testID="diy-fixed-search" style={{ paddingTop: 10 }}>
+          <View
+            testID="diy-fixed-search"
+            style={{ paddingTop: compact ? 6 : 10 }}
+          >
             <View
               style={{
                 flexDirection: "row",
@@ -708,8 +751,6 @@ export function InventoryEditor() {
               /sprinkle|hundreds|nonpareil|confetti/i.test(x.name),
             )}
             sizeKg={cakeWeightKg((variant || cake)?.attributes)}
-            placement={placement}
-            onPlacementChange={setPlacement}
             price={
               sku ? cash(quote?.subtotal_minor ?? estimate) : "Choose a cake"
             }
@@ -828,7 +869,6 @@ export function InventoryEditor() {
                         accessibilityState={{ checked: cake?.id === item.id }}
                         onPress={() => {
                           setCake(item);
-                          setPlacement(DEFAULT_PLACEMENT);
                           setCompletedSteps([0]);
                           setColour(item.canvas_colour || "#FFF8EE");
                           setVariant(item.variants?.[0] || null);
@@ -1060,7 +1100,7 @@ export function InventoryEditor() {
                     <Notice message={quote.preview_notice} />
                   </>
                 ) : null}
-                <Notice message="Real cake shows the bakery's photo of your chosen cake; the plaque, candles and sprinkles on it are a placement guide, and the 3D view is an illustration. Your finished cake is hand-made, so it can differ slightly. Delivery and any additional custom work are quoted separately." />
+                <Notice message="The 3D cake is an illustration of your choices, not a photograph of the finished cake. Your cake is hand-made, so it can differ slightly. Delivery and any additional custom work are quoted separately." />
               </>
             ) : null}
             {error ? <Notice error message={error} /> : null}

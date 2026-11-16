@@ -1,4 +1,5 @@
 import { BlurView } from "expo-blur";
+import { LinearGradient } from "expo-linear-gradient";
 import {
   GlassView,
   isGlassEffectAPIAvailable,
@@ -90,6 +91,46 @@ export function GlassSurface({
     ? themeColor("backgroundColor", tintColor, isDark)
     : undefined;
   const reduceTransparency = useContext(GlassPreferences);
+  const androidFinish =
+    Platform.OS === "android" && !reduceTransparency ? (
+      <View
+        pointerEvents="none"
+        accessible={false}
+        importantForAccessibility="no-hide-descendants"
+        style={StyleSheet.absoluteFill}
+      >
+        <LinearGradient
+          colors={
+            isDark
+              ? [
+                  "rgba(255,255,255,0.13)",
+                  "rgba(255,255,255,0.025)",
+                  "rgba(0,0,0,0.16)",
+                ]
+              : [
+                  "rgba(255,255,255,0.8)",
+                  "rgba(255,255,255,0.06)",
+                  "rgba(177,140,163,0.10)",
+                ]
+          }
+          locations={[0, 0.45, 1]}
+          style={StyleSheet.absoluteFill}
+        />
+        <View
+          style={{
+            position: "absolute",
+            top: 1,
+            left: "10%",
+            right: "10%",
+            height: 1,
+            backgroundColor: isDark
+              ? "rgba(255,255,255,0.3)"
+              : "rgba(255,255,255,0.95)",
+            borderRadius: 1,
+          }}
+        />
+      </View>
+    ) : null;
   if (opaque || highContrast)
     return (
       <View
@@ -125,10 +166,17 @@ export function GlassSurface({
       <View
         style={[
           styles.surface,
+          Platform.OS === "android" && !reduceTransparency
+            ? {
+                elevation: interactive ? 5 : 2,
+                shadowColor: isDark ? "#000000" : "#694357",
+              }
+            : undefined,
           style,
           { backgroundColor: resolvedTint ?? colors.surface },
         ]}
       >
+        {androidFinish}
         {children}
       </View>
     );
@@ -156,6 +204,7 @@ export function GlassSurface({
         isDark ? "systemUltraThinMaterialDark" : "systemUltraThinMaterialLight"
       }
     >
+      {androidFinish}
       {children}
     </BlurView>
   );

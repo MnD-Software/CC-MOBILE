@@ -144,6 +144,10 @@ type Preferences = {
   /** Recently viewed products are account-scoped; guests are not profiled. */
   recentSlugsByOwner: Record<string, string[]>;
   designs: Record<string, Design[]>;
+  /** Orders whose Home tracking card the customer closed (per account). */
+  hiddenTrackingByOwner: Record<string, string[]>;
+  /** Hides one order's Home tracking card; a no-op while signed out. */
+  hideTracking: (reference: string) => void;
   setBranch: (branch: Branch) => void;
   /** Remembers a search for the current account; a no-op while signed out. */
   search: (term: string) => void;
@@ -181,6 +185,21 @@ export const usePreferences = create<Preferences>()(
       recentSearchesByOwner: {},
       recentSlugsByOwner: {},
       designs: {},
+      hiddenTrackingByOwner: {},
+      hideTracking: (reference) =>
+        set((s) => {
+          if (!s.owner) return s;
+          const hidden = s.hiddenTrackingByOwner?.[s.owner] ?? [];
+          return {
+            hiddenTrackingByOwner: {
+              ...(s.hiddenTrackingByOwner ?? {}),
+              [s.owner]: [
+                reference,
+                ...hidden.filter((value) => value !== reference),
+              ].slice(0, 50),
+            },
+          };
+        }),
       setBranch: (branch) => set({ branch }),
       search: (term) =>
         set((s) => {
@@ -259,6 +278,8 @@ export const selectSavedSlugs = (s: Preferences) =>
   (s.owner && s.savedSlugsByOwner?.[s.owner]) || EMPTY;
 export const selectRecentSearches = (s: Preferences) =>
   (s.owner && s.recentSearchesByOwner?.[s.owner]) || EMPTY;
+export const selectHiddenTracking = (s: Preferences) =>
+  (s.owner && s.hiddenTrackingByOwner?.[s.owner]) || EMPTY;
 /** Binds device-local bag and preferences to a signed-in account. */
 export function claimDeviceState(owner: string) {
   activeOwner = owner;

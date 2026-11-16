@@ -35,6 +35,7 @@ export function validatedPreferences(value: unknown) {
     savedSlugsByOwner: validEntries(saved.savedSlugsByOwner, strings),
     recentSearchesByOwner: validEntries(saved.recentSearchesByOwner, strings),
     recentSlugsByOwner: validEntries(saved.recentSlugsByOwner, strings),
+    hiddenTrackingByOwner: validEntries(saved.hiddenTrackingByOwner, strings),
     profileAvatars: validEntries(
       saved.profileAvatars,
       z.object({ kind: z.enum(["photo", "preset"]), value: z.string() }),

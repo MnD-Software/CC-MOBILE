@@ -29,8 +29,32 @@ const {
   releaseDeviceState,
   selectSavedSlugs,
   selectRecentSearches,
+  selectHiddenTracking,
 } = require("../src/features/commerce/store.ts");
+const {
+  validatedPreferences,
+} = require("../src/features/commerce/preference-validation.ts");
 const turn = () => new Promise((resolve) => setImmediate(resolve));
+
+test("closing the Home tracking card hides only that order, only for that account", () => {
+  claimDeviceState("alice");
+  const { hideTracking } = usePreferences.getState();
+  hideTracking("APP-1");
+  hideTracking("APP-1");
+  assert.deepEqual(selectHiddenTracking(usePreferences.getState()), ["APP-1"]);
+  claimDeviceState("bob");
+  assert.deepEqual(selectHiddenTracking(usePreferences.getState()), []);
+  releaseDeviceState();
+  usePreferences.getState().hideTracking("APP-2"); // signed out: no-op
+  claimDeviceState("alice");
+  assert.deepEqual(selectHiddenTracking(usePreferences.getState()), ["APP-1"]);
+  // Survives a restart's validation; corrupt entries are dropped, not crashed on.
+  assert.deepEqual(
+    validatedPreferences({ hiddenTrackingByOwner: { alice: ["APP-1"], bob: "bad" } })
+      .hiddenTrackingByOwner,
+    { alice: ["APP-1"] },
+  );
+});
 
 test("a bag never follows sign-out or a different account", () => {
   claimDeviceState("alice");

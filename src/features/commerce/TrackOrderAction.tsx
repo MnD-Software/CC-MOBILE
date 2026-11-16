@@ -70,28 +70,7 @@ export function TrackOrderAction({
           justifyContent: "center",
         }}
       >
-        <Animated.View
-          pointerEvents="none"
-          style={{
-            position: "absolute",
-            width: 24,
-            height: 24,
-            borderRadius: 12,
-            backgroundColor: colors.success,
-            opacity: motion.interpolate({
-              inputRange: [0, 1],
-              outputRange: [0.08, 0.2],
-            }),
-            transform: [
-              {
-                scale: motion.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0.8, 1.1],
-                }),
-              },
-            ],
-          }}
-        />
+        {/* Steady status dot: no pulsing halo (owner asked for no flicker). */}
         <View
           style={{
             width: 8,

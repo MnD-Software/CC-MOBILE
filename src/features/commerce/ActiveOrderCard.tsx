@@ -12,6 +12,9 @@ import { Text } from "@/components/ui/Typography";
 import { useAuth } from "@/auth/AuthProvider";
 import { useTheme } from "@/theme/ThemeProvider";
 import { useScreenActive } from "@/design/useScreenActive";
+import { performHaptic } from "@/design/haptics";
+import { useToast } from "@/components/ui/Commerce";
+import { selectHiddenTracking, usePreferences } from "./store";
 
 export const orderStageLabel = (status: string) =>
   (
@@ -34,7 +37,13 @@ export function ActiveOrderCard({ compact = false }: { compact?: boolean }) {
   const [busy, setBusy] = useState(false);
   const cache = useQueryClient();
   const orders = useHomeOrders();
-  const items = orders.data?.data ?? [];
+  const toast = useToast();
+  const hidden = usePreferences(selectHiddenTracking);
+  const hideTracking = usePreferences((s) => s.hideTracking);
+  // Closed cards stay closed for that order; a new order shows a card again.
+  const items = (orders.data?.data ?? []).filter(
+    (item) => !hidden.includes(item.reference),
+  );
   const order = items[Math.min(index, Math.max(0, items.length - 1))];
   if (!customer || !order) return null;
   const pickup = order.fulfilment === "pickup";
@@ -107,10 +116,44 @@ export function ActiveOrderCard({ compact = false }: { compact?: boolean }) {
       }}
     >
       <Pressable
+        testID="hide-order-tracking"
+        accessibilityRole="button"
+        accessibilityLabel={`Hide tracking for order ${order.reference}`}
+        accessibilityHint="The order stays available in Orders."
+        hitSlop={6}
+        onPress={() => {
+          void performHaptic("press");
+          hideTracking(order.reference);
+          setIndex(0);
+          toast("Tracking hidden. You can still follow it in Orders.");
+        }}
+        style={({ pressed }) => ({
+          position: "absolute",
+          top: compact ? 8 : 12,
+          right: 10,
+          zIndex: 2,
+          width: 32,
+          height: 32,
+          borderRadius: 16,
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: pressed
+            ? "rgba(255,255,255,0.28)"
+            : "rgba(255,255,255,0.14)",
+        })}
+      >
+        <Ionicons name="close" size={18} color="#FFFFFF" />
+      </Pressable>
+      <Pressable
         accessibilityRole="button"
         accessibilityLabel={`${delivered ? "View order" : "Track order"}. ${labels[stage]}`}
         onPress={open}
-        style={{ gap: compact ? 6 : 10, minHeight: compact ? 44 : 90 }}
+        // Leave room on the right so the arrow never sits under the close button.
+        style={{
+          gap: compact ? 6 : 10,
+          minHeight: compact ? 44 : 90,
+          paddingRight: 34,
+        }}
       >
         <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
           <View

@@ -289,7 +289,7 @@ gl.bindTexture(gl.TEXTURE_2D,msgTex);gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_
 
 // ---------- camera & interaction ----------
 var cam={yaw:-.5,pitch:.42,zoom:1,vy:0,ty:null,tp:null},pointers={},pinch=null,lastTap=0,downAt=null,idle=0;
-function eye(){var asp=canvas.clientWidth/Math.max(1,canvas.clientHeight),d=(3.2+2.1*(state.R||1))*cam.zoom*Math.max(1,1.45/asp),tY=(state.H||.9)*.36;return{e:[Math.sin(cam.yaw)*Math.cos(cam.pitch)*d,tY+Math.sin(cam.pitch)*d,Math.cos(cam.yaw)*Math.cos(cam.pitch)*d],t:[0,tY,0]}}
+function eye(){var asp=canvas.clientWidth/Math.max(1,canvas.clientHeight),d=(3.2+2.1*(state.R||1))*cam.zoom*Math.max(1,1.45/asp)*(asp>1.7?.86:1),tY=(state.H||.9)*.36;return{e:[Math.sin(cam.yaw)*Math.cos(cam.pitch)*d,tY+Math.sin(cam.pitch)*d,Math.cos(cam.yaw)*Math.cos(cam.pitch)*d],t:[0,tY,0]}}
 function persp(f,a,n,fa){var t=1/Math.tan(f/2),nf=1/(n-fa);return[t/a,0,0,0,0,t,0,0,0,0,(fa+n)*nf,-1,0,0,2*fa*n*nf,0]}
 function look(e,c){var z=nrm(sub(e,c)),x=nrm(cross([0,1,0],z)),y=cross(z,x);return{m:[x[0],y[0],z[0],0,x[1],y[1],z[1],0,x[2],y[2],z[2],0,-dot(x,e),-dot(y,e),-dot(z,e),1],x:x,y:y}}
 function mul(a,b){var o=new Array(16);for(var i=0;i<4;i++)for(var j=0;j<4;j++){var s=0;for(var k=0;k<4;k++)s+=a[k*4+j]*b[i*4+k];o[i*4+j]=s}return o}
