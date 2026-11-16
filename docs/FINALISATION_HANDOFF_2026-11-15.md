@@ -106,11 +106,66 @@ Audit status: items 1–7 and 10–15 (except the low items listed under Remaini
     - It falls back to a text note if WebGL is unavailable.
 - **Live updates** (`ModelScene(.native).tsx`): the HTML loads once per cake. Changes are pushed in by `injectJavaScript` on native and `postMessage` in the web iframe, so there is no reload flash. Customer text is JSON-escaped (`<`, U+2028, U+2029), and colours and backdrop are restricted to `#RRGGBB`.
 - **Stage** (`CakeStage.tsx`):
-  - 3D is now the default tab, with Photo still available.
+  - Superseded by the Real cake follow-up below: Real cake is the default when the cake has a photo, and 3D is the second tab.
   - Glass "Show inside layers" and "Enlarge" switches, with haptics.
   - Height is 128 px on phones under 640 px tall, 150 px under 700 px, 200 px otherwise, and up to 420 px enlarged.
   - The studio passes the size (`cakeWeightKg`) and the sprinkles extra.
 - **Copy:** the stage still reads "3D design illustration" and "Illustrative layers". No realism claim was added.
+
+### DIY Real cake view (follow-up, owner request: "show the actual cake chosen instead of the diagram")
+- **What it is** (`studio/RealCakeView.tsx`, rules in `studio/real-cake.ts`): the bakery's own product photo of the chosen cake (the size's photo if it has one, else the cake's). The customer's additions are composited on top as a **placement guide**:
+  - **Message plaque:** piped script lettering. Light icing goes on a dark-chocolate plaque and dark icing on white chocolate, so the message always stays readable. The plaque widens for longer messages and shows up to 32 characters on two lines.
+  - **Candles:** three twisted candles in the chosen colour, with flickering flames and a soft blurred glow (`boxShadow`). They appear when a candle or sparkler extra is chosen.
+  - **Sprinkles:** fall in and settle on the cake top when a sprinkles extra is chosen.
+- **Interaction:**
+  - Drag the plaque or the candles group to place them.
+  - Drag the photo to tilt it in 3D, with glare that follows the tilt.
+  - Double-tap to zoom 1.9× at the tapped point; drag pans while zoomed, and double-tap again zooms out.
+  - Hold the eye button to compare with the bare photo. The reset button restores placement and zoom.
+- **Look:** a light sweep plays as the photo loads, a slow "breathing" motion runs, and a blurred copy of the photo fills the sides.
+- **Reduced motion:** turns off the breathing, flicker and sweep.
+- **Tab and copy changes:**
+  - The tabs are now "Real cake" (default when a photo exists) and "3D" (the illustration, unchanged).
+  - The caption reads "Bakery photo · your additions shown as a placement guide".
+  - The studio notice now says the additions are a guide, the 3D view is an illustration, and the hand-made cake can differ slightly.
+- **Placement is now saved** (owner request, see "Saved placement and any-phone support" below).
+- **`StageControl.tsx`:** the shared glass button. On stages shorter than 150 px the controls sit in a row.
+- **Weight fix:** `cakeWeightKg` now reads catalogue slugs like `2-5kg-serves-25` as 2.5 kg; it previously read them as 5 kg.
+- **Evidence:**
+  - `tests/real-cake.test.cjs` adds 6 tests: contrast, piping size fits two lines, plaque width, print and pan clamping, sprinkle field, and the weight slugs.
+  - Browser pass: `artifacts/local-preview/realcake-browser.cjs` (ignored), run on the isolated copy (API on :8911, web on :8097; both stopped afterwards, :8010 untouched).
+    - Red Velvet opened in Real cake by default.
+    - Added Number Candles, white icing and the message "Happy 30th Amani"; the plaque rendered the full text.
+    - A drag moved the plaque by exactly (−60, −31) px; double-tap zoom worked; enlarging worked.
+    - No horizontal overflow at 320, 390 or 430 px; the 3D tab still mounts.
+    - 0 runtime exceptions on a warm bundle. The cold first run hit the known ionicons font timeout in the dev overlay.
+    - Screenshots: `artifacts/local-preview/realcake-*.png`.
+- **Not verified on a device:** native PanResponder dragging alongside the screen's gestures, Android `cursive` and iOS `SnellRoundhand-Bold` lettering, `boxShadow` glow on Android, and blurRadius cost on low-end phones.
+
+### Saved placement and any-phone support (owner request)
+- **Placement data:** `{plaque:{x,y}, topper:{x,y}}`, with each value a fraction (0–1) of the product photo, rounded to 3 decimal places.
+  - **Sketchbook:** each saved design has an optional `placement` (`store.ts` `Design`). The validator drops a corrupt placement without dropping the design. Reopening a sketch restores it.
+  - **Order:** the cake line's selection carries `design_placement` (client `selectionSchema`; backend `Selection.design_placement`). The backend accepts it only together with `design_colour`, rejects out-of-range or extra keys, and stores it in the order snapshot.
+  - **Kitchen:** `routes_logistics.queue` now also returns each item's `image`. The kitchen and dispatch work card shows `CustomerLayout`: a read-only Real cake view of the customer's plaque, candles and sprinkles in place, plus the icing colour. Inside the scrolling list, a drag scrolls the page; zoom works with a double-tap.
+  - **Price:** moving additions marks the sketch unsaved but does not invalidate the price quote.
+- **Device tiers** (`src/design/device-tier.ts`; no new dependency):
+  - **First guess:** Android 9 or older, small low-density Android screens, iOS below 15, and web with 2 or fewer cores or 2 GB or less memory start in "lite".
+  - **Frame probe:** a one-off 1.2 s check of the median frame rate downgrades to lite below 45 fps. It never upgrades.
+- **What lite changes** (same look, cheaper techniques):
+  - Real cake: a studio-colour gradient replaces the live photo blur; no breathing zoom; stacked soft rings replace the blurred `boxShadow` candle glow; 24 sprinkles instead of 42.
+  - 3D: resolution capped at 1.25× without antialiasing (`powerPreference: low-power`).
+  - Confetti: every other piece, 210 instead of 420, still one burst.
+- **3D failure fallback:** if WebGL cannot start, the GPU drops the context, or the Android or iOS WebView renderer is killed, the scene tells the app (WebView `onMessage`, `onRenderProcessGone`, `onContentProcessDidTerminate`, or the iframe `postMessage`). The stage then switches to Real cake and greys out the 3D tab.
+- **Evidence:**
+  - Client 286/286 and typecheck clean. New tests: `tests/device-tier.test.cjs` (tier rules, frame probe, placement sanitising, lite scene), plus a saved-placement assertion in `login-stability`.
+  - Backend: new `tests/test_design_placement.py` (model rules, and the kitchen queue carrying the image and placement); the logistics, purchase-cycle and corporate suites pass (31 tests).
+  - Browser (`artifacts/local-preview/placement-browser.cjs`, ignored), on an isolated copy (`placement-validation.db`, :8911 and :8097, both stopped afterwards; :8010 untouched):
+    - Dragged the plaque, saved, started a new sketch, and reopened it; the plaque returned to the identical offset (100, 93).
+    - Confirmed the price and added to the bag; the bag line holds `design_placement`.
+    - Production staff saw the layout on the kitchen card (a paid order in the copy was edited to be a DIY order).
+    - `LITE=1` (2-core emulation) rendered the lite stage without live blur.
+    - 0 runtime exceptions.
+- **Not verified on devices:** the actual tier chosen on real budget Android phones, the frame probe's behaviour while the screen mounts, and the WebView renderer-kill fallback.
 
 ### Celebration and visual polish
 - **Confetti:** still one giant burst (owner's choice), now 320 large foil pieces (96 in compact mode). The shapes are ribbons, squares, coins and streamers, about 13–24 × 30–84 px. Each piece flips in 3D (rotateX/Y) with a travelling glint and a lower shade, firing from two cannons plus a top shower. Everything runs on one native-driver clock, with no per-piece shadows for performance. Reduced motion still skips it.
@@ -159,5 +214,5 @@ Audit status: items 1–7 and 10–15 (except the low items listed under Remaini
 - **Backend:** restart the API to load the permission fixes. Render's `python -m app.start` runs migrations, but none are added here. Install `requirements.txt` locally (`qrcode`).
 - **Data and behaviour:**
   - The persisted store version goes from 1 to 2: old global favourites and recent searches, and ownerless bags, are discarded once on upgrade. This is intentional.
-  - The DIY tab now opens in 3D, and Photo is one tap away.
-- **Not done:** nothing committed. AI and Odoo stay paused. No payment settings changed, and no live records were altered.
+  - DIY opens in Real cake when the cake has a photo; 3D is one tap away.
+- **Git:** the first pass was pushed as `e014111` on `finalisation-2026-11-15`. The Real cake follow-up is uncommitted. AI and Odoo stay paused. No payment settings changed, and no live records were altered.

@@ -83,7 +83,7 @@ def queue(db, actor):
             "assigned_to": production.assigned_to if production else None,
             "attention": "unassigned" if not production else "active",
             "fulfilment": order.snapshot.get("checkout", {}).get("fulfilment"),
-            "items": [{key: line[key] for key in ("name", "quantity", "sku_id", "selection") if key in line}
+            "items": [{key: line[key] for key in ("name", "quantity", "sku_id", "image", "selection") if key in line}
                       for line in order.snapshot.get("lines", [])],
             "created_at": service.commerce.utc(order.created_at).isoformat(), "payment_test": order.channel == "app_test",
             "review_checkout": bool(order.snapshot.get("review_checkout"))})

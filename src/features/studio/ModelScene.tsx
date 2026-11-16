@@ -5,9 +5,11 @@ import type { CakeSceneConfig } from "./cake-scene";
 export function ModelScene({
   html,
   config,
+  onUnavailable,
 }: {
   html: string;
   config: CakeSceneConfig;
+  onUnavailable?: () => void;
 }) {
   const frame = useRef<HTMLIFrameElement | null>(null);
   const latest = useRef(config);
@@ -18,6 +20,19 @@ export function ModelScene({
       "*",
     );
   useEffect(send, [config]);
+  const fallback = useRef(onUnavailable);
+  fallback.current = onUnavailable;
+  useEffect(() => {
+    const listen = (event: MessageEvent) => {
+      if (
+        event.source === frame.current?.contentWindow &&
+        event.data?.type === "cake-webgl-unavailable"
+      )
+        fallback.current?.();
+    };
+    window.addEventListener("message", listen);
+    return () => window.removeEventListener("message", listen);
+  }, []);
   return createElement("iframe", {
     ref: frame,
     srcDoc: html,

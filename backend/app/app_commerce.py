@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from fastapi import HTTPException
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 
@@ -20,6 +20,19 @@ def utc(value):
     return value.replace(tzinfo=UTC) if value.tzinfo is None else value
 
 
+class PlacementPoint(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    x: float = Field(ge=0, le=1)
+    y: float = Field(ge=0, le=1)
+
+
+class DesignPlacement(BaseModel):
+    """Where the customer put the DIY plaque and candles, as fractions of the product photo."""
+    model_config = ConfigDict(extra="forbid")
+    plaque: PlacementPoint
+    topper: PlacementPoint
+
+
 class Selection(BaseModel):
     model_config = ConfigDict(extra="forbid")
     product_id: int = Field(gt=0)
@@ -30,6 +43,13 @@ class Selection(BaseModel):
     add_ons: list[str] = Field(default_factory=list, max_length=10)
     variation_attributes: list[dict[str, str]] = Field(default_factory=list, max_length=8)
     design_colour: str | None = Field(default=None, pattern=r"^#[0-9a-fA-F]{6}$")
+    design_placement: DesignPlacement | None = None
+
+    @model_validator(mode="after")
+    def placement_needs_design(self):
+        if self.design_placement is not None and not self.design_colour:
+            raise ValueError("Placement applies only to a custom cake design.")
+        return self
 
 
 class Billing(BaseModel):

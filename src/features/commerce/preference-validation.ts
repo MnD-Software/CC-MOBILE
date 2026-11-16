@@ -1,11 +1,13 @@
 import { z } from "zod";
-import { branchSchema } from "./contracts";
+import { branchSchema, designPlacementSchema } from "./contracts";
 const design = z.object({
   id: z.string().min(1),
   name: z.string(),
   version: z.string(),
   selections: z.record(z.string(), z.array(z.string())),
   message: z.string(),
+  // Older saved designs have no placement; a corrupt one is dropped, not the design.
+  placement: designPlacementSchema.optional().catch(undefined),
   updated_at: z.string(),
 });
 const strings = z.array(z.string()).max(100);

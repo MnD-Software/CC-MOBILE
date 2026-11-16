@@ -11,6 +11,7 @@ import {
   type BagLine,
   type Branch,
   type CheckoutInput,
+  type DesignPlacement,
 } from "./contracts";
 type Design = {
   id: string;
@@ -18,6 +19,8 @@ type Design = {
   version: string;
   selections: Record<string, string[]>;
   message: string;
+  /** DIY plaque and candle positions as fractions of the product photo. */
+  placement?: DesignPlacement;
   updated_at: string;
 };
 /** Stable empty list so selectors never return a fresh array per render. */

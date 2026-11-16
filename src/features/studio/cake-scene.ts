@@ -24,14 +24,17 @@ export type CakeDesign = {
   slice?: boolean;
   reduceMotion: boolean;
   backdrop?: [string, string];
+  /** "lite" renders at a lower resolution without antialiasing. */
+  quality?: "full" | "lite";
 };
 
 export type CakeSceneConfig = Required<
-  Omit<CakeDesign, "flavour" | "sizeKg" | "backdrop">
+  Omit<CakeDesign, "flavour" | "sizeKg" | "backdrop" | "quality">
 > & {
   look: CakeLook;
   sizeKg: number;
   backdrop: [string, string];
+  quality: "full" | "lite";
 };
 
 const LOOKS: [RegExp, CakeLook][] = [
@@ -94,8 +97,9 @@ export function cakeWeightKg(
       typeof attribute?.value === "string" ? attribute.value.trim() : "";
     if (!value) continue;
     if (/\b(half|½)\s*(a\s*)?kg/i.test(value)) return 0.5;
-    const kg = value.match(/(\d+(?:\.\d+)?)\s*(kg|kgs|kilo)/i);
-    if (kg) return Number(kg[1]) || null;
+    // Catalogue slugs write decimals with a dash or comma: "2-5kg-serves-25".
+    const kg = value.match(/(\d+(?:[.,-]\d+)?)\s*(kg|kgs|kilo)/i);
+    if (kg) return Number(kg[1].replace(/[,-]/, ".")) || null;
     const grams = value.match(/(\d{3,4})\s*(g|gm|grams?)\b/i);
     if (grams) return Number(grams[1]) / 1000 || null;
   }
@@ -115,6 +119,7 @@ export function cakeSceneConfig(design: CakeDesign): CakeSceneConfig {
     sprinkles: !!design.sprinkles,
     slice: !!design.slice,
     reduceMotion: !!design.reduceMotion,
+    quality: design.quality === "lite" ? "lite" : "full",
     look: cakeLook(design.flavour),
     sizeKg: Math.min(6, Math.max(0.25, kg)),
     backdrop: [
@@ -146,9 +151,13 @@ export function cakeScene(design: CakeDesign) {
 // String.raw keeps GLSL/JS escapes intact; it must contain no template holes.
 const SCENE_SCRIPT = String.raw`(function(){
 var canvas=document.getElementById('c'),note=document.getElementById('note');
+var lite=INITIAL.quality==='lite';
+// Tell the app so it can switch to the real photo instead of a dead canvas.
+function fail(text){note.textContent=text;try{if(window.ReactNativeWebView)window.ReactNativeWebView.postMessage('cake-webgl-unavailable');else if(window.parent!==window)window.parent.postMessage({type:'cake-webgl-unavailable'},'*')}catch(e){}}
 try{
-var gl=canvas.getContext('webgl',{antialias:true,alpha:false,preserveDrawingBuffer:false});
-if(!gl){note.textContent='3D is unavailable on this device. Switch to the product photo.';return;}
+var gl=canvas.getContext('webgl',{antialias:!lite,alpha:false,preserveDrawingBuffer:false,powerPreference:lite?'low-power':'default'});
+if(!gl){fail('3D is unavailable on this device. Showing the real cake photo.');return;}
+canvas.addEventListener('webglcontextlost',function(e){e.preventDefault();fail('3D paused to save memory. Showing the real cake photo.')});
 var hp=gl.getShaderPrecisionFormat&&gl.getShaderPrecisionFormat(gl.FRAGMENT_SHADER,gl.HIGH_FLOAT);
 var PREC=(hp&&hp.precision>0)?'highp':'mediump';
 var PI=Math.PI,TAU=PI*2;
@@ -304,7 +313,7 @@ function ease(t){t=Math.min(1,Math.max(0,t));return 1-Math.pow(1-t,3)}
 function bounce(t){t=Math.min(1,Math.max(0,t));var n=7.5625,d=2.75;if(t<1/d)return n*t*t;if(t<2/d)return n*(t-=1.5/d)*t+.75;if(t<2.5/d)return n*(t-=2.25/d)*t+.9375;return n*(t-=2.625/d)*t+.984375}
 function useMesh(m){var A=MESH.a;[['aP','p',3],['aN','n',3],['aC','c',3],['aK','k',2]].forEach(function(x){gl.bindBuffer(gl.ARRAY_BUFFER,m.b[x[1]]);gl.enableVertexAttribArray(A[x[0]]);gl.vertexAttribPointer(A[x[0]],x[2],gl.FLOAT,false,0,0)})}
 function draw(now){frame=null;var dt=Math.min(.05,Math.max(0,(now-last)/1000));last=now;time+=dt;idle+=dt;var reduce=cur&&cur.reduceMotion,busy=false;
-var dpr=Math.min(window.devicePixelRatio||1,2),w=canvas.clientWidth,h=canvas.clientHeight;if(!w||!h){return}if(canvas.width!==Math.round(w*dpr)||canvas.height!==Math.round(h*dpr)){canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr)}
+var dpr=Math.min(window.devicePixelRatio||1,lite?1.25:2),w=canvas.clientWidth,h=canvas.clientHeight;if(!w||!h){return}if(canvas.width!==Math.round(w*dpr)||canvas.height!==Math.round(h*dpr)){canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr)}
 gl.viewport(0,0,canvas.width,canvas.height);
 // Motion state
 if(!pointers||!Object.keys(pointers).length){if(cam.ty!=null){cam.yaw+=(cam.ty-cam.yaw)*(reduce?1:1-Math.exp(-dt*6));cam.pitch+=(cam.tp-cam.pitch)*(reduce?1:1-Math.exp(-dt*6));if(Math.abs(cam.ty-cam.yaw)<.002){cam.ty=null}busy=true}else if(Math.abs(cam.vy)>.0004&&!reduce){cam.yaw+=cam.vy;cam.vy*=Math.pow(.9,dt*60);busy=true}else if(!reduce&&idle>2.5){cam.yaw+=dt*.24;busy=true}}
@@ -339,5 +348,5 @@ gl.depthMask(true);gl.disable(gl.BLEND);
 if(busy||Object.keys(pointers).length)frame=requestAnimationFrame(draw)}
 window.addEventListener('resize',wake);if(window.ResizeObserver)new ResizeObserver(wake).observe(canvas);document.addEventListener('visibilitychange',function(){if(document.hidden&&frame){cancelAnimationFrame(frame);frame=null}else wake()});
 apply(INITIAL);
-}catch(err){note.textContent='3D preview could not start. Switch to the product photo.'}
+}catch(err){fail('3D preview could not start. Showing the real cake photo.')}
 })();`;

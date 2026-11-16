@@ -25,6 +25,50 @@ import { OrderAgentNotes } from "@/features/staff/ServiceDesk";
 import { api } from "@/api/client";
 import { Pressable } from "react-native";
 import { HandoverCode } from "@/features/experience/TripCode";
+import { RealCakeView } from "@/features/studio/RealCakeView";
+import { parsePlacement } from "@/features/studio/real-cake";
+import { useMotionAccessibilityPreference } from "@/design/useReducedMotion";
+import { useDeviceTier } from "@/design/device-tier";
+
+/**
+ * The customer's DIY layout on the bakery photo: plaque, candles and
+ * sprinkles exactly where they were placed, so the decorator can match it.
+ */
+function CustomerLayout({
+  item,
+  order,
+}: {
+  item: WorkOrder["items"][number];
+  order: WorkOrder;
+}) {
+  const { reduceMotion } = useMotionAccessibilityPreference();
+  const tier = useDeviceTier();
+  const colour = item.selection?.design_colour;
+  if (typeof colour !== "string" || !item.image) return null;
+  const names = order.items.map((other) => other.name).join(" ");
+  const message =
+    typeof item.selection?.message === "string" ? item.selection.message : "";
+  return (
+    <View
+      testID="kitchen-customer-layout"
+      style={{ height: 220, borderRadius: 18, overflow: "hidden", marginVertical: 6 }}
+    >
+      <RealCakeView
+        image={item.image}
+        name={item.name}
+        colour={colour}
+        message={message}
+        candles={/candle|candel|sparkler/i.test(names)}
+        sprinkles={/sprinkle|hundreds|nonpareil|confetti/i.test(names)}
+        reduceMotion={reduceMotion}
+        height={220}
+        placement={parsePlacement(item.selection?.design_placement)}
+        readOnly
+        tier={tier}
+      />
+    </View>
+  );
+}
 
 export function OperationsScreen({ kitchen }: { kitchen: boolean }) {
   const { customer, logout } = useAuth();
@@ -348,6 +392,15 @@ function WorkCard({
           item.selection.message ? (
             <Text style={ui.body}>Cake message: {item.selection.message}</Text>
           ) : null}
+          {typeof item.selection?.design_colour === "string" ? (
+            <Text style={ui.body}>
+              Icing colour: {item.selection.design_colour}
+              {item.selection.design_placement
+                ? " · layout placed by the customer"
+                : ""}
+            </Text>
+          ) : null}
+          <CustomerLayout item={item} order={order} />
         </View>
       ))}
       <Text style={ui.body}>

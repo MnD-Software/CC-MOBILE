@@ -2,7 +2,10 @@ import { memo } from "react";
 import { Animated, StyleSheet, View, useWindowDimensions } from "react-native";
 
 import { celebrationPieces, gracefulFall } from "./celebration-motion";
+import { useDeviceTier } from "@/design/device-tier";
 const fullPieces = celebrationPieces();
+// Budget phones get every other piece: still one giant burst, half the work.
+const litePieces = fullPieces.filter((piece) => piece.index % 2 === 0);
 const compactPieces = celebrationPieces(true);
 const times = Array.from({ length: 25 }, (_, i) => i / 24);
 
@@ -17,6 +20,7 @@ export const ConfettiBurst = memo(function ConfettiBurst({
   compact?: boolean;
 }) {
   const { width, height } = useWindowDimensions();
+  const tier = useDeviceTier();
   return (
     <View
       testID={testID}
@@ -24,7 +28,7 @@ export const ConfettiBurst = memo(function ConfettiBurst({
       accessible={false}
       style={[StyleSheet.absoluteFill, { overflow: "hidden", zIndex: 100 }]}
     >
-      {(compact ? compactPieces : fullPieces).map((piece) => {
+      {(compact ? compactPieces : tier === "lite" ? litePieces : fullPieces).map((piece) => {
         const time = motion.interpolate({
           inputRange: [piece.delay, 0.94 + piece.delay],
           outputRange: [0, 1],

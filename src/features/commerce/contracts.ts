@@ -147,6 +147,16 @@ export function variationCartAttributes(
     ];
   });
 }
+const placementPoint = z.object({
+  x: z.number().min(0).max(1),
+  y: z.number().min(0).max(1),
+});
+/** Where the customer placed the DIY plaque and candles on the product photo. */
+export const designPlacementSchema = z.object({
+  plaque: placementPoint,
+  topper: placementPoint,
+});
+export type DesignPlacement = z.infer<typeof designPlacementSchema>;
 export type CakeSelection = {
   size: string;
   message: string;
@@ -157,6 +167,7 @@ export type CakeSelection = {
 };
 export const selectionSchema = z.object({
   design_colour: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+  design_placement: designPlacementSchema.optional(),
   size: z
     .string()
     .max(24)

@@ -9,9 +9,12 @@ import { cakeSceneUpdate, type CakeSceneConfig } from "./cake-scene";
 export function ModelScene({
   html,
   config,
+  onUnavailable,
 }: {
   html: string;
   config: CakeSceneConfig;
+  /** WebGL could not start or the GPU dropped the context. */
+  onUnavailable?: () => void;
 }) {
   const view = useRef<WebView<object>>(null);
   const loaded = useRef(false);
@@ -30,6 +33,12 @@ export function ModelScene({
         loaded.current = true;
         view.current?.injectJavaScript(cakeSceneUpdate(latest.current));
       }}
+      onMessage={(event) => {
+        if (event.nativeEvent.data === "cake-webgl-unavailable") onUnavailable?.();
+      }}
+      // An out-of-memory renderer kill on budget Android falls back the same way.
+      onRenderProcessGone={() => onUnavailable?.()}
+      onContentProcessDidTerminate={() => onUnavailable?.()}
       javaScriptEnabled
       scrollEnabled={false}
       bounces={false}

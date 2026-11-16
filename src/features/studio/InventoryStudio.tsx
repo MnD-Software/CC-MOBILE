@@ -28,6 +28,12 @@ import { useTheme } from "@/theme/ThemeProvider";
 import { useMotionAccessibilityPreference } from "@/design/useReducedMotion";
 import { CakeStage } from "./CakeStage";
 import { cakeWeightKg } from "./cake-scene";
+import {
+  DEFAULT_PLACEMENT,
+  parsePlacement,
+  placementPayload,
+  type Placement,
+} from "./real-cake";
 import { CustomCakeBrief } from "./CustomCakeBrief";
 import { SizeFinishPicker } from "./SizeFinishPicker";
 import { appMedia } from "@/features/commerce/app-media";
@@ -324,6 +330,7 @@ export function InventoryEditor() {
     [extras, setExtras] = useState<Item[]>([]),
     [colour, setColour] = useState("#FFF8EE"),
     [message, setMessage] = useState(""),
+    [placement, setPlacement] = useState<Placement>(DEFAULT_PLACEMENT),
     [quote, setQuote] = useState<Quote | null>(null),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
@@ -353,6 +360,8 @@ export function InventoryEditor() {
     setSaved(false);
     setCompletedSteps((steps) => steps.filter((s) => s !== 3));
   }, [cake, variant, extras, colour, message]);
+  // Moving the plaque or candles changes the design, not the price.
+  useEffect(() => setSaved(false), [placement]);
   const sku = variant || cake;
   const estimate =
     (sku?.price_minor || 0) + extras.reduce((s, x) => s + x.price_minor, 0);
@@ -361,6 +370,7 @@ export function InventoryEditor() {
     if (cake && !saved) saveDraft();
     requestVersion.current += 1;
     setDraftId(randomUUID());
+    setPlacement(DEFAULT_PLACEMENT);
     setCake(null);
     setVariant(null);
     setExtras([]);
@@ -391,6 +401,7 @@ export function InventoryEditor() {
           : [],
       },
       message,
+      placement: placementPayload(placement),
       updated_at: new Date().toISOString(),
     });
     setSaved(true);
@@ -433,6 +444,7 @@ export function InventoryEditor() {
       setExtras(selected);
       setColour(draft.selections.colour?.[0] || swatches[0]);
       setMessage(draft.message);
+      setPlacement(parsePlacement(draft.placement));
       setStep(3);
     } catch (e) {
       setError(
@@ -489,7 +501,13 @@ export function InventoryEditor() {
           size: l.size,
           message: l.kind === "cake" ? message : "",
           add_ons: [],
-          ...(l.kind === "cake" ? { design_colour: colour } : {}),
+          ...(l.kind === "cake"
+            ? {
+                design_colour: colour,
+                // Kitchen sees the plaque and candles where the customer put them.
+                design_placement: placementPayload(placement),
+              }
+            : {}),
           ...(l.variation_id ? { variation_id: l.variation_id } : {}),
           variation_attributes: l.attributes.map((a) => ({
             attribute: a.attribute || a.name || "",
@@ -670,7 +688,7 @@ export function InventoryEditor() {
         {mode === "diy" ? (
           <CakeStage
             key={cake?.id || "new"}
-            image={cake?.image || null}
+            image={variant?.image || cake?.image || null}
             name={cake?.name || ""}
             colour={colour}
             message={message}
@@ -679,6 +697,8 @@ export function InventoryEditor() {
               /sprinkle|hundreds|nonpareil|confetti/i.test(x.name),
             )}
             sizeKg={cakeWeightKg((variant || cake)?.attributes)}
+            placement={placement}
+            onPlacementChange={setPlacement}
             price={
               sku ? cash(quote?.subtotal_minor ?? estimate) : "Choose a cake"
             }
@@ -808,6 +828,7 @@ export function InventoryEditor() {
                         accessibilityState={{ checked: cake?.id === item.id }}
                         onPress={() => {
                           setCake(item);
+                          setPlacement(DEFAULT_PLACEMENT);
                           setCompletedSteps([0]);
                           setColour(item.canvas_colour || "#FFF8EE");
                           setVariant(item.variants?.[0] || null);
@@ -1047,7 +1068,7 @@ export function InventoryEditor() {
                     onPress={() => void review()}
                   />
                 )}
-                <Notice message="Your cake canvas is an illustration, not a photograph of the finished cake. Delivery and any additional custom work are quoted separately." />
+                <Notice message="Real cake shows the bakery's photo of your chosen cake; the plaque, candles and sprinkles on it are a placement guide, and the 3D view is an illustration. Your finished cake is hand-made, so it can differ slightly. Delivery and any additional custom work are quoted separately." />
               </>
             ) : null}
             {error ? <Notice error message={error} /> : null}

@@ -48,6 +48,7 @@ export const workSchema = z.object({
     z.object({
       name: z.string(),
       quantity: z.number(),
+      image: z.string().nullable().optional(),
       selection: z.record(z.string(), z.unknown()).optional(),
     }),
   ),
