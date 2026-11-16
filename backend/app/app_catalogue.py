@@ -102,8 +102,10 @@ def is_cookie(row):
 
 
 def products(db, params):
+    from .category_visibility import product_visible, visibility_policies
     from .product_rules import has_image, media_index
     copied = media_index(db)
+    policies = visibility_policies(db)
     query = select(AppProduct)
     if params.get("slug"):
         query = query.where(AppProduct.slug == params["slug"])
@@ -111,7 +113,7 @@ def products(db, params):
         ids = {int(i) for i in str(params["include"]).split(",") if i.isdigit()}
         query = query.where(AppProduct.id.in_(ids))
     query = query.where(AppProduct.parent_id.is_not(None) if params.get("type") == "variation" else AppProduct.parent_id.is_(None))
-    rows = [r for r in db.scalars(query) if not r.payload.get("payment_test") and r.enabled
+    rows = [r for r in db.scalars(query) if not r.payload.get("payment_test") and r.enabled and product_visible(db, r, policies)
             and has_image(db.get(AppProduct, r.parent_id) if r.parent_id else r, copied)]
     if str(params.get("exclude_accessories", "")).lower() == "true":
         rows = [row for row in rows if not is_accessory(row)]
@@ -176,12 +178,15 @@ def media(identity: str, db: Session = Depends(get_db)):
 
 @router.get("/v1/catalogue/categories")
 def categories(db: Session = Depends(get_db)):
+    from .category_visibility import product_visible, category_enabled, visibility_policies
     from .product_rules import has_image, media_index
     copied = media_index(db)
+    policies = visibility_policies(db)
     found = {}
     for row in db.scalars(select(AppProduct).where(AppProduct.parent_id.is_(None))):
-        if not row.enabled or not has_image(row, copied): continue
+        if not row.enabled or not has_image(row, copied) or not product_visible(db, row, policies): continue
         for category in row.payload.get("categories", []):
+            if not category_enabled(db, category, policies): continue
             found[category["id"]] = {**category, "count": found.get(category["id"], {}).get("count", 0) + 1}
     return sorted(found.values(), key=lambda item: item.get("name", ""))
 

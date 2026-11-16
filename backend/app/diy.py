@@ -44,13 +44,15 @@ def product_view(db, product, copied=None):
 
 @router.get('/inventory')
 def inventory(search: str = '', group: str = 'cake', db: Session = Depends(get_db)):
+    from .category_visibility import product_visible, visibility_policies
+    policies=visibility_policies(db)
     if group not in {'cake','decor'} or len(search)>100: raise HTTPException(422,'Choose a valid inventory search.')
     query=select(AppProduct).where(AppProduct.parent_id.is_(None),AppProduct.enabled.is_(True))
     if search.strip(): query=query.where(AppProduct.payload['name'].as_string().icontains(search.strip(),autoescape=True))
     copied=media_index(db)
     result=[]
     for p in db.scalars(query.order_by(AppProduct.price_minor,AppProduct.id)):
-        if kind(p)!=group or p.payload.get('payment_test') or not has_image(p, copied): continue
+        if kind(p)!=group or p.payload.get('payment_test') or not has_image(p, copied) or not product_visible(db,p,policies): continue
         children=list(db.scalars(select(AppProduct).where(AppProduct.parent_id==p.id).order_by(AppProduct.price_minor))) if p.payload.get('type')=='variable' else []
         options=[c for c in children if available(c) and (cake_weight(c,p) or 0)>=2] if group=='cake' else [c for c in children if available(c)]
         if group=='cake' and not children and (cake_weight(p) or 0)<2: continue
@@ -73,6 +75,8 @@ class Design(BaseModel):
 @router.post('/quote')
 def quote(data:Design,person=Depends(member),db:Session=Depends(get_db)):
     parent=db.get(AppProduct,data.product_id)
+    from .category_visibility import product_visible
+    if parent and not product_visible(db,parent): raise HTTPException(409,'This cake category is currently unavailable.')
     sku=db.get(AppProduct,data.variation_id or data.product_id)
     if not parent or kind(parent)!='cake' or not parent.enabled or not has_image(parent) or not sku or not available(sku): raise HTTPException(409,'Choose an available whole cake with a product photo from inventory.')
     if data.variation_id and sku.parent_id!=parent.id or not data.variation_id and parent.payload.get('type')=='variable': raise HTTPException(422,'Choose a valid flavour, size and icing combination.')

@@ -453,7 +453,9 @@ const views = {
       `/v1/admin/dashboard/products?page=${page}&search=${encodeURIComponent(search)}&state=${state}`,
     );
     products = result.items;
-    return `<form id="search-form" class="toolbar"><input name="search" aria-label="Search products" placeholder="Search name, slug or product ID…" value="${esc(search)}"><select name="state" aria-label="Product status">${["all", "enabled", "disabled", "variations"].map((s) => `<option value="${s}" ${state === s ? "selected" : ""}>${s[0].toUpperCase() + s.slice(1)}</option>`).join("")}</select><button>Search</button></form>${
+    const categoryRows = await request("/v1/admin/app-categories");
+    const categoryPanel = `<section class="panel"><h2>Category visibility</h2><p>Disable a category to hide its products from the app. Historical orders stay available.</p><div class="ecosystem-actions">${categoryRows.map((c) => `<button role="switch" aria-checked="${c.enabled}" data-category-toggle="${c.id}" data-revision="${c.revision}" data-enable="${!c.enabled}">${esc(c.name)} ? ${c.enabled ? "Enabled ? disable" : "Hidden ? enable"}</button>`).join("")}</div></section>`;
+    return `${categoryPanel}<form id="search-form" class="toolbar"><input name="search" aria-label="Search products" placeholder="Search name, slug or product ID…" value="${esc(search)}"><select name="state" aria-label="Product status">${["all", "enabled", "disabled", "variations"].map((s) => `<option value="${s}" ${state === s ? "selected" : ""}>${s[0].toUpperCase() + s.slice(1)}</option>`).join("")}</select><button>Search</button></form>${
       products.length
         ? table(
             [
@@ -878,6 +880,24 @@ document.addEventListener("click", async (e) => {
   const b = e.target.closest("button");
   if (!b) return;
   const d = b.dataset;
+  if (d.categoryToggle) {
+    b.disabled = true;
+    try {
+      await request(`/v1/admin/app-categories/${d.categoryToggle}`, "PUT", {
+        enabled: d.enable === "true",
+        revision: Number(d.revision),
+      });
+      b.setAttribute("aria-checked", d.enable);
+      b.textContent = `${b.textContent.split(" ? ")[0]} ? ${d.enable === "true" ? "Enabled ? disable" : "Hidden ? enable"}`;
+      b.dataset.enable = d.enable === "true" ? "false" : "true";
+      b.dataset.revision = String(Number(d.revision) + 1);
+    } catch (error) {
+      alert(error.message || "Category could not be updated.");
+    } finally {
+      b.disabled = false;
+    }
+    return;
+  }
   if (d.nav) {
     await show(d.nav);
     return;

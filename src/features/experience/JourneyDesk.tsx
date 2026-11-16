@@ -14,6 +14,7 @@ import { Feedback, Notice } from "@/components/ui/Commerce";
 import { CataloguePicker } from "@/features/editorial/CataloguePicker";
 import type { Proof } from "./OrderDesign";
 import type { Facts } from "./ProductFacts";
+import { CategoryVisibility } from "./CategoryVisibility";
 
 const managers = ["admin", "staff", "ecommerce_manager"];
 export function JourneyDesk() {
@@ -78,6 +79,7 @@ export function JourneyDesk() {
   const text = { color: colors.ink, fontSize: 14, lineHeight: 21 };
   return (
     <View style={{ gap: 16 }}>
+      <CategoryVisibility />
       {error ? <Notice error message={error} /> : null}
       {notice ? <Notice message={notice} /> : null}
       {canDesign ? (

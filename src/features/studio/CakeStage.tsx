@@ -10,6 +10,9 @@ import { cakeScene, cakeSceneConfig } from "./cake-scene";
 import { RealCakeView } from "./RealCakeView";
 import { StageControl } from "./StageControl";
 import type { Placement } from "./real-cake";
+import { LoadingImage } from "@/components/ui/LoadingImage";
+import { BottomSheet } from "@/components/ui/BottomSheet";
+import { Ionicons } from "@expo/vector-icons";
 
 export function stageHeight(windowHeight: number, expanded: boolean) {
   if (expanded) return Math.round(Math.min(420, windowHeight * 0.5));
@@ -49,7 +52,8 @@ export function CakeStage({
   const tier = useDeviceTier();
   // Set when WebGL cannot start or the GPU drops it (common on budget phones).
   const [glFailed, setGlFailed] = useState(false);
-  const displayedMode = image && (mode === "photo" || glFailed) ? "photo" : "3d";
+  const displayedMode =
+    image && (mode === "photo" || glFailed) ? "photo" : "3d";
   const config = useMemo(
     () =>
       cakeSceneConfig({
@@ -90,159 +94,235 @@ export function CakeStage({
     />
   );
   return (
-    <View
-      testID="diy-fixed-preview"
-      style={{
-        marginTop: 8,
-        borderRadius: 24,
-        overflow: "hidden",
-        borderWidth: 1,
-        borderColor: colors.border,
-        backgroundColor: colors.surfaceRaised,
-        shadowColor: "#51382D",
-        shadowOpacity: 0.12,
-        shadowRadius: 16,
-        shadowOffset: { width: 0, height: 8 },
-        elevation: 4,
-      }}
-    >
-      <View
-        style={{
+    <>
+      <Pressable
+        testID="diy-fixed-preview"
+        accessibilityRole="button"
+        accessibilityLabel="Open cake preview and placement editor"
+        onPress={() => setExpanded(true)}
+        style={({ pressed }) => ({
+          marginTop: 8,
+          minHeight: 76,
+          padding: 8,
+          borderRadius: 18,
+          borderWidth: 1,
+          borderColor: colors.border,
+          backgroundColor: pressed ? colors.brandLight : colors.surface,
           flexDirection: "row",
           alignItems: "center",
-          paddingHorizontal: 12,
-          gap: 8,
-          minHeight: 44,
-        }}
+          gap: 10,
+        })}
       >
-        <Text
-          numberOfLines={1}
-          style={{
-            color: colors.ink,
-            fontWeight: "800",
-            flex: 1,
-            fontSize: 12,
-          }}
-        >
-          {name || "Your cake studio"}
-        </Text>
-        {(["photo", "3d"] as const).map((value) => (
-          <Pressable
-            key={value}
-            accessibilityRole="tab"
-            accessibilityLabel={
-              value === "photo"
-                ? "Real cake: the bakery photo with your additions"
-                : "Interactive 3D design illustration"
-            }
-            accessibilityState={{ selected: displayedMode === value }}
-            disabled={
-              (value === "photo" && !image) || (value === "3d" && glFailed)
-            }
-            onPress={() => {
-              if (mode !== value) void performHaptic("selection");
-              setMode(value);
-            }}
+        {image ? (
+          <LoadingImage
+            source={{ uri: image }}
+            contentFit="cover"
+            style={{ width: 60, height: 60, borderRadius: 12 }}
+          />
+        ) : (
+          <View
             style={{
-              minHeight: 44,
-              paddingHorizontal: 8,
+              width: 60,
+              height: 60,
+              borderRadius: 12,
+              backgroundColor: colour,
+              alignItems: "center",
               justifyContent: "center",
             }}
           >
-            <View
+            <Ionicons name="gift-outline" size={25} color={colors.ink} />
+          </View>
+        )}
+        <View style={{ flex: 1, gap: 4 }}>
+          <Text
+            numberOfLines={1}
+            style={{ color: colors.ink, fontSize: 13, fontWeight: "700" }}
+          >
+            {name || "Your cake preview"}
+          </Text>
+          <Text
+            style={{
+              color: colors.brandStrong,
+              fontSize: 12,
+              fontWeight: "700",
+            }}
+          >
+            {price}
+          </Text>
+          <Text numberOfLines={1} style={{ color: colors.muted, fontSize: 11 }}>
+            {message || "Preview, rotate & place your decorations"}
+          </Text>
+        </View>
+        <Ionicons name="expand-outline" size={20} color={colors.brandStrong} />
+      </Pressable>
+      <BottomSheet
+        visible={expanded}
+        title="Your cake preview"
+        onClose={() => setExpanded(false)}
+      >
+        <View
+          style={{
+            marginTop: 8,
+            borderRadius: 24,
+            overflow: "hidden",
+            borderWidth: 1,
+            borderColor: colors.border,
+            backgroundColor: colors.surfaceRaised,
+            shadowColor: "#51382D",
+            shadowOpacity: 0.12,
+            shadowRadius: 16,
+            shadowOffset: { width: 0, height: 8 },
+            elevation: 4,
+          }}
+        >
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              paddingHorizontal: 12,
+              gap: 8,
+              minHeight: 44,
+            }}
+          >
+            <Text
+              numberOfLines={1}
               style={{
-                paddingHorizontal: 10,
-                paddingVertical: 5,
-                borderRadius: 999,
-                backgroundColor:
-                  displayedMode === value ? colors.brandLight : "transparent",
-                opacity:
-                  (value === "photo" && !image) || (value === "3d" && glFailed)
-                    ? 0.45
-                    : 1,
+                color: colors.ink,
+                fontWeight: "800",
+                flex: 1,
+                fontSize: 12,
               }}
             >
-              <Text
+              {name || "Your cake studio"}
+            </Text>
+            {(["photo", "3d"] as const).map((value) => (
+              <Pressable
+                key={value}
+                accessibilityRole="tab"
+                accessibilityLabel={
+                  value === "photo"
+                    ? "Real cake: the bakery photo with your additions"
+                    : "Interactive 3D design illustration"
+                }
+                accessibilityState={{ selected: displayedMode === value }}
+                disabled={
+                  (value === "photo" && !image) || (value === "3d" && glFailed)
+                }
+                onPress={() => {
+                  if (mode !== value) void performHaptic("selection");
+                  setMode(value);
+                }}
                 style={{
-                  color:
-                    displayedMode === value ? colors.brandStrong : colors.muted,
-                  fontSize: 12,
-                  fontWeight: "800",
+                  minHeight: 44,
+                  paddingHorizontal: 8,
+                  justifyContent: "center",
                 }}
               >
-                {value === "photo" ? "Real cake" : "3D"}
-              </Text>
-            </View>
-          </Pressable>
-        ))}
-      </View>
-      <View style={{ height: stageHeight(height, expanded) }}>
-        {displayedMode === "photo" && image ? (
-          <RealCakeView
-            image={image}
-            name={name}
-            colour={colour}
-            message={message}
-            candles={candles}
-            sprinkles={sprinkles}
-            reduceMotion={reduceMotion}
-            height={stageHeight(height, expanded)}
-            extraControls={expandControl}
-            placement={placement}
-            onPlacementChange={onPlacementChange}
-            tier={tier}
-          />
-        ) : (
-          <>
-            <ModelScene
-              html={html}
-              config={config}
-              onUnavailable={() => setGlFailed(true)}
-            />
-            <View
+                <View
+                  style={{
+                    paddingHorizontal: 10,
+                    paddingVertical: 5,
+                    borderRadius: 999,
+                    backgroundColor:
+                      displayedMode === value
+                        ? colors.brandLight
+                        : "transparent",
+                    opacity:
+                      (value === "photo" && !image) ||
+                      (value === "3d" && glFailed)
+                        ? 0.45
+                        : 1,
+                  }}
+                >
+                  <Text
+                    style={{
+                      color:
+                        displayedMode === value
+                          ? colors.brandStrong
+                          : colors.muted,
+                      fontSize: 12,
+                      fontWeight: "800",
+                    }}
+                  >
+                    {value === "photo" ? "Real cake" : "3D"}
+                  </Text>
+                </View>
+              </Pressable>
+            ))}
+          </View>
+          <View style={{ height: stageHeight(height, expanded) }}>
+            {displayedMode === "photo" && image ? (
+              <RealCakeView
+                image={image}
+                name={name}
+                colour={colour}
+                message={message}
+                candles={candles}
+                sprinkles={sprinkles}
+                reduceMotion={reduceMotion}
+                height={stageHeight(height, expanded)}
+                extraControls={expandControl}
+                placement={placement}
+                onPlacementChange={onPlacementChange}
+                tier={tier}
+              />
+            ) : (
+              <>
+                <ModelScene
+                  html={html}
+                  config={config}
+                  onUnavailable={() => setGlFailed(true)}
+                />
+                <View
+                  style={{
+                    position: "absolute",
+                    top: 4,
+                    right: 4,
+                    gap: 2,
+                  }}
+                >
+                  <StageControl
+                    icon="cut-outline"
+                    label="Show inside layers"
+                    active={slice}
+                    onPress={() => setSlice((v) => !v)}
+                  />
+                  {expandControl}
+                </View>
+              </>
+            )}
+          </View>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              paddingHorizontal: 12,
+              paddingVertical: 7,
+              gap: 8,
+            }}
+          >
+            <Text
+              numberOfLines={1}
+              style={{ color: colors.muted, fontSize: 10, flex: 1 }}
+            >
+              {displayedMode === "photo" && image
+                ? "Bakery photo · your additions shown as a placement guide"
+                : slice
+                  ? "Illustrative layers · drag to turn, pinch to zoom"
+                  : "3D design illustration · drag, pinch, tap"}
+            </Text>
+            <Text
               style={{
-                position: "absolute",
-                top: 4,
-                right: 4,
-                gap: 2,
+                color: colors.brandStrong,
+                fontWeight: "800",
+                fontSize: 12,
               }}
             >
-              <StageControl
-                icon="cut-outline"
-                label="Show inside layers"
-                active={slice}
-                onPress={() => setSlice((v) => !v)}
-              />
-              {expandControl}
-            </View>
-          </>
-        )}
-      </View>
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          paddingHorizontal: 12,
-          paddingVertical: 7,
-          gap: 8,
-        }}
-      >
-        <Text
-          numberOfLines={1}
-          style={{ color: colors.muted, fontSize: 10, flex: 1 }}
-        >
-          {displayedMode === "photo" && image
-            ? "Bakery photo · your additions shown as a placement guide"
-            : slice
-              ? "Illustrative layers · drag to turn, pinch to zoom"
-              : "3D design illustration · drag, pinch, tap"}
-        </Text>
-        <Text
-          style={{ color: colors.brandStrong, fontWeight: "800", fontSize: 12 }}
-        >
-          {price}
-        </Text>
-      </View>
-    </View>
+              {price}
+            </Text>
+          </View>
+        </View>
+      </BottomSheet>
+    </>
   );
 }

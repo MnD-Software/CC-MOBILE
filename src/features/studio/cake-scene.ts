@@ -1,8 +1,10 @@
+import { RECEIPT_LOGO } from "@/features/commerce/receipt-logo";
+
 /**
  * Offline, original procedural WebGL cake. It is a design illustration of the
  * customer's choices (flavour, size, icing colour, message, candles and
  * extras), never a photograph or scan of the finished product. No third-party
- * models, textures or network requests are used.
+ * models or network requests are used. The board uses the embedded owner logo.
  */
 
 export type CakeLook = {
@@ -144,7 +146,7 @@ export function cakeSceneUpdate(config: CakeSceneConfig) {
 
 export function cakeScene(design: CakeDesign) {
   const config = cakeSceneConfig(design);
-  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><style>*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:${config.backdrop[1]}}canvas{width:100%;height:100%;display:block;touch-action:none}#note{position:absolute;bottom:8px;left:10px;right:10px;text-align:center;font:600 11px system-ui,-apple-system,sans-serif;color:#71515b;pointer-events:none}</style></head><body><canvas id="c" role="img" aria-label="Interactive three dimensional cake design illustration"></canvas><div id="note"></div><script>var INITIAL=${sceneJson(config)};${SCENE_SCRIPT}</script></body></html>`;
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><style>*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:${config.backdrop[1]}}canvas{width:100%;height:100%;display:block;touch-action:none}#note{position:absolute;bottom:8px;left:10px;right:10px;text-align:center;font:600 11px system-ui,-apple-system,sans-serif;color:#71515b;pointer-events:none}</style></head><body><canvas id="c" role="img" aria-label="Interactive three dimensional cake design illustration"></canvas><div id="note"></div><script>var BOARD_LOGO=${JSON.stringify(RECEIPT_LOGO)};var INITIAL=${sceneJson(config)};${SCENE_SCRIPT}</script></body></html>`;
 }
 
 // The renderer is plain WebGL 1 so it runs in every Android/iOS WebView offline.
@@ -220,6 +222,11 @@ function sprinkle(g,m,rot,len,c){var ax=[Math.cos(rot),0,Math.sin(rot)],side=[-M
 
 var meshes=[],flames=[],state={},cur=null,target=null,anim={pop:9,slice:0,sliceT:0,drip:1,candle:1,sprinkle:1,fruit:1,reveal:1,revealFrom:0,revealTo:1,flames:1,sparks:[]};
 var msgTex=gl.createTexture(),msgReady=false,msgCanvas=document.createElement('canvas');msgCanvas.width=1024;msgCanvas.height=512;
+// Owner-supplied Cake City logo, embedded offline and attached to the board.
+var boardTex=gl.createTexture(),boardReady=false,boardImage=new Image();
+boardImage.onload=function(){gl.bindTexture(gl.TEXTURE_2D,boardTex);gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL,true);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,boardImage);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);boardReady=true;wake()};
+boardImage.src=BOARD_LOGO;
+
 
 function upload(g,mat,kind,piece){if(!g.p.length)return;var m={count:g.p.length/3,mat:mat,kind:kind,piece:piece,b:{}};['p','n','c','k'].forEach(function(key){var b=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,b);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(g[key]),gl.STATIC_DRAW);m.b[key]=b});meshes.push(m)}
 function clearMeshes(){meshes.forEach(function(m){for(var k in m.b)gl.deleteBuffer(m.b[k])});meshes=[];flames=[]}
@@ -340,6 +347,8 @@ meshes.forEach(function(m){var T=m.piece==='slice'?off.slice():[0,0,0];if(m.kind
 [MESH.a.aN,MESH.a.aC,MESH.a.aK].forEach(function(a){gl.disableVertexAttribArray(a)});
 // Piped message, flames and sparkles
 gl.useProgram(SPRITE.p);gl.bindBuffer(gl.ARRAY_BUFFER,quad);gl.enableVertexAttribArray(SPRITE.a.aUV);gl.vertexAttribPointer(SPRITE.a.aUV,2,gl.FLOAT,false,0,0);gl.enable(gl.BLEND);gl.depthMask(false);
+// Three small logo prints sit on the gold rim and turn with the board.
+if(boardReady){gl.blendFunc(gl.ONE,gl.ONE_MINUS_SRC_ALPHA);gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,boardTex);gl.uniform1i(SPRITE.u.uTex,0);gl.uniform1f(SPRITE.u.uMode,0);gl.uniform1f(SPRITE.u.uA,1);gl.uniform1f(SPRITE.u.uReveal,1.1);gl.uniform3fv(SPRITE.u.uWedge,[0,0,0]);var br=state.R||1;for(var bi=0;bi<3;bi++){var ba=bi*TAU/3,bs=Math.sin(ba),bc=Math.cos(ba);gl.uniform3fv(SPRITE.u.uC,[bs*br*1.11,.003,bc*br*1.11]);gl.uniform3fv(SPRITE.u.uAx,[bc*br*.18,0,-bs*br*.18]);gl.uniform3fv(SPRITE.u.uAy,[-bs*br*.10,0,-bc*br*.10]);gl.drawArrays(gl.TRIANGLES,0,6)}}
 if(msgReady&&cur&&cur.message){var mw=(state.R-.33)*(cur.candles||cur.look.fruit?1:1.18);gl.blendFunc(gl.ONE,gl.ONE_MINUS_SRC_ALPHA);gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,msgTex);gl.uniform1i(SPRITE.u.uTex,0);gl.uniform1f(SPRITE.u.uMode,0);gl.uniform1f(SPRITE.u.uA,1);gl.uniform1f(SPRITE.u.uReveal,anim.revealFrom+(anim.revealTo-anim.revealFrom)*ease(anim.reveal)+(anim.reveal>=1?1:0));gl.uniform3fv(SPRITE.u.uWedge,[cur.slice&&anim.sliceT>.02?1:0,state.wc||0,(state.wedge||0)/2]);gl.uniform3fv(SPRITE.u.uC,[0,(state.topY||1)+.004,0]);gl.uniform3fv(SPRITE.u.uAx,[mw,0,0]);gl.uniform3fv(SPRITE.u.uAy,[0,0,-mw/2]);gl.drawArrays(gl.TRIANGLES,0,6)}
 gl.blendFunc(gl.ONE,gl.ONE);
 if(cur&&cur.candles&&anim.candle>=1){var fa=ease(anim.flames);flames.forEach(function(f){var T=f.piece==='slice'?off:[0,0,0],c=add(f.p,T),sz=.055*(1+(reduce?0:.08*Math.sin(time*11+f.seed*2.1)));gl.uniform1f(SPRITE.u.uMode,1);gl.uniform1f(SPRITE.u.uTime,reduce?0:time);gl.uniform3fv(SPRITE.u.uCol,[f.seed,0,0]);gl.uniform1f(SPRITE.u.uA,fa);gl.uniform3fv(SPRITE.u.uC,c);gl.uniform3fv(SPRITE.u.uAx,scl(L.x,sz*.75));gl.uniform3fv(SPRITE.u.uAy,scl(L.y,sz*1.5));gl.drawArrays(gl.TRIANGLES,0,6)});busy=busy||!reduce}

@@ -135,6 +135,9 @@ def calculate(db, customer_id, data):
         if not parent or not parent.enabled or not product or not product.enabled or product.price_minor is None:
             raise HTTPException(409, "One of these products is not available for app orders.")
         from .product_rules import has_image
+        from .category_visibility import product_visible
+        if not product_visible(db, parent):
+            raise HTTPException(409, 'This product category is currently unavailable. Remove it from your bag to continue.')
         if not payment_test and not has_image(parent):
             raise HTTPException(409, 'This product is awaiting its photo and is not currently published. Remove it from your bag to continue.')
         if item.design_colour:

@@ -55,6 +55,40 @@ class StockInput(BaseModel):
     enabled: bool
 
 
+class CategoryVisibilityInput(BaseModel):
+    enabled: bool
+    revision: int = Field(ge=0)
+
+
+@router.get('/v1/admin/app-categories')
+def app_categories(actor: Customer = Depends(operator), db: Session = Depends(get_db)):
+    from .category_visibility import category_settings
+    return category_settings(db)
+
+
+@router.put('/v1/admin/app-categories/{identity}')
+def app_category(identity: int, data: CategoryVisibilityInput, actor: Customer = Depends(operator), db: Session = Depends(get_db)):
+    from .category_visibility import category_settings
+    item = next((c for c in category_settings(db) if c['id']==identity), None)
+    if not item: raise HTTPException(404,'Category not found')
+    key='category:'+str(identity)
+    row=db.get(AppPolicy,key)
+    if row:
+        result=db.execute(update(AppPolicy).where(AppPolicy.id==key, AppPolicy.payload['revision'].as_integer()==data.revision).values(payload={'enabled':data.enabled,'revision':data.revision+1}))
+        if result.rowcount!=1: raise HTTPException(409,'Category changed. Reload and try again.')
+    else:
+        if data.revision!=0: raise HTTPException(409,'Category changed. Reload and try again.')
+        from sqlalchemy.exc import IntegrityError
+        db.add(AppPolicy(id=key,payload={'enabled':data.enabled,'revision':1}))
+        try: db.flush()
+        except IntegrityError:
+            db.rollback()
+            raise HTTPException(409,'Category changed. Reload and try again.')
+    audit(db,actor.id,'app_category_visibility',str(identity),enabled=data.enabled)
+    db.commit()
+    return {'status':'saved'}
+
+
 @router.get("/v1/admin/app-products")
 def products(_: Customer = Depends(operator), db: Session = Depends(get_db)):
     return [{"id": r.id, "name": r.payload.get("name", r.slug), "parent_id": r.parent_id, "price_minor": r.price_minor,

@@ -4,10 +4,9 @@ import { Animated, StyleSheet, View, useWindowDimensions } from "react-native";
 import { celebrationPieces, gracefulFall } from "./celebration-motion";
 import { useDeviceTier } from "@/design/device-tier";
 const fullPieces = celebrationPieces();
-// Budget phones get every other piece: still one giant burst, half the work.
-const litePieces = fullPieces.filter((piece) => piece.index % 2 === 0);
 const compactPieces = celebrationPieces(true);
 const times = Array.from({ length: 25 }, (_, i) => i / 24);
+const liteTimes = Array.from({ length: 9 }, (_, i) => i / 8);
 
 /** Two cannons, ballistic arcs, fluttering ribbons; one native-driven clock. */
 export const ConfettiBurst = memo(function ConfettiBurst({
@@ -21,6 +20,7 @@ export const ConfettiBurst = memo(function ConfettiBurst({
 }) {
   const { width, height } = useWindowDimensions();
   const tier = useDeviceTier();
+  const samples = tier === "lite" ? liteTimes : times;
   return (
     <View
       testID={testID}
@@ -28,7 +28,7 @@ export const ConfettiBurst = memo(function ConfettiBurst({
       accessible={false}
       style={[StyleSheet.absoluteFill, { overflow: "hidden", zIndex: 100 }]}
     >
-      {(compact ? compactPieces : tier === "lite" ? litePieces : fullPieces).map((piece) => {
+      {(compact ? compactPieces : fullPieces).map((piece) => {
         const time = motion.interpolate({
           inputRange: [piece.delay, 0.94 + piece.delay],
           outputRange: [0, 1],
@@ -69,8 +69,8 @@ export const ConfettiBurst = memo(function ConfettiBurst({
               transform: [
                 {
                   translateX: time.interpolate({
-                    inputRange: times,
-                    outputRange: times.map(
+                    inputRange: samples,
+                    outputRange: samples.map(
                       (t) =>
                         (piece.index % 4 === 0 ? 0.18 : piece.side ? -1 : 1) *
                           velocity *
@@ -83,8 +83,8 @@ export const ConfettiBurst = memo(function ConfettiBurst({
                 },
                 {
                   translateY: time.interpolate({
-                    inputRange: times,
-                    outputRange: times.map((t) =>
+                    inputRange: samples,
+                    outputRange: samples.map((t) =>
                       piece.index % 4 === 0
                         ? (height + 40) * t ** 1.12 +
                           Math.sin(t * 7 + piece.index) * 8
@@ -103,8 +103,8 @@ export const ConfettiBurst = memo(function ConfettiBurst({
                 },
                 {
                   scaleX: time.interpolate({
-                    inputRange: times,
-                    outputRange: times.map(
+                    inputRange: samples,
+                    outputRange: samples.map(
                       (t) =>
                         0.25 + Math.abs(Math.cos(t * 8 + piece.index)) * 0.75,
                     ),

@@ -45,3 +45,7 @@ google-services.json
 GoogleService-Info.plist
 .neon/
 .git/
+
+# Unrelated local integration work is not part of this mobile build
+integrations/woocommerce/cakecity-pesapal-bridge/
+integrations/woocommerce/tests/

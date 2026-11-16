@@ -525,13 +525,13 @@ export function InventoryEditor() {
   }
   return (
     <Screen
-      title="Your cake playground"
-      subtitle="Dream it. Shape it. Make their day."
+      title="DIY cake studio"
       back
       right={
         cake ? (
           <Button
-            label="New sketch"
+            label="New"
+            accessibilityLabel="Start a new sketch"
             size="sm"
             variant="outline"
             disabled={busy}
@@ -603,7 +603,7 @@ export function InventoryEditor() {
                   size={24}
                   color={mode === value ? "#FFFFFF" : colors.brandStrong}
                 />
-                <View style={{ gap: 3 }}>
+                <View style={{ gap: 3, flexShrink: 1 }}>
                   <Text
                     style={{
                       color: mode === value ? "#FFFFFF" : colors.ink,
@@ -621,89 +621,14 @@ export function InventoryEditor() {
                     }}
                   >
                     {value === "diy"
-                      ? "Mix. Match. Make magic."
-                      : "Your dream, our kitchen."}
+                      ? "Mix. Match. Magic."
+                      : "Dream it. Make it."}
                   </Text>
                 </View>
               </LinearGradient>
             </Pressable>
           ))}
         </View>
-        {mode === "diy" ? (
-          <View
-            testID="diy-fixed-steps"
-            style={{ flexDirection: "row", gap: 6, paddingTop: 10 }}
-          >
-            {["Flavour", "Finish", "Extras", "Make it yours"].map(
-              (label, i) => (
-                <Pressable
-                  key={label}
-                  accessibilityRole="tab"
-                  accessibilityState={{ selected: step === i }}
-                  onPress={() => setStep(i)}
-                  style={{
-                    flex: 1,
-                    paddingVertical: 12,
-                    borderRadius: 16,
-                    backgroundColor: completedSteps.includes(i)
-                      ? colors.successLight
-                      : step === i
-                        ? colors.brandLight
-                        : colors.surfaceRaised,
-                    alignItems: "center",
-                    gap: 5,
-                  }}
-                >
-                  <Text
-                    style={{
-                      color: completedSteps.includes(i)
-                        ? colors.success
-                        : step === i
-                          ? colors.brandStrong
-                          : colors.muted,
-                      fontWeight: "800",
-                      fontSize: 12,
-                    }}
-                  >
-                    {completedSteps.includes(i) ? "✓" : `0${i + 1}`}
-                  </Text>
-                  <Text
-                    style={{
-                      color: completedSteps.includes(i)
-                        ? colors.success
-                        : step === i
-                          ? colors.brandStrong
-                          : colors.muted,
-                      fontSize: 10,
-                      fontWeight: "700",
-                    }}
-                  >
-                    {label}
-                  </Text>
-                </Pressable>
-              ),
-            )}
-          </View>
-        ) : null}
-        {mode === "diy" ? (
-          <CakeStage
-            key={cake?.id || "new"}
-            image={variant?.image || cake?.image || null}
-            name={cake?.name || ""}
-            colour={colour}
-            message={message}
-            candles={extras.some((x) => /candle|candel|sparkler/i.test(x.name))}
-            sprinkles={extras.some((x) =>
-              /sprinkle|hundreds|nonpareil|confetti/i.test(x.name),
-            )}
-            sizeKg={cakeWeightKg((variant || cake)?.attributes)}
-            placement={placement}
-            onPlacementChange={setPlacement}
-            price={
-              sku ? cash(quote?.subtotal_minor ?? estimate) : "Choose a cake"
-            }
-          />
-        ) : null}
         {mode === "diy" && step === 0 ? (
           <View testID="diy-fixed-search" style={{ paddingTop: 10 }}>
             <View
@@ -771,13 +696,90 @@ export function InventoryEditor() {
             </View>
           </View>
         ) : null}
+        {mode === "diy" ? (
+          <CakeStage
+            key={cake?.id || "new"}
+            image={variant?.image || cake?.image || null}
+            name={cake?.name || ""}
+            colour={colour}
+            message={message}
+            candles={extras.some((x) => /candle|candel|sparkler/i.test(x.name))}
+            sprinkles={extras.some((x) =>
+              /sprinkle|hundreds|nonpareil|confetti/i.test(x.name),
+            )}
+            sizeKg={cakeWeightKg((variant || cake)?.attributes)}
+            placement={placement}
+            onPlacementChange={setPlacement}
+            price={
+              sku ? cash(quote?.subtotal_minor ?? estimate) : "Choose a cake"
+            }
+          />
+        ) : null}
+
+        {mode === "diy" ? (
+          <View
+            testID="diy-fixed-steps"
+            style={{ flexDirection: "row", gap: 6, paddingTop: 10 }}
+          >
+            {["Flavour", "Finish", "Extras", "Make it yours"].map(
+              (label, i) => (
+                <Pressable
+                  key={label}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: step === i }}
+                  onPress={() => setStep(i)}
+                  style={{
+                    flex: 1,
+                    minHeight: 44,
+                    paddingVertical: 6,
+                    borderRadius: 12,
+                    backgroundColor: completedSteps.includes(i)
+                      ? colors.successLight
+                      : step === i
+                        ? colors.brandLight
+                        : colors.surfaceRaised,
+                    alignItems: "center",
+                    gap: 2,
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: completedSteps.includes(i)
+                        ? colors.success
+                        : step === i
+                          ? colors.brandStrong
+                          : colors.muted,
+                      fontWeight: "800",
+                      fontSize: 12,
+                    }}
+                  >
+                    {completedSteps.includes(i) ? "✓" : `0${i + 1}`}
+                  </Text>
+                  <Text
+                    style={{
+                      color: completedSteps.includes(i)
+                        ? colors.success
+                        : step === i
+                          ? colors.brandStrong
+                          : colors.muted,
+                      fontSize: 10,
+                      fontWeight: "700",
+                    }}
+                  >
+                    {label}
+                  </Text>
+                </Pressable>
+              ),
+            )}
+          </View>
+        ) : null}
       </View>
       <ScrollView
         key={`${mode}-${step}`}
         style={{ flex: 1 }}
         contentContainerStyle={{
           padding: 16,
-          paddingBottom: Math.max(112, insets.bottom + 96),
+          paddingBottom: 20,
           gap: 18,
         }}
         keyboardShouldPersistTaps="handled"
@@ -816,10 +818,8 @@ export function InventoryEditor() {
                     onRetry={() => void cakes.refetch()}
                   />
                 ) : (
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={{ gap: 12 }}
+                  <View
+                    style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}
                   >
                     {cakes.data.map((item) => (
                       <Pressable
@@ -835,7 +835,7 @@ export function InventoryEditor() {
                           setStep(1);
                         }}
                         style={{
-                          width: 175,
+                          width: "48%",
                           borderRadius: 24,
                           padding: 0,
                           gap: 0,
@@ -889,7 +889,7 @@ export function InventoryEditor() {
                         </Text>
                       </Pressable>
                     ))}
-                  </ScrollView>
+                  </View>
                 )}
               </>
             ) : null}
@@ -1058,41 +1058,12 @@ export function InventoryEditor() {
                       {cash(quote.subtotal_minor)}
                     </Text>
                     <Notice message={quote.preview_notice} />
-                    <Button label="Add my creation to bag" onPress={add} />
                   </>
-                ) : (
-                  <Button
-                    label="Confirm my design price"
-                    disabled={!cake || busy}
-                    loading={busy}
-                    onPress={() => void review()}
-                  />
-                )}
+                ) : null}
                 <Notice message="Real cake shows the bakery's photo of your chosen cake; the plaque, candles and sprinkles on it are a placement guide, and the 3D view is an illustration. Your finished cake is hand-made, so it can differ slightly. Delivery and any additional custom work are quoted separately." />
               </>
             ) : null}
             {error ? <Notice error message={error} /> : null}
-            <View style={{ flexDirection: "row", gap: 10 }}>
-              {step > 0 ? (
-                <Button
-                  label="Back"
-                  variant="outline"
-                  style={{ flex: 1 }}
-                  onPress={() => setStep((s) => s - 1)}
-                />
-              ) : null}
-              {step < 3 ? (
-                <Button
-                  label="Next sweet step"
-                  style={{ flex: 1 }}
-                  disabled={!cake}
-                  onPress={() => {
-                    setCompletedSteps((v) => [...new Set([...v, step])]);
-                    setStep((s) => s + 1);
-                  }}
-                />
-              ) : null}
-            </View>
             {cake ? (
               <Button
                 label={saved ? "Sketch saved" : "Save to my sketchbook"}
@@ -1162,6 +1133,49 @@ export function InventoryEditor() {
           </>
         )}
       </ScrollView>
+      {mode === "diy" ? (
+        <View
+          testID="diy-fixed-actions"
+          style={{
+            paddingHorizontal: 16,
+            paddingTop: 8,
+            paddingBottom: Math.max(12, insets.bottom + 8),
+            borderTopWidth: 1,
+            borderTopColor: colors.border,
+            backgroundColor: colors.surface,
+            flexDirection: "row",
+            gap: 10,
+          }}
+        >
+          {step > 0 ? (
+            <Button
+              label="Back"
+              variant="outline"
+              disabled={busy}
+              onPress={() => setStep((s) => s - 1)}
+            />
+          ) : null}
+          <Button
+            label={
+              step < 3
+                ? "Next sweet step"
+                : quote
+                  ? "Add my creation to bag"
+                  : "Confirm my design price"
+            }
+            style={{ flex: 1 }}
+            disabled={!cake || busy}
+            loading={busy}
+            onPress={() => {
+              if (step < 3) {
+                setCompletedSteps((v) => [...new Set([...v, step])]);
+                setStep((s) => s + 1);
+              } else if (quote) add();
+              else void review();
+            }}
+          />
+        </View>
+      ) : null}
     </Screen>
   );
 }

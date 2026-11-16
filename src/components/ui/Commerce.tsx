@@ -495,11 +495,22 @@ export function Notice({
           backgroundColor: error ? colors.errorLight : colors.accentLight,
           borderWidth: 0,
           padding: 14,
+          flexDirection: "row",
+          alignItems: "flex-start",
+          gap: 10,
         },
       ]}
     >
+      <Ionicons
+        name={error ? "alert-circle-outline" : "information-circle-outline"}
+        size={20}
+        color={error ? colors.error : colors.accentStrong}
+      />
       <Text
-        style={[ui.body, { color: error ? colors.error : colors.accentStrong }]}
+        style={[
+          ui.body,
+          { flex: 1, color: error ? colors.error : colors.accentStrong },
+        ]}
       >
         {message}
       </Text>

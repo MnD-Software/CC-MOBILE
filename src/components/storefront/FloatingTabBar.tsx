@@ -216,6 +216,7 @@ export function FloatingTabBar() {
     keyboardVisible ||
     [
       "/concierge",
+      "/custom",
       "/sign-in",
       "/register",
       "/forgot-password",

@@ -22,6 +22,7 @@ import { OrderDateField } from "./OrderDateField";
 import { money } from "./contracts";
 import { useHomeOrders, useAcknowledgeOrder } from "./useHomeOrders";
 import { selectionFeedback } from "@/native/haptics";
+import { TrackOrderAction } from "./TrackOrderAction";
 
 type Filters = { from_date?: string; to_date?: string; cake?: string };
 export function OrdersHistoryScreen() {
@@ -426,9 +427,10 @@ export function OrdersHistoryScreen() {
               {order.reference}
             </Text>
             {tab === "active" ? (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`${orderHistoryAction(order)} ${order.reference}`}
+              <TrackOrderAction
+                label={orderHistoryAction(order)}
+                reference={order.reference}
+                active={active}
                 onPress={() => {
                   void selectionFeedback();
                   router.push({
@@ -436,42 +438,7 @@ export function OrdersHistoryScreen() {
                     params: { reference: order.reference },
                   });
                 }}
-                style={({ pressed }) => ({
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 9,
-                  minHeight: 48,
-                  paddingVertical: 12,
-                  paddingHorizontal: 4,
-                  borderTopWidth: 1,
-                  borderTopColor: colors.border,
-                  borderRadius: 8,
-                  backgroundColor: pressed
-                    ? colors.surfaceRaised
-                    : "transparent",
-                })}
-              >
-                <Ionicons
-                  name="navigate-outline"
-                  size={18}
-                  color={colors.brandStrong}
-                />
-                <Text
-                  style={{
-                    flex: 1,
-                    color: colors.brandStrong,
-                    fontSize: 14,
-                    fontWeight: "600",
-                  }}
-                >
-                  {orderHistoryAction(order)}
-                </Text>
-                <Ionicons
-                  name="chevron-forward"
-                  size={17}
-                  color={colors.brandStrong}
-                />
-              </Pressable>
+              />
             ) : (
               <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
                 <Button

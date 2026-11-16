@@ -25,7 +25,7 @@ test("page colour choices apply only to recognised customer pages", () => {
 });
 test("confetti launches one full burst with a continuous slow fall", () => {
   const pieces = celebrationPieces();
-  assert.equal(pieces.length, 420);
+  assert.equal(pieces.length, 1000);
   assert.deepEqual([...new Set(pieces.map((p) => p.burst))], [0]);
   assert.ok(Math.max(...pieces.map((p) => p.delay)) <= 0.024);
   assert.ok(pieces.every((p) => p.delay + 0.94 <= 1));
