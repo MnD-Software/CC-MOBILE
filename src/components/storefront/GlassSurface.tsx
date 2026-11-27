@@ -165,8 +165,8 @@ export function GlassSurface({
         colorScheme={isDark ? "dark" : "light"}
         glassEffectStyle={glassStyle}
         isInteractive={interactive}
-        style={[styles.surface, style]}
-        tintColor={resolvedTint}
+        style={[styles.surface, { borderColor: colors.border }, style]}
+        tintColor={resolvedTint ?? colors.glass}
       >
         {surfaceFinish}
         {children}
@@ -184,6 +184,7 @@ export function GlassSurface({
         testID={testID}
         style={[
           styles.surface,
+          { borderColor: colors.border },
           Platform.OS === "android" && !reduceTransparency
             ? {
                 elevation: interactive ? 5 : 2,
@@ -195,7 +196,7 @@ export function GlassSurface({
             backgroundColor:
               highContrast || reduceTransparency
                 ? colors.surface
-                : (resolvedTint ?? colors.surface),
+                : (resolvedTint ?? colors.glassStrong),
           },
         ]}
       >
@@ -217,10 +218,9 @@ export function GlassSurface({
       intensity={intensity}
       style={[
         styles.surface,
+        { borderColor: colors.border },
         {
-          backgroundColor:
-            resolvedTint ??
-            (isDark ? "rgba(33,27,36,0.62)" : "rgba(255,255,255,0.38)"),
+          backgroundColor: resolvedTint ?? colors.glassStrong,
         },
         style,
       ]}
@@ -248,8 +248,13 @@ export function GlassLoading({ label = "Loading" }: { label?: string }) {
 const baseStyles = StyleSheet.create({
   surface: {
     overflow: "hidden",
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "#FFFFFFE8",
+    borderWidth: 1,
+    borderColor: tokens.color.border,
+    shadowColor: "#49302E",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 3,
   },
   loading: {
     flex: 1,

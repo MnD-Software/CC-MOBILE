@@ -313,7 +313,8 @@ export function InventoryStudio() {
 }
 
 export function InventoryEditor() {
-  const compact = useWindowDimensions().height < 640;
+  const viewport = useWindowDimensions();
+  const compact = viewport.height < 720 || viewport.width <= 380;
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const { customer } = useAuth();
@@ -1119,14 +1120,6 @@ export function InventoryEditor() {
               </>
             ) : null}
             {error ? <Notice error message={error} /> : null}
-            {cake ? (
-              <Button
-                label={saved ? "Sketch saved" : "Save to my sketchbook"}
-                variant="outline"
-                disabled={busy}
-                onPress={saveDraft}
-              />
-            ) : null}
             {drafts.some((d) => d.version === "inventory-v1") ? (
               <Disclosure title="Your saved creations">
                 {drafts
@@ -1203,17 +1196,27 @@ export function InventoryEditor() {
           }}
         >
           {step > 0 ? (
+            <IconButton
+              label="Previous design step"
+              name="arrow-back"
+              onPress={() => {
+                if (!busy) setStep((s) => s - 1);
+              }}
+            />
+          ) : null}
+          {cake ? (
             <Button
-              label="Back"
-              variant="outline"
+              label={saved ? "Sketch saved" : "Save sketch"}
+              variant={saved ? "success" : "outline"}
               disabled={busy}
-              onPress={() => setStep((s) => s - 1)}
+              onPress={saveDraft}
+              style={{ maxWidth: "42%" }}
             />
           ) : null}
           <Button
             label={
               step < 3
-                ? "Next sweet step"
+                ? "Next step"
                 : quote
                   ? "Add my creation to bag"
                   : "Confirm my design price"

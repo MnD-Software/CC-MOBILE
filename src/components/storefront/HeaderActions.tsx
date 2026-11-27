@@ -2,7 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { Animated, Pressable, View } from "react-native";
+import { Animated, Pressable, View, useWindowDimensions } from "react-native";
 import { ProfileAvatarButton } from "@/components/ProfileAvatar";
 import { useTheme } from "@/theme/ThemeProvider";
 import { useReducedMotion } from "@/design/useReducedMotion";
@@ -11,6 +11,7 @@ import { useOrderUpdates } from "@/features/account/OrderUpdates";
 
 export function HeaderActions() {
   const { colors } = useTheme();
+  const compact = useWindowDimensions().width < 400;
   const reduced = useReducedMotion();
   const active = useScreenActive();
   const [newcomer, setNewcomer] = useState(false);
@@ -139,7 +140,7 @@ export function HeaderActions() {
           />
         ) : null}
       </Pressable>
-      <ProfileAvatarButton />
+      {!compact ? <ProfileAvatarButton /> : null}
     </View>
   );
 }

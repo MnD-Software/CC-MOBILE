@@ -260,9 +260,16 @@ async function request<T>(
       route: metricRoute(path),
       status: response.status,
     });
-    const parsed = response.ok && options.responseType
-      ? { kind: "json" as const, value: options.responseType === "bytes" ? await response.arrayBuffer() : await response.text() }
-      : await parseResponse(response);
+    const parsed =
+      response.ok && options.responseType
+        ? {
+            kind: "json" as const,
+            value:
+              options.responseType === "bytes"
+                ? await response.arrayBuffer()
+                : await response.text(),
+          }
+        : await parseResponse(response);
     const requestId = getRequestId(response);
 
     if (options.auth && expectedSession !== sessionGeneration)
@@ -294,6 +301,16 @@ async function request<T>(
     if (parsed.kind === "invalid") {
       throw new ApiError("Cake City returned an unexpected response.", {
         code: "INVALID_RESPONSE",
+        status: response.status,
+        requestId,
+      });
+    }
+
+    // React Query requires GETs to resolve to data. Empty reads are failed
+    // responses, not a successful undefined value that leaves the screen stuck.
+    if (method === "GET" && parsed.kind === "empty") {
+      throw new ApiError("Cake City returned no data. Please try again.", {
+        code: "EMPTY_RESPONSE",
         status: response.status,
         requestId,
       });

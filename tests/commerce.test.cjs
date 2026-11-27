@@ -338,3 +338,16 @@ test("logout handles the actual HTTP 204 response and failed auth never creates 
     Response.json({ access_token: "fake" }, { status: 200 });
   await assert.rejects(authApi.login("test@example.invalid", "password"));
 });
+
+test("empty catalogue reads fail clearly instead of resolving undefined", async () => {
+  for (const status of [200, 204]) {
+    global.fetch = async () => new Response(null, { status });
+    await assert.rejects(
+      api.get("/v1/diy/inventory"),
+      (error) =>
+        error.code === "EMPTY_RESPONSE" && /no data/.test(error.message),
+    );
+  }
+  global.fetch = async () => Response.json([]);
+  assert.deepEqual(await api.get("/v1/diy/inventory"), []);
+});

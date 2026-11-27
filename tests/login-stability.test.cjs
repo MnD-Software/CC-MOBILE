@@ -290,9 +290,17 @@ test("new DIY sketches preserve prior saves even when the same cake and size are
   assert.equal(designs.alice.length, 1);
   assert.equal(tree.props.right, undefined);
   choose();
+  const actions = find(tree, (n) => n.props?.testID === "diy-fixed-actions");
+  assert.ok(actions, "DIY keeps its actions outside the scrolling options");
+  assert.ok(
+    find(
+      actions,
+      (n) => n.type === "Button" && n.props.label === "Save sketch",
+    ),
+  );
   find(
     tree,
-    (n) => n.type === "Button" && n.props.label === "Save to my sketchbook",
+    (n) => n.type === "Button" && n.props.label === "Save sketch",
   ).props.onPress();
   render();
   assert.equal(designs.alice.length, 2);

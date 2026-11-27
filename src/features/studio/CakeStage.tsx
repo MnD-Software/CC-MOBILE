@@ -12,9 +12,14 @@ import { GlassSurface } from "@/components/storefront/GlassSurface";
 import { useScreenActive } from "@/design/useScreenActive";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 
-export function stageHeight(windowHeight: number, expanded: boolean) {
+export function stageHeight(
+  windowHeight: number,
+  expanded: boolean,
+  windowWidth = 430,
+) {
   if (expanded) return Math.round(Math.min(420, windowHeight * 0.5));
   if (windowHeight < 640) return 112;
+  if (windowWidth <= 380) return 132;
   return windowHeight < 700 ? 144 : 180;
 }
 
@@ -43,7 +48,7 @@ export function CakeStage({
   price: string;
 }) {
   const { colors } = useTheme(),
-    { height } = useWindowDimensions();
+    { height, width } = useWindowDimensions();
   const { reduceMotion } = useMotionAccessibilityPreference();
   const active = useScreenActive();
   const [slice, setSlice] = useState(false);
@@ -85,7 +90,7 @@ export function CakeStage({
   const html = useMemo(() => cakeScene({ ...initial.current }), []);
   const fallback = glFailed && image;
   const editor = (large: boolean) => {
-    const h = stageHeight(height, large);
+    const h = stageHeight(height, large, width);
     return (
       <GlassSurface
         style={{
@@ -178,7 +183,11 @@ export function CakeStage({
                 : "Live 3D - drag to turn"}
           </Text>
           <Text
-            style={{ color: colors.brandStrong, fontWeight: "800", fontSize: 12 }}
+            style={{
+              color: colors.brandStrong,
+              fontWeight: "800",
+              fontSize: 12,
+            }}
           >
             {price}
           </Text>

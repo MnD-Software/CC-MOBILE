@@ -14,6 +14,7 @@ import {
   TextInput,
   type TextInputInstance,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { Text, brandFontFamily } from "@/components/ui/Typography";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -64,6 +65,7 @@ const knownIds: Record<string, number> = {
 
 export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
   const styles = useThemedStyles(baseStyles);
+  const compactHeader = useWindowDimensions().width < 400;
   const { customer } = useAuth();
   const canTest =
     !!customer &&
@@ -254,7 +256,7 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
                   }
                 />
               ) : null}
-              <BrandLogo width={searchOnly ? 60 : 100} />
+              <BrandLogo width={searchOnly ? (compactHeader ? 40 : 60) : 100} />
             </View>
           }
         >

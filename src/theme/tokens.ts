@@ -9,7 +9,7 @@
 export const tokens = {
   color: {
     // Canvas & surfaces
-    background: "#FCFAFB",
+    background: "#F3EDF1",
     surface: "#FFFFFF",
     surfaceRaised: "#F8F3F6",
     surfaceTint: "#FFEAF4",
@@ -25,7 +25,7 @@ export const tokens = {
     mutedSoft: "#715F6A",
 
     // Lines
-    border: "#E5D7DF",
+    border: "#D4C1CD",
     borderStrong: "#B888A1",
 
     // Brand

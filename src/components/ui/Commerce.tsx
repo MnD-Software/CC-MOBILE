@@ -260,10 +260,12 @@ export function CommerceBrowseHeader({
         <NeonDiyShortcut />
         <View style={browseHeader.actions}>{right ?? <BagButton />}</View>
       </View>
-      <View style={browseHeader.search}>
-        <View style={{ flex: 1, minWidth: 0 }}>{children}</View>
-        {right ? <BagButton /> : null}
-      </View>
+      {children ? (
+        <View style={browseHeader.search}>
+          <View style={{ flex: 1, minWidth: 0 }}>{children}</View>
+          {right ? <BagButton /> : null}
+        </View>
+      ) : null}
       {suggestions}
     </View>
   );
@@ -331,7 +333,7 @@ export function Screen({
   const insets = useSafeAreaInsets();
   const themed = useThemedStyles(ui);
   // Small phones keep whole words in the title instead of breaking mid-word.
-  const narrow = useWindowDimensions().width < 360;
+  const narrow = useWindowDimensions().width < 400;
   return (
     <SafeAreaView
       edges={["top", "left", "right"]}
@@ -343,65 +345,66 @@ export function Screen({
       >
         {header ?? (
           <View
-            style={[
-              ui.spread,
-              {
-                flexWrap: narrow ? "wrap" : "nowrap",
-                paddingHorizontal: 16,
-                paddingTop: 10,
-                paddingBottom: 14,
-                maxWidth: 900,
-                width: "100%",
-                alignSelf: "center",
-              },
-            ]}
+            style={{
+              paddingHorizontal: 16,
+              paddingTop: 8,
+              paddingBottom: 12,
+              gap: 10,
+              maxWidth: 900,
+              width: "100%",
+              alignSelf: "center",
+            }}
           >
-            {back ? (
-              <IconButton
-                name="arrow-back"
-                label="Go back"
-                onPress={() =>
-                  router.canGoBack() ? router.back() : router.replace("/home")
-                }
-              />
-            ) : null}
-            <View style={{ flex: 1, gap: 7 }}>
-              <BrandLogo width={narrow ? 48 : 84} />
-              {title && !narrow ? (
-                <Text
-                  accessibilityRole="header"
-                  style={[
-                    themed.title,
-                    narrow ? { fontSize: 21, lineHeight: 26 } : undefined,
-                  ]}
-                >
-                  {title}
-                </Text>
-              ) : null}
-              {subtitle && !narrow ? (
-                <Text style={[themed.body, { marginTop: 3 }]}>{subtitle}</Text>
-              ) : null}
-            </View>
             <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                flexWrap: "wrap",
-                justifyContent: "flex-end",
-                gap: 6,
-                maxWidth: narrow ? "60%" : "45%",
-              }}
+              style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
             >
+              <View
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+              >
+                {back ? (
+                  <IconButton
+                    name="arrow-back"
+                    label="Go back"
+                    onPress={() =>
+                      router.canGoBack()
+                        ? router.back()
+                        : router.replace("/home")
+                    }
+                  />
+                ) : null}
+                <BrandLogo width={back || narrow ? 48 : 84} />
+              </View>
               <NeonDiyShortcut />
-              {right === undefined ? null : right}
-              <CustomerBagButton />
+              <View
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                  justifyContent: "flex-end",
+                  gap: 6,
+                }}
+              >
+                {right === undefined ? null : right}
+                <CustomerBagButton />
+              </View>
             </View>
-            {narrow && (title || subtitle) ? (
-              <View style={{ width: "100%", gap: 5 }}>
+            {title || subtitle ? (
+              <View style={{ gap: 4 }}>
                 {title ? (
                   <Text
                     accessibilityRole="header"
-                    style={[themed.title, { fontSize: 23, lineHeight: 29 }]}
+                    style={[
+                      themed.title,
+                      narrow ? { fontSize: 23, lineHeight: 29 } : undefined,
+                    ]}
                   >
                     {title}
                   </Text>
