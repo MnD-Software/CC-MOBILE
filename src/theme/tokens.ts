@@ -9,7 +9,7 @@
 export const tokens = {
   color: {
     // Canvas & surfaces
-    background: "#F3EDF1",
+    background: "#FFFFFF",
     surface: "#FFFFFF",
     surfaceRaised: "#F8F3F6",
     surfaceTint: "#FFEAF4",

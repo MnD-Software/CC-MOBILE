@@ -4,7 +4,7 @@
 
 - Shared headers use balanced navigation/brand, centred DIY and actions, with the title on its own full-width row. On phones below 400dp, the duplicate account shortcut is omitted from browsing headers; Profile remains in the bottom navigation. Search still has a dedicated bag action.
 - DIY uses compact tabs and a 132dp live 3D stage on narrow phones. The fixed footer contains Save sketch and Next step; saving turns the action green. Options scroll independently from the preview and footer. New continues to preserve earlier saved designs.
-- White cards sit on a warmer, darker neutral canvas. Stronger neutral borders, directional reflections and soft elevation give cards visible edges. Android avoids per-card blur passes; supported iOS retains the existing native Liquid Glass integration through Expo. No additional Swift module or dependency upgrade was required.
+- The default canvas stays glossy glassy white, as requested. Stronger neutral borders, directional reflections and soft elevation give white cards visible edges without tinting the page background. Android avoids per-card blur passes; supported iOS retains the existing native Liquid Glass integration through Expo. No additional Swift module or dependency upgrade was required.
 - Glass tints are sufficiently opaque to protect text contrast. Dark appearance, increased contrast and reduced transparency retain their existing handling. The colour tests include approximate warm-display shifts; these are not a substitute for calibrated iPhone display checks.
 - Empty API GET responses now raise a recoverable EMPTY_RESPONSE error, rather than returning undefined to React Query. Empty arrays remain valid, and mutation HTTP 204 responses remain supported.
 
