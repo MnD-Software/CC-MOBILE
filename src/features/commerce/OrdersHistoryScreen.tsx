@@ -1,4 +1,7 @@
-import { useEffect, useState } from "react";
+import { GlassSurface } from "@/components/storefront/GlassSurface";
+import { repeatOrder } from "@/features/experience/ExperienceScreen";
+import { useBag } from "./store";
+import { useEffect, useRef, useState } from "react";
 import { Pressable, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useInfiniteQuery } from "@tanstack/react-query";
@@ -45,6 +48,41 @@ export function OrdersHistoryScreen() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [error, setError] = useState("");
+  const [reordering, setReordering] = useState<string | null>(null);
+  const reorderFlight = useRef(false);
+  const owner = useRef(customer?.id);
+  owner.current = customer?.id;
+  useEffect(() => {
+    owner.current = customer?.id;
+    setReordering(null);
+    return () => {
+      owner.current = undefined;
+    };
+  }, [customer?.id]);
+  async function reorder(reference: string) {
+    if (reorderFlight.current) return;
+    const customerId = owner.current;
+    reorderFlight.current = true;
+    setReordering(reference);
+    setError("");
+    try {
+      const lines = await repeatOrder(reference);
+      if (!customerId || owner.current !== customerId) return;
+      if (!useBag.getState().addBundle(lines))
+        throw Error("Your bag is full. Review it before adding more.");
+      router.push("/cart");
+    } catch (reason) {
+      if (owner.current === customerId)
+        setError(
+          reason instanceof Error
+            ? reason.message
+            : "This order could not be added to your bag.",
+        );
+    } finally {
+      reorderFlight.current = false;
+      if (owner.current === customerId) setReordering(null);
+    }
+  }
   const orders = useInfiniteQuery({
     queryKey: [
       "app-orders",
@@ -325,16 +363,13 @@ export function OrdersHistoryScreen() {
         />
       ) : (
         rows.map((order) => (
-          <View
+          <GlassSurface
             key={order.reference}
             testID={`order-card-${order.reference}`}
             style={{
               padding: 18,
               borderRadius: 22,
               gap: 12,
-              backgroundColor: colors.surface,
-              borderWidth: 1,
-              borderColor: colors.border,
             }}
           >
             <View
@@ -440,23 +475,37 @@ export function OrdersHistoryScreen() {
                 }}
               />
             ) : (
-              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
-                <Button
-                  variant="outline"
-                  style={{ flex: 1, minWidth: 130 }}
-                  label={orderHistoryAction(order)}
-                  onPress={() =>
-                    router.push({
-                      pathname: "/order/[reference]",
-                      params: { reference: order.reference },
-                    })
-                  }
-                />
+              <>
+                <View style={{ flexDirection: "row", gap: 10 }}>
+                  <Button
+                    variant={
+                      order.status === "completed" ? "success" : "outline"
+                    }
+                    style={{ flex: 1, minWidth: 0, paddingHorizontal: 10 }}
+                    label={orderHistoryAction(order)}
+                    onPress={() =>
+                      router.push({
+                        pathname: "/order/[reference]",
+                        params: { reference: order.reference },
+                      })
+                    }
+                  />
+                  {order.status === "completed" ? (
+                    <Button
+                      label="Reorder"
+                      variant="outline"
+                      style={{ flex: 1, minWidth: 0, paddingHorizontal: 10 }}
+                      disabled={!!reordering}
+                      loading={reordering === order.reference}
+                      onPress={() => void reorder(order.reference)}
+                    />
+                  ) : null}
+                </View>
                 {awaitingReceipt ? (
                   <Button
                     label="Received, thank you"
                     variant="secondary"
-                    style={{ flex: 1, minWidth: 130 }}
+                    style={{ flex: 1, minWidth: 0, paddingHorizontal: 10 }}
                     disabled={acknowledge.isPending}
                     loading={
                       acknowledge.isPending &&
@@ -473,9 +522,9 @@ export function OrdersHistoryScreen() {
                     }
                   />
                 ) : null}
-              </View>
+              </>
             )}
-          </View>
+          </GlassSurface>
         ))
       )}
       {customer && rows.length ? (

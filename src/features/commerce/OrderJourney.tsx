@@ -1,6 +1,6 @@
-import { CakeCityLoader as ActivityIndicator } from "@/components/ui/CakeCityLoader";
+import { OrderRefreshButton } from "./OrderRefreshButton";
 import { useEffect, useState } from "react";
-import { Linking, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Linking, ScrollView, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { Text } from "@/components/ui/Typography";
@@ -26,7 +26,7 @@ export function OrderJourney({
   refreshing,
 }: {
   order: AppOrder;
-  refresh: () => void;
+  refresh: () => Promise<unknown> | void;
   refreshing: boolean;
 }) {
   const { colors } = useTheme();
@@ -91,28 +91,7 @@ export function OrderJourney({
         >
           <View style={styles.top}>
             <Text style={styles.kicker}>MADE FOR YOUR MOMENT</Text>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Refresh order tracking"
-              accessibilityState={{ busy: refreshing }}
-              disabled={refreshing}
-              onPress={refresh}
-              hitSlop={8}
-              style={{
-                width: 44,
-                height: 44,
-                alignItems: "center",
-                justifyContent: "center",
-                borderRadius: 22,
-                backgroundColor: "rgba(255,255,255,0.12)",
-              }}
-            >
-              {refreshing ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <Ionicons name="refresh-outline" size={21} color="#FFFFFF" />
-              )}
-            </Pressable>
+            <OrderRefreshButton refresh={refresh} refreshing={refreshing} />
             <View style={styles.mark}>
               <Ionicons
                 name={

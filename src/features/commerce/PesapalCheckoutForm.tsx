@@ -1,3 +1,4 @@
+import { OrderConfirmationCard } from "./OrderConfirmationCard";
 import { AppState } from "react-native";
 import { Switch } from "react-native";
 import { FulfilmentSlots } from "@/features/experience/FulfilmentSlots";
@@ -583,62 +584,10 @@ function AppCheckout({
     return (
       <View style={{ gap: 16, position: "relative" }}>
         {celebrate ? <PaymentConfetti onComplete={endCelebration} /> : null}
-        <LinearGradient
-          colors={[colors.brandLight, colors.surface]}
-          style={checkoutStyles.confirmation}
-        >
-          <View
-            style={[
-              checkoutStyles.successIcon,
-              {
-                backgroundColor: isVerifiedPayment(order)
-                  ? "#E5F5EE"
-                  : "#FFF0F7",
-              },
-            ]}
-          >
-            <Ionicons
-              name={
-                isVerifiedPayment(order) ? "checkmark-circle" : "time-outline"
-              }
-              size={42}
-              color={isVerifiedPayment(order) ? "#26744D" : "#B80068"}
-            />
-          </View>
-          <Text style={checkoutStyles.eyebrow}>
-            {order.review_checkout
-              ? "ORDER CONFIRMED"
-              : isVerifiedPayment(order)
-                ? "PAYMENT CONFIRMED"
-                : "YOUR APP ORDER"}
-          </Text>
-          <Text style={[checkoutStyles.heroTitle, { color: colors.ink }]}>
-            {isVerifiedPayment(order)
-              ? "A little joy is on its way."
-              : "We’re keeping your order safe."}
-          </Text>
-          <Text
-            style={[checkoutStyles.orderTotal, { color: colors.brandStrong }]}
-          >
-            {money(order.total_minor / 100)}
-          </Text>
-          <Text selectable style={{ color: colors.muted, textAlign: "center" }}>
-            {order.reference}
-          </Text>
-          <Text style={{ color: colors.muted, textAlign: "center" }}>
-            {order.status.replaceAll("_", " ")}
-          </Text>
-        </LinearGradient>
+        <OrderConfirmationCard order={order} />
         {error ? <Notice error message={error} /> : null}
         {isVerifiedPayment(order) ? (
           <>
-            <Notice
-              message={
-                order.review_checkout
-                  ? "Thank you! Your order is confirmed. Follow preparation and delivery in Your orders, where your order confirmation is saved."
-                  : "Thank you! Your cake is made to order. Follow preparation and fulfilment in Your orders, where your payment receipt is saved."
-              }
-            />
             <Button
               label="Continue shopping"
               onPress={() => {

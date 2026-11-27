@@ -170,6 +170,7 @@ function checkout(optionOverrides = {}, queryState = {}) {
     "@/components/storefront/CheckoutProgress": {
       CheckoutProgress: "Progress",
     },
+    "./OrderConfirmationCard": { OrderConfirmationCard: "Confirmation" },
     "./PaymentConfetti": { PaymentConfetti: "Confetti" },
     "./CheckoutCoupons": { CheckoutCoupons: "Coupons" },
     "@/components/ui/LoadingImage": { LoadingImage: "Image" },

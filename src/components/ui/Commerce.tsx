@@ -366,7 +366,7 @@ export function Screen({
               />
             ) : null}
             <View style={{ flex: 1, gap: 7 }}>
-              <BrandLogo width={84} />
+              <BrandLogo width={narrow ? 48 : 84} />
               {title && !narrow ? (
                 <Text
                   accessibilityRole="header"
@@ -389,7 +389,7 @@ export function Screen({
                 flexWrap: "wrap",
                 justifyContent: "flex-end",
                 gap: 6,
-                maxWidth: "45%",
+                maxWidth: narrow ? "60%" : "45%",
               }}
             >
               <NeonDiyShortcut />

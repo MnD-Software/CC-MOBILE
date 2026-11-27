@@ -56,7 +56,7 @@ export function NotificationCard({
   disabled?: boolean;
   onPress: () => void;
 }) {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const presentation = notificationPresentation(item.data);
   const accent = presentation.success ? colors.success : colors.brandStrong;
   const tint = presentation.success ? colors.successLight : colors.brandLight;
@@ -88,8 +88,9 @@ export function NotificationCard({
       ]}
     >
       <GlassSurface
+        glassStyle="clear"
         style={{ padding: 18, borderRadius: 24, gap: 12 }}
-        tintColor={item.read_at ? colors.surface : tint}
+        tintColor={isDark ? "rgba(42,30,42,0.55)" : "rgba(255,245,251,0.40)"}
       >
         <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
           <View

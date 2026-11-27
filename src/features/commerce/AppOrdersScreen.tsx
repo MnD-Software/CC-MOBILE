@@ -51,9 +51,7 @@ export function AppOrderScreen() {
         "payment_failed",
         "reversed",
         "review_required",
-      ].includes(
-        query.state.data?.status || "",
-      )
+      ].includes(query.state.data?.status || "")
         ? false
         : query.state.data?.status === "out_for_delivery" ||
             query.state.data?.status === "ready"
@@ -150,10 +148,13 @@ export function AppOrderScreen() {
         <Notice message="This is a legacy website order. App orders have an APP reference. Contact support here for help with an older receipt." />
       ) : order.isPending ? (
         <Feedback loading />
-      ) : order.isError ? (
+      ) : order.isError && !value ? (
         <Feedback error={order.error} onRetry={() => void order.refetch()} />
       ) : value ? (
         <>
+          {order.isRefetchError ? (
+            <Notice message="Updates could not be refreshed. Your last tracking details are still shown. Tap the refresh icon to try again." />
+          ) : null}
           <OrderDesign reference={reference} />
           {value.status === "out_for_delivery" ? (
             <DeliveryCodes reference={reference} />
@@ -168,14 +169,14 @@ export function AppOrderScreen() {
             <Disclosure title="Preparation & delivery history">
               <OrderJourney
                 order={value}
-                refresh={() => void order.refetch()}
+                refresh={() => order.refetch()}
                 refreshing={order.isFetching}
               />
             </Disclosure>
           ) : (
             <OrderJourney
               order={value}
-              refresh={() => void order.refetch()}
+              refresh={() => order.refetch()}
               refreshing={order.isFetching}
             />
           )}

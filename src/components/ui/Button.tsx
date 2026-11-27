@@ -13,7 +13,13 @@ import { selectionFeedback } from "@/native/haptics";
 import { useTheme } from "@/theme/ThemeProvider";
 import { getPressScale, useReducedMotion } from "@/design";
 
-type Variant = "primary" | "secondary" | "outline" | "ghost" | "danger";
+type Variant =
+  | "primary"
+  | "secondary"
+  | "outline"
+  | "ghost"
+  | "danger"
+  | "success";
 type Size = "sm" | "md" | "lg";
 
 type Props = PressableProps & {
@@ -45,6 +51,7 @@ const variantStyles: Record<
     text: tokens.color.brandStrong,
   },
   ghost: { bg: "transparent", text: tokens.color.brandStrong },
+  success: { bg: tokens.color.successLight, text: tokens.color.success },
   danger: {
     bg: tokens.color.error,
     border: tokens.color.error,
@@ -84,14 +91,16 @@ export function Button({
       ? { bg: colors.action, border: colors.action, text: colors.onAction }
       : variant === "secondary"
         ? { bg: colors.surfaceRaised, text: colors.ink }
-        : variant === "outline" || variant === "ghost"
-          ? {
-              ...baseVariant,
-              bg: variant === "outline" ? colors.brandLight : "transparent",
-              border: undefined,
-              text: colors.brandStrong,
-            }
-          : baseVariant;
+        : variant === "success"
+          ? { bg: colors.successLight, text: colors.success }
+          : variant === "outline" || variant === "ghost"
+            ? {
+                ...baseVariant,
+                bg: variant === "outline" ? colors.brandLight : "transparent",
+                border: undefined,
+                text: colors.brandStrong,
+              }
+            : baseVariant;
   const s = sizeStyles[size];
   const isDisabled = Boolean(
     disabled ||

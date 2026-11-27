@@ -32,6 +32,7 @@ type GlassSurfaceProps = PropsWithChildren<{
   /** Flat white product rows avoid per-cell blur and keep photographs crisp. */
   opaque?: boolean;
   style?: StyleProp<ViewStyle>;
+  testID?: string;
 }>;
 
 const liquidGlassAvailable =
@@ -85,6 +86,7 @@ export function GlassSurface({
   tintColor,
   opaque = false,
   style,
+  testID,
 }: GlassSurfaceProps) {
   const { colors, isDark, highContrast } = useTheme();
   const styles = useThemedStyles(baseStyles);
@@ -109,22 +111,47 @@ export function GlassSurface({
                   "rgba(0,0,0,0.16)",
                 ]
               : [
-                  "rgba(255,255,255,0.8)",
+                  "rgba(255,255,255,0.46)",
                   "rgba(255,255,255,0.06)",
-                  "rgba(177,140,163,0.10)",
+                  "rgba(177,140,163,0.08)",
                 ]
           }
           locations={[0, 0.45, 1]}
           style={StyleSheet.absoluteFill}
+        />
+        <LinearGradient
+          colors={
+            isDark
+              ? [
+                  "rgba(255,255,255,0.16)",
+                  "rgba(255,255,255,0)",
+                  "rgba(255,255,255,0.035)",
+                ]
+              : [
+                  "rgba(255,255,255,0.92)",
+                  "rgba(255,255,255,0.03)",
+                  "rgba(255,255,255,0.25)",
+                ]
+          }
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          locations={[0, 0.32, 1]}
+          style={{ position: "absolute", inset: 0, borderRadius: 24 }}
         />
       </View>
     ) : null;
   if (opaque || highContrast)
     return (
       <View
+        testID={testID}
         style={[
           styles.surface,
-          { backgroundColor: resolvedTint ?? colors.surface },
+          {
+            backgroundColor:
+              highContrast || reduceTransparency
+                ? colors.surface
+                : (resolvedTint ?? colors.surface),
+          },
           style,
         ]}
       >
@@ -134,12 +161,14 @@ export function GlassSurface({
   if (liquidGlassAvailable && !reduceTransparency) {
     return (
       <GlassView
+        testID={testID}
         colorScheme={isDark ? "dark" : "light"}
         glassEffectStyle={glassStyle}
         isInteractive={interactive}
         style={[styles.surface, style]}
         tintColor={resolvedTint}
       >
+        {surfaceFinish}
         {children}
       </GlassView>
     );
@@ -152,6 +181,7 @@ export function GlassSurface({
   if (reduceTransparency || (Platform.OS === "android" && !blurTarget)) {
     return (
       <View
+        testID={testID}
         style={[
           styles.surface,
           Platform.OS === "android" && !reduceTransparency
@@ -161,7 +191,12 @@ export function GlassSurface({
               }
             : undefined,
           style,
-          { backgroundColor: resolvedTint ?? colors.surface },
+          {
+            backgroundColor:
+              highContrast || reduceTransparency
+                ? colors.surface
+                : (resolvedTint ?? colors.surface),
+          },
         ]}
       >
         {surfaceFinish}
@@ -172,6 +207,7 @@ export function GlassSurface({
 
   return (
     <BlurView
+      testID={testID}
       blurMethod={
         Platform.OS === "android" && blurTarget
           ? "dimezisBlurViewSdk31Plus"

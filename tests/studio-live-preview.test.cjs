@@ -203,7 +203,7 @@ test("Android glass gets a nonblocking finish without per-card blur; opaque/high
   );
   let tree = GlassSurface({ children: "Content" });
   assert.equal(findAll(tree, (n) => n.type === "BlurView").length, 0);
-  assert.equal(findAll(tree, (n) => n.type === "LinearGradient").length, 1);
+  assert.equal(findAll(tree, (n) => n.type === "LinearGradient").length, 2);
   assert.equal(
     findAll(tree, (n) => n.props?.pointerEvents === "none").length,
     1,
