@@ -249,13 +249,13 @@ export function CommerceBrowseHeader({
     <View style={[browseHeader.shell, { backgroundColor: colors.surface }]}>
       <View style={browseHeader.topRow}>
         <View style={browseHeader.brand}>{brand}</View>
-        <View style={browseHeader.actions}>
-          <NeonDiyShortcut />
-          <BagButton />
-          {right}
-        </View>
+        <NeonDiyShortcut />
+        <View style={browseHeader.actions}>{right ?? <BagButton />}</View>
       </View>
-      <View style={browseHeader.search}>{children}</View>
+      <View style={browseHeader.search}>
+        <View style={{ flex: 1, minWidth: 0 }}>{children}</View>
+        {right ? <BagButton /> : null}
+      </View>
     </View>
   );
 }
@@ -284,18 +284,16 @@ const browseHeaderStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 12,
+    gap: 8,
   },
-  brand: { flex: 1, minWidth: 108 },
+  brand: { flex: 1, minWidth: 0 },
   actions: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "flex-end",
-    flexWrap: "wrap",
-    flexShrink: 1,
-    gap: 4,
   },
-  search: { width: "100%" },
+  search: { width: "100%", flexDirection: "row", alignItems: "center", gap: 8 },
 });
 
 export function Screen({

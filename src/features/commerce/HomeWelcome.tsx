@@ -116,13 +116,13 @@ export function HomeWelcome() {
                 letterSpacing: 1.5,
               }}
             >
-              THE CAKE PLAYGROUND
+              YOUR CAKE PLAYGROUND
             </Text>
             <Text style={{ color: "white", fontWeight: "800", fontSize: 17 }}>
-              Make their moment yours.
+              Your cake. Your way.
             </Text>
             <Text style={{ color: "#EED9E5", fontSize: 11 }}>
-              Choose, colour and create a little magic.
+              Choose your flavours, colours and finishing touches.
             </Text>
           </View>
           <Ionicons name="arrow-forward" color="#FFE1A5" size={21} />

@@ -52,7 +52,16 @@ export function HeaderActions() {
     return () => animation.stop();
   }, [newcomer, reduced, active, glow]);
   return (
-    <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+    <View
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "flex-end",
+        flexWrap: "wrap",
+        flexShrink: 1,
+        gap: 4,
+      }}
+    >
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Your kind of celebration"

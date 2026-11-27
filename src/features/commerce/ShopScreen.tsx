@@ -242,7 +242,7 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
                   }
                 />
               ) : null}
-              <BrandLogo width={100} />
+              <BrandLogo width={searchOnly ? 60 : 100} />
             </View>
           }
         >
