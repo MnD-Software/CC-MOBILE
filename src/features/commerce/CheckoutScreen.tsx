@@ -39,7 +39,15 @@ function LiveCheckout() {
     staleTime: 30_000,
   });
   return (
-    <Screen title="Checkout" subtitle="Secure payment with Pesapal." back>
+    <Screen
+      title="Checkout"
+      subtitle={
+        configuration.data?.test_checkout
+          ? "A few details. A happy moment."
+          : "Secure payment with Pesapal."
+      }
+      back
+    >
       {configuration.isPending && configuration.fetchStatus !== "idle" ? (
         <Feedback loading />
       ) : configuration.isError ? (
@@ -49,10 +57,11 @@ function LiveCheckout() {
         />
       ) : configuration.data?.available ? (
         <>
-          {configuration.data.environment === "sandbox" ? (
+          {!configuration.data.test_checkout &&
+          configuration.data.environment === "sandbox" ? (
             <Notice message="Pesapal sandbox: test payments only." />
           ) : null}
-          <PesapalCheckoutForm />
+          <PesapalCheckoutForm zeroPayment={configuration.data.test_checkout} />
         </>
       ) : (
         <>

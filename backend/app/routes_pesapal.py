@@ -32,7 +32,9 @@ def owned(db, reference, customer_id):
 def configuration(db: Session = Depends(get_db)):
     policy = db.get(AppPolicy, "checkout")
     ready = bool(policy and policy.payload.get("enabled") and policy.payload.get("pricing_confirmed"))
-    return {"available": configured() and ready, "provider": "pesapal-api3", "checkout_owner": "app",
+    test_checkout = get_settings().hosted_test_checkout_enabled
+    return {"available": (test_checkout or configured()) and ready, "provider": "pesapal-api3", "checkout_owner": "app",
+            "test_checkout": test_checkout,
             "environment": account()["environment"] if configured() else get_settings().pesapal_environment,
             "account_id": get_settings().pesapal_account_id, "catalogue_setup_required": not ready,
             "website_dependency": False}
@@ -43,7 +45,8 @@ def options(db: Session = Depends(get_db)):
     policy = db.get(AppPolicy, "checkout")
     from . import app_delivery
     delivery = app_delivery.policy(db)
-    return {"pickup_enabled": bool(policy and policy.payload.get("pickup_enabled")),
+    return {"test_checkout": get_settings().hosted_test_checkout_enabled,
+            "pickup_enabled": bool(policy and policy.payload.get("pickup_enabled")),
             "distance_delivery": {"enabled": delivery.enabled, "maps_ready": bool(get_settings().google_maps_api_key),
                 "map_picker_ready": bool(get_settings().google_maps_browser_key),
                 "origin_name": delivery.origin_name, "origin_address": delivery.origin_address,
@@ -64,7 +67,12 @@ def quote(data: commerce.CheckoutData, customer: Customer = Depends(member), db:
 async def create_order(data: commerce.PlaceOrder,
                        idempotency_key: str = Header(alias="Idempotency-Key", min_length=16, max_length=80),
                        customer: Customer = Depends(member), db: Session = Depends(get_db)):
+    if get_settings().hosted_test_checkout_enabled:
+        from .review_checkout import place
+        return place(data, idempotency_key, customer, db)
     saved = db.get(AppQuote, data.quote_id)
+    if saved and saved.snapshot.get("hosted_test_checkout"):
+        raise HTTPException(409, "Checkout settings changed. Review a new total before continuing.")
     simulated = bool(saved and saved.customer_id == customer.id and saved.snapshot.get("payment_test"))
     profile = {"environment": "sandbox"} if simulated else account()
     order = commerce.place(db, customer.id, data.quote_id, idempotency_key,
@@ -152,6 +160,8 @@ def receipt(reference: str, customer: Customer = Depends(member), db: Session = 
 
 @router.post(PREFIX + "/orders/{reference}/start")
 async def start_payment(reference: str, customer: Customer = Depends(member), db: Session = Depends(get_db)):
+    if get_settings().hosted_test_checkout_enabled:
+        raise HTTPException(409, "Payments are paused. Place a new order with KES 0 due now.")
     # Serialize payment claims with account closure and order creation.
     db.scalar(select(Customer).where(Customer.id == customer.id).with_for_update())
     from .customer_lifecycle import ClosedAccount

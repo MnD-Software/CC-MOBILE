@@ -31,6 +31,7 @@ const resultSchema = z.object({
 
 export const pesapalConfigSchema = z.object({
   available: z.boolean(),
+  test_checkout: z.boolean().default(false),
   environment: z.enum(["live", "sandbox"]),
   provider: z.literal("pesapal-api3"),
 });

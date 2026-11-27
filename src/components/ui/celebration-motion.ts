@@ -1,6 +1,6 @@
 export const CELEBRATION_DURATION = 9000;
 export function celebrationPieces(compact = false) {
-  const count = compact ? 108 : 1000;
+  const count = compact ? 108 : 5000;
   return Array.from({ length: count }, (_, index) => ({
     index,
     side: index % 2,

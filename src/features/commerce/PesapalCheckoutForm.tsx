@@ -57,6 +57,7 @@ const quoteSchema = z.object({
   tax_minor: z.number(),
 });
 const optionsSchema = z.object({
+  test_checkout: z.boolean().default(false),
   distance_delivery: distanceOptionsSchema.optional(),
   pickup_enabled: z.boolean(),
   pickup_instructions: z.string().default(""),
@@ -68,7 +69,12 @@ const optionsSchema = z.object({
 export function PesapalCheckoutForm({
   corporateQuoteId,
   linesOverride,
-}: { corporateQuoteId?: string; linesOverride?: BagLine[] } = {}) {
+  zeroPayment = env.reviewCheckout,
+}: {
+  corporateQuoteId?: string;
+  linesOverride?: BagLine[];
+  zeroPayment?: boolean;
+} = {}) {
   const { customer } = useAuth();
   return customer ? (
     <AppCheckout
@@ -76,6 +82,7 @@ export function PesapalCheckoutForm({
       owner={customer.id}
       corporateQuoteId={corporateQuoteId}
       linesOverride={linesOverride}
+      zeroPayment={zeroPayment}
     />
   ) : (
     <>
@@ -92,10 +99,12 @@ function AppCheckout({
   owner,
   corporateQuoteId,
   linesOverride,
+  zeroPayment,
 }: {
   owner: string;
   corporateQuoteId?: string;
   linesOverride?: BagLine[];
+  zeroPayment?: boolean;
 }) {
   const { customer } = useAuth();
   const { colors } = useTheme();
@@ -809,7 +818,7 @@ function AppCheckout({
           <View style={checkoutStyles.secure}>
             <Ionicons name="lock-closed-outline" color="#FFFFFF" size={14} />
             <Text style={checkoutStyles.heroMeta}>
-              {env.reviewCheckout
+              {zeroPayment || options.data?.test_checkout
                 ? "Your next celebration starts here"
                 : "Secured by Pesapal"}
             </Text>
@@ -1258,7 +1267,7 @@ function AppCheckout({
               }
               label={
                 quote
-                  ? env.reviewCheckout
+                  ? zeroPayment || options.data?.test_checkout
                     ? "Place order / KES 0 due now"
                     : `Pay ${money(quote.total_minor / 100)}`
                   : "Review confirmed total"

@@ -250,7 +250,8 @@ def calculate(db, customer_id, data):
         pickup_instructions = f"Collect from {pickup_branch.name}, {pickup_branch.address}, once your cake is ready. Present your order reference."
     if route_snapshot and data.fulfilment == "pickup" and route_snapshot.get("pickup_location_id") != "hq":
         pickup_instructions = f"Collect from {route_snapshot['destination_name']}, {route_snapshot['destination_address']}, after your order is marked ready. Present your APP order reference."
-    return {**({'fulfilment_window':fulfilment_window} if fulfilment_window else {}), **({"payment_test": True} if payment_test else {}), "lines": lines, "quantities": {str(k): v for k, v in quantities.items()}, "subtotal_minor": subtotal,
+    from .config import get_settings
+    return {**({'hosted_test_checkout': True} if get_settings().hosted_test_checkout_enabled else {}), **({'fulfilment_window':fulfilment_window} if fulfilment_window else {}), **({"payment_test": True} if payment_test else {}), "lines": lines, "quantities": {str(k): v for k, v in quantities.items()}, "subtotal_minor": subtotal,
             "delivery_minor": fee, "discount_minor": discount, "tax_minor": tax, "prices_include_tax": included,
             "total_minor": total, "currency": "KES", "coupon_code": coupon_code, "zone_revision": zone_revision,
             "zone_name": zone_name, "route": route_snapshot, "policy_digest": digest(policy), "checkout": data.model_dump(mode="json"), "pickup_instructions": pickup_instructions}

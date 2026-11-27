@@ -15,6 +15,10 @@ services:
         sync: false
       - key: ENVIRONMENT
         value: production
+      # Presentation checkout: catalogue prices stay intact; KES 0 is collected.
+      # Set false to restore Pesapal after testing.
+      - key: HOSTED_TEST_CHECKOUT_ENABLED
+        value: "true"
       - key: WOOCOMMERCE_STORE_URL
         value: https://cakecity.co.ke/wp-json/wc/store/v1
       - key: REDIS_URL

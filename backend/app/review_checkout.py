@@ -1,4 +1,4 @@
-"""All-product, no-charge checkout. Mounted only by the isolated preview factory."""
+"""No-charge checkout for local review or an explicitly enabled hosted test run."""
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -16,6 +16,10 @@ from .routes_club import member
 
 def require_local_review():
     settings = get_settings()
+    if settings.hosted_test_checkout_enabled:
+        if settings.odoo_enabled or settings.odoo_loyalty_authority:
+            raise HTTPException(403, "Disable Odoo integration before enabling test checkout.")
+        return
     expected = "sqlite:///" + (Path(__file__).resolve().parents[2] / "artifacts/local-preview/review.db").as_posix()
     if (settings.environment != "development" or settings.sqlalchemy_url != expected
             or settings.app_public_url != "http://127.0.0.1:8010"

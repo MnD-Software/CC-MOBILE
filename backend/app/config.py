@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     cors_origins: str = "*"
     woocommerce_store_url: str = "https://cakecity.co.ke/wp-json/wc/store/v1"
     environment: str = "development"
+    # Explicit deployment switch; never controlled by the mobile client.
+    hosted_test_checkout_enabled: bool = False
     club_minimum_redemption: int = Field(default=1, ge=1, le=500)
     club_event_secret: str = ""
     woocommerce_webhook_secret: str = ""
@@ -85,6 +87,8 @@ def get_settings() -> Settings:
 
 def validate_production_settings(settings: Settings) -> None:
     """Apply on every launch path; errors name keys, never their values."""
+    if settings.hosted_test_checkout_enabled and (settings.odoo_enabled or settings.odoo_loyalty_authority):
+        raise RuntimeError("Disable ODOO_ENABLED and ODOO_LOYALTY_AUTHORITY for hosted test checkout.")
     if settings.environment.casefold() != "production":
         return
     if not settings.sqlalchemy_url.startswith("postgresql"):
