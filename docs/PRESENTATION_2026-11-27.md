@@ -43,3 +43,11 @@ No private credentials belong in this document, source control or mobile build. 
 - Targeted frontend pass: 10 tests passed, including canvas lifetime/density, reduced motion and checkout recovery.
 - Canvas visual captures at 320 x 568 and 430 x 932 rendered without browser exceptions. These are browser checks, not native phone performance results.
 - Final platform export/build status is recorded after completion.
+
+## Pink neon DIY header shortcut
+
+Added a shared labelled DIY badge to the customer browse headers, standard page headers, product details and the compact studio header. It navigates directly to `/custom` without stacking another studio when already there. The neon glow uses one native animation, pauses when the screen is inactive, and stays static for reduced motion. Department-only accounts retain their existing navigation permissions.
+
+TypeScript and all 293 frontend tests passed. A web export compiled. Browser checks passed on Home, Shop, Orders, Profile, Club and DIY at 320 and 430 pixels: one shortcut per header, no horizontal overflow and no runtime exceptions. Home and studio screenshots were inspected. Small headers wrap their actions rather than cutting off controls. Native phone appearance still needs device review.
+
+This shortcut was added after Android build 28 was submitted; it is available from the updated Expo Go source and needs a later installed build to appear in an APK. No additional EAS build or iOS signing attempt was started for this change.

@@ -1,4 +1,5 @@
 import { BrandLogo } from "@/components/BrandLogo";
+import { NeonDiyShortcut } from "@/components/storefront/NeonDiyShortcut";
 import {
   isPinkSimbaPackage,
   catalogueSelectionSize,
@@ -249,6 +250,7 @@ export function CommerceBrowseHeader({
       <View style={browseHeader.topRow}>
         <View style={browseHeader.brand}>{brand}</View>
         <View style={browseHeader.actions}>
+          <NeonDiyShortcut />
           <BagButton />
           {right}
         </View>
@@ -284,8 +286,15 @@ const browseHeaderStyles = StyleSheet.create({
     justifyContent: "space-between",
     gap: 12,
   },
-  brand: { flex: 1, minWidth: 0 },
-  actions: { flexDirection: "row", alignItems: "center", gap: 8 },
+  brand: { flex: 1, minWidth: 108 },
+  actions: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    flexWrap: "wrap",
+    flexShrink: 1,
+    gap: 4,
+  },
   search: { width: "100%" },
 });
 
@@ -365,7 +374,19 @@ export function Screen({
                 <Text style={[themed.body, { marginTop: 3 }]}>{subtitle}</Text>
               ) : null}
             </View>
-            {right === undefined ? null : right}
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                flexWrap: "wrap",
+                justifyContent: "flex-end",
+                gap: 6,
+                maxWidth: "45%",
+              }}
+            >
+              <NeonDiyShortcut />
+              {right === undefined ? null : right}
+            </View>
           </View>
         )}
         {scroll ? (

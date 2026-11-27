@@ -565,6 +565,7 @@ export function ProductScreen() {
                 }
               />
               <View style={styles.galleryActions}>
+                <NeonDiyShortcut />
                 <BagButton />
                 <IconButton
                   name="share-outline"
@@ -1506,3 +1507,4 @@ const baseStyles = StyleSheet.create({
   loadingDetails: { gap: 15, padding: 20 },
   pressed: { opacity: 0.84, transform: [{ scale: 0.99 }] },
 });
+import { NeonDiyShortcut } from "@/components/storefront/NeonDiyShortcut";

@@ -25,6 +25,7 @@ import { Text } from "@/components/ui/Typography";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { BrandLogo } from "@/components/BrandLogo";
+import { NeonDiyShortcut } from "@/components/storefront/NeonDiyShortcut";
 import {
   Screen,
   IconButton,
@@ -540,6 +541,7 @@ export function InventoryEditor() {
               }
             />
             <BrandLogo width={60} />
+            <NeonDiyShortcut />
             <Text
               accessibilityRole="header"
               style={{
