@@ -164,6 +164,8 @@ export function BottomSheet({
               </Pressable>
             </View>
             <ScrollView
+              nestedScrollEnabled
+              style={{ flexGrow: 0, flexShrink: 1 }}
               keyboardShouldPersistTaps="handled"
               keyboardDismissMode="on-drag"
               showsVerticalScrollIndicator={false}

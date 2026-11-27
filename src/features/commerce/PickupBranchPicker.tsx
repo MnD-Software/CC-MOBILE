@@ -28,6 +28,11 @@ export function PickupBranchPicker({
       ),
   );
   const current = active.find((b) => b.id === selected);
+  const matches = active.filter((b) =>
+    `${b.name} ${b.address}${b.id.includes("embakasi") ? " Athi River" : ""}`
+      .toLowerCase()
+      .includes(search.trim().toLowerCase()),
+  );
   return (
     <>
       <Pressable
@@ -81,6 +86,9 @@ export function PickupBranchPicker({
         visible={open}
         title="Find your Cake City"
         onClose={() => setOpen(false)}
+        footer={
+          <Button label="Done" variant="ghost" onPress={() => setOpen(false)} />
+        }
       >
         <View style={{ gap: 14 }}>
           <Text style={{ color: colors.muted, lineHeight: 21 }}>
@@ -92,75 +100,89 @@ export function PickupBranchPicker({
             value={search}
             onChangeText={setSearch}
           />
-          {active
-            .filter((b) =>
-              `${b.name} ${b.address}${b.id.includes("embakasi") ? " Athi River" : ""}`
-                .toLowerCase()
-                .includes(search.trim().toLowerCase()),
-            )
-            .map((b) => (
-              <Pressable
-                key={b.id}
-                accessibilityRole="radio"
-                accessibilityState={{ checked: selected === b.id }}
-                onPress={() => {
-                  onSelect(b.id);
-                  setOpen(false);
-                }}
-                style={{
-                  padding: 18,
-                  borderRadius: 22,
-                  borderWidth: 1,
-                  borderColor:
-                    selected === b.id ? colors.brandStrong : colors.border,
-                  backgroundColor:
-                    selected === b.id ? colors.brandLight : colors.surface,
-                  flexDirection: "row",
-                  gap: 12,
-                  alignItems: "center",
-                }}
-              >
-                <Ionicons
-                  name={
-                    selected === b.id ? "checkmark-circle" : "location-outline"
-                  }
-                  color={colors.brandStrong}
-                  size={24}
-                />
-                <View style={{ flex: 1, gap: 5 }}>
+          {!matches.length ? (
+            <View
+              style={{
+                padding: 18,
+                borderRadius: 18,
+                backgroundColor: colors.background,
+                gap: 6,
+              }}
+            >
+              <Text style={{ color: colors.ink, fontWeight: "700" }}>
+                {active.length
+                  ? "No matching branches"
+                  : "Pickup branches are unavailable"}
+              </Text>
+              <Text style={{ color: colors.muted }}>
+                {active.length
+                  ? "Try another branch name or neighbourhood."
+                  : "Please reload checkout or contact Cake City for collection details."}
+              </Text>
+            </View>
+          ) : null}
+          {matches.map((b) => (
+            <Pressable
+              key={b.id}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: selected === b.id }}
+              onPress={() => {
+                onSelect(b.id);
+                setOpen(false);
+              }}
+              style={{
+                padding: 18,
+                borderRadius: 22,
+                borderWidth: 1,
+                borderColor:
+                  selected === b.id ? colors.brandStrong : colors.border,
+                backgroundColor:
+                  selected === b.id ? colors.brandLight : colors.surface,
+                flexDirection: "row",
+                gap: 12,
+                alignItems: "center",
+              }}
+            >
+              <Ionicons
+                name={
+                  selected === b.id ? "checkmark-circle" : "location-outline"
+                }
+                color={colors.brandStrong}
+                size={24}
+              />
+              <View style={{ flex: 1, gap: 5 }}>
+                <Text
+                  style={{
+                    color: colors.ink,
+                    fontWeight: "800",
+                    fontSize: 16,
+                  }}
+                >
+                  {b.name}
+                </Text>
+                <Text
+                  style={{
+                    color: colors.muted,
+                    lineHeight: 19,
+                    fontSize: 12,
+                  }}
+                >
+                  {b.address}
+                </Text>
+                {b.id.includes("embakasi") ? (
                   <Text
                     style={{
-                      color: colors.ink,
-                      fontWeight: "800",
-                      fontSize: 16,
+                      color: colors.brandStrong,
+                      fontSize: 11,
+                      fontWeight: "700",
                     }}
                   >
-                    {b.name}
+                    Also serving Athi River
                   </Text>
-                  <Text
-                    style={{
-                      color: colors.muted,
-                      lineHeight: 19,
-                      fontSize: 12,
-                    }}
-                  >
-                    {b.address}
-                  </Text>
-                  {b.id.includes("embakasi") ? (
-                    <Text
-                      style={{
-                        color: colors.brandStrong,
-                        fontSize: 11,
-                        fontWeight: "700",
-                      }}
-                    >
-                      Also serving Athi River
-                    </Text>
-                  ) : null}
-                </View>
-              </Pressable>
-            ))}
-          <Button label="Done" variant="ghost" onPress={() => setOpen(false)} />
+                ) : null}
+              </View>
+            </Pressable>
+          ))}
         </View>
       </BottomSheet>
     </>

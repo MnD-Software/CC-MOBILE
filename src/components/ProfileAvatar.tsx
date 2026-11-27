@@ -9,7 +9,11 @@ import { tokens } from "@/theme/tokens";
 import { useTheme, useThemedStyles } from "@/theme/ThemeProvider";
 
 const presetAvatars = {
-  sparkles: { icon: "sparkles", color: "#B80068", tint: "#FFF0F8" },
+  sparkles: {
+    icon: "sparkles",
+    color: tokens.color.brandStrong,
+    tint: "#FFF0F8",
+  },
   heart: { icon: "heart", color: "#BE375E", tint: "#FFF0F3" },
   balloon: { icon: "balloon", color: "#2475A8", tint: "#EEF7FF" },
   happy: { icon: "happy", color: "#7652A8", tint: "#F4F0FF" },

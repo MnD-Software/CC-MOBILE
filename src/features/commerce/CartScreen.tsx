@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LoadingImage as Image } from "@/components/ui/LoadingImage";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import { Linking, Pressable, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { Text } from "@/components/ui/Typography";
 import { Button } from "@/components/ui/Button";
 import { Screen, useToast } from "@/components/ui/Commerce";
@@ -27,25 +27,6 @@ export function CartScreen() {
     (total, line) => total + line.price * line.quantity,
     0,
   );
-
-  async function requestBagSupport() {
-    const order = bag.lines
-      .map(
-        (line) =>
-          `${line.quantity} × ${line.name} (${money(line.price * line.quantity)})`,
-      )
-      .join("\n");
-    const message = [
-      "Hi Cake City, I would like to order:",
-      order,
-      `Subtotal: ${money(subtotal)}`,
-      "Please help me confirm delivery or pickup.",
-    ].join("\n\n");
-    router.push({
-      pathname: "/requests",
-      params: { kind: "support", details: message },
-    });
-  }
 
   return (
     <Screen
@@ -215,7 +196,9 @@ export function CartScreen() {
             ))}
           </View>
 
-          <Disclosure title="Make it extra special · optional extras"><CartSuggestions lines={bag.lines} /></Disclosure>
+          <Disclosure title="Make it extra special · optional extras">
+            <CartSuggestions lines={bag.lines} />
+          </Disclosure>
           <View style={styles.totalCard}>
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>Bag total</Text>
@@ -227,25 +210,19 @@ export function CartScreen() {
             </Text>
           </View>
 
-          <Button
-            label="Secure checkout for all items"
-            onPress={() => router.push("/checkout")}
-          />
-          <Button
-            variant="outline"
-            label="Manage coupons in Cake City Club"
-            onPress={() => router.push("/(tabs)/loyalty")}
-          />
-          <Button
-            variant="outline"
-            label="Order everything on app support"
-            onPress={() => void requestBagSupport()}
-          />
-          <Button
-            variant="outline"
-            label="Keep shopping"
-            onPress={() => router.push("/(tabs)/shop")}
-          />
+          <View style={styles.bagActions}>
+            <Button
+              label="Checkout"
+              style={styles.bagAction}
+              onPress={() => router.push("/checkout")}
+            />
+            <Button
+              variant="outline"
+              label="Keep shopping"
+              style={styles.bagAction}
+              onPress={() => router.push("/(tabs)/shop")}
+            />
+          </View>
         </>
       )}
     </Screen>
@@ -253,6 +230,8 @@ export function CartScreen() {
 }
 
 const baseStyles = StyleSheet.create({
+  bagActions: { flexDirection: "row", gap: 10 },
+  bagAction: { flex: 1, minWidth: 0, paddingHorizontal: 10 },
   summary: {
     minHeight: 112,
     flexDirection: "row",

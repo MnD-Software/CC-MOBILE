@@ -627,7 +627,7 @@ function EmptyDealSlide({
       ]}
     >
       <LinearGradient
-        colors={["#5A223E", "#B80068", "#EC008C"]}
+        colors={["#5A223E", tokens.color.brandStrong, tokens.color.brand]}
         end={{ x: 1, y: 1 }}
         start={{ x: 0, y: 0 }}
         style={StyleSheet.absoluteFill}

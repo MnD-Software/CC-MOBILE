@@ -1,4 +1,5 @@
-import { ActivityIndicator, Modal, StyleSheet, View } from "react-native";
+import { CakeCityLoader as ActivityIndicator } from "@/components/ui/CakeCityLoader";
+import { Modal, StyleSheet, View } from "react-native";
 import { WebView } from "react-native-webview";
 import { Button } from "@/components/ui/Button";
 import { Notice } from "@/components/ui/Commerce";

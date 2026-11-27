@@ -1,12 +1,10 @@
-import { ActivityIndicator, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { CakeCityLoader as ActivityIndicator } from "@/components/ui/CakeCityLoader";
+import { View } from "react-native";
 import { Text } from "@/components/ui/Typography";
 import { useTheme } from "@/theme/ThemeProvider";
-import { useReducedMotion } from "@/design/useReducedMotion";
 
 export function SearchLoading({ compact = false }: { compact?: boolean }) {
   const { colors } = useTheme();
-  const reduced = useReducedMotion();
   return (
     <View
       accessibilityRole="progressbar"
@@ -32,18 +30,10 @@ export function SearchLoading({ compact = false }: { compact?: boolean }) {
           justifyContent: "center",
         }}
       >
-        {reduced ? (
-          <Ionicons
-            name="search-outline"
-            color={colors.brandStrong}
-            size={compact ? 19 : 28}
-          />
-        ) : (
-          <ActivityIndicator
-            color={colors.brandStrong}
-            size={compact ? "small" : "large"}
-          />
-        )}
+        <ActivityIndicator
+          color={colors.brandStrong}
+          size={compact ? "small" : "large"}
+        />
       </View>
       <Text
         style={{

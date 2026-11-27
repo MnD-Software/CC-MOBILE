@@ -34,6 +34,7 @@ test("in-app payment navigation blocks websites and external apps while handling
     "react-native-webview": {},
     react: {},
     "@/components/ui/Button": {},
+    "@/components/ui/CakeCityLoader": {},
     "@/components/ui/Commerce": {},
     "@/config/env": { env: { apiUrl: "https://app.example.com" } },
   });
@@ -119,7 +120,10 @@ test("order and payment requests address only app-owned routes with authenticate
 });
 
 test("app receipt exports are escaped, app-referenced and require verified payment", () => {
-  const { appReceiptHtml } = load("src/features/commerce/app-receipt.ts", {"./receipt-logo":load("src/features/commerce/receipt-logo.ts",{})});
+  const { appReceiptHtml } = load("src/features/commerce/app-receipt.ts", {
+    "./receipt-logo": load("src/features/commerce/receipt-logo.ts", {}),
+    "../../theme/tokens": load("src/theme/tokens.ts", {}),
+  });
   assert.throws(() => appReceiptHtml({ paid_at: null }), /verified payment/);
   const order = {
     reference: "APP-20261103-ABC",
@@ -139,8 +143,8 @@ test("app receipt exports are escaped, app-referenced and require verified payme
           name: '<script>alert("test")</script>',
           quantity: 1,
           line_minor: 250000,
-          unit_minor:250000,
-          selection:{size:"1kg"},
+          unit_minor: 250000,
+          selection: { size: "1kg" },
         },
       ],
     },

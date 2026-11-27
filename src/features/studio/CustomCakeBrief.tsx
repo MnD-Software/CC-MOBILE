@@ -17,7 +17,7 @@ type Inspiration = Pick<
   "fileName" | "mimeType" | "uri"
 >;
 
-const occasions = ["Birthday", "Wedding", "Anniversary", "Just because"];
+const occasions = ["Birthday", "Wedding", "Anniversary", "Other"];
 
 function assetFromResult(
   result:
@@ -42,6 +42,8 @@ export function CustomCakeBrief() {
   const { colors } = useTheme();
   const toast = useToast();
   const [occasion, setOccasion] = useState(occasions[0]);
+  const [otherOccasion, setOtherOccasion] = useState("");
+  const [choosing, setChoosing] = useState(false);
   const [date, setDate] = useState("");
   const [budget, setBudget] = useState("");
   const [notes, setNotes] = useState("");
@@ -61,21 +63,30 @@ export function CustomCakeBrief() {
   }, []);
 
   async function chooseInspiration() {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      toast("Allow photo access to add a cake inspiration image.");
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 0.78,
-    });
-    const asset = assetFromResult(result);
-    if (asset) {
-      setInspiration(asset);
-      toast("Inspiration photo ready to share.");
+    if (choosing) return;
+    setChoosing(true);
+    try {
+      const permission =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        toast("Allow photo access to add a cake inspiration image.");
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.78,
+      });
+      const asset = assetFromResult(result);
+      if (asset) {
+        setInspiration(asset);
+        toast("Your inspiration photo is ready.");
+      }
+    } catch {
+      toast("Your photo could not be opened. Please try again.");
+    } finally {
+      setChoosing(false);
     }
   }
 
@@ -97,7 +108,7 @@ export function CustomCakeBrief() {
   async function messageCakeCity() {
     const summary = [
       "Hello Cake City, I would like a custom cake quote.",
-      `Occasion: ${occasion}`,
+      `Occasion: ${occasion === "Other" ? otherOccasion.trim() || "Other" : occasion}`,
       date.trim() ? `Preferred date: ${date.trim()}` : null,
       budget.trim() ? `Budget: KSh ${budget.trim()}` : null,
       notes.trim() ? `Design notes: ${notes.trim()}` : null,
@@ -115,75 +126,22 @@ export function CustomCakeBrief() {
 
   return (
     <View style={styles.wrapper}>
-      <View style={[ui.panel, styles.intro]}>
-        <View style={styles.introIcon}>
-          <Ionicons
-            color={colors.brandStrong}
-            name="color-palette-outline"
-            size={22}
-          />
-        </View>
-        <View style={styles.introCopy}>
-          <Text style={ui.eyebrow}>CUSTOM CAKE BRIEF</Text>
-          <Text style={ui.heading}>Bring your idea to life.</Text>
-          <Text style={ui.body}>
-            Add an inspiration photo, then share your brief with Cake City for a
-            confirmed quote. We do not invent a custom-cake total before the
-            team approves the design.
-          </Text>
-        </View>
-      </View>
-
-      <View style={styles.occasionSection}>
-        <Text style={styles.fieldLabel}>What are we celebrating?</Text>
-        <View style={styles.chips}>
-          {occasions.map((item) => (
-            <Chip
-              key={item}
-              label={item}
-              onPress={() => setOccasion(item)}
-              selected={occasion === item}
-            />
-          ))}
-        </View>
-      </View>
-
-      <Input
-        hint="For example: 18 October 2026"
-        label="Preferred date"
-        onChangeText={setDate}
-        placeholder="When do you need it?"
-        value={date}
-      />
-      <Input
-        keyboardType="numeric"
-        label="Budget (optional)"
-        onChangeText={setBudget}
-        placeholder="Your budget in KSh"
-        value={budget}
-      />
-      <Input
-        label="Your design notes"
-        multiline
-        onChangeText={setNotes}
-        placeholder="Theme, colours, flavour, serving size and message…"
-        value={notes}
-      />
-
       <View style={styles.inspirationCard}>
         <View style={styles.inspirationHeader}>
           <View style={styles.inspirationIcon}>
             <Ionicons
-              color={colors.accentStrong}
+              color={colors.brandStrong}
               name="images-outline"
               size={20}
             />
           </View>
           <View style={styles.inspirationCopy}>
-            <Text style={styles.inspirationTitle}>Your inspiration</Text>
+            <Text style={styles.inspirationTitle}>
+              Start with your inspiration
+            </Text>
             <Text style={styles.inspirationText}>
-              Pick a photo, preview it here, then share it directly from your
-              device.
+              Add a photo of the cake you have in mind. Make it yours with the
+              details below.
             </Text>
           </View>
         </View>
@@ -208,6 +166,8 @@ export function CustomCakeBrief() {
           <Pressable
             accessibilityLabel="Choose a cake inspiration photo"
             accessibilityRole="button"
+            disabled={choosing}
+            accessibilityState={{ busy: choosing }}
             onPress={() => void chooseInspiration()}
             style={({ pressed }) => [
               styles.pickArea,
@@ -215,32 +175,100 @@ export function CustomCakeBrief() {
             ]}
           >
             <Ionicons
-              color={colors.accentStrong}
+              color={colors.brandStrong}
               name="add-circle-outline"
               size={26}
             />
-            <Text style={styles.pickText}>Choose inspiration photo</Text>
+            <Text style={styles.pickText}>
+              {choosing
+                ? "Opening your photos..."
+                : "Add your inspiration photo"}
+            </Text>
           </Pressable>
         )}
         <Text style={styles.privacyNote}>
           Your selected photo stays on this device until you choose an app in
           the share sheet.
         </Text>
-        <View style={styles.actions}>
-          <Button
-            label={inspiration ? "Choose another photo" : "Add inspiration"}
-            onPress={() => void chooseInspiration()}
-            size="sm"
-            variant="outline"
-          />
-          <Button
-            disabled={!inspiration}
-            label="Share photo"
-            onPress={() => void shareInspiration()}
-            size="sm"
+        {inspiration ? (
+          <View style={styles.actions}>
+            <Button
+              label="Choose another photo"
+              disabled={choosing}
+              onPress={() => void chooseInspiration()}
+              size="sm"
+              variant="outline"
+            />
+            <Button
+              disabled={!inspiration}
+              label="Share photo"
+              onPress={() => void shareInspiration()}
+              size="sm"
+            />
+          </View>
+        ) : null}
+      </View>
+      <View style={[ui.panel, styles.intro]}>
+        <View style={styles.introIcon}>
+          <Ionicons
+            color={colors.brandStrong}
+            name="color-palette-outline"
+            size={22}
           />
         </View>
+        <View style={styles.introCopy}>
+          <Text style={ui.eyebrow}>CUSTOM CAKE BRIEF</Text>
+          <Text style={ui.heading}>Bring your idea to life.</Text>
+          <Text style={ui.body}>
+            Tell us what makes your celebration special. Your Cake City team
+            will help shape your design and confirm your quote.
+          </Text>
+        </View>
       </View>
+
+      <View style={styles.occasionSection}>
+        <Text style={styles.fieldLabel}>What are we celebrating?</Text>
+        <View style={styles.chips}>
+          {occasions.map((item) => (
+            <Chip
+              key={item}
+              label={item}
+              onPress={() => setOccasion(item)}
+              selected={occasion === item}
+            />
+          ))}
+        </View>
+      </View>
+
+      {occasion === "Other" ? (
+        <Input
+          label="Your occasion"
+          placeholder="What are you celebrating?"
+          value={otherOccasion}
+          onChangeText={setOtherOccasion}
+        />
+      ) : null}
+      <Input
+        hint="For example: 12 December 2026"
+        label="Preferred date"
+        onChangeText={setDate}
+        placeholder="When do you need it?"
+        value={date}
+      />
+      <Input
+        keyboardType="numeric"
+        label="Budget (optional)"
+        onChangeText={setBudget}
+        placeholder="Your budget in KSh"
+        value={budget}
+      />
+      <Input
+        label="Your design notes"
+        multiline
+        onChangeText={setNotes}
+        placeholder="Theme, colours, flavour, serving size and message…"
+        value={notes}
+      />
 
       <Button
         label="Send and track a quote request"
@@ -293,7 +321,7 @@ const baseStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 14,
-    backgroundColor: tokens.color.accentLight,
+    backgroundColor: tokens.color.brandLight,
   },
   inspirationCopy: { flex: 1, gap: 2 },
   inspirationTitle: {
@@ -309,12 +337,12 @@ const baseStyles = StyleSheet.create({
     gap: 7,
     borderWidth: 1,
     borderStyle: "dashed",
-    borderColor: "rgba(0,110,149,0.34)",
+    borderColor: tokens.color.borderStrong,
     borderRadius: 17,
-    backgroundColor: "#F8FDFF",
+    backgroundColor: tokens.color.brandLight,
   },
   pickText: {
-    color: tokens.color.accentStrong,
+    color: tokens.color.brandStrong,
     fontSize: 13,
     fontWeight: "800",
   },

@@ -34,7 +34,7 @@ const avatarChoices = [
     id: "sparkles",
     label: "Sparkles",
     icon: "sparkles" as const,
-    color: "#B80068",
+    color: tokens.color.brandStrong,
     tint: "#FFF0F8",
   },
   {
@@ -309,9 +309,7 @@ export function AccountScreen() {
   });
   const defaultAddress =
     addresses.data?.find((value) => value.is_default) ?? addresses.data?.[0];
-  const savedCount = usePreferences(
-    (state) => selectSavedSlugs(state).length,
-  );
+  const savedCount = usePreferences((state) => selectSavedSlugs(state).length);
   const avatar = usePreferences((state) =>
     customer ? state.profileAvatars?.[customer.id] : undefined,
   );
@@ -502,7 +500,13 @@ export function AccountScreen() {
         end={{ x: 1, y: 1 }}
         style={[
           styles.memberHero,
-          { padding: 24, borderRadius: 30, gap: 18, alignItems: "center", flexDirection: "row" },
+          {
+            padding: 24,
+            borderRadius: 30,
+            gap: 18,
+            alignItems: "center",
+            flexDirection: "row",
+          },
         ]}
       >
         <View

@@ -2,11 +2,10 @@ import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { LoadingImage as Image } from "@/components/ui/LoadingImage";
 import { router } from "expo-router";
-import { Pressable, View } from "react-native";
+import { Pressable, ScrollView, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "@/components/ui/Typography";
 import { useTheme } from "@/theme/ThemeProvider";
-import { SearchLoading } from "./SearchLoading";
 import { shopApi } from "./api";
 import { money, plainText, productPrice } from "./contracts";
 import { suggestedSearchTerm } from "./search-intelligence";
@@ -49,59 +48,75 @@ export function SearchPredictions({
       }}
     >
       {results.isFetching || term !== query.trim() ? (
-        <SearchLoading compact />
+        <Text
+          accessibilityLiveRegion="polite"
+          style={{ color: colors.muted, fontSize: 11, padding: 6 }}
+        >
+          Finding your suggestions...
+        </Text>
       ) : (
         <Text style={{ color: colors.muted, fontSize: 11, padding: 6 }}>
           Suggestions
         </Text>
       )}
-      {term === query.trim()
-        ? results.data?.data.map((product) => (
-            <Pressable
-              key={product.id}
-              accessibilityRole="button"
-              accessibilityLabel={`View ${plainText(product.name)}`}
-              onPress={() =>
-                router.push({
-                  pathname: "/product/[id]",
-                  params: { id: String(product.id), slug: product.slug },
-                })
-              }
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 10,
-                padding: 7,
-                minHeight: 52,
-              }}
-            >
-              <Image
-                source={product.images[0]?.src}
-                style={{ width: 38, height: 38, borderRadius: 8 }}
-                contentFit="cover"
-              />
-              <View style={{ flex: 1, gap: 3 }}>
-                <Text
-                  numberOfLines={1}
-                  style={{ color: colors.ink, fontSize: 13, fontWeight: "600" }}
-                >
-                  {plainText(product.name)}
-                </Text>
-                <Text style={{ color: colors.muted, fontSize: 11 }}>
-                  {productPrice(product) === null
-                    ? "View options"
-                    : money(productPrice(product)!)}
-                </Text>
-              </View>
-              <Ionicons
-                name="arrow-up-outline"
-                size={16}
-                color={colors.muted}
-                style={{ transform: [{ rotate: "45deg" }] }}
-              />
-            </Pressable>
-          ))
-        : null}
+      <ScrollView
+        nestedScrollEnabled
+        keyboardShouldPersistTaps="handled"
+        style={{ maxHeight: 164 }}
+        showsVerticalScrollIndicator={false}
+      >
+        {term === query.trim()
+          ? results.data?.data.map((product) => (
+              <Pressable
+                key={product.id}
+                accessibilityRole="button"
+                accessibilityLabel={`View ${plainText(product.name)}`}
+                onPress={() =>
+                  router.push({
+                    pathname: "/product/[id]",
+                    params: { id: String(product.id), slug: product.slug },
+                  })
+                }
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: 7,
+                  minHeight: 52,
+                }}
+              >
+                <Image
+                  source={product.images[0]?.src}
+                  style={{ width: 38, height: 38, borderRadius: 8 }}
+                  contentFit="cover"
+                />
+                <View style={{ flex: 1, gap: 3 }}>
+                  <Text
+                    numberOfLines={1}
+                    style={{
+                      color: colors.ink,
+                      fontSize: 13,
+                      fontWeight: "600",
+                    }}
+                  >
+                    {plainText(product.name)}
+                  </Text>
+                  <Text style={{ color: colors.muted, fontSize: 11 }}>
+                    {productPrice(product) === null
+                      ? "View options"
+                      : money(productPrice(product)!)}
+                  </Text>
+                </View>
+                <Ionicons
+                  name="arrow-up-outline"
+                  size={16}
+                  color={colors.muted}
+                  style={{ transform: [{ rotate: "45deg" }] }}
+                />
+              </Pressable>
+            ))
+          : null}
+      </ScrollView>
       <Pressable
         accessibilityRole="button"
         onPress={() => onSearch(searchTerm)}

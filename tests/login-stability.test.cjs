@@ -219,6 +219,7 @@ test("new DIY sketches preserve prior saves even when the same cake and size are
     usePreferences: (fn) => fn(prefs),
     randomUUID: () => "draft-" + ++serial,
     EMPTY_DESIGNS: [],
+    tokens: require("../src/theme/tokens.ts").tokens,
     setTimeout: () => 1,
     clearTimeout() {},
     useQuery: (options) => ({
@@ -242,6 +243,8 @@ test("new DIY sketches preserve prior saves even when the same cake and size are
     useWindowDimensions: () => ({ height: 844, width: 390 }),
     BrandLogo: "BrandLogo",
     IconButton: "IconButton",
+    CustomerBagButton: "CustomerBagButton",
+    NeonDiyShortcut: "NeonDiyShortcut",
     cakeWeightKg: () => null,
     ...require("../src/features/studio/real-cake.ts"),
     CustomCakeBrief: "Inspo",

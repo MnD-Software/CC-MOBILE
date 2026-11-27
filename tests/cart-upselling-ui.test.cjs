@@ -54,6 +54,8 @@ function render(states, lines = []) {
           },
         };
       if (name === "react-native") return native;
+      if (name.endsWith("/CakeCityLoader"))
+        return { CakeCityLoader: native.ActivityIndicator };
       if (name.endsWith("/Typography")) return { Text: native.Text };
       if (name.endsWith("/Button"))
         return {

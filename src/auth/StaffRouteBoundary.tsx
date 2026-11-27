@@ -1,7 +1,8 @@
+import { CakeCityLoader as ActivityIndicator } from "@/components/ui/CakeCityLoader";
 import { publicEntryRoute } from "./route-access";
 import { rememberCustomerRoute } from "./post-login";
 import { useEffect, type PropsWithChildren } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { View } from "react-native";
 import { router, usePathname, useRootNavigationState } from "expo-router";
 import { useAuth } from "./AuthProvider";
 import { isStaffRole, staffRouteAllowed } from "./staff-routing";

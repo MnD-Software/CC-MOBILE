@@ -1,3 +1,4 @@
+import { CakeCityLoader as ActivityIndicator } from "@/components/ui/CakeCityLoader";
 import { useAuth } from "@/auth/AuthProvider";
 import { Ionicons } from "@expo/vector-icons";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
@@ -5,7 +6,6 @@ import { LoadingImage as Image } from "@/components/ui/LoadingImage";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   FlatList,
   Platform,
   Pressable,
@@ -227,6 +227,18 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
       scroll={false}
       header={
         <CommerceBrowseHeader
+          suggestions={
+            <SearchPredictions
+              query={search}
+              active={predicting}
+              onSearch={(value) => {
+                changeSearch(value);
+                setDebounced(value);
+                rememberSearch(value);
+                setPredicting(false);
+              }}
+            />
+          }
           right={<HeaderActions />}
           brand={
             <View style={styles.titleRow}>
@@ -272,13 +284,6 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
                 onSubmitEditing={submitSearch}
                 style={styles.searchInput}
               />
-              {search.trim() !== debounced || products.isFetching ? (
-                <ActivityIndicator
-                  size="small"
-                  color={colors.brandStrong}
-                  accessibilityLabel="Searching products"
-                />
-              ) : null}
               {search ? (
                 <IconButton
                   name="close-circle"
@@ -289,16 +294,6 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
               ) : null}
             </View>
           </GlassSurface>
-          <SearchPredictions
-            query={search}
-            active={predicting}
-            onSearch={(value) => {
-              changeSearch(value);
-              setDebounced(value);
-              rememberSearch(value);
-              setPredicting(false);
-            }}
-          />
         </CommerceBrowseHeader>
       }
     >
@@ -603,7 +598,7 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
               maxToRenderPerBatch={6}
               windowSize={5}
               removeClippedSubviews={Platform.OS === "android"}
-              refreshing={products.isRefetching && !products.isFetchingNextPage}
+              refreshing={false}
               onRefresh={() => {
                 void products.refetch();
               }}
@@ -616,6 +611,13 @@ export function ShopScreen({ searchOnly = false }: { searchOnly?: boolean }) {
                 )
                   void products.fetchNextPage();
               }}
+              ListHeaderComponent={
+                rows.length &&
+                products.isFetching &&
+                !products.isFetchingNextPage ? (
+                  <SearchLoading compact />
+                ) : undefined
+              }
               ListEmptyComponent={
                 products.isPending ? (
                   <SearchLoading />

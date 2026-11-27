@@ -1,5 +1,6 @@
+import { CakeCityLoader as ActivityIndicator } from "@/components/ui/CakeCityLoader";
 import { useQuery } from "@tanstack/react-query";
-import { ActivityIndicator, ScrollView, View } from "react-native";
+import { ScrollView, View } from "react-native";
 import { Button } from "@/components/ui/Button";
 import { ProductTile } from "@/components/ui/Commerce";
 import { Text } from "@/components/ui/Typography";

@@ -6,7 +6,7 @@ const ts = require("typescript");
 const { randomUUID } = require("node:crypto");
 const z = require("zod").z;
 const pause = () => new Promise((resolve) => setImmediate(resolve));
-function checkout(optionOverrides = {}) {
+function checkout(optionOverrides = {}, queryState = {}) {
   const states = [],
     refs = [],
     deps = [],
@@ -117,7 +117,12 @@ function checkout(optionOverrides = {}) {
     "@/design/useScreenActive": { useScreenActive: () => false },
     "@/config/env": { env: { reviewCheckout: false } },
     "@tanstack/react-query": {
-      useQuery: () => ({ data: options, isPending: false, isError: false }),
+      useQuery: () => ({
+        data: options,
+        isPending: false,
+        isError: false,
+        ...queryState,
+      }),
     },
     zod: { z },
     "@/api/client": { api, ApiError },
@@ -209,7 +214,8 @@ function checkout(optionOverrides = {}) {
   }
   function buttons(node = tree) {
     if (!node || typeof node !== "object") return [];
-    if (Array.isArray(node)) return node.flatMap(buttons);
+    if (Array.isArray(node))
+      return node.flatMap((child) => (child ? buttons(child) : []));
     return [
       ...(node.type === "Button" ? [node] : []),
       ...(node.props?.children ? buttons(node.props.children) : []),
@@ -223,7 +229,8 @@ function checkout(optionOverrides = {}) {
   }
   function notices(node = tree) {
     if (!node || typeof node !== "object") return [];
-    if (Array.isArray(node)) return node.flatMap(notices);
+    if (Array.isArray(node))
+      return node.flatMap((child) => (child ? notices(child) : []));
     return [
       ...(node.type === "Notice" ? [node.props.message] : []),
       ...(node.props?.children ? notices(node.props.children) : []),
@@ -238,7 +245,7 @@ function checkout(optionOverrides = {}) {
       }
       return null;
     }
-    if (node.type === type) return node;
+    if (node.type === type || node.type?.name === type) return node;
     return node.props?.children ? findType(type, node.props.children) : null;
   }
   return {
@@ -374,4 +381,42 @@ test("selecting and removing a checkout coupon refreshes the confirmed total wit
   assert.ok(c.buttons().some((b) => b.props.label === "Pay KES 2500"));
   assert.equal(c.starts(), 0);
   assert.equal(c.calls.filter((x) => x.path === "/v1/app-orders").length, 0);
+});
+
+test("pickup stays visible and disabled while checkout settings load", async () => {
+  const c = checkout({}, { data: undefined, isPending: true });
+  await c.flush();
+  const choice = c.findType("FulfilmentChoice");
+  assert.ok(choice);
+  assert.equal(choice.props.disabled, true);
+  assert.equal(c.calls.length, 0);
+});
+
+test("failed checkout settings offer recovery without starting an order", async () => {
+  const c = checkout({}, { data: undefined, isError: true });
+  await c.flush();
+  assert.ok(c.buttons().some((b) => /Retry/.test(b.props.label)));
+  assert.equal(c.calls.length, 0);
+});
+
+test("pickup cannot request a price until a branch is selected", async () => {
+  const c = checkout();
+  await c.flush();
+  assert.ok(
+    c
+      .notices()
+      .some((message) => /Choose your pickup branch above/.test(message)),
+  );
+  assert.equal(
+    c.buttons().find((b) => b.props.label === "Review confirmed total").props
+      .disabled,
+    true,
+  );
+  c.findType("PickupPicker").props.onSelect("branch");
+  await c.flush();
+  assert.equal(
+    c.buttons().find((b) => b.props.label === "Review confirmed total").props
+      .disabled,
+    false,
+  );
 });

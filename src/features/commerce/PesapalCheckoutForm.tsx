@@ -202,19 +202,37 @@ function AppCheckout({
     hideGiftPrices,
   });
   const options = useQuery({
-    queryKey: ["app-checkout-options"],
-    queryFn: async () =>
-      optionsSchema.parse(await api.get("/v1/app-checkout/options")),
+    queryKey: ["app-checkout-options", owner],
+    queryFn: async ({ signal }) =>
+      optionsSchema.parse(
+        await api.get("/v1/app-checkout/options", {
+          signal,
+          timeoutMs: 45_000,
+        }),
+      ),
+    retry: 1,
+    staleTime: 30_000,
   });
   useEffect(() => {
     if (options.data?.delivery_zones.length === 1)
       setZone(options.data.delivery_zones[0].id);
-    if (
-      options.data?.pickup_enabled &&
-      !options.data.delivery_zones.length &&
-      !options.data.distance_delivery?.enabled
-    )
-      setFulfilment("pickup");
+    if (options.data) {
+      const deliveryAvailable = Boolean(
+        options.data.delivery_zones.length ||
+          options.data.distance_delivery?.enabled,
+      );
+      setFulfilment((previous) =>
+        previous === "delivery" &&
+        !deliveryAvailable &&
+        options.data.pickup_enabled
+          ? "pickup"
+          : previous === "pickup" &&
+              !options.data.pickup_enabled &&
+              deliveryAvailable
+            ? "delivery"
+            : previous,
+      );
+    }
   }, [options.data]);
   useEffect(() => {
     if (order && isVerifiedPayment(order)) setPayment(null);
@@ -771,7 +789,11 @@ function AppCheckout({
             ? fulfilment === "pickup"
               ? "Choose your pickup branch above and wait for its transport fee to be confirmed."
               : "Choose your delivery destination above and confirm its delivery fee to continue."
-            : "";
+            : fulfilment === "pickup" &&
+                !options.data?.distance_delivery?.enabled &&
+                !pickupLocation
+              ? "Choose your pickup branch above to continue."
+              : "";
   return (
     <View style={{ gap: 18 }}>
       <CheckoutProgress current={quote ? 2 : 1} />
@@ -922,36 +944,86 @@ function AppCheckout({
               accessibilityLabel="Pickup or delivery"
               style={checkoutStyles.fulfilmentChoices}
             >
-              {options.data?.delivery_zones.length ||
-              options.data?.distance_delivery?.enabled ? (
-                <FulfilmentChoice
-                  title="Delivery"
-                  description="To your doorstep"
-                  icon="bicycle-outline"
-                  selected={fulfilment === "delivery"}
-                  onPress={() => {
-                    if (fulfilment !== "delivery") {
-                      setDeliveryQuote(null);
-                      setFulfilment("delivery");
-                    }
-                  }}
-                />
-              ) : null}
-              {options.data?.pickup_enabled ? (
-                <FulfilmentChoice
-                  title="Pickup"
-                  description="From a Cake City branch"
-                  icon="storefront-outline"
-                  selected={fulfilment === "pickup"}
-                  onPress={() => {
-                    if (fulfilment !== "pickup") {
-                      setDeliveryQuote(null);
-                      setFulfilment("pickup");
-                    }
-                  }}
-                />
-              ) : null}
+              <FulfilmentChoice
+                title="Delivery"
+                description={
+                  options.isPending
+                    ? "Checking availability..."
+                    : options.isError
+                      ? "Retry options below"
+                      : options.data?.delivery_zones.length ||
+                          options.data?.distance_delivery?.enabled
+                        ? "To your doorstep"
+                        : "Currently unavailable"
+                }
+                icon="bicycle-outline"
+                selected={
+                  fulfilment === "delivery" &&
+                  Boolean(
+                    options.data?.delivery_zones.length ||
+                      options.data?.distance_delivery?.enabled,
+                  )
+                }
+                disabled={
+                  options.isPending ||
+                  options.isError ||
+                  !(
+                    options.data?.delivery_zones.length ||
+                    options.data?.distance_delivery?.enabled
+                  )
+                }
+                onPress={() => {
+                  if (fulfilment !== "delivery") {
+                    setDeliveryQuote(null);
+                    setFulfilment("delivery");
+                  }
+                }}
+              />
+              <FulfilmentChoice
+                title="Pickup"
+                description={
+                  options.isPending
+                    ? "Checking branches?"
+                    : options.isError
+                      ? "Retry options below"
+                      : options.data?.pickup_enabled
+                        ? "From a Cake City branch"
+                        : "Currently unavailable"
+                }
+                icon="storefront-outline"
+                selected={
+                  fulfilment === "pickup" &&
+                  Boolean(options.data?.pickup_enabled)
+                }
+                disabled={
+                  options.isPending ||
+                  options.isError ||
+                  !options.data?.pickup_enabled
+                }
+                onPress={() => {
+                  if (fulfilment !== "pickup") {
+                    setDeliveryQuote(null);
+                    setFulfilment("pickup");
+                  }
+                }}
+              />
             </View>
+            {options.isPending ? (
+              <Notice message="Finding your pickup branches and delivery options..." />
+            ) : null}
+            {options.isError ? (
+              <View style={{ gap: 10 }}>
+                <Notice
+                  error
+                  message="We couldn?t load your branches and delivery options. Your bag is safe."
+                />
+                <Button
+                  label="Retry pickup and delivery options"
+                  variant="outline"
+                  onPress={() => void options.refetch()}
+                />
+              </View>
+            ) : null}
             {fulfilment === "pickup" && options.data?.pickup_instructions ? (
               <Notice
                 message={
@@ -1248,13 +1320,6 @@ function AppCheckout({
             {checkoutBlockedReason ? (
               <Notice message={checkoutBlockedReason} />
             ) : null}
-            {options.isError ? (
-              <Button
-                variant="outline"
-                label="Retry pickup and delivery options"
-                onPress={() => void options.refetch()}
-              />
-            ) : null}
             <Button
               size="lg"
               style={checkoutStyles.payButton}
@@ -1360,26 +1425,29 @@ function FulfilmentChoice({
   icon,
   selected,
   onPress,
+  disabled = false,
 }: {
   title: string;
   description: string;
   icon: keyof typeof Ionicons.glyphMap;
   selected: boolean;
   onPress: () => void;
+  disabled?: boolean;
 }) {
   const { colors } = useTheme();
   return (
     <Pressable
       accessibilityRole="radio"
       accessibilityLabel={title}
-      accessibilityState={{ checked: selected }}
+      accessibilityState={{ checked: selected, disabled }}
+      disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [
         checkoutStyles.choice,
         {
           backgroundColor: selected ? colors.brandLight : colors.background,
           borderColor: selected ? colors.brandStrong : colors.border,
-          opacity: pressed ? 0.75 : 1,
+          opacity: disabled ? 0.6 : pressed ? 0.75 : 1,
         },
       ]}
     >
@@ -1478,9 +1546,10 @@ const checkoutStyles = StyleSheet.create({
   contactGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   nameField: { flexBasis: 120, flexGrow: 1, minWidth: 0 },
   fullField: { width: "100%" },
-  fulfilmentChoices: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  fulfilmentChoices: { flexDirection: "row", gap: 10 },
   choice: {
-    flexBasis: 125,
+    flexBasis: 0,
+    minWidth: 0,
     flexGrow: 1,
     borderRadius: 18,
     borderWidth: 1.5,

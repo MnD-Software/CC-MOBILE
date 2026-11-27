@@ -1,3 +1,4 @@
+import { tokens } from "@/theme/tokens";
 import { randomUUID } from "expo-crypto";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useEffect, useRef, useState } from "react";
@@ -28,6 +29,7 @@ import { BrandLogo } from "@/components/BrandLogo";
 import { NeonDiyShortcut } from "@/components/storefront/NeonDiyShortcut";
 import {
   Screen,
+  CustomerBagButton,
   IconButton,
   Notice,
   Feedback,
@@ -523,14 +525,22 @@ export function InventoryEditor() {
     <Screen
       title="DIY cake studio"
       header={
-        compact ? (
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            paddingHorizontal: 16,
+            paddingVertical: 6,
+            gap: 8,
+          }}
+        >
           <View
             style={{
+              flex: 1,
+              minWidth: 0,
               flexDirection: "row",
               alignItems: "center",
-              paddingHorizontal: 16,
-              paddingVertical: 6,
-              gap: 8,
+              gap: 6,
             }}
           >
             <IconButton
@@ -540,19 +550,19 @@ export function InventoryEditor() {
                 router.canGoBack() ? router.back() : router.replace("/home")
               }
             />
-            <BrandLogo width={60} />
-            <NeonDiyShortcut />
-            <Text
-              accessibilityRole="header"
-              style={{
-                flex: 1,
-                color: colors.ink,
-                fontWeight: "800",
-                fontSize: 18,
-              }}
-            >
-              DIY
-            </Text>
+            <BrandLogo width={48} />
+          </View>
+          <NeonDiyShortcut />
+          <View
+            style={{
+              flex: 1,
+              minWidth: 0,
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "flex-end",
+              gap: 6,
+            }}
+          >
             {cake ? (
               <Button
                 label="New"
@@ -563,8 +573,9 @@ export function InventoryEditor() {
                 onPress={newSketch}
               />
             ) : null}
+            <CustomerBagButton />
           </View>
-        ) : undefined
+        </View>
       }
       back
       right={
@@ -610,7 +621,7 @@ export function InventoryEditor() {
               style={{
                 flex: 1,
                 borderRadius: 19,
-                shadowColor: "#B80068",
+                shadowColor: tokens.color.brandStrong,
                 shadowOpacity: mode === value ? 0.22 : 0,
                 shadowRadius: 10,
                 shadowOffset: { width: 0, height: 4 },
@@ -620,7 +631,7 @@ export function InventoryEditor() {
               <LinearGradient
                 colors={
                   mode === value
-                    ? ["#B80068", "#EC008C"]
+                    ? tokens.gradient.primary
                     : [colors.surfaceRaised, colors.surfaceRaised]
                 }
                 start={{ x: 0, y: 0 }}
@@ -838,7 +849,9 @@ export function InventoryEditor() {
                 <Text
                   style={{ color: colors.ink, fontWeight: "800", fontSize: 22 }}
                 >
-                  Find your flavour story
+                  {customer?.first_name?.trim()
+                    ? `${customer.first_name.trim().split(/\s+/)[0]}, what is your flavour?`
+                    : "Choose your favourite flavour"}
                 </Text>
                 {!cakes.isPending && !cakes.isError ? (
                   <Text

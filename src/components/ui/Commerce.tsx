@@ -1,3 +1,4 @@
+import { CakeCityLoader as ActivityIndicator } from "@/components/ui/CakeCityLoader";
 import { BrandLogo } from "@/components/BrandLogo";
 import { NeonDiyShortcut } from "@/components/storefront/NeonDiyShortcut";
 import {
@@ -19,7 +20,6 @@ import {
   useState,
 } from "react";
 import {
-  ActivityIndicator,
   AccessibilityInfo,
   Animated,
   KeyboardAvoidingView,
@@ -227,6 +227,11 @@ export function BagButton() {
     />
   );
 }
+/** Customer essentials never appear in department-only workspaces. */
+export function CustomerBagButton() {
+  const { customer } = useAuth();
+  return customer?.role === "customer" ? <BagButton /> : null;
+}
 /**
  * Persistent browsing chrome for the catalogue surfaces. It intentionally
  * lives outside each screen's scrolling list: the search affordance and bag
@@ -238,10 +243,12 @@ export function CommerceBrowseHeader({
   brand,
   children,
   right,
+  suggestions,
 }: {
   brand: ReactNode;
   children: ReactNode;
   right?: ReactNode;
+  suggestions?: ReactNode;
 }) {
   const browseHeader = useThemedStyles(browseHeaderStyles);
   const { colors } = useTheme();
@@ -256,6 +263,7 @@ export function CommerceBrowseHeader({
         <View style={{ flex: 1, minWidth: 0 }}>{children}</View>
         {right ? <BagButton /> : null}
       </View>
+      {suggestions}
     </View>
   );
 }
@@ -384,6 +392,7 @@ export function Screen({
             >
               <NeonDiyShortcut />
               {right === undefined ? null : right}
+              <CustomerBagButton />
             </View>
           </View>
         )}
@@ -556,7 +565,7 @@ export function Feedback({
         accessibilityLabel="Loading Cake City"
         style={[ui.panel, { minHeight: 140, justifyContent: "center" }]}
       >
-        <ActivityIndicator color={colors.brandStrong} />
+        <ActivityIndicator color={colors.brandStrong} size="large" />
         <Text style={[ui.body, { textAlign: "center" }]}>Just a moment…</Text>
       </View>
     );

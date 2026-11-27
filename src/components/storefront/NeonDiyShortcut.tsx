@@ -1,3 +1,4 @@
+import { tokens } from "@/theme/tokens";
 import { useEffect, useRef } from "react";
 import { Animated, Pressable, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -70,11 +71,33 @@ export function NeonDiyShortcut() {
         ]}
       />
       <LinearGradient
-        colors={["#3C1036", "#681047", "#3C1036"]}
+        colors={tokens.gradient.primary}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
         style={styles.face}
       >
-        <View style={styles.shine} />
-        <Ionicons name="sparkles" size={11} color="#FFB9E9" />
+        <LinearGradient
+          colors={["rgba(255,255,255,0.12)", "rgba(255,255,255,0)"]}
+          style={styles.glass}
+        />
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.sheen,
+            {
+              transform: [
+                {
+                  translateX: glow.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [-64, 64],
+                  }),
+                },
+                { rotate: "-20deg" },
+              ],
+            },
+          ]}
+        />
+        <Ionicons name="sparkles" size={11} color={tokens.color.surfaceTint} />
         <Text style={styles.label}>DIY</Text>
       </LinearGradient>
     </Pressable>
@@ -83,7 +106,7 @@ export function NeonDiyShortcut() {
 
 const styles = StyleSheet.create({
   button: {
-    width: 52,
+    width: 56,
     height: 44,
     flexShrink: 0,
     justifyContent: "center",
@@ -93,39 +116,45 @@ const styles = StyleSheet.create({
     position: "absolute",
     inset: 2,
     borderRadius: 16,
-    backgroundColor: "#FF29B5",
-    shadowColor: "#FF00A8",
-    shadowOpacity: 0.8,
-    shadowRadius: 12,
+    backgroundColor: tokens.color.brand,
+    shadowColor: tokens.color.brand,
+    shadowOpacity: 0.65,
+    shadowRadius: 10,
     shadowOffset: { width: 0, height: 0 },
     elevation: 5,
   },
   face: {
-    width: 50,
-    height: 38,
-    borderRadius: 13,
-    borderWidth: 1.5,
-    borderColor: "#FF70D2",
+    width: 56,
+    height: 44,
+    borderRadius: 15,
+    borderWidth: 0,
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
     gap: 3,
     overflow: "hidden",
   },
-  shine: {
+  glass: {
     position: "absolute",
-    top: 0,
-    left: 4,
-    right: 4,
-    height: 1,
-    backgroundColor: "#FFD3F3",
+    left: 1,
+    right: 1,
+    top: 1,
+    height: 20,
+    borderRadius: 13,
+  },
+  sheen: {
+    position: "absolute",
+    width: 13,
+    height: 70,
+    top: -15,
+    backgroundColor: "rgba(255,255,255,0.12)",
   },
   label: {
-    color: "#FFE4F8",
-    fontSize: 13,
+    color: tokens.color.white,
+    fontSize: 15,
     fontWeight: "900",
     letterSpacing: 0.6,
-    textShadowColor: "#FF39BD",
+    textShadowColor: tokens.color.brand,
     textShadowRadius: 7,
     textShadowOffset: { width: 0, height: 0 },
   },

@@ -1,3 +1,4 @@
+import { CakeCityLoader as ActivityIndicator } from "@/components/ui/CakeCityLoader";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import {
@@ -13,13 +14,7 @@ import {
   type PropsWithChildren,
   type RefObject,
 } from "react";
-import {
-  AccessibilityInfo,
-  ActivityIndicator,
-  Platform,
-  StyleSheet,
-  View,
-} from "react-native";
+import { AccessibilityInfo, Platform, StyleSheet, View } from "react-native";
 import { Text } from "@/components/ui/Typography";
 import type { StyleProp, ViewInstance, ViewStyle } from "react-native";
 

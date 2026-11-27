@@ -331,7 +331,7 @@ export function FloatingTabBar() {
                         <Ionicons
                           name="sparkles"
                           size={9}
-                          color={focused ? "#FFFFFF" : "#B80068"}
+                          color={focused ? "#FFFFFF" : tokens.color.brandStrong}
                           style={styles.clubSparkle}
                         />
                       </View>
@@ -436,7 +436,7 @@ const baseStyles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     backgroundColor: "rgba(236,0,140,0.10)",
-    shadowColor: "#EC008C",
+    shadowColor: tokens.color.brand,
     shadowOpacity: 0.25,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 0 },

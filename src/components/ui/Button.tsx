@@ -1,5 +1,5 @@
+import { CakeCityLoader as ActivityIndicator } from "@/components/ui/CakeCityLoader";
 import {
-  ActivityIndicator,
   Pressable,
   PressableProps,
   StyleProp,
@@ -83,11 +83,12 @@ export function Button({
     variant === "primary"
       ? { bg: colors.action, border: colors.action, text: colors.onAction }
       : variant === "secondary"
-        ? { bg: colors.surface, border: colors.border, text: colors.ink }
+        ? { bg: colors.surfaceRaised, text: colors.ink }
         : variant === "outline" || variant === "ghost"
           ? {
               ...baseVariant,
-              border: variant === "outline" ? colors.brandStrong : undefined,
+              bg: variant === "outline" ? colors.brandLight : "transparent",
+              border: undefined,
               text: colors.brandStrong,
             }
           : baseVariant;
@@ -125,7 +126,7 @@ export function Button({
         {
           backgroundColor: v.bg,
           borderColor: v.border ?? "transparent",
-          borderWidth: variant === "ghost" ? 0 : 1,
+          borderWidth: 0,
           minHeight: s.height,
           paddingVertical: size === "sm" ? 9 : 12,
           paddingHorizontal: s.paddingH,
@@ -142,7 +143,10 @@ export function Button({
       ]}
     >
       {variant !== "ghost" && variant !== "outline" ? (
-        <GlossSheen strength={variant === "secondary" ? 0.75 : 1} />
+        <GlossSheen
+          highlight={false}
+          strength={variant === "secondary" ? 0.75 : 1}
+        />
       ) : null}
       {loading ? (
         <ActivityIndicator color={v.text} size="small" />
