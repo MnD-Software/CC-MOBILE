@@ -41,14 +41,20 @@ const liquidGlassAvailable =
 
 const GlassPreferences = createContext(false);
 
+export const useReducedTransparency = () => useContext(GlassPreferences);
+
 export function GlassPreferencesProvider({ children }: PropsWithChildren) {
   const [reduceTransparency, setReduceTransparency] = useState(false);
   useEffect(() => {
     if (Platform.OS !== "ios") return;
     let mounted = true;
-    void AccessibilityInfo.isReduceTransparencyEnabled().then((value) => {
-      if (mounted) setReduceTransparency(value);
-    });
+    void AccessibilityInfo.isReduceTransparencyEnabled()
+      .then((value) => {
+        if (mounted) setReduceTransparency(value);
+      })
+      .catch(() => {
+        if (mounted) setReduceTransparency(true);
+      });
     const listener = AccessibilityInfo.addEventListener(
       "reduceTransparencyChanged",
       setReduceTransparency,
@@ -86,8 +92,8 @@ export function GlassSurface({
     ? themeColor("backgroundColor", tintColor, isDark)
     : undefined;
   const reduceTransparency = useContext(GlassPreferences);
-  const androidFinish =
-    Platform.OS === "android" && !reduceTransparency ? (
+  const surfaceFinish =
+    !reduceTransparency && !highContrast ? (
       <View
         pointerEvents="none"
         accessible={false}
@@ -110,19 +116,6 @@ export function GlassSurface({
           }
           locations={[0, 0.45, 1]}
           style={StyleSheet.absoluteFill}
-        />
-        <View
-          style={{
-            position: "absolute",
-            top: 1,
-            left: "10%",
-            right: "10%",
-            height: 1,
-            backgroundColor: isDark
-              ? "rgba(255,255,255,0.3)"
-              : "rgba(255,255,255,0.95)",
-            borderRadius: 1,
-          }}
         />
       </View>
     ) : null;
@@ -171,7 +164,7 @@ export function GlassSurface({
           { backgroundColor: resolvedTint ?? colors.surface },
         ]}
       >
-        {androidFinish}
+        {surfaceFinish}
         {children}
       </View>
     );
@@ -199,7 +192,7 @@ export function GlassSurface({
         isDark ? "systemUltraThinMaterialDark" : "systemUltraThinMaterialLight"
       }
     >
-      {androidFinish}
+      {surfaceFinish}
       {children}
     </BlurView>
   );

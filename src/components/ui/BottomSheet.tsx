@@ -1,3 +1,4 @@
+import { GlossSheen } from "./GlossSheen";
 import { Ionicons } from "@expo/vector-icons";
 import {
   createContext,
@@ -117,6 +118,7 @@ export function BottomSheet({
               ],
             }}
           >
+            <GlossSheen highlight={false} strength={0.35} />
             <View
               style={{
                 alignSelf: "center",

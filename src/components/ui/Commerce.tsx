@@ -1,3 +1,4 @@
+import { ToastMessage } from "./ToastMessage";
 import { CakeCityLoader as ActivityIndicator } from "@/components/ui/CakeCityLoader";
 import { BrandLogo } from "@/components/BrandLogo";
 import { NeonDiyShortcut } from "@/components/storefront/NeonDiyShortcut";
@@ -345,6 +346,7 @@ export function Screen({
             style={[
               ui.spread,
               {
+                flexWrap: narrow ? "wrap" : "nowrap",
                 paddingHorizontal: 16,
                 paddingTop: 10,
                 paddingBottom: 14,
@@ -365,7 +367,7 @@ export function Screen({
             ) : null}
             <View style={{ flex: 1, gap: 7 }}>
               <BrandLogo width={84} />
-              {title ? (
+              {title && !narrow ? (
                 <Text
                   accessibilityRole="header"
                   style={[
@@ -376,7 +378,7 @@ export function Screen({
                   {title}
                 </Text>
               ) : null}
-              {subtitle ? (
+              {subtitle && !narrow ? (
                 <Text style={[themed.body, { marginTop: 3 }]}>{subtitle}</Text>
               ) : null}
             </View>
@@ -394,6 +396,19 @@ export function Screen({
               {right === undefined ? null : right}
               <CustomerBagButton />
             </View>
+            {narrow && (title || subtitle) ? (
+              <View style={{ width: "100%", gap: 5 }}>
+                {title ? (
+                  <Text
+                    accessibilityRole="header"
+                    style={[themed.title, { fontSize: 23, lineHeight: 29 }]}
+                  >
+                    {title}
+                  </Text>
+                ) : null}
+                {subtitle ? <Text style={themed.body}>{subtitle}</Text> : null}
+              </View>
+            ) : null}
           </View>
         )}
         {scroll ? (
@@ -1041,32 +1056,7 @@ export function ToastProvider({ children }: PropsWithChildren) {
       }}
     >
       {children}
-      {message ? (
-        <View
-          accessibilityLiveRegion="polite"
-          pointerEvents="none"
-          style={{
-            position: "absolute",
-            bottom: 100,
-            left: 22,
-            right: 22,
-            padding: 16,
-            backgroundColor: tokens.color.cocoa,
-            borderRadius: 14,
-          }}
-        >
-          <Text
-            style={{
-              color: "white",
-              fontSize: 14,
-              lineHeight: 20,
-              fontWeight: "600",
-            }}
-          >
-            {message}
-          </Text>
-        </View>
-      ) : null}
+      {message ? <ToastMessage message={message} /> : null}
     </ToastContext.Provider>
   );
 }

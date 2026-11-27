@@ -1,3 +1,6 @@
+import { NotificationCard } from "@/components/ui/NotificationCard";
+import { GlossSheen } from "@/components/ui/GlossSheen";
+import { tokens } from "@/theme/tokens";
 import { useState } from "react";
 import { Linking, Platform, View } from "react-native";
 import { router } from "expo-router";
@@ -99,9 +102,15 @@ export function NotificationsScreen() {
       ) : (
         <>
           <LinearGradient
-            colors={["#372337", "#763153"]}
-            style={{ padding: 24, borderRadius: 28, gap: 10 }}
+            colors={tokens.gradient.hero}
+            style={{
+              padding: 24,
+              borderRadius: 28,
+              gap: 10,
+              overflow: "hidden",
+            }}
           >
+            <GlossSheen highlight={false} strength={0.45} />
             <Ionicons name="notifications-outline" size={29} color="#F7D7E7" />
             <Text style={{ color: "white", fontSize: 26, fontWeight: "800" }}>
               Little updates. Lovely moments.
@@ -187,8 +196,6 @@ export function NotificationsScreen() {
                 />
               ) : null}
             </View>
-            {error ? <Notice error message={error} /> : null}
-            {message ? <Notice message={message} /> : null}
             {Platform.OS !== "web" ? (
               <Button
                 variant="outline"
@@ -208,6 +215,8 @@ export function NotificationsScreen() {
               />
             ) : null}
           </Disclosure>
+          {error ? <Notice error message={error} /> : null}
+          {message ? <Notice message={message} /> : null}
           <Button
             variant="ghost"
             label="Refresh notifications"
@@ -224,98 +233,30 @@ export function NotificationsScreen() {
             <Notice message="No updates yet. Your next order's progress will appear here." />
           ) : (
             items.map((item) => (
-              <View
+              <NotificationCard
                 key={item.id}
-                testID={`notification-${item.id}`}
-                style={{
-                  padding: 18,
-                  gap: 9,
-                  borderRadius: 20,
-                  backgroundColor: colors.surface,
-                  borderWidth: 1,
-                  borderColor: item.read_at ? colors.border : colors.brandLight,
-                  borderLeftWidth: item.read_at ? 1 : 4,
-                  borderLeftColor: item.read_at
-                    ? colors.border
-                    : colors.brandStrong,
-                }}
-              >
-                <View
-                  style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
-                >
-                  <Ionicons
-                    name={
-                      String(item.data.kind || "").includes("delivered")
-                        ? "checkmark-circle-outline"
-                        : "gift-outline"
-                    }
-                    color={colors.brandStrong}
-                    size={20}
-                  />
-                  <Text
-                    style={{
-                      color: colors.muted,
-                      fontSize: 10,
-                      fontWeight: "800",
-                      letterSpacing: 1,
-                    }}
-                  >
-                    {item.read_at ? "YOUR UPDATE" : "JUST FOR YOU"}
-                  </Text>
-                </View>
-                <Text
-                  style={{ color: colors.ink, fontWeight: "800", fontSize: 17 }}
-                >
-                  {item.read_at ? "" : "• "}
-                  {item.title}
-                </Text>
-                <Text style={{ color: colors.muted, lineHeight: 21 }}>
-                  {item.body}
-                </Text>
-                {typeof item.data.reference === "string" ? (
-                  <Text
-                    selectable
-                    style={{
-                      color: colors.muted,
-                      fontSize: 12,
-                      lineHeight: 18,
-                    }}
-                  >
-                    Order {item.data.reference}
-                  </Text>
-                ) : null}
-                <Text style={{ color: colors.muted, fontSize: 12 }}>
-                  {new Date(item.created_at).toLocaleString()}
-                </Text>
-                <Button
-                  variant="outline"
-                  label={
-                    item.data.workspace === "rider"
-                      ? "Open rider workspace"
-                      : "View order"
-                  }
-                  disabled={busy}
-                  onPress={() =>
-                    void perform(async () => {
-                      const path = notificationRoute(item.data);
-                      if (!path)
-                        throw new Error(
-                          "This update has no order link. Contact support for help.",
-                        );
-                      await api.post(
-                        `/v1/account/notifications/${encodeURIComponent(item.id)}/read`,
-                        {},
-                        { auth: true },
+                item={item}
+                disabled={busy}
+                onPress={() =>
+                  void perform(async () => {
+                    const path = notificationRoute(item.data);
+                    if (!path)
+                      throw new Error(
+                        "This update has no order link. Contact support for help.",
                       );
-                      await cache.invalidateQueries({ queryKey: key });
-                      await cache.invalidateQueries({
-                        queryKey: ["order-updates"],
-                      });
-                      router.push(path);
-                    }, "")
-                  }
-                />
-              </View>
+                    await api.post(
+                      `/v1/account/notifications/${encodeURIComponent(item.id)}/read`,
+                      {},
+                      { auth: true },
+                    );
+                    await cache.invalidateQueries({ queryKey: key });
+                    await cache.invalidateQueries({
+                      queryKey: ["order-updates"],
+                    });
+                    router.push(path);
+                  }, "")
+                }
+              />
             ))
           )}
           {inbox.hasNextPage ? (

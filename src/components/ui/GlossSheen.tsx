@@ -1,3 +1,5 @@
+import { useReducedTransparency } from "@/components/storefront/GlassSurface";
+import { useTheme } from "@/theme/ThemeProvider";
 import { StyleSheet, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 
@@ -13,8 +15,11 @@ export function GlossSheen({
   strength?: number;
   highlight?: boolean;
 }) {
+  const { isDark, highContrast } = useTheme();
+  const reducedTransparency = useReducedTransparency();
+  if (highContrast || reducedTransparency) return null;
   const a = (value: number) =>
-    `rgba(255,255,255,${Math.max(0, Math.min(1, value * strength)).toFixed(3)})`;
+    `rgba(255,255,255,${Math.max(0, Math.min(1, value * strength * (isDark ? 0.5 : 1))).toFixed(3)})`;
   return (
     <View
       pointerEvents="none"
@@ -23,8 +28,8 @@ export function GlossSheen({
       style={StyleSheet.absoluteFill}
     >
       <LinearGradient
-        colors={[a(0.42), a(0.12), a(0), a(0.08)]}
-        locations={[0, 0.48, 0.52, 1]}
+        colors={[a(0.3), a(0.1), a(0), a(0.06)]}
+        locations={[0, 0.35, 0.7, 1]}
         style={StyleSheet.absoluteFill}
       />
       {highlight ? (
